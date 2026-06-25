@@ -107,13 +107,10 @@ class _AuthScreenState extends State<AuthScreen> {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const Text(
-                          'G',
-                          style: TextStyle(
-                            fontSize: 26,
-                            fontWeight: FontWeight.w900,
-                            color: Color(0xFF4285F4), // Azul oficial de Google
-                          ),
+                        Image.asset(
+                          'assets/images/google_logo.png',
+                          width: 26,
+                          height: 26,
                         ),
                         const SizedBox(width: 14),
                         const Text(
