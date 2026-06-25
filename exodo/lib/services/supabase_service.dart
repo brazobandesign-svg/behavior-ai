@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/models.dart';
 
@@ -14,7 +15,6 @@ class SupabaseService {
   }
 
   static SupabaseClient get client => Supabase.instance.client;
-
   static User? get currentUser => client.auth.currentUser;
 
   // Autenticación por email/password
@@ -36,7 +36,10 @@ class SupabaseService {
   }
 
   static Future<bool> signInWithGoogle() async {
-    return await client.auth.signInWithOAuth(OAuthProvider.google);
+    return await client.auth.signInWithOAuth(
+      OAuthProvider.google,
+      redirectTo: kIsWeb ? null : 'io.supabase.exodo://login-callback',
+    );
   }
 
   // Perfil del usuario con auto-creación y fallback resiliente
