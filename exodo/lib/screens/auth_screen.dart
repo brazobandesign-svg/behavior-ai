@@ -189,7 +189,7 @@ class _TabBtn extends StatelessWidget {
   final bool active;
   final VoidCallback onTap;
 
-  const _TabBtn({required: this.title, required: this.active, required: this.onTap});
+  const _TabBtn({required this.title, required this.active, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
