@@ -3,6 +3,9 @@
 -- Bible sección 07 — Ejecutar en el SQL Editor de Supabase
 -- ═══════════════════════════════════════════════════════════
 
+-- Habilitar pgvector para RAG dominicano
+create extension if not exists vector with schema public;
+
 -- PROFILES: extiende auth.users de Supabase Auth
 create table profiles (
   id            uuid references auth.users primary key,
