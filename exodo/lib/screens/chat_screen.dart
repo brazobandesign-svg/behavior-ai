@@ -323,7 +323,7 @@ class _ModelSelectorSheet extends StatelessWidget {
         children: [
           Text('Modelos Éxodo', style: Theme.of(context).textTheme.titleLarge),
           const SizedBox(height: 16),
-          ...EXODO_MODELS.map((m) {
+          ...exodoModels.map((m) {
             final active = state.selectedModel.id == m.id;
             return ListTile(
               onTap: () {

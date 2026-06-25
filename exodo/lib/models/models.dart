@@ -111,20 +111,13 @@ class ExodoModelOption {
   });
 }
 
-const List<ExodoModelOption> EXODO_MODELS = [
+const List<ExodoModelOption> exodoModels = [
   ExodoModelOption(
-    id: 'origon',
+    id: 'origo',
     title: 'G1.1',
-    subtitle: 'Origon',
+    subtitle: 'Origo',
     plan: 'genesis',
     description: 'Modelo veloz e inteligente para tareas diarias. Siempre disponible gratis.',
-  ),
-  ExodoModelOption(
-    id: 'lux',
-    title: 'G1.3',
-    subtitle: 'Lux',
-    plan: 'hazak',
-    description: 'Razonamiento profundo y redacción experta con contexto latino.',
   ),
   ExodoModelOption(
     id: 'ehyeh',
@@ -132,12 +125,5 @@ const List<ExodoModelOption> EXODO_MODELS = [
     subtitle: 'Ehyeh',
     plan: 'hazak',
     description: 'Búsqueda documental avanzada y currículo MINERD dominicano.',
-  ),
-  ExodoModelOption(
-    id: 'hazak',
-    title: 'J1.9',
-    subtitle: 'Hazak',
-    plan: 'hazak',
-    description: 'Máximo poder cognitivo de Éxodo con generación de imágenes e ideas.',
   ),
 ];

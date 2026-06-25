@@ -11,7 +11,7 @@ class AppState extends ChangeNotifier {
   List<ChatMessage> currentMessages = [];
   
   bool isIncognito = false;
-  ExodoModelOption selectedModel = EXODO_MODELS[0]; // Origon (G1.1)
+  ExodoModelOption selectedModel = exodoModels[0]; // Origo (G1.1)
   
   int tokensUsed = 0;
   int tokensLimit = 15000;
