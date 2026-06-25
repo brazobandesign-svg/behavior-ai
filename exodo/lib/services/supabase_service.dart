@@ -39,14 +39,33 @@ class SupabaseService {
     return await client.auth.signInWithOAuth(OAuthProvider.google);
   }
 
-  // Perfil del usuario
+  // Perfil del usuario con auto-creación y fallback resiliente
   static Future<UserProfile?> getProfile() async {
     final user = currentUser;
     if (user == null) return null;
 
-    final res = await client.from('profiles').select().eq('id', user.id).maybeSingle();
-    if (res == null) return null;
-    return UserProfile.fromJson(res);
+    final defaultFullName = user.userMetadata?['full_name']?.toString() ?? user.email?.split('@')[0] ?? 'Usuario Éxodo';
+
+    try {
+      final res = await client.from('profiles').select().eq('id', user.id).maybeSingle();
+      if (res == null) {
+        final newProfile = {
+          'id': user.id,
+          'full_name': defaultFullName,
+          'plan': 'genesis',
+        };
+        await client.from('profiles').upsert(newProfile);
+        return UserProfile.fromJson(newProfile);
+      }
+      return UserProfile.fromJson(res);
+    } catch (e) {
+      // Fallback si RLS o red falla temporalmente
+      return UserProfile(
+        id: user.id,
+        fullName: defaultFullName,
+        plan: 'genesis',
+      );
+    }
   }
 
   static Future<void> saveOnboarding(Map<String, dynamic> onboardingData) async {
