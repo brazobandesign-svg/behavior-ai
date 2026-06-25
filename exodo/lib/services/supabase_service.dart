@@ -35,6 +35,10 @@ class SupabaseService {
     await client.auth.signOut();
   }
 
+  static Future<bool> signInWithGoogle() async {
+    return await client.auth.signInWithOAuth(OAuthProvider.google);
+  }
+
   // Perfil del usuario
   static Future<UserProfile?> getProfile() async {
     final user = currentUser;

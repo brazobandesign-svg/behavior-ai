@@ -57,9 +57,7 @@ class _AuthScreenState extends State<AuthScreen> {
                 const Icon(Icons.blur_on, size: 64, color: ExodoColors.amber),
                 const SizedBox(height: 16),
                 Text('Éxodo by Behavior', style: Theme.of(context).textTheme.headlineLarge),
-                const SizedBox(height: 8),
-                Text('Inteligencia artificial con alma latina', style: Theme.of(context).textTheme.bodyMedium),
-                const SizedBox(height: 40),
+                const SizedBox(height: 32),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
@@ -88,6 +86,33 @@ class _AuthScreenState extends State<AuthScreen> {
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(27)),
                     ),
                     child: isLoading ? const CircularProgressIndicator(color: ExodoColors.background) : Text(isLogin ? 'Entrar' : 'Registrarse', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                  ),
+                ),
+                const SizedBox(height: 28),
+                Text('O continúa con', style: Theme.of(context).textTheme.bodySmall),
+                const SizedBox(height: 16),
+                InkWell(
+                  onTap: isLoading ? null : () async {
+                    setState(() => isLoading = true);
+                    try {
+                      await SupabaseService.signInWithGoogle();
+                    } catch (e) {
+                      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error Google Auth: $e')));
+                    } finally {
+                      if (mounted) setState(() => isLoading = false);
+                    }
+                  },
+                  borderRadius: BorderRadius.circular(25),
+                  child: Container(
+                    width: 50,
+                    height: 50,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(color: ExodoColors.border),
+                      color: ExodoColors.surface,
+                    ),
+                    child: const Text('G', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: ExodoColors.textPrimary)),
                   ),
                 ),
               ],
