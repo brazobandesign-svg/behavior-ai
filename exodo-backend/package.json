@@ -1,0 +1,25 @@
+{
+  "name": "exodo-backend",
+  "version": "1.0.0",
+  "description": "Éxodo by Behavior — Backend API con intent routing",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js"
+  },
+  "keywords": [
+    "exodo",
+    "behavior",
+    "ai"
+  ],
+  "author": "Behavior AI",
+  "license": "UNLICENSED",
+  "private": true,
+  "type": "commonjs",
+  "dependencies": {
+    "@supabase/supabase-js": "^2.108.2",
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1"
+  }
+}

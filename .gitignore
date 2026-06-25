@@ -1,0 +1,35 @@
+# Dependencies
+node_modules/
+.dart_tool/
+.packages
+
+# Environment (NUNCA en git — Regla #1 de la Bible)
+.env
+*.env.local
+
+# Build outputs
+build/
+*.apk
+*.aab
+*.ipa
+*.app
+
+# Flutter
+.flutter-plugins
+.flutter-plugins-dependencies
+*.iml
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+crash.log
+crash_check.log
