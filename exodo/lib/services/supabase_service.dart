@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/models.dart';
 
+
 class SupabaseService {
   static const String supabaseUrl = 'https://zyvaakfsnlqlgrjdigkr.supabase.co';
   // Llave pública (anon) extraída de tu panel. Es segura para estar en el APK porque RLS la protege.
@@ -11,6 +12,12 @@ class SupabaseService {
     await Supabase.initialize(
       url: supabaseUrl,
       anonKey: supabaseAnonKey,
+      authOptions: FlutterAuthClientOptions(
+        // Detecta y procesa el ?code= del deep link al arrancar la app
+        detectSessionInUri: true,
+        // PKCE: en móvil usa memoria para guardar el code_verifier
+        pkceAsyncStorage: SharedPreferencesGoTrueAsyncStorage(),
+      ),
     );
   }
 
