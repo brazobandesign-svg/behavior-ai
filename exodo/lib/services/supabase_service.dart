@@ -6,7 +6,7 @@ import '../models/models.dart';
 class SupabaseService {
   static const String supabaseUrl = 'https://zyvaakfsnlqlgrjdigkr.supabase.co';
   // Llave pública (anon) extraída de tu panel. Es segura para estar en el APK porque RLS la protege.
-  static const String supabaseAnonKey = 'sb_publishable_2GO00TNSlCHmvN3_pfODTA__kjjj--';
+  static const String supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp5dmFha2ZzbmxxbGdyamRpZ2tyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI0MDg2MTQsImV4cCI6MjA5Nzk4NDYxNH0.ZPW16OYo-09YEe-ti2DaRSh8Yh9TZEQL6e_23bvGZGU';
 
   static Future<void> initialize() async {
     await Supabase.initialize(
