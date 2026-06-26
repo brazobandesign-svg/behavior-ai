@@ -1,3 +1,4 @@
+import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -6,6 +7,13 @@ import '../models/models.dart';
 import '../services/app_state.dart';
 import '../services/supabase_service.dart';
 import '../theme/exodo_theme.dart';
+
+bool _isDrawerEn(BuildContext context) {
+  try {
+    if (ui.PlatformDispatcher.instance.locale.languageCode == 'en') return true;
+  } catch (_) {}
+  return Localizations.localeOf(context).languageCode == 'en';
+}
 
 class DrawerMenu extends StatefulWidget {
   const DrawerMenu({super.key});
@@ -98,7 +106,7 @@ class _DrawerMenuState extends State<DrawerMenu> {
                 height: 20,
                 color: state.isIncognito ? ExodoColors.amber : textCol,
               ),
-              title: Text('Modo Incógnito', style: GoogleFonts.inter(fontSize: 14, color: state.isIncognito ? ExodoColors.amber : textCol, fontWeight: FontWeight.w500)),
+              title: Text(_isDrawerEn(context) ? 'Incognito mode' : 'Modo Incógnito', style: GoogleFonts.inter(fontSize: 14, color: state.isIncognito ? ExodoColors.amber : textCol, fontWeight: FontWeight.w500)),
               onTap: () {
                 HapticFeedback.vibrate();
                 state.toggleIncognito();
@@ -128,7 +136,7 @@ class _DrawerMenuState extends State<DrawerMenu> {
                               autofocus: true,
                               style: TextStyle(fontSize: 13, color: textCol),
                               decoration: InputDecoration(
-                                hintText: 'Buscar chat...',
+                                hintText: _isDrawerEn(context) ? 'Search chats...' : 'Buscar chat...',
                                 hintStyle: TextStyle(fontSize: 13, color: subTextCol),
                                 border: InputBorder.none,
                                 isDense: true,
@@ -153,7 +161,7 @@ class _DrawerMenuState extends State<DrawerMenu> {
                       dense: true,
                       contentPadding: const EdgeInsets.symmetric(horizontal: 8),
                       leading: Icon(Icons.search_rounded, size: 20, color: textCol),
-                      title: Text('Buscar conversación', style: GoogleFonts.inter(fontSize: 14, color: textCol, fontWeight: FontWeight.w500)),
+                      title: Text(_isDrawerEn(context) ? 'Search chats' : 'Buscar conversación', style: GoogleFonts.inter(fontSize: 14, color: textCol, fontWeight: FontWeight.w500)),
                       onTap: () => setState(() => _isSearching = true),
                     ),
             ),
@@ -167,7 +175,9 @@ class _DrawerMenuState extends State<DrawerMenu> {
               child: filtered.isEmpty
                   ? Center(
                       child: Text(
-                        state.conversations.isEmpty ? 'Sin historial de chats' : 'No se encontraron chats',
+                        state.conversations.isEmpty
+                            ? (_isDrawerEn(context) ? 'No chat history' : 'Sin historial de chats')
+                            : (_isDrawerEn(context) ? 'No chats found' : 'No se encontraron chats'),
                         style: GoogleFonts.inter(fontSize: 12.5, color: subTextCol),
                       ),
                     )
@@ -228,7 +238,7 @@ class _DrawerMenuState extends State<DrawerMenu> {
                         ),
                         const SizedBox(width: 12),
                         Text(
-                          state.profile?.fullName ?? 'Usuario Éxodo',
+                          state.profile?.fullName ?? (_isDrawerEn(context) ? 'Exodo User' : 'Usuario Éxodo'),
                           style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w600, color: textCol),
                         ),
                       ],
@@ -281,6 +291,7 @@ class _DrawerMenuState extends State<DrawerMenu> {
 
   void _showChatContextMenu(BuildContext context, Conversation conv, AppState state, bool isStarred) {
     final isLight = Theme.of(context).brightness == Brightness.light;
+    final isEn = _isDrawerEn(context);
     showModalBottomSheet(
       context: context,
       backgroundColor: isLight ? Colors.white : const Color(0xFF1E1C19),
@@ -294,7 +305,7 @@ class _DrawerMenuState extends State<DrawerMenu> {
             const SizedBox(height: 16),
             ListTile(
               leading: Icon(Icons.edit_outlined, color: isLight ? Colors.black87 : Colors.white),
-              title: Text('Renombrar', style: GoogleFonts.inter(fontSize: 15, color: isLight ? Colors.black : Colors.white, fontWeight: FontWeight.w500)),
+              title: Text(isEn ? 'Rename' : 'Renombrar', style: GoogleFonts.inter(fontSize: 15, color: isLight ? Colors.black : Colors.white, fontWeight: FontWeight.w500)),
               onTap: () {
                 Navigator.pop(ctx);
                 _showRenameDialog(context, conv, state);
@@ -302,7 +313,7 @@ class _DrawerMenuState extends State<DrawerMenu> {
             ),
             ListTile(
               leading: Icon(isStarred ? Icons.push_pin : Icons.push_pin_outlined, color: isLight ? Colors.black87 : Colors.white),
-              title: Text(isStarred ? 'Desfijar' : 'Fijar', style: GoogleFonts.inter(fontSize: 15, color: isLight ? Colors.black : Colors.white, fontWeight: FontWeight.w500)),
+              title: Text(isEn ? (isStarred ? 'Unpin' : 'Pin') : (isStarred ? 'Desfijar' : 'Fijar'), style: GoogleFonts.inter(fontSize: 15, color: isLight ? Colors.black : Colors.white, fontWeight: FontWeight.w500)),
               onTap: () {
                 Navigator.pop(ctx);
                 setState(() {
@@ -315,8 +326,8 @@ class _DrawerMenuState extends State<DrawerMenu> {
               },
             ),
             ListTile(
-              leading: Icon(Icons.delete_outline, color: Colors.redAccent),
-              title: Text('Borrar', style: GoogleFonts.inter(fontSize: 15, color: Colors.redAccent, fontWeight: FontWeight.w500)),
+              leading: const Icon(Icons.delete_outline, color: Colors.redAccent),
+              title: Text(isEn ? 'Delete' : 'Borrar', style: GoogleFonts.inter(fontSize: 15, color: Colors.redAccent, fontWeight: FontWeight.w500)),
               onTap: () async {
                 Navigator.pop(ctx);
                 await SupabaseService.deleteConversation(conv.id);
@@ -334,18 +345,19 @@ class _DrawerMenuState extends State<DrawerMenu> {
   void _showRenameDialog(BuildContext context, Conversation conv, AppState state) {
     final ctrl = TextEditingController(text: conv.title);
     final isLight = Theme.of(context).brightness == Brightness.light;
+    final isEn = _isDrawerEn(context);
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: isLight ? Colors.white : const Color(0xFF1E1C19),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text('Renombrar chat', style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.bold, color: isLight ? Colors.black : Colors.white)),
+        title: Text(isEn ? 'Rename chat' : 'Renombrar chat', style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.bold, color: isLight ? Colors.black : Colors.white)),
         content: TextField(
           controller: ctrl,
           autofocus: true,
           style: TextStyle(color: isLight ? Colors.black : Colors.white),
           decoration: InputDecoration(
-            hintText: 'Título de la conversación',
+            hintText: isEn ? 'Conversation title' : 'Título de la conversación',
             hintStyle: TextStyle(color: isLight ? Colors.black38 : Colors.white38),
             enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: isLight ? Colors.black26 : Colors.white24)),
             focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: isLight ? Colors.black : Colors.white)),
@@ -354,7 +366,7 @@ class _DrawerMenuState extends State<DrawerMenu> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: Text('Cancelar', style: TextStyle(color: isLight ? Colors.black54 : Colors.white54)),
+            child: Text(isEn ? 'Cancel' : 'Cancelar', style: TextStyle(color: isLight ? Colors.black54 : Colors.white54)),
           ),
           TextButton(
             onPressed: () {
@@ -364,7 +376,7 @@ class _DrawerMenuState extends State<DrawerMenu> {
               }
               Navigator.pop(ctx);
             },
-            child: Text('Guardar', style: TextStyle(color: isLight ? Colors.black : Colors.white, fontWeight: FontWeight.bold)),
+            child: Text(isEn ? 'Save' : 'Guardar', style: TextStyle(color: isLight ? Colors.black : Colors.white, fontWeight: FontWeight.bold)),
           ),
         ],
       ),
@@ -454,16 +466,17 @@ class _ClaudeAccountModal {
               const SizedBox(height: 8),
               _buildSettingTile(
                 icon: Icons.privacy_tip_outlined,
-                title: 'Términos y Privacidad',
+                title: _isDrawerEn(context) ? 'Terms & Privacy' : 'Términos y Privacidad',
                 onTap: () {
                   Navigator.pop(ctx);
+                  final isEn = _isDrawerEn(context);
                   showDialog(
                     context: context,
                     builder: (_) => AlertDialog(
                       backgroundColor: const Color(0xFF282521),
-                      title: Text('Legal y Privacidad', style: GoogleFonts.syne(color: Colors.white)),
-                      content: Text('Éxodo AI opera bajo estricto cumplimiento de privacidad de datos e IA generativa.', style: GoogleFonts.inter(color: Colors.white70)),
-                      actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cerrar', style: TextStyle(color: ExodoColors.amber)))],
+                      title: Text(isEn ? 'Legal & Privacy' : 'Legal y Privacidad', style: GoogleFonts.syne(color: Colors.white)),
+                      content: Text(isEn ? 'Exodo AI operates under strict data privacy and generative AI compliance.' : 'Éxodo AI opera bajo estricto cumplimiento de privacidad de datos e IA generativa.', style: GoogleFonts.inter(color: Colors.white70)),
+                      actions: [TextButton(onPressed: () => Navigator.pop(context), child: Text(isEn ? 'Close' : 'Cerrar', style: const TextStyle(color: ExodoColors.amber)))],
                     ),
                   );
                 },
@@ -510,17 +523,18 @@ class _ClaudeAccountModal {
 
   static void _showProfileEditDialog(BuildContext context, AppState state) {
     final nameCtrl = TextEditingController(text: state.profile?.fullName ?? '');
+    final isEn = _isDrawerEn(context);
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: const Color(0xFF221F1C),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Text('Editar Perfil', style: GoogleFonts.syne(color: Colors.white, fontWeight: FontWeight.bold)),
+        title: Text(isEn ? 'Edit Profile' : 'Editar Perfil', style: GoogleFonts.syne(color: Colors.white, fontWeight: FontWeight.bold)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('¿Cómo quieres que te llame la IA?', style: GoogleFonts.inter(fontSize: 13, color: Colors.white70)),
+            Text(isEn ? 'What should AI call you?' : '¿Cómo quieres que te llame la IA?', style: GoogleFonts.inter(fontSize: 13, color: Colors.white70)),
             const SizedBox(height: 10),
             TextField(
               controller: nameCtrl,
@@ -528,7 +542,7 @@ class _ClaudeAccountModal {
               decoration: InputDecoration(
                 filled: true,
                 fillColor: const Color(0xFF161412),
-                hintText: 'Tu nombre o apodo...',
+                hintText: isEn ? 'Your name or nickname...' : 'Tu nombre o apodo...',
                 hintStyle: const TextStyle(color: Colors.white38),
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
               ),
@@ -536,15 +550,15 @@ class _ClaudeAccountModal {
           ],
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancelar', style: TextStyle(color: Colors.white54))),
+          TextButton(onPressed: () => Navigator.pop(ctx), child: Text(isEn ? 'Cancel' : 'Cancelar', style: const TextStyle(color: Colors.white54))),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: ExodoColors.amber, foregroundColor: Colors.black),
             onPressed: () {
               state.updateProfileName(nameCtrl.text.trim());
               Navigator.pop(ctx);
-              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('✅ Nombre actualizado')));
+              ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(isEn ? '✅ Name updated' : '✅ Nombre actualizado')));
             },
-            child: const Text('Guardar'),
+            child: Text(isEn ? 'Save' : 'Guardar'),
           ),
         ],
       ),
@@ -553,6 +567,7 @@ class _ClaudeAccountModal {
 
   static void _showBillingModal(BuildContext context, AppState state) {
     final isPro = state.profile?.plan == 'hazak';
+    final isEn = _isDrawerEn(context);
     showModalBottomSheet(
       context: context,
       backgroundColor: const Color(0xFF1C1A17),
@@ -575,16 +590,16 @@ class _ClaudeAccountModal {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text('Plan actual', style: GoogleFonts.inter(color: Colors.white60, fontSize: 13)),
-                        Text(isPro ? '🌟 Hazak Pro (\$4.99/mes)' : '⚡ Génesis Gratis', style: GoogleFonts.inter(color: ExodoColors.amber, fontWeight: FontWeight.bold)),
+                        Text(isEn ? 'Current plan' : 'Plan actual', style: GoogleFonts.inter(color: Colors.white60, fontSize: 13)),
+                        Text(isPro ? (isEn ? '🌟 Hazak Pro (\$4.99/mo)' : '🌟 Hazak Pro (\$4.99/mes)') : (isEn ? '⚡ Genesis Free' : '⚡ Génesis Gratis'), style: GoogleFonts.inter(color: ExodoColors.amber, fontWeight: FontWeight.bold)),
                       ],
                     ),
                     const SizedBox(height: 10),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text('Pasarela de pago', style: GoogleFonts.inter(color: Colors.white60, fontSize: 13)),
-                        Text(isPro ? 'Stripe / Mobile Pay' : 'Gratuito', style: GoogleFonts.inter(color: Colors.white)),
+                        Text(isEn ? 'Payment gateway' : 'Pasarela de pago', style: GoogleFonts.inter(color: Colors.white60, fontSize: 13)),
+                        Text(isPro ? 'Stripe / Mobile Pay' : (isEn ? 'Free' : 'Gratuito'), style: GoogleFonts.inter(color: Colors.white)),
                       ],
                     ),
                   ],
@@ -599,9 +614,9 @@ class _ClaudeAccountModal {
                     onPressed: () {
                       state.cancelProPlan();
                       Navigator.pop(ctx);
-                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('ℹ️ Has regresado al plan Génesis Gratis')));
+                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(isEn ? 'ℹ️ Reverted to Genesis Free plan' : 'ℹ️ Has regresado al plan Génesis Gratis')));
                     },
-                    child: Text('Cancelar suscripción', style: GoogleFonts.inter(color: const Color(0xFFE57373), fontWeight: FontWeight.bold)),
+                    child: Text(isEn ? 'Cancel subscription' : 'Cancelar suscripción', style: GoogleFonts.inter(color: const Color(0xFFE57373), fontWeight: FontWeight.bold)),
                   ),
                 )
               else
@@ -610,7 +625,7 @@ class _ClaudeAccountModal {
                   child: ElevatedButton(
                     style: ElevatedButton.styleFrom(backgroundColor: ExodoColors.amber, foregroundColor: Colors.black, padding: const EdgeInsets.symmetric(vertical: 14)),
                     onPressed: () => Navigator.pop(ctx),
-                    child: Text('Mejorar a XPi Ehyeh Pro', style: GoogleFonts.inter(fontWeight: FontWeight.bold)),
+                    child: Text(isEn ? 'Upgrade to XPi Ehyeh Pro' : 'Mejorar a XPi Ehyeh Pro', style: GoogleFonts.inter(fontWeight: FontWeight.bold)),
                   ),
                 ),
             ],

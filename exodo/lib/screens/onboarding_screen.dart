@@ -1,8 +1,16 @@
+import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/supabase_service.dart';
 import '../services/app_state.dart';
 import '../theme/exodo_theme.dart';
+
+bool _isOnbEn(BuildContext context) {
+  try {
+    if (ui.PlatformDispatcher.instance.locale.languageCode == 'en') return true;
+  } catch (_) {}
+  return Localizations.localeOf(context).languageCode == 'en';
+}
 
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({super.key});
@@ -15,21 +23,21 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   String? selectedRole;
   bool isSaving = false;
 
-  final List<Map<String, String>> roles = [
+  List<Map<String, String>> _getRoles(bool isEn) => [
     {
       'id': 'docente',
-      'title': '📚 Docente / Educación',
-      'desc': 'Especializado en el currículo del MINERD, planes de unidad, exámenes y didáctica dominicana.',
+      'title': isEn ? '📚 Teacher / Education' : '📚 Docente / Educación',
+      'desc': isEn ? 'Specialized in Dominican MINERD curriculum, lesson plans, exams, and pedagogy.' : 'Especializado en el currículo del MINERD, planes de unidad, exámenes y didáctica dominicana.',
     },
     {
       'id': 'abogado',
-      'title': '⚖️ Legal / Jurisprudencia',
-      'desc': 'Conocimiento profundo de códigos dominicanos, redacción de instancias, contratos y sentencias.',
+      'title': isEn ? '⚖️ Legal / Jurisprudence' : '⚖️ Legal / Jurisprudencia',
+      'desc': isEn ? 'Deep knowledge of Dominican codes, legal motions, contracts, and court rulings.' : 'Conocimiento profundo de códigos dominicanos, redacción de instancias, contratos y sentencias.',
     },
     {
       'id': 'general',
-      'title': '⚡ General / Profesional',
-      'desc': 'Asistente veloz para redacción comercial, programación, creatividad y razonamiento diario.',
+      'title': isEn ? '⚡ General / Professional' : '⚡ General / Profesional',
+      'desc': isEn ? 'Fast assistant for business writing, programming, creativity, and daily reasoning.' : 'Asistente veloz para redacción comercial, programación, creatividad y razonamiento diario.',
     },
   ];
 
@@ -46,7 +54,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         await context.read<AppState>().loadUserData();
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error guardando: $e')));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
     } finally {
       if (mounted) setState(() => isSaving = false);
     }
@@ -54,6 +62,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isEn = _isOnbEn(context);
+    final roles = _getRoles(isEn);
+
     return Scaffold(
       body: SafeArea(
         child: Padding(
@@ -68,12 +79,12 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               ),
               const SizedBox(height: 12),
               Text(
-                '¿Cuál es tu enfoque principal?',
+                isEn ? 'What is your main focus?' : '¿Cuál es tu enfoque principal?',
                 style: Theme.of(context).textTheme.displayMedium,
               ),
               const SizedBox(height: 8),
               Text(
-                'Seleccionando tu perfil, Éxodo adapta su razonamiento y base documental a tu profesión.',
+                isEn ? 'By selecting your profile, Exodo adapts its reasoning and knowledge base to your profession.' : 'Seleccionando tu perfil, Éxodo adapta su razonamiento y base documental a tu profesión.',
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: ExodoColors.textSecondary),
               ),
               const SizedBox(height: 32),
@@ -136,7 +147,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                   ),
                   child: isSaving
                       ? const CircularProgressIndicator(color: ExodoColors.background)
-                      : const Text('Continuar a Éxodo', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                      : Text(isEn ? 'Continue to Exodo' : 'Continuar a Éxodo', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                 ),
               ),
             ],

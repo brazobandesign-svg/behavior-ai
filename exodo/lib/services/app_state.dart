@@ -1,9 +1,19 @@
+import 'dart:convert';
+import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/models.dart';
 import 'supabase_service.dart';
 import 'chat_service.dart';
+
+bool _isStateEn() {
+  try {
+    if (ui.PlatformDispatcher.instance.locale.languageCode == 'en') return true;
+  } catch (_) {}
+  return false;
+}
 
 class AppState extends ChangeNotifier {
   UserProfile? profile;
@@ -15,6 +25,7 @@ class AppState extends ChangeNotifier {
   bool showTab2Banner = true;
   bool isDarkMode = true;
   ExodoModelOption selectedModel = exodoModels[0]; // Origo (G1.1)
+  double? currentTempC;
   
   int tokensUsed = 0;
   int tokensLimit = 15000;
@@ -25,6 +36,18 @@ class AppState extends ChangeNotifier {
 
   AppState() {
     _init();
+    _fetchWeather();
+  }
+
+  Future<void> _fetchWeather() async {
+    try {
+      final res = await http.get(Uri.parse('https://api.open-meteo.com/v1/forecast?latitude=18.4861&longitude=-69.9312&current=temperature_2m'));
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body);
+        currentTempC = data['current']['temperature_2m'] as double?;
+        notifyListeners();
+      }
+    } catch (_) {}
   }
 
   Future<void> _init() async {
@@ -264,7 +287,7 @@ class AppState extends ChangeNotifier {
         id: 'error',
         conversationId: activeConversation?.id ?? 'incognito',
         role: 'assistant',
-        content: '⚠️ **Error de red o plan**: $errorMessage',
+        content: _isStateEn() ? '⚠️ **Network or plan error**: $errorMessage' : '⚠️ **Error de red o plan**: $errorMessage',
         createdAt: DateTime.now(),
       ));
     }

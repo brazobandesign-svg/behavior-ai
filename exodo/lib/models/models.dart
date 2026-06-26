@@ -104,6 +104,7 @@ class ExodoModelOption {
   final String subtitle; // 'Origon', 'Lux', 'Ehyeh', 'Hazak'
   final String plan; // 'genesis' | 'hazak'
   final String description;
+  final String descriptionEn;
 
   const ExodoModelOption({
     required this.id,
@@ -111,6 +112,7 @@ class ExodoModelOption {
     required this.subtitle,
     required this.plan,
     required this.description,
+    required this.descriptionEn,
   });
 }
 
@@ -121,6 +123,7 @@ const List<ExodoModelOption> exodoModels = [
     subtitle: 'Origo',
     plan: 'genesis',
     description: 'Modelo capaz para tareas diarias.',
+    descriptionEn: 'Capable model for everyday tasks.',
   ),
   ExodoModelOption(
     id: 'ehyeh',
@@ -128,5 +131,6 @@ const List<ExodoModelOption> exodoModels = [
     subtitle: 'Ehyeh',
     plan: 'hazak',
     description: 'Razonamiento avanzado para tareas exigentes.',
+    descriptionEn: 'Advanced reasoning for demanding tasks.',
   ),
 ];

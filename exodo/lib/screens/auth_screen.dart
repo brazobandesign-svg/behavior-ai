@@ -1,8 +1,16 @@
+import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/supabase_service.dart';
 import '../services/app_state.dart';
 import '../theme/exodo_theme.dart';
+
+bool _isAuthEn(BuildContext context) {
+  try {
+    if (ui.PlatformDispatcher.instance.locale.languageCode == 'en') return true;
+  } catch (_) {}
+  return Localizations.localeOf(context).languageCode == 'en';
+}
 
 class AuthScreen extends StatefulWidget {
   const AuthScreen({super.key});
@@ -23,9 +31,10 @@ class _AuthScreenState extends State<AuthScreen> {
     final email = _emailCtrl.text.trim();
     final pass = _passCtrl.text.trim();
     final name = _nameCtrl.text.trim();
+    final isEn = _isAuthEn(context);
 
     if (email.isEmpty || pass.isEmpty || (!isLogin && name.isEmpty)) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Por favor llena todos los campos')));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(isEn ? 'Please fill all fields' : 'Por favor llena todos los campos')));
       return;
     }
 
@@ -39,11 +48,13 @@ class _AuthScreenState extends State<AuthScreen> {
         if (res.session == null) {
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
+              SnackBar(
                 backgroundColor: ExodoColors.amber,
                 content: Text(
-                  '📬 Cuenta creada. Si Supabase pide confirmación, revisa tu correo. Si no, ya puedes iniciar sesión.',
-                  style: TextStyle(color: Colors.black87, fontWeight: FontWeight.bold),
+                  isEn
+                      ? '📬 Account created. Check your email for confirmation if required.'
+                      : '📬 Cuenta creada. Si Supabase pide confirmación, revisa tu correo. Si no, ya puedes iniciar sesión.',
+                  style: const TextStyle(color: Colors.black87, fontWeight: FontWeight.bold),
                 ),
               ),
             );
@@ -113,9 +124,9 @@ class _AuthScreenState extends State<AuthScreen> {
                           height: 26,
                         ),
                         const SizedBox(width: 14),
-                        const Text(
-                          'Continuar con Google',
-                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, letterSpacing: 0.2),
+                        Text(
+                          _isAuthEn(context) ? 'Continue with Google' : 'Continuar con Google',
+                          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, letterSpacing: 0.2),
                         ),
                       ],
                     ),
@@ -130,7 +141,7 @@ class _AuthScreenState extends State<AuthScreen> {
                     Expanded(child: Divider(color: ExodoColors.border)),
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: Text('o con correo electrónico', style: Theme.of(context).textTheme.bodySmall),
+                      child: Text(_isAuthEn(context) ? 'or with email' : 'o con correo electrónico', style: Theme.of(context).textTheme.bodySmall),
                     ),
                     Expanded(child: Divider(color: ExodoColors.border)),
                   ],
@@ -141,20 +152,20 @@ class _AuthScreenState extends State<AuthScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    _TabBtn(title: 'Iniciar Sesión', active: isLogin, onTap: () => setState(() => isLogin = true)),
+                    _TabBtn(title: _isAuthEn(context) ? 'Sign In' : 'Iniciar Sesión', active: isLogin, onTap: () => setState(() => isLogin = true)),
                     const SizedBox(width: 16),
-                    _TabBtn(title: 'Crear Cuenta', active: !isLogin, onTap: () => setState(() => isLogin = false)),
+                    _TabBtn(title: _isAuthEn(context) ? 'Sign Up' : 'Crear Cuenta', active: !isLogin, onTap: () => setState(() => isLogin = false)),
                   ],
                 ),
                 const SizedBox(height: 24),
 
                 if (!isLogin) ...[
-                  TextField(controller: _nameCtrl, decoration: const InputDecoration(labelText: 'Nombre Completo', prefixIcon: Icon(Icons.person_outline))),
+                  TextField(controller: _nameCtrl, decoration: InputDecoration(labelText: _isAuthEn(context) ? 'Full Name' : 'Nombre Completo', prefixIcon: const Icon(Icons.person_outline))),
                   const SizedBox(height: 16),
                 ],
-                TextField(controller: _emailCtrl, keyboardType: TextInputType.emailAddress, decoration: const InputDecoration(labelText: 'Correo Electrónico', prefixIcon: Icon(Icons.email_outlined))),
+                TextField(controller: _emailCtrl, keyboardType: TextInputType.emailAddress, decoration: InputDecoration(labelText: _isAuthEn(context) ? 'Email' : 'Correo Electrónico', prefixIcon: const Icon(Icons.email_outlined))),
                 const SizedBox(height: 16),
-                TextField(controller: _passCtrl, obscureText: true, decoration: const InputDecoration(labelText: 'Contraseña', prefixIcon: Icon(Icons.lock_outline))),
+                TextField(controller: _passCtrl, obscureText: true, decoration: InputDecoration(labelText: _isAuthEn(context) ? 'Password' : 'Contraseña', prefixIcon: const Icon(Icons.lock_outline))),
                 const SizedBox(height: 32),
 
                 SizedBox(
@@ -169,7 +180,7 @@ class _AuthScreenState extends State<AuthScreen> {
                     ),
                     child: isLoading
                         ? const CircularProgressIndicator(color: ExodoColors.background)
-                        : Text(isLogin ? 'Entrar con Correo' : 'Registrarse con Correo', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                        : Text(isLogin ? (_isAuthEn(context) ? 'Sign In with Email' : 'Entrar con Correo') : (_isAuthEn(context) ? 'Sign Up with Email' : 'Registrarse con Correo'), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                   ),
                 ),
               ],

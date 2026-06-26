@@ -1,14 +1,26 @@
 import 'dart:async';
 import 'dart:math' as math;
+import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:speech_to_text/speech_to_text.dart' as stt;
 import '../models/models.dart';
 import '../services/app_state.dart';
 import '../widgets/drawer_menu.dart';
 import '../theme/exodo_theme.dart';
+
+bool _isDeviceEnglish(BuildContext context) {
+  try {
+    final sys = ui.PlatformDispatcher.instance.locale.languageCode;
+    if (sys == 'en') return true;
+  } catch (_) {}
+  return Localizations.localeOf(context).languageCode == 'en';
+}
 
 class ChatScreen extends StatefulWidget {
   const ChatScreen({super.key});
@@ -130,13 +142,16 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
 
                     // 3. Incógnito (botón para activarlo o salir)
                     IconButton(
-                      icon: Image.asset(
-                        'assets/images/incognito-svgrepo-com.png',
-                        width: 22,
-                        height: 22,
-                        color: state.isIncognito ? Colors.white : (isLight ? Colors.black87 : ExodoColors.textSecondary),
+                      icon: _AnimatedIncognitoHat(
+                        isIncognito: state.isIncognito,
+                        child: Image.asset(
+                          'assets/images/incognito-svgrepo-com.png',
+                          width: 22,
+                          height: 22,
+                          color: state.isIncognito ? Colors.white : (isLight ? Colors.black87 : ExodoColors.textSecondary),
+                        ),
                       ),
-                      tooltip: 'Modo incógnito',
+                      tooltip: _isDeviceEnglish(context) ? 'Incognito mode' : 'Modo incógnito',
                       onPressed: () {
                         state.toggleIncognito();
                       },
@@ -186,9 +201,9 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
                     HapticFeedback.vibrate();
                     _UpgradeModal.show(context);
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('⚠️ Alcanzaste tu capacidad diaria. Activa Hazak Pro para continuar.'),
-                        backgroundColor: Color(0xFFC9933A),
+                      SnackBar(
+                        content: Text(_isDeviceEnglish(context) ? '⚠️ Daily limit reached. Activate Hazak Pro to continue.' : '⚠️ Alcanzaste tu capacidad diaria. Activa Hazak Pro para continuar.'),
+                        backgroundColor: const Color(0xFFC9933A),
                       ),
                     );
                     return;
@@ -202,6 +217,58 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _AnimatedIncognitoHat extends StatefulWidget {
+  final bool isIncognito;
+  final Widget child;
+  const _AnimatedIncognitoHat({required this.isIncognito, required this.child});
+  @override
+  State<_AnimatedIncognitoHat> createState() => _AnimatedIncognitoHatState();
+}
+
+class _AnimatedIncognitoHatState extends State<_AnimatedIncognitoHat> with SingleTickerProviderStateMixin {
+  late AnimationController _ctrl;
+  late Animation<double> _anim;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 550));
+    _anim = TweenSequence<double>([
+      TweenSequenceItem(tween: Tween(begin: 0.0, end: -8.0).chain(CurveTween(curve: Curves.easeOutQuad)), weight: 40),
+      TweenSequenceItem(tween: Tween(begin: -8.0, end: 0.0).chain(CurveTween(curve: Curves.bounceOut)), weight: 60),
+    ]).animate(_ctrl);
+    if (widget.isIncognito) {
+      _ctrl.forward();
+    }
+  }
+
+  @override
+  void didUpdateWidget(_AnimatedIncognitoHat old) {
+    super.didUpdateWidget(old);
+    if (widget.isIncognito && !old.isIncognito) {
+      _ctrl.forward(from: 0.0);
+    }
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _anim,
+      builder: (context, child) => Transform.translate(
+        offset: Offset(0, _anim.value),
+        child: child,
+      ),
+      child: widget.child,
     );
   }
 }
@@ -246,25 +313,22 @@ class _AmbientGlowPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    // Rellenar fondo base con Negro Cálido oficial
     canvas.drawColor(ExodoColors.background, BlendMode.src);
 
-    // Definición de focos difusos: color, baseX, baseY, radioBase, velocidadX, velocidadY, fase
+    // Animación fluida estilo Gemini App anclada abajo con la paleta oficial de Exodo (Ámbar, Polvo, Crema, Blanco)
     final orbs = [
-      _GlowOrb(ExodoColors.amber.withOpacity(0.14), 0.25, 0.78, size.width * 0.68, 1.1, 0.8, 0.0),
-      _GlowOrb(ExodoColors.textSecondary.withOpacity(0.11), 0.82, 0.72, size.width * 0.72, 0.7, 1.3, 1.7),
-      _GlowOrb(ExodoColors.textPrimary.withOpacity(0.08), 0.62, 0.88, size.width * 0.58, 1.4, 0.6, 3.2),
-      _GlowOrb(Colors.white.withOpacity(0.05), 0.38, 0.68, size.width * 0.52, 0.9, 1.1, 4.5),
+      _GlowOrb(ExodoColors.amber.withOpacity(0.15), 0.28, 0.80, size.width * 0.76, 0.45, 0.35, 0.0),
+      _GlowOrb(ExodoColors.textSecondary.withOpacity(0.12), 0.78, 0.76, size.width * 0.80, 0.35, 0.45, 1.7),
+      _GlowOrb(ExodoColors.textPrimary.withOpacity(0.09), 0.55, 0.86, size.width * 0.72, 0.50, 0.30, 3.2),
+      _GlowOrb(Colors.white.withOpacity(0.06), 0.40, 0.74, size.width * 0.65, 0.40, 0.50, 4.5),
     ];
 
     for (final orb in orbs) {
-      // Fluctuación orbital suave y orgánica
-      final offsetX = math.sin(t * math.pi * 2 * orb.speedX + orb.phase) * (size.width * 0.16);
-      final offsetY = math.cos(t * math.pi * 2 * orb.speedY + orb.phase) * (size.height * 0.10);
+      final offsetX = math.sin(t * math.pi * 2 * orb.speedX + orb.phase) * (size.width * 0.22);
+      final offsetY = math.cos(t * math.pi * 2 * orb.speedY + orb.phase) * (size.height * 0.06);
       final center = Offset(size.width * orb.baseX + offsetX, size.height * orb.baseY + offsetY);
       
-      // Respiración (cambio de tamaño orgánico impredecible)
-      final currentRadius = orb.radius * (0.86 + 0.14 * math.sin(t * math.pi * 2 + orb.phase));
+      final currentRadius = orb.radius * (0.88 + 0.16 * math.sin(t * math.pi * 2 + orb.phase));
 
       final paint = Paint()
         ..shader = RadialGradient(
@@ -290,21 +354,40 @@ class _OriginalDesignStage extends StatelessWidget {
   final String? fullName;
   const _OriginalDesignStage({required this.pulseAnim, required this.fullName});
 
-  String _getGreeting() {
+  String _getGreeting(BuildContext context, AppState state) {
     final firstName = (fullName != null && fullName!.trim().isNotEmpty)
         ? fullName!.trim().split(' ').first
         : 'BRAZOBAN';
+    final isEn = _isDeviceEnglish(context);
+    final temp = state.currentTempC;
+
+    if (temp != null) {
+      if (temp <= 21.0) {
+        return isEn ? 'Cold & Exodo, better than coffee?, $firstName.' : 'Frío y Exodo, ¿mejor que un café?, $firstName.';
+      } else if (temp >= 31.0) {
+        return isEn ? 'Grab something cold, really hot, $firstName.' : 'Toma algo frío, hace mucho calor, $firstName.';
+      }
+    }
+
     final hour = DateTime.now().hour;
-    if (hour < 12) return 'Buenos días,\n$firstName';
-    if (hour < 19) return 'Buenas tardes,\n$firstName';
-    return 'Buenas noches,\n$firstName';
+    if (isEn) {
+      if (hour >= 0 && hour < 6) return 'Late night hustle, $firstName.';
+      if (hour < 12) return 'Morning, $firstName.';
+      if (hour < 18) return 'Afternoon, $firstName.';
+      return 'Night, $firstName.';
+    } else {
+      if (hour >= 0 && hour < 6) return 'Ni la madrugada te detiene, $firstName.';
+      if (hour < 12) return 'Cafecito con Exodo, $firstName.';
+      if (hour < 18) return 'Tarde productiva, $firstName.';
+      return 'La noche es joven, $firstName.';
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final state = context.watch<AppState>();
     final isLight = Theme.of(context).brightness == Brightness.light && !state.isIncognito;
-    final isEn = Localizations.localeOf(context).languageCode == 'en';
+    final isEn = _isDeviceEnglish(context);
 
     return Center(
       child: SingleChildScrollView(
@@ -313,11 +396,14 @@ class _OriginalDesignStage extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           children: state.isIncognito
               ? [
-                  Image.asset(
-                    'assets/images/incognito-svgrepo-com.png',
-                    width: 76,
-                    height: 76,
-                    color: Colors.white,
+                  _AnimatedIncognitoHat(
+                    isIncognito: state.isIncognito,
+                    child: Image.asset(
+                      'assets/images/incognito-svgrepo-com.png',
+                      width: 76,
+                      height: 76,
+                      color: Colors.white,
+                    ),
                   ),
                   const SizedBox(height: 18),
                   Text(
@@ -333,7 +419,7 @@ class _OriginalDesignStage extends StatelessWidget {
                 ]
               : [
                   Text(
-                    _getGreeting(),
+                    _getGreeting(context, state),
                     textAlign: TextAlign.center,
                     style: GoogleFonts.jetBrainsMono(
                       fontSize: 24,
@@ -443,11 +529,81 @@ class _InterlockingComposerAreaState extends State<_InterlockingComposerArea> wi
   late AnimationController _auraController;
   bool _hasAttachment = false;
   bool _isRecording = false;
+  final stt.SpeechToText _speech = stt.SpeechToText();
+  bool _speechEnabled = false;
 
   @override
   void initState() {
     super.initState();
     _auraController = AnimationController(vsync: this, duration: const Duration(milliseconds: 3200))..repeat();
+    _initSpeech();
+  }
+
+  void _initSpeech() async {
+    try {
+      _speechEnabled = await _speech.initialize();
+    } catch (_) {}
+  }
+
+  void _showAttachmentMenu() {
+    HapticFeedback.vibrate();
+    final isLight = Theme.of(context).brightness == Brightness.light;
+    final isEn = _isDeviceEnglish(context);
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: isLight ? const Color(0xFFFAF8F5) : const Color(0xFF1A1612),
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(width: 36, height: 4, margin: const EdgeInsets.only(bottom: 16), decoration: BoxDecoration(color: Colors.grey.withOpacity(0.3), borderRadius: BorderRadius.circular(2))),
+              ListTile(
+                leading: const Icon(Icons.camera_alt_rounded, color: ExodoColors.amber),
+                title: Text(isEn ? 'Camera' : 'Cámara', style: GoogleFonts.inter(fontWeight: FontWeight.w600, color: isLight ? Colors.black87 : Colors.white)),
+                onTap: () async {
+                  Navigator.pop(ctx);
+                  final picker = ImagePicker();
+                  final XFile? photo = await picker.pickImage(source: ImageSource.camera, imageQuality: 90);
+                  if (photo != null) {
+                    setState(() => _hasAttachment = true);
+                    widget.controller.text += '[Foto: ${photo.name}] ';
+                  }
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.photo_library_rounded, color: ExodoColors.amber),
+                title: Text(isEn ? 'Gallery' : 'Galería', style: GoogleFonts.inter(fontWeight: FontWeight.w600, color: isLight ? Colors.black87 : Colors.white)),
+                onTap: () async {
+                  Navigator.pop(ctx);
+                  final picker = ImagePicker();
+                  final XFile? media = await picker.pickImage(source: ImageSource.gallery, imageQuality: 90);
+                  if (media != null) {
+                    setState(() => _hasAttachment = true);
+                    widget.controller.text += '[Galería: ${media.name}] ';
+                  }
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.folder_open_rounded, color: ExodoColors.amber),
+                title: Text(isEn ? 'Files' : 'Archivos', style: GoogleFonts.inter(fontWeight: FontWeight.w600, color: isLight ? Colors.black87 : Colors.white)),
+                onTap: () async {
+                  Navigator.pop(ctx);
+                  final res = await FilePicker.platform.pickFiles(allowMultiple: true);
+                  if (res != null && res.files.isNotEmpty) {
+                    setState(() => _hasAttachment = true);
+                    final names = res.files.map((e) => e.name).join(', ');
+                    widget.controller.text += '[Archivos: $names] ';
+                  }
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   @override
@@ -457,10 +613,8 @@ class _InterlockingComposerAreaState extends State<_InterlockingComposerArea> wi
   }
 
   String _getPlaceholder(BuildContext context) {
-    // Regla 14: Detectar automáticamente idioma de dispositivo
-    final lang = Localizations.localeOf(context).languageCode;
-    if (lang == 'en') return 'Reply to Exodo...';
-    return 'Hablar con Exodo...'; // Equivalente corto y elegante sin tilde
+    if (_isDeviceEnglish(context)) return 'Reply to Exodo...';
+    return 'Hablar con Exodo...';
   }
 
   @override
@@ -493,7 +647,7 @@ class _InterlockingComposerAreaState extends State<_InterlockingComposerArea> wi
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Text(
-                      'Mas capacidad con XPi PRO',
+                      _isDeviceEnglish(context) ? 'More capacity with XPi PRO' : 'Mas capacidad con XPi PRO',
                       style: GoogleFonts.jetBrainsMono(
                         color: isLight ? const Color(0xFFF5F2EB) : const Color(0xFF55514C),
                         fontSize: 12.0,
@@ -507,7 +661,7 @@ class _InterlockingComposerAreaState extends State<_InterlockingComposerArea> wi
                       child: Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
                         child: Text(
-                          'Actualizar',
+                          _isDeviceEnglish(context) ? 'Upgrade' : 'Actualizar',
                           style: GoogleFonts.jetBrainsMono(
                             color: ExodoColors.amber,
                             fontWeight: FontWeight.bold,
@@ -565,12 +719,7 @@ class _InterlockingComposerAreaState extends State<_InterlockingComposerArea> wi
                   children: [
                     // Botón +
                     InkWell(
-                      onTap: () {
-                        setState(() {
-                          _hasAttachment = true;
-                        });
-                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('📎 Documento adjuntado. Listo para enviar')));
-                      },
+                      onTap: _showAttachmentMenu,
                       borderRadius: BorderRadius.circular(20),
                       child: Container(
                         width: 36,
@@ -687,13 +836,26 @@ class _InterlockingComposerAreaState extends State<_InterlockingComposerArea> wi
                                         ? (isLight ? Colors.black54 : ExodoColors.textSecondary)
                                         : (isLight ? Colors.black87 : Colors.white70)),
                               ),
-                              onPressed: () {
-                                setState(() {
-                                  _isRecording = !_isRecording;
-                                });
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(content: Text(_isRecording ? '🔴 Grabando audio de voz...' : '⏹️ Audio grabado. Listo para enviar')),
-                                );
+                              onPressed: () async {
+                                HapticFeedback.vibrate();
+                                if (!_isRecording) {
+                                  if (_speechEnabled) {
+                                    setState(() => _isRecording = true);
+                                    await _speech.listen(
+                                      onResult: (result) {
+                                        widget.controller.text = result.recognizedWords;
+                                      },
+                                      localeId: 'es_DO',
+                                    );
+                                  } else {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(content: Text(_isDeviceEnglish(context) ? '⚠️ Microphone permission required for voice dictation' : '⚠️ Permiso de micrófono requerido para dictado de voz')),
+                                    );
+                                  }
+                                } else {
+                                  setState(() => _isRecording = false);
+                                  await _speech.stop();
+                                }
                               },
                             ),
 
@@ -707,10 +869,7 @@ class _InterlockingComposerAreaState extends State<_InterlockingComposerArea> wi
                                   });
                                   widget.onSend();
                                 } else {
-                                  HapticFeedback.vibrate();
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(content: Text('🎧 Modo Éxodo Chat en Vivo activo')),
-                                  );
+                                  // Botón chat en vivo desactivado por ahora, no hace nada
                                 }
                               },
                               child: Container(
@@ -1051,7 +1210,7 @@ class _MessageBubble extends StatelessWidget {
           ),
           if (message.intentDetected != null) ...[
             const SizedBox(height: 8),
-            Text('Intención: ${message.intentDetected}', style: GoogleFonts.jetBrainsMono(fontSize: 10, color: ExodoColors.amber.withOpacity(0.8))),
+            Text(_isDeviceEnglish(context) ? 'Intent: ${message.intentDetected}' : 'Intención: ${message.intentDetected}', style: GoogleFonts.jetBrainsMono(fontSize: 10, color: ExodoColors.amber.withOpacity(0.8))),
           ],
         ],
       ),
@@ -1067,7 +1226,7 @@ class _ModelSelectorSheet extends StatelessWidget {
   Widget build(BuildContext context) {
     final state = context.watch<AppState>();
     final isLight = !state.isDarkMode;
-    final isEn = Localizations.localeOf(context).languageCode == 'en';
+    final isEn = _isDeviceEnglish(context);
 
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 10, 20, 20),
@@ -1127,7 +1286,7 @@ class _ModelSelectorSheet extends StatelessWidget {
                   ],
                 ],
               ),
-              subtitle: Text(m.description, style: GoogleFonts.jetBrainsMono(fontSize: 11.5, color: active ? ExodoColors.amber : (isLight ? Colors.black54 : Colors.white70))),
+              subtitle: Text(isEn ? m.descriptionEn : m.description, style: GoogleFonts.jetBrainsMono(fontSize: 11.5, color: active ? ExodoColors.amber : (isLight ? Colors.black54 : Colors.white70))),
               trailing: active ? const Icon(Icons.check, size: 18, color: ExodoColors.amber) : null,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
               tileColor: Colors.transparent,
@@ -1306,13 +1465,7 @@ class _UpgradeModal {
                             foregroundColor: Colors.black,
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                           ),
-                          onPressed: () {
-                            HapticFeedback.vibrate();
-                            Navigator.pop(ctx);
-                            // TODO: Conectar con Stripe Payment Link real
-                            // Provider.of<AppState>(context, listen: false).upgradeToProPlan();
-                            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(isAnnual ? '💳 Stripe Anual (\$49.99) — Próximamente' : '💳 Stripe Mensual (\$4.99) — Próximamente')));
-                          },
+                          onPressed: () {},
                           child: Text('Get Pro plan', style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.bold)),
                         ),
                       ),

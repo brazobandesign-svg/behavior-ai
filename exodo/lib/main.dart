@@ -33,6 +33,16 @@ class ExodoApp extends StatelessWidget {
     return MaterialApp(
       title: 'Éxodo by Behavior',
       debugShowCheckedModeBanner: false,
+      supportedLocales: const [
+        Locale('en', ''),
+        Locale('es', ''),
+      ],
+      localeResolutionCallback: (deviceLocale, supportedLocales) {
+        if (deviceLocale != null && deviceLocale.languageCode == 'en') {
+          return const Locale('en', '');
+        }
+        return const Locale('es', '');
+      },
       theme: (state.isDarkMode || state.isIncognito) ? ExodoTheme.darkTheme : ExodoTheme.lightTheme,
       home: const _RootSwitcher(),
       // Necesario para que supabase_flutter maneje el deep link OAuth (?code=...)
