@@ -1,5 +1,7 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'services/supabase_service.dart';
 import 'services/app_state.dart';
 import 'theme/exodo_theme.dart';
@@ -35,8 +37,32 @@ class ExodoApp extends StatelessWidget {
   }
 }
 
-class _RootSwitcher extends StatelessWidget {
+class _RootSwitcher extends StatefulWidget {
   const _RootSwitcher();
+
+  @override
+  State<_RootSwitcher> createState() => _RootSwitcherState();
+}
+
+class _RootSwitcherState extends State<_RootSwitcher> {
+  late final StreamSubscription<AuthState> _authSub;
+
+  @override
+  void initState() {
+    super.initState();
+    // Escuchar cambios de autenticación para forzar rebuild del widget tree
+    // (AppState._init() ya maneja loadUserData/clear internamente)
+    _authSub = SupabaseService.client.auth.onAuthStateChange.listen((data) {
+      debugPrint('[RootSwitcher] Auth event: ${data.event}');
+      if (mounted) setState(() {});
+    });
+  }
+
+  @override
+  void dispose() {
+    _authSub.cancel();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
