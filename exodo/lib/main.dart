@@ -33,6 +33,11 @@ class ExodoApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: ExodoTheme.darkTheme,
       home: const _RootSwitcher(),
+      // Necesario para que supabase_flutter maneje el deep link OAuth (?code=...)
+      // sin que el Navigator crashee al no encontrar la ruta
+      onUnknownRoute: (settings) => MaterialPageRoute(
+        builder: (_) => const _RootSwitcher(),
+      ),
     );
   }
 }
