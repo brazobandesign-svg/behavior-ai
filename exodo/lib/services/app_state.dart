@@ -11,6 +11,7 @@ class AppState extends ChangeNotifier {
   List<ChatMessage> currentMessages = [];
   
   bool isIncognito = false;
+  bool isDarkMode = true;
   ExodoModelOption selectedModel = exodoModels[0]; // Origo (G1.1)
   
   int tokensUsed = 0;
@@ -78,6 +79,11 @@ class AppState extends ChangeNotifier {
       // Regla: En modo incógnito iniciar nuevo chat
       startNewChat();
     }
+    notifyListeners();
+  }
+
+  void toggleTheme() {
+    isDarkMode = !isDarkMode;
     notifyListeners();
   }
 

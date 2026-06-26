@@ -72,4 +72,42 @@ class ExodoTheme {
       ),
     );
   }
+
+  static ThemeData get lightTheme {
+    final base = ThemeData.light();
+    const creamBg = Color(0xFFFBF9F5); // Blanco yeso o hueso cremoso
+    const creamSurface = Color(0xFFF2ECE1);
+    const darkInk = Color(0xFF171615);
+
+    return base.copyWith(
+      scaffoldBackgroundColor: creamBg,
+      primaryColor: ExodoColors.amber,
+      colorScheme: const ColorScheme.light(
+        primary: ExodoColors.amber,
+        secondary: ExodoColors.amber,
+        surface: creamSurface,
+        error: ExodoColors.error,
+        onPrimary: creamBg,
+        onSurface: darkInk,
+      ),
+      textTheme: TextTheme(
+        displayLarge: GoogleFonts.syne(color: darkInk, fontWeight: FontWeight.bold),
+        displayMedium: GoogleFonts.syne(color: darkInk, fontWeight: FontWeight.bold),
+        headlineLarge: GoogleFonts.syne(color: darkInk, fontWeight: FontWeight.w700),
+        headlineMedium: GoogleFonts.syne(color: darkInk, fontWeight: FontWeight.w600),
+        titleLarge: GoogleFonts.syne(color: darkInk, fontWeight: FontWeight.w600, fontSize: 20),
+        titleMedium: GoogleFonts.inter(color: darkInk, fontWeight: FontWeight.w600, fontSize: 16),
+        bodyLarge: GoogleFonts.inter(color: darkInk, fontSize: 16),
+        bodyMedium: GoogleFonts.inter(color: darkInk, fontSize: 14),
+        bodySmall: GoogleFonts.inter(color: const Color(0xFF7B7872), fontSize: 12),
+        labelLarge: GoogleFonts.jetBrainsMono(color: ExodoColors.amber, fontWeight: FontWeight.w600),
+      ),
+      appBarTheme: const AppBarTheme(
+        backgroundColor: creamBg,
+        elevation: 0,
+        centerTitle: true,
+        iconTheme: IconThemeData(color: darkInk),
+      ),
+    );
+  }
 }
