@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
@@ -26,8 +27,8 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
     super.initState();
     _thinkingAnimCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 1400))..repeat(reverse: true);
     _ambientBgCtrl = AnimationController(vsync: this, duration: const Duration(seconds: 7))..repeat(reverse: true);
-    // Regla 5 & 9: Animación de cambio de tamaño (pulso dinámico) en lugar de giro
-    _pulseCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 1800))..repeat(reverse: true);
+    // Regla 5 & 9: Pulso continuo para cambio de tamaño de puntos aleatorio
+    _pulseCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 2200))..repeat(reverse: true);
   }
 
   @override
@@ -159,7 +160,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
                         itemBuilder: (context, index) {
                           final msg = state.currentMessages[index];
                           if (msg.isThinking) {
-                            // Regla 9: Pensando con puntos cambiando de tamaño
+                            // Regla 9: Pensando con puntos cambiando de tamaño aleatorio
                             return _ThinkingBubble(pulseAnim: _pulseCtrl);
                           }
                           return _MessageBubble(message: msg);
@@ -186,7 +187,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
   }
 }
 
-// Fondo ambiental a pantalla completa (Regla 2: visible y cálido en modo claro)
+// Regla 2: Fondo ambiental animado (Limpio en modo claro, sin mancha amarilla)
 class _AnimatedAmbientBackground extends StatelessWidget {
   final Animation<double> animation;
   final Widget child;
@@ -210,9 +211,9 @@ class _AnimatedAmbientBackground extends StatelessWidget {
               end: Alignment(1.0 - (t * 0.7), 1.0),
               colors: isLight
                   ? [
-                      const Color(0xFFFBF9F5), // Blanco yeso/hueso cremoso
-                      Color.lerp(const Color(0xFFF5ECE0), const Color(0xFFEEDCC8), t)!, // Degradado durazno/ámbar cálido bien visible
-                      const Color(0xFFF7F4EE),
+                      const Color(0xFFFBF9F5), // Blanco yeso/hueso limpio
+                      Color.lerp(const Color(0xFFF2F4F7), const Color(0xFFE5E9F0), t)!, // Onda gris plata/nieve limpia sin mancha amarilla
+                      const Color(0xFFF8F9FA),
                     ]
                   : [
                       const Color(0xFF0E0C0A), // Negro Cálido
@@ -253,16 +254,9 @@ class _OriginalDesignStage extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            // Regla 5: Esfera geométrica cambiando de tamaño (Escala dinámica) en lugar de giro
-            AnimatedBuilder(
-              animation: pulseAnim,
-              builder: (context, child) => Transform.scale(
-                scale: 0.90 + (pulseAnim.value * 0.18), // Respira de 0.90 a 1.08
-                child: child,
-              ),
-              child: const Icon(Icons.blur_on, size: 78, color: ExodoColors.amber),
-            ),
-            const SizedBox(height: 26),
+            // Regla 5: Esfera geométrica con cambio de tamaño POR PUNTOS aleatorio
+            _RandomScalingDotSphere(animation: pulseAnim, size: 84),
+            const SizedBox(height: 24),
 
             // Regla 6: Saludo de tamaño adecuado
             Text(
@@ -294,6 +288,71 @@ class _OriginalDesignStage extends StatelessWidget {
   }
 }
 
+// Regla 5 & 9: Widget supremo de esfera donde cada punto cambia de tamaño aleatoriamente
+class _RandomScalingDotSphere extends StatelessWidget {
+  final Animation<double> animation;
+  final double size;
+  const _RandomScalingDotSphere({required this.animation, this.size = 76});
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: animation,
+      builder: (context, _) => SizedBox(
+        width: size,
+        height: size,
+        child: CustomPaint(painter: _DotSpherePainter(animation.value)),
+      ),
+    );
+  }
+}
+
+class _DotSpherePainter extends CustomPainter {
+  final double t;
+  _DotSpherePainter(this.t);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()..color = ExodoColors.amber;
+    final center = Offset(size.width / 2, size.height / 2);
+    final r = size.width / 2;
+
+    const dots = [
+      _DotDef(0.0, 0.0, 1.3, 0.0),
+      _DotDef(0.36, 0.0, 1.1, 1.4),
+      _DotDef(-0.36, 0.0, 1.4, 2.7),
+      _DotDef(0.0, 0.36, 0.9, 0.8),
+      _DotDef(0.0, -0.36, 1.2, 3.5),
+      _DotDef(0.26, 0.26, 1.0, 1.9),
+      _DotDef(-0.26, 0.26, 1.3, 4.4),
+      _DotDef(0.26, -0.26, 1.1, 0.6),
+      _DotDef(-0.26, -0.26, 0.9, 3.1),
+      _DotDef(0.66, 0.0, 0.8, 3.8),
+      _DotDef(-0.66, 0.0, 1.0, 1.2),
+      _DotDef(0.0, 0.66, 0.7, 5.0),
+      _DotDef(0.0, -0.66, 0.9, 2.3),
+      _DotDef(0.48, 0.48, 0.8, 0.4),
+      _DotDef(-0.48, 0.48, 0.9, 1.8),
+      _DotDef(0.48, -0.48, 0.7, 4.1),
+      _DotDef(-0.48, -0.48, 0.8, 5.3),
+    ];
+
+    for (final d in dots) {
+      final pos = center + Offset(d.x * r * 0.82, d.y * r * 0.82);
+      final scale = 0.40 + 0.60 * ((math.sin(t * math.pi * 2 * d.speed + d.phase) + 1) / 2);
+      canvas.drawCircle(pos, size.width * 0.068 * scale, paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(_DotSpherePainter old) => old.t != t;
+}
+
+class _DotDef {
+  final double x, y, speed, phase;
+  const _DotDef(this.x, this.y, this.speed, this.phase);
+}
+
 // Estructura entrelazada Tab 1 y Tab 2
 class _InterlockingComposerArea extends StatefulWidget {
   final TextEditingController controller;
@@ -322,7 +381,6 @@ class _InterlockingComposerAreaState extends State<_InterlockingComposerArea> {
   @override
   Widget build(BuildContext context) {
     final state = context.watch<AppState>();
-    final isLight = !state.isDarkMode;
 
     return Padding(
       padding: const EdgeInsets.only(left: 14, right: 14, bottom: 12),
@@ -330,29 +388,29 @@ class _InterlockingComposerAreaState extends State<_InterlockingComposerArea> {
         clipBehavior: Clip.none,
         alignment: Alignment.bottomCenter,
         children: [
-          // Regla 7: Tab 2 más ancho (0.86 width) con FittedBox para garantizar texto 100% visible sin cortes
+          // Regla 7 & No mencionados: Tab 2 BLANCO PURO / HUESO CLARO en ambos modos (#EFECE4)
           if (_showTab2)
             Positioned(
               top: -36,
               child: Container(
-                width: MediaQuery.of(context).size.width * 0.86, // Más ancho pero siempre menor a Tab 1
+                width: MediaQuery.of(context).size.width * 0.86,
                 padding: const EdgeInsets.fromLTRB(16, 7, 14, 20),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF221E1A), // Oscuro elegante en ambos modos
+                  color: const Color(0xFFEFECE4), // Blanco puro/hueso en modo dark y light estrictamente
                   borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-                  border: Border.all(color: ExodoColors.border),
+                  border: Border.all(color: const Color(0xFFDCD5C5)),
                 ),
                 child: FittedBox(
-                  fit: BoxFit.scaleDown, // ¡Garantiza que salga completo sin cortarse en cualquier pantalla!
+                  fit: BoxFit.scaleDown, // ¡Garantiza 100% visible sin cortarse en cualquier pantalla!
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Text(
                         'Limites mas altos con XPi',
                         style: GoogleFonts.jetBrainsMono(
-                          color: const Color(0xFFD5D1C9),
+                          color: const Color(0xFF55514C), // Texto oscuro elegante en fondo blanco
                           fontSize: 12.0,
-                          fontWeight: FontWeight.w500,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                       const SizedBox(width: 10),
@@ -365,7 +423,7 @@ class _InterlockingComposerAreaState extends State<_InterlockingComposerArea> {
                         child: Text(
                           'Actualizar',
                           style: GoogleFonts.jetBrainsMono(
-                            color: ExodoColors.amber, // Color ámbar en ambos modos (Regla 13)
+                            color: ExodoColors.amber,
                             fontWeight: FontWeight.bold,
                             fontSize: 12.0,
                           ),
@@ -374,7 +432,7 @@ class _InterlockingComposerAreaState extends State<_InterlockingComposerArea> {
                       const SizedBox(width: 10),
                       InkWell(
                         onTap: () => setState(() => _showTab2 = false),
-                        child: const Icon(Icons.close, size: 15, color: ExodoColors.textSecondary),
+                        child: const Icon(Icons.close, size: 15, color: Colors.black54),
                       ),
                     ],
                   ),
@@ -382,27 +440,15 @@ class _InterlockingComposerAreaState extends State<_InterlockingComposerArea> {
               ),
             ),
 
-          // Regla 10 & 13: Tab 1 oscuro en ambos modos (#161412) con resplandor ámbar potenciado
+          // Regla 10 & 13: Tab 1 oscuro en ambos modos (#161412), SIN resplandor exterior (Regla 10 actualizada)
           Container(
             decoration: BoxDecoration(
-              color: const Color(0xFF161412), // Negro no puro en modo claro y oscuro
+              color: const Color(0xFF161412),
               borderRadius: BorderRadius.circular(32),
               border: Border.all(color: ExodoColors.border),
-              // Regla 10: Resplandor ámbar diagonal opuesto con mayor potencia (0.32)
-              boxShadow: [
-                BoxShadow(
-                  color: ExodoColors.amber.withOpacity(isLight ? 0.22 : 0.32),
-                  blurRadius: 32,
-                  offset: const Offset(-8, -8),
-                ),
-                BoxShadow(
-                  color: const Color(0xFF6F5CF6).withOpacity(isLight ? 0.12 : 0.18),
-                  blurRadius: 32,
-                  offset: const Offset(8, 8),
-                ),
-              ],
             ),
-            padding: const EdgeInsets.fromLTRB(18, 8, 10, 8),
+            // Regla 11: Botones alineados pegados al borde derecho (padding right: 6px)
+            padding: const EdgeInsets.fromLTRB(18, 8, 6, 8),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -411,7 +457,7 @@ class _InterlockingComposerAreaState extends State<_InterlockingComposerArea> {
                   controller: widget.controller,
                   maxLines: 4,
                   minLines: 1,
-                  style: const TextStyle(fontSize: 16, color: Colors.white), // Texto blanco siempre (Regla 13)
+                  style: const TextStyle(fontSize: 16, color: Colors.white),
                   decoration: InputDecoration(
                     hintText: _getPlaceholder(context),
                     hintStyle: GoogleFonts.inter(color: const Color(0xFF7B7872), fontSize: 16),
@@ -469,7 +515,7 @@ class _InterlockingComposerAreaState extends State<_InterlockingComposerArea> {
 
                     const Spacer(),
 
-                    // Regla 11: Swap dinámico de Micrófono y Enviar
+                    // Regla 11: Swap dinámico de Micrófono y Enviar (Botón enviar blanco hueso, pegado a derecha)
                     ValueListenableBuilder<TextEditingValue>(
                       valueListenable: widget.controller,
                       builder: (context, val, _) {
@@ -478,21 +524,21 @@ class _InterlockingComposerAreaState extends State<_InterlockingComposerArea> {
                         return Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            // Micrófono (Si hay texto, se mueve a la izquierda del botón enviar)
+                            // Micrófono
                             IconButton(
                               icon: Icon(Icons.mic_none, color: hasText ? ExodoColors.textSecondary : Colors.white70),
                               onPressed: () => ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('🎙️ Entrada de voz lista'))),
                             ),
 
-                            // Botón enviar (Toma el lugar derecho cuando hay texto)
+                            // Botón enviar blanco hueso oficial regla*
                             if (hasText)
                               GestureDetector(
                                 onTap: widget.onSend,
                                 child: Container(
                                   width: 38,
                                   height: 38,
-                                  margin: const EdgeInsets.only(left: 4),
-                                  decoration: const BoxDecoration(color: ExodoColors.amber, shape: BoxShape.circle),
+                                  margin: const EdgeInsets.only(left: 2, right: 4),
+                                  decoration: const BoxDecoration(color: Color(0xFFFBF9F5), shape: BoxShape.circle), // Blanco hueso
                                   child: const Icon(Icons.arrow_upward, size: 19, color: Color(0xFF141210)),
                                 ),
                               ),
@@ -558,7 +604,7 @@ class _TokenProgressBar extends StatelessWidget {
   }
 }
 
-// Regla 9: Pensando con puntos cambiando de tamaño dinámicamente
+// Regla 9: Pensando con puntos cambiando de tamaño aleatoriamente
 class _ThinkingBubble extends StatelessWidget {
   final Animation<double> pulseAnim;
   const _ThinkingBubble({required this.pulseAnim});
@@ -570,20 +616,11 @@ class _ThinkingBubble extends StatelessWidget {
       child: Container(
         margin: const EdgeInsets.symmetric(vertical: 8),
         padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-        decoration: BoxDecoration(
-          color: Colors.transparent, // Al descubierto (Regla 13)
-        ),
+        decoration: const BoxDecoration(color: Colors.transparent),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            AnimatedBuilder(
-              animation: pulseAnim,
-              builder: (context, child) => Transform.scale(
-                scale: 0.85 + (pulseAnim.value * 0.30),
-                child: child,
-              ),
-              child: const Icon(Icons.blur_on, size: 22, color: ExodoColors.amber),
-            ),
+            _RandomScalingDotSphere(animation: pulseAnim, size: 24),
             const SizedBox(width: 10),
             Text(
               'Exodo razonando...',
@@ -596,7 +633,7 @@ class _ThinkingBubble extends StatelessWidget {
   }
 }
 
-// Regla 13: Estilo de burbujas tipo Claude (Usuario en rectángulo opuesto, IA al descubierto)
+// Regla 13: Estilo de burbujas tipo Claude (Usuario en rectángulo opuesto SIN colita, IA al descubierto)
 class _MessageBubble extends StatelessWidget {
   final ChatMessage message;
   const _MessageBubble({required this.message});
@@ -607,7 +644,7 @@ class _MessageBubble extends StatelessWidget {
     final isLight = Theme.of(context).brightness == Brightness.light;
 
     if (isUser) {
-      // Chat del usuario: dentro de un rectángulo elegante que destaca sin perderse
+      // Regla 13: Chat del usuario en rectángulo simple SIN colita ("sale de mi")
       return Align(
         alignment: Alignment.centerRight,
         child: Container(
@@ -616,7 +653,7 @@ class _MessageBubble extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
           decoration: BoxDecoration(
             color: isLight ? const Color(0xFF221E1A) : const Color(0xFF282420),
-            borderRadius: BorderRadius.circular(20).copyWith(bottomRight: const Radius.circular(4)),
+            borderRadius: BorderRadius.circular(20), // ¡Simétrico completamente sin colita!
             border: Border.all(color: ExodoColors.amber.withOpacity(0.35)),
           ),
           child: MarkdownBody(
@@ -717,6 +754,7 @@ class _ModelSelectorSheet extends StatelessWidget {
     );
   }
 }
+
 
 
 
