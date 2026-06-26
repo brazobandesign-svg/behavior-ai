@@ -33,7 +33,7 @@ class ExodoApp extends StatelessWidget {
     return MaterialApp(
       title: 'Éxodo by Behavior',
       debugShowCheckedModeBanner: false,
-      theme: state.isDarkMode ? ExodoTheme.darkTheme : ExodoTheme.lightTheme,
+      theme: (state.isDarkMode || state.isIncognito) ? ExodoTheme.darkTheme : ExodoTheme.lightTheme,
       home: const _RootSwitcher(),
       // Necesario para que supabase_flutter maneje el deep link OAuth (?code=...)
       // sin que el Navigator crashee al no encontrar la ruta

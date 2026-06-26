@@ -35,9 +35,10 @@ class UserProfile {
 class Conversation {
   final String id;
   final String userId;
-  final String title;
+  String title;
   final String modelPlan;
   final bool isIncognito;
+  bool isStarred;
   final DateTime createdAt;
 
   Conversation({
@@ -46,6 +47,7 @@ class Conversation {
     required this.title,
     this.modelPlan = 'genesis',
     this.isIncognito = false,
+    this.isStarred = false,
     required this.createdAt,
   });
 
@@ -56,6 +58,7 @@ class Conversation {
       title: json['title'] as String? ?? 'Nueva conversación',
       modelPlan: json['model_plan'] as String? ?? 'genesis',
       isIncognito: json['is_incognito'] as bool? ?? false,
+      isStarred: json['is_starred'] as bool? ?? false,
       createdAt: DateTime.parse(json['created_at'] as String),
     );
   }
@@ -117,13 +120,13 @@ const List<ExodoModelOption> exodoModels = [
     title: 'G1.1',
     subtitle: 'Origo',
     plan: 'genesis',
-    description: 'Modelo veloz e inteligente para tareas diarias. Siempre disponible gratis.',
+    description: 'Modelo capaz para tareas diarias.',
   ),
   ExodoModelOption(
     id: 'ehyeh',
     title: 'XPi',
     subtitle: 'Ehyeh',
     plan: 'hazak',
-    description: 'Búsqueda documental avanzada y currículo MINERD dominicano.',
+    description: 'Razonamiento avanzado para tareas exigentes.',
   ),
 ];

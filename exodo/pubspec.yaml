@@ -38,7 +38,7 @@ dependencies:
   provider: ^6.1.2
   http: ^1.2.2
   image_picker: ^1.2.2
-  file_picker: ^3.0.4
+  file_picker: 8.1.4
   speech_to_text: ^7.4.0
 
 dev_dependencies:

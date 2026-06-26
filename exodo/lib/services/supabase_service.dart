@@ -146,4 +146,14 @@ class SupabaseService {
 
     return res;
   }
+
+  // Renombrar conversación
+  static Future<void> updateConversationTitle(String convId, String newTitle) async {
+    await client.from('conversations').update({'title': newTitle}).eq('id', convId);
+  }
+
+  // Fijar / desfijar conversación
+  static Future<void> toggleConversationStarred(String convId, bool isStarred) async {
+    await client.from('conversations').update({'is_starred': isStarred}).eq('id', convId);
+  }
 }

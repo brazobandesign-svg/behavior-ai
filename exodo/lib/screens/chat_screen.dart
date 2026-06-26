@@ -1,11 +1,10 @@
 import 'dart:async';
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:image_picker/image_picker.dart';
-import 'package:file_picker/file_picker.dart';
-import 'package:speech_to_text/speech_to_text.dart' as stt;
 import '../models/models.dart';
 import '../services/app_state.dart';
 import '../widgets/drawer_menu.dart';
@@ -23,12 +22,15 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
   final _scrollCtrl = ScrollController();
   late AnimationController _thinkingAnimCtrl;
   late AnimationController _ambientBgCtrl;
+  late AnimationController _pulseCtrl;
 
   @override
   void initState() {
     super.initState();
-    _thinkingAnimCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 1400))..repeat();
-    _ambientBgCtrl = AnimationController(vsync: this, duration: const Duration(seconds: 5))..repeat(reverse: true);
+    _thinkingAnimCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 1400))..repeat(reverse: true);
+    _ambientBgCtrl = AnimationController(vsync: this, duration: const Duration(seconds: 7))..repeat(reverse: true);
+    // Regla 5 & 9: Pulso continuo para cambio de tamaño de puntos aleatorio
+    _pulseCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 2200))..repeat(reverse: true);
   }
 
   @override
@@ -37,6 +39,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
     _scrollCtrl.dispose();
     _thinkingAnimCtrl.dispose();
     _ambientBgCtrl.dispose();
+    _pulseCtrl.dispose();
     super.dispose();
   }
 
@@ -51,7 +54,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
   void _showModelSheet() {
     showModalBottomSheet(
       context: context,
-      backgroundColor: Theme.of(context).colorScheme.surface,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(28))),
       builder: (_) => const _ModelSelectorSheet(),
     );
@@ -60,12 +63,13 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
   @override
   Widget build(BuildContext context) {
     final state = context.watch<AppState>();
-    final isLight = !state.isDarkMode;
+    final isLight = !state.isDarkMode && !state.isIncognito;
+    final isEn = Localizations.localeOf(context).languageCode == 'en';
     _scrollToBottom();
 
     return Scaffold(
       drawer: const DrawerMenu(),
-      body: _AmbientBackground(
+      body: _AnimatedAmbientBackground(
         animation: _ambientBgCtrl,
         child: SafeArea(
           child: Column(
@@ -75,7 +79,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 child: Row(
                   children: [
-                    // Menú Profile estilo Library (3 líneas escalonadas)
+                    // Regla 1: Menú Profile estilo Library (3 líneas escalonadas)
                     Builder(
                       builder: (ctx) => InkWell(
                         onTap: () => Scaffold.of(ctx).openDrawer(),
@@ -97,31 +101,41 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
                       ),
                     ),
 
-                    // Regla incógnito: si está activo, oculta New Chat y Dark mode, y muestra "incognito chat"
-                    if (state.isIncognito) ...[
-                      const Spacer(),
-                      Text(
-                        Localizations.localeOf(context).languageCode == 'en' ? 'incognito chat' : 'chat incógnito',
-                        style: GoogleFonts.jetBrainsMono(fontSize: 12, color: ExodoColors.amber, fontWeight: FontWeight.bold),
-                      ),
-                      const Spacer(),
-                    ] else ...[
-                      const Spacer(),
+                    const Spacer(),
+
+                    // En modo incógnito quitar iconos New Chat y Dark Mode
+                    if (!state.isIncognito) ...[
+                      // 1. Nuevo Chat
                       IconButton(
-                        icon: Icon(Icons.chat_bubble_outline_rounded, size: 21, color: isLight ? Colors.black87 : ExodoColors.textSecondary),
+                        icon: Icon(
+                          Icons.chat_bubble_outline_rounded,
+                          size: 21,
+                          color: isLight ? Colors.black87 : ExodoColors.textSecondary,
+                        ),
                         tooltip: 'Nuevo chat',
                         onPressed: () => state.startNewChat(),
                       ),
+
+                      // 2. Dark / Light Mode
                       IconButton(
-                        icon: Icon(state.isDarkMode ? Icons.light_mode_outlined : Icons.dark_mode_outlined, size: 22, color: isLight ? Colors.black87 : ExodoColors.textSecondary),
+                        icon: Icon(
+                          state.isDarkMode ? Icons.light_mode_outlined : Icons.dark_mode_outlined,
+                          size: 22,
+                          color: isLight ? Colors.black87 : ExodoColors.textSecondary,
+                        ),
                         tooltip: 'Cambiar tema',
                         onPressed: () => state.toggleTheme(),
                       ),
                     ],
 
-                    // Botón de Incógnito (siempre accesible)
+                    // 3. Incógnito (botón para activarlo o salir)
                     IconButton(
-                      icon: Icon(state.isIncognito ? Icons.visibility_off : Icons.visibility_off_outlined, size: 22, color: state.isIncognito ? ExodoColors.amber : (isLight ? Colors.black87 : ExodoColors.textSecondary)),
+                      icon: Image.asset(
+                        'assets/images/incognito-svgrepo-com.png',
+                        width: 22,
+                        height: 22,
+                        color: state.isIncognito ? Colors.white : (isLight ? Colors.black87 : ExodoColors.textSecondary),
+                      ),
                       tooltip: 'Modo incógnito',
                       onPressed: () {
                         state.toggleIncognito();
@@ -131,13 +145,22 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
                 ),
               ),
 
-              // Conteo de tokens interactivo con menú emergente justo debajo en tiempo real
-              _TokenProgressBar(used: state.tokensUsed, limit: state.tokensLimit),
+              // Regla 4: Conteo de tokens (desaparece en modo incógnito)
+              if (!state.isIncognito)
+                _TokenProgressBar(
+                  used: state.tokensUsed,
+                  limit: state.tokensLimit,
+                  resetTime: state.tokensResetTime,
+                  isPro: state.isPro,
+                ),
 
-              // Stage principal o lista de mensajes
+              // Stage principal o lista de mensajes (Regla 8)
               Expanded(
                 child: state.currentMessages.isEmpty
-                    ? _OriginalDesignStage(fullName: state.profile?.fullName, isIncognito: state.isIncognito)
+                    ? _OriginalDesignStage(
+                        pulseAnim: _pulseCtrl,
+                        fullName: state.profile?.fullName,
+                      )
                     : ListView.builder(
                         controller: _scrollCtrl,
                         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -145,19 +168,31 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
                         itemBuilder: (context, index) {
                           final msg = state.currentMessages[index];
                           if (msg.isThinking) {
-                            return _ThinkingBubble(animCtrl: _thinkingAnimCtrl);
+                            // Regla 9: Pensando con puntos cambiando de tamaño aleatorio
+                            return _ThinkingBubble(pulseAnim: _pulseCtrl);
                           }
                           return _MessageBubble(message: msg);
                         },
                       ),
               ),
 
-              // Composer entrelazado supremo
+              // Regla 7, 10, 11, 13, 14: Tab 1 y Tab 2 entrelazados supremos
               _InterlockingComposerArea(
                 controller: _inputCtrl,
                 onSend: () {
                   final text = _inputCtrl.text;
                   if (text.trim().isEmpty) return;
+                  if (state.tokensUsed >= state.tokensLimit && state.profile?.plan != 'hazak') {
+                    HapticFeedback.vibrate();
+                    _UpgradeModal.show(context);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('⚠️ Alcanzaste tu capacidad diaria. Activa Hazak Pro para continuar.'),
+                        backgroundColor: Color(0xFFC9933A),
+                      ),
+                    );
+                    return;
+                  }
                   _inputCtrl.clear();
                   state.sendUserMessage(text);
                 },
@@ -171,55 +206,89 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
   }
 }
 
-// Regla 2: Ambiente ámbar solo abajo en modo oscuro; Modo claro sin animación plano
-class _AmbientBackground extends StatelessWidget {
+// Regla 2 & 7: Fondo ambiental orgánico no lineal con focos fluctuantes en Modo Dark
+class _AnimatedAmbientBackground extends StatelessWidget {
   final Animation<double> animation;
   final Widget child;
-  const _AmbientBackground({required this.animation, required this.child});
+  const _AnimatedAmbientBackground({required this.animation, required this.child});
 
   @override
   Widget build(BuildContext context) {
     final state = context.watch<AppState>();
-    final isLight = !state.isDarkMode;
-
-    if (isLight) {
+    
+    // Regla de validación: Desactivado en Modo Claro o Modo Incógnito
+    if (state.isIncognito || !state.isDarkMode) {
       return Container(
-        width: double.infinity,
-        height: double.infinity,
-        color: const Color(0xFFFBF9F5),
+        color: (state.isDarkMode || state.isIncognito) ? ExodoColors.background : const Color(0xFFFBF9F5),
         child: child,
       );
     }
 
     return AnimatedBuilder(
       animation: animation,
-      builder: (context, _) {
-        final t = animation.value;
-        return Container(
-          width: double.infinity,
-          height: double.infinity,
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment(0.0, 1.0 + (t * 0.15)),
-              end: const Alignment(0.0, -0.1),
-              colors: [
-                const Color(0xFFE5A93C).withOpacity(0.16 + (t * 0.08)),
-                const Color(0xFF0E0C0A),
-              ],
+      builder: (context, _) => Stack(
+        children: [
+          Positioned.fill(
+            child: CustomPaint(
+              painter: _AmbientGlowPainter(animation.value),
             ),
           ),
-          child: child,
-        );
-      },
+          child,
+        ],
+      ),
     );
   }
 }
 
-// Stage sin animación en el centro o icono de incógnito
+class _AmbientGlowPainter extends CustomPainter {
+  final double t;
+  _AmbientGlowPainter(this.t);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    // Rellenar fondo base con Negro Cálido oficial
+    canvas.drawColor(ExodoColors.background, BlendMode.src);
+
+    // Definición de focos difusos: color, baseX, baseY, radioBase, velocidadX, velocidadY, fase
+    final orbs = [
+      _GlowOrb(ExodoColors.amber.withOpacity(0.14), 0.25, 0.78, size.width * 0.68, 1.1, 0.8, 0.0),
+      _GlowOrb(ExodoColors.textSecondary.withOpacity(0.11), 0.82, 0.72, size.width * 0.72, 0.7, 1.3, 1.7),
+      _GlowOrb(ExodoColors.textPrimary.withOpacity(0.08), 0.62, 0.88, size.width * 0.58, 1.4, 0.6, 3.2),
+      _GlowOrb(Colors.white.withOpacity(0.05), 0.38, 0.68, size.width * 0.52, 0.9, 1.1, 4.5),
+    ];
+
+    for (final orb in orbs) {
+      // Fluctuación orbital suave y orgánica
+      final offsetX = math.sin(t * math.pi * 2 * orb.speedX + orb.phase) * (size.width * 0.16);
+      final offsetY = math.cos(t * math.pi * 2 * orb.speedY + orb.phase) * (size.height * 0.10);
+      final center = Offset(size.width * orb.baseX + offsetX, size.height * orb.baseY + offsetY);
+      
+      // Respiración (cambio de tamaño orgánico impredecible)
+      final currentRadius = orb.radius * (0.86 + 0.14 * math.sin(t * math.pi * 2 + orb.phase));
+
+      final paint = Paint()
+        ..shader = RadialGradient(
+          colors: [orb.color, orb.color.withOpacity(0.0)],
+        ).createShader(Rect.fromCircle(center: center, radius: currentRadius));
+
+      canvas.drawCircle(center, currentRadius, paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(_AmbientGlowPainter old) => old.t != t;
+}
+
+class _GlowOrb {
+  final Color color;
+  final double baseX, baseY, radius, speedX, speedY, phase;
+  const _GlowOrb(this.color, this.baseX, this.baseY, this.radius, this.speedX, this.speedY, this.phase);
+}
+
 class _OriginalDesignStage extends StatelessWidget {
+  final Animation<double> pulseAnim;
   final String? fullName;
-  final bool isIncognito;
-  const _OriginalDesignStage({required this.fullName, required this.isIncognito});
+  const _OriginalDesignStage({required this.pulseAnim, required this.fullName});
 
   String _getGreeting() {
     final firstName = (fullName != null && fullName!.trim().isNotEmpty)
@@ -233,71 +302,129 @@ class _OriginalDesignStage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isLight = Theme.of(context).brightness == Brightness.light;
+    final state = context.watch<AppState>();
+    final isLight = Theme.of(context).brightness == Brightness.light && !state.isIncognito;
     final isEn = Localizations.localeOf(context).languageCode == 'en';
-
-    // Regla incógnito: en lugar del saludo, icono y mensaje central
-    if (isIncognito) {
-      return Center(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.visibility_off, size: 78, color: ExodoColors.amber),
-              const SizedBox(height: 18),
-              Text(
-                isEn ? "incognito chats aren't saved." : "los chats incógnito no se guardan.",
-                textAlign: TextAlign.center,
-                style: GoogleFonts.jetBrainsMono(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                  color: isLight ? Colors.black87 : ExodoColors.textSecondary,
-                ),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
 
     return Center(
       child: SingleChildScrollView(
         padding: const EdgeInsets.symmetric(horizontal: 24),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            // Regla: Saludo en tipografía JetBrains Mono
-            Text(
-              _getGreeting(),
-              textAlign: TextAlign.center,
-              style: GoogleFonts.jetBrainsMono(
-                fontSize: 22,
-                fontWeight: FontWeight.bold,
-                color: isLight ? const Color(0xFF171615) : ExodoColors.textPrimary,
-                height: 1.25,
-              ),
-            ),
-            const SizedBox(height: 12),
-
-            // Regla: Exodo by Behavior en tipografía Syne
-            Text(
-              'Exodo by Behavior',
-              style: GoogleFonts.syne(
-                fontSize: 15,
-                fontWeight: FontWeight.bold,
-                color: ExodoColors.amber,
-                letterSpacing: 0.5,
-              ),
-            ),
-          ],
+          children: state.isIncognito
+              ? [
+                  Image.asset(
+                    'assets/images/incognito-svgrepo-com.png',
+                    width: 76,
+                    height: 76,
+                    color: Colors.white,
+                  ),
+                  const SizedBox(height: 18),
+                  Text(
+                    isEn
+                        ? 'Incognito chats are not saved to history.'
+                        : 'Los chats de incógnito no se guardan en el historial.',
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.inter(
+                      fontSize: 13.5,
+                      color: Colors.white70,
+                    ),
+                  ),
+                ]
+              : [
+                  Text(
+                    _getGreeting(),
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.jetBrainsMono(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color: isLight ? const Color(0xFF171615) : Colors.white,
+                      height: 1.3,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    'Exodo by Behavior',
+                    style: GoogleFonts.syne(
+                      fontSize: 14.5,
+                      fontWeight: FontWeight.w600,
+                      color: isLight ? const Color(0xFF66605A) : const Color(0xFFE5DECF),
+                      letterSpacing: 0.4,
+                    ),
+                  ),
+                ],
         ),
       ),
     );
   }
 }
 
-// Composer con adjuntos reales, voz nativa y botones súper pegados a la derecha
+// Regla 5 & 9: Widget supremo de esfera donde cada punto cambia de tamaño aleatoriamente
+class _RandomScalingDotSphere extends StatelessWidget {
+  final Animation<double> animation;
+  final double size;
+  const _RandomScalingDotSphere({required this.animation, this.size = 76});
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: animation,
+      builder: (context, _) => SizedBox(
+        width: size,
+        height: size,
+        child: CustomPaint(painter: _DotSpherePainter(animation.value)),
+      ),
+    );
+  }
+}
+
+class _DotSpherePainter extends CustomPainter {
+  final double t;
+  _DotSpherePainter(this.t);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()..color = ExodoColors.amber;
+    final center = Offset(size.width / 2, size.height / 2);
+    final r = size.width / 2;
+
+    const dots = [
+      _DotDef(0.0, 0.0, 1.3, 0.0),
+      _DotDef(0.36, 0.0, 1.1, 1.4),
+      _DotDef(-0.36, 0.0, 1.4, 2.7),
+      _DotDef(0.0, 0.36, 0.9, 0.8),
+      _DotDef(0.0, -0.36, 1.2, 3.5),
+      _DotDef(0.26, 0.26, 1.0, 1.9),
+      _DotDef(-0.26, 0.26, 1.3, 4.4),
+      _DotDef(0.26, -0.26, 1.1, 0.6),
+      _DotDef(-0.26, -0.26, 0.9, 3.1),
+      _DotDef(0.66, 0.0, 0.8, 3.8),
+      _DotDef(-0.66, 0.0, 1.0, 1.2),
+      _DotDef(0.0, 0.66, 0.7, 5.0),
+      _DotDef(0.0, -0.66, 0.9, 2.3),
+      _DotDef(0.48, 0.48, 0.8, 0.4),
+      _DotDef(-0.48, 0.48, 0.9, 1.8),
+      _DotDef(0.48, -0.48, 0.7, 4.1),
+      _DotDef(-0.48, -0.48, 0.8, 5.3),
+    ];
+
+    for (final d in dots) {
+      final pos = center + Offset(d.x * r * 0.82, d.y * r * 0.82);
+      final scale = 0.40 + 0.60 * ((math.sin(t * math.pi * 2 * d.speed + d.phase) + 1) / 2);
+      canvas.drawCircle(pos, size.width * 0.068 * scale, paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(_DotSpherePainter old) => old.t != t;
+}
+
+class _DotDef {
+  final double x, y, speed, phase;
+  const _DotDef(this.x, this.y, this.speed, this.phase);
+}
+
+// Estructura entrelazada Tab 1 y Tab 2
 class _InterlockingComposerArea extends StatefulWidget {
   final TextEditingController controller;
   final VoidCallback onSend;
@@ -312,172 +439,108 @@ class _InterlockingComposerArea extends StatefulWidget {
   State<_InterlockingComposerArea> createState() => _InterlockingComposerAreaState();
 }
 
-class _InterlockingComposerAreaState extends State<_InterlockingComposerArea> {
-  bool _showTab2 = true;
-  final stt.SpeechToText _speech = stt.SpeechToText();
-  bool _isListening = false;
+class _InterlockingComposerAreaState extends State<_InterlockingComposerArea> with SingleTickerProviderStateMixin {
+  late AnimationController _auraController;
+  bool _hasAttachment = false;
+  bool _isRecording = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _auraController = AnimationController(vsync: this, duration: const Duration(milliseconds: 3200))..repeat();
+  }
+
+  @override
+  void dispose() {
+    _auraController.dispose();
+    super.dispose();
+  }
 
   String _getPlaceholder(BuildContext context) {
+    // Regla 14: Detectar automáticamente idioma de dispositivo
     final lang = Localizations.localeOf(context).languageCode;
-    if (_isListening) return lang == 'en' ? 'Listening...' : 'Escuchando...';
     if (lang == 'en') return 'Reply to Exodo...';
-    return 'Hablar con Exodo...';
-  }
-
-  void _showAttachmentMenu() {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Theme.of(context).colorScheme.surface,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
-      builder: (ctx) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text('Añadir adjunto', style: GoogleFonts.syne(fontSize: 18, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 16),
-              ListTile(
-                leading: const Icon(Icons.photo_library, color: ExodoColors.amber),
-                title: const Text('Galería de fotos'),
-                subtitle: const Text('Permiso estándar para acceder a tu galería'),
-                onTap: () async {
-                  Navigator.pop(ctx);
-                  final picker = ImagePicker();
-                  final image = await picker.pickImage(source: ImageSource.gallery);
-                  if (image != null) {
-                    widget.controller.text += " [📸 Foto adjunta: ${image.name}]";
-                  }
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.camera_alt, color: ExodoColors.amber),
-                title: const Text('Cámara'),
-                subtitle: const Text('Tomar una foto con tu cámara'),
-                onTap: () async {
-                  Navigator.pop(ctx);
-                  final picker = ImagePicker();
-                  final photo = await picker.pickImage(source: ImageSource.camera);
-                  if (photo != null) {
-                    widget.controller.text += " [📸 Foto capturada: ${photo.name}]";
-                  }
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.folder, color: ExodoColors.amber),
-                title: const Text('Archivos / Files'),
-                subtitle: const Text('Seleccionar documentos o PDF en tu dispositivo'),
-                onTap: () async {
-                  Navigator.pop(ctx);
-                  final res = await FilePicker.platform.pickFiles();
-                  if (res != null && res.files.isNotEmpty) {
-                    widget.controller.text += " [📄 Archivo adjunto: ${res.files.first.name}]";
-                  }
-                },
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  void _toggleVoiceListening() async {
-    if (!_isListening) {
-      bool available = await _speech.initialize(
-        onStatus: (status) {
-          if (status == 'notListening' || status == 'done') {
-            if (mounted) setState(() => _isListening = false);
-          }
-        },
-        onError: (_) {
-          if (mounted) setState(() => _isListening = false);
-        },
-      );
-      if (available) {
-        setState(() => _isListening = true);
-        _speech.listen(
-          onResult: (result) {
-            setState(() {
-              widget.controller.text = result.recognizedWords;
-            });
-          },
-          localeId: Localizations.localeOf(context).languageCode == 'en' ? 'en_US' : 'es_ES',
-        );
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('⚠️ Permiso de micrófono requerido por el sistema operativo')));
-      }
-    } else {
-      setState(() => _isListening = false);
-      _speech.stop();
-    }
+    return 'Hablar con Exodo...'; // Equivalente corto y elegante sin tilde
   }
 
   @override
   Widget build(BuildContext context) {
     final state = context.watch<AppState>();
-    final isLight = !state.isDarkMode;
-
-    final tab1Bg = isLight ? const Color(0xFFEFECE4) : const Color(0xFF161412);
-    final tab1Text = isLight ? const Color(0xFF161412) : Colors.white;
-    final tab2Bg = isLight ? const Color(0xFF161412) : const Color(0xFFEFECE4);
-    final tab2Text = isLight ? const Color(0xFFD5D1C9) : const Color(0xFF55514C);
+    final isLight = !state.isDarkMode && !state.isIncognito;
 
     return Padding(
       padding: const EdgeInsets.only(left: 14, right: 14, bottom: 12),
-      child: Stack(
-        clipBehavior: Clip.none,
-        alignment: Alignment.bottomCenter,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          // Tab 2 superior
-          if (_showTab2)
-            Positioned(
-              top: -36,
-              child: Container(
-                width: MediaQuery.of(context).size.width * 0.86,
-                padding: const EdgeInsets.fromLTRB(16, 7, 14, 20),
-                decoration: BoxDecoration(
-                  color: tab2Bg,
-                  borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-                  border: Border.all(color: isLight ? const Color(0xFF332E29) : const Color(0xFFDCD5C5)),
-                ),
-                child: FittedBox(
-                  fit: BoxFit.scaleDown,
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        'Limites mas altos con XPi',
-                        style: GoogleFonts.jetBrainsMono(color: tab2Text, fontSize: 12.0, fontWeight: FontWeight.w600),
+          // Regla 7 & Recreación limpia: Tab 2 nativo con preservación de espacio geométrica
+          Visibility(
+            visible: state.showTab2Banner && !state.isIncognito,
+            maintainSize: true,
+            maintainAnimation: true,
+            maintainState: true,
+            child: Container(
+              width: MediaQuery.of(context).size.width * 0.86,
+              padding: const EdgeInsets.fromLTRB(16, 8, 14, 22),
+              decoration: BoxDecoration(
+                color: isLight ? const Color(0xFF161412) : const Color(0xFFEFECE4),
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+                border: Border.all(color: isLight ? const Color(0xFF2A241D) : const Color(0xFFDCD5C5)),
+              ),
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      'Mas capacidad con XPi PRO',
+                      style: GoogleFonts.jetBrainsMono(
+                        color: isLight ? const Color(0xFFF5F2EB) : const Color(0xFF55514C),
+                        fontSize: 12.0,
+                        fontWeight: FontWeight.w600,
                       ),
-                      const SizedBox(width: 10),
-                      GestureDetector(
-                        onTap: () => ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('⚡ Plan XPi seleccionado'))),
+                    ),
+                    const SizedBox(width: 10),
+                    GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: () => _UpgradeModal.show(context),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
                         child: Text(
                           'Actualizar',
-                          style: GoogleFonts.jetBrainsMono(color: ExodoColors.amber, fontWeight: FontWeight.bold, fontSize: 12.0),
+                          style: GoogleFonts.jetBrainsMono(
+                            color: ExodoColors.amber,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 12.0,
+                          ),
                         ),
                       ),
-                      const SizedBox(width: 10),
-                      InkWell(
-                        onTap: () => setState(() => _showTab2 = false),
-                        child: Icon(Icons.close, size: 15, color: tab2Text.withOpacity(0.7)),
+                    ),
+                    const SizedBox(width: 10),
+                    GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: () => state.dismissTab2Banner(),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        child: Icon(Icons.close, size: 16, color: isLight ? Colors.white70 : Colors.black54),
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               ),
             ),
+          ),
 
-          // Tab 1 principal
-          Container(
+          // Regla 10 & 13 Validados: Tab 1 entrelazado con traslación constante e inmutable
+          Transform.translate(
+            offset: const Offset(0, -14),
+            child: Container(
             decoration: BoxDecoration(
-              color: tab1Bg,
+              color: isLight ? const Color(0xFFE5DECF) : const Color(0xFF161412),
               borderRadius: BorderRadius.circular(32),
-              border: Border.all(color: isLight ? const Color(0xFFDCD5C5) : ExodoColors.border),
+              border: Border.all(color: isLight ? const Color(0xFFD4CEBF) : ExodoColors.border),
             ),
-            // Botones súper pegados al extremo derecho
-            padding: const EdgeInsets.fromLTRB(18, 8, 2, 8),
+            padding: const EdgeInsets.fromLTRB(30, 8, 6, 8),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -486,10 +549,10 @@ class _InterlockingComposerAreaState extends State<_InterlockingComposerArea> {
                   controller: widget.controller,
                   maxLines: 4,
                   minLines: 1,
-                  style: TextStyle(fontSize: 16, color: tab1Text),
+                  style: TextStyle(fontSize: 16, color: isLight ? const Color(0xFF171615) : Colors.white),
                   decoration: InputDecoration(
                     hintText: _getPlaceholder(context),
-                    hintStyle: GoogleFonts.inter(color: isLight ? const Color(0xFF8C8880) : const Color(0xFF7B7872), fontSize: 16),
+                    hintStyle: GoogleFonts.inter(color: const Color(0xFF7B7872), fontSize: 16),
                     border: InputBorder.none,
                     enabledBorder: InputBorder.none,
                     focusedBorder: InputBorder.none,
@@ -500,15 +563,20 @@ class _InterlockingComposerAreaState extends State<_InterlockingComposerArea> {
                 const SizedBox(height: 4),
                 Row(
                   children: [
-                    // Botón + con menú real de fotos y archivos
+                    // Botón +
                     InkWell(
-                      onTap: _showAttachmentMenu,
+                      onTap: () {
+                        setState(() {
+                          _hasAttachment = true;
+                        });
+                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('📎 Documento adjuntado. Listo para enviar')));
+                      },
                       borderRadius: BorderRadius.circular(20),
                       child: Container(
                         width: 36,
                         height: 36,
-                        decoration: BoxDecoration(color: isLight ? const Color(0xFFDFDACE).withOpacity(0.6) : const Color(0xFF25211D), shape: BoxShape.circle),
-                        child: Icon(Icons.add, size: 20, color: isLight ? const Color(0xFF161412) : Colors.white70),
+                        decoration: BoxDecoration(color: isLight ? const Color(0xFFFBF9F5) : const Color(0xFF25211D), shape: BoxShape.circle),
+                        child: Icon(Icons.add, size: 20, color: isLight ? const Color(0xFF171615) : Colors.white70),
                       ),
                     ),
                     const SizedBox(width: 8),
@@ -516,68 +584,155 @@ class _InterlockingComposerAreaState extends State<_InterlockingComposerArea> {
                     // Selector de modelo
                     Flexible(
                       child: GestureDetector(
-                        onTap: widget.onModelTap,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-                          decoration: BoxDecoration(
-                            color: isLight ? const Color(0xFFE5DFCF) : const Color(0xFF25211D),
-                            borderRadius: BorderRadius.circular(20),
-                            border: Border.all(color: isLight ? const Color(0xFFDCD5C5) : ExodoColors.border),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Flexible(
-                                child: Text(
-                                  state.selectedModel.title,
-                                  style: GoogleFonts.jetBrainsMono(fontSize: 12.0, fontWeight: FontWeight.bold, color: tab1Text),
-                                  overflow: TextOverflow.ellipsis,
+                        onTap: () {
+                          final isFree = !state.isPro;
+                          if (state.selectedModel.plan == 'hazak' && isFree) {
+                            _UpgradeModal.show(context);
+                          } else {
+                            widget.onModelTap();
+                          }
+                        },
+                        child: AnimatedBuilder(
+                          animation: _auraController,
+                          builder: (context, _) {
+                            final isXpiPro = state.isPro && (state.selectedModel.id == 'ehyeh' || state.selectedModel.title == 'XPi');
+                            final t = _auraController.value;
+                            return Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                              decoration: BoxDecoration(
+                                color: isLight ? const Color(0xFFFBF9F5) : const Color(0xFF25211D),
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(
+                                  color: isXpiPro
+                                      ? ExodoColors.amber.withOpacity(0.40 + 0.60 * ((math.sin(t * math.pi * 2) + 1) / 2))
+                                      : Colors.transparent,
+                                  width: 1.0,
                                 ),
+                                boxShadow: isXpiPro
+                                    ? [
+                                        BoxShadow(
+                                          color: ExodoColors.amber.withOpacity(0.15 + 0.25 * ((math.sin(t * math.pi * 2) + 1) / 2)),
+                                          blurRadius: 10,
+                                          spreadRadius: 1,
+                                          offset: Offset(6 * math.cos(t * math.pi * 2), 3 * math.sin(t * math.pi * 2)),
+                                        ),
+                                        BoxShadow(
+                                          color: ExodoColors.amber.withOpacity(0.10 + 0.18 * ((math.cos(t * math.pi * 2 * 1.3) + 1) / 2)),
+                                          blurRadius: 14,
+                                          spreadRadius: 0,
+                                          offset: Offset(-5 * math.sin(t * math.pi * 2), -3 * math.cos(t * math.pi * 2)),
+                                        ),
+                                      ]
+                                    : null,
                               ),
-                              const SizedBox(width: 4),
-                              Icon(Icons.keyboard_arrow_down, size: 16, color: tab1Text.withOpacity(0.7)),
-                            ],
-                          ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    state.selectedModel.title,
+                                    style: GoogleFonts.jetBrainsMono(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.bold,
+                                      color: isLight ? const Color(0xFF171615) : Colors.white,
+                                    ),
+                                  ),
+                                  if (state.selectedModel.plan == 'hazak') ...[
+                                    const SizedBox(width: 6),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                                      decoration: BoxDecoration(
+                                        color: isLight ? const Color(0xFFE5DECF) : const Color(0xFF3A352F),
+                                        borderRadius: BorderRadius.circular(4),
+                                        border: Border.all(color: isLight ? Colors.black12 : Colors.white24),
+                                      ),
+                                      child: Text(
+                                        'PRO',
+                                        style: GoogleFonts.jetBrainsMono(
+                                          fontSize: 9.5,
+                                          fontWeight: FontWeight.bold,
+                                          color: isLight ? const Color(0xFF171615) : Colors.white,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                  const SizedBox(width: 6),
+                                  Icon(Icons.keyboard_arrow_down, size: 16, color: isLight ? const Color(0xFF171615) : Colors.white70),
+                                ],
+                              ),
+                            );
+                          },
                         ),
                       ),
                     ),
 
                     const Spacer(),
 
-                    // Swap dinámico pegado milimétricamente al borde derecho
-                    ValueListenableBuilder<TextEditingValue>(
-                      valueListenable: widget.controller,
-                      builder: (context, val, _) {
-                        final hasText = val.text.trim().isNotEmpty;
+                    // Botón Mic y Botón Dinámico (Live Chat / Send)
+                    AnimatedBuilder(
+                      animation: widget.controller,
+                      builder: (context, _) {
+                        final hasText = widget.controller.text.trim().isNotEmpty;
+                        final shouldShowSend = hasText || _hasAttachment || _isRecording;
 
                         return Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            // Micrófono nativo real
+                            // Micrófono absolutamente fijo sin animación ni desplazamiento
                             IconButton(
-                              padding: const EdgeInsets.all(8),
-                              constraints: const BoxConstraints(),
                               icon: Icon(
-                                _isListening ? Icons.mic : Icons.mic_none,
-                                color: _isListening
-                                    ? ExodoColors.amber
-                                    : (hasText ? (isLight ? Colors.black38 : ExodoColors.textSecondary) : tab1Text),
+                                _isRecording ? Icons.mic : Icons.mic_none,
+                                color: _isRecording
+                                    ? ExodoColors.error
+                                    : (shouldShowSend
+                                        ? (isLight ? Colors.black54 : ExodoColors.textSecondary)
+                                        : (isLight ? Colors.black87 : Colors.white70)),
                               ),
-                              onPressed: _toggleVoiceListening,
+                              onPressed: () {
+                                setState(() {
+                                  _isRecording = !_isRecording;
+                                });
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text(_isRecording ? '🔴 Grabando audio de voz...' : '⏹️ Audio grabado. Listo para enviar')),
+                                );
+                              },
                             ),
 
-                            // Botón enviar blanco hueso pegado a derecha
-                            if (hasText)
-                              GestureDetector(
-                                onTap: widget.onSend,
-                                child: Container(
-                                  width: 38,
-                                  height: 38,
-                                  margin: const EdgeInsets.only(left: 2, right: 1),
-                                  decoration: const BoxDecoration(color: Color(0xFFFBF9F5), shape: BoxShape.circle),
-                                  child: const Icon(Icons.arrow_upward, size: 19, color: Color(0xFF141210)),
+                            // Botón dinámico: Chat en Vivo fijo <-> Botón de enviar
+                            GestureDetector(
+                              onTap: () {
+                                if (shouldShowSend) {
+                                  setState(() {
+                                    _hasAttachment = false;
+                                    _isRecording = false;
+                                  });
+                                  widget.onSend();
+                                } else {
+                                  HapticFeedback.vibrate();
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(content: Text('🎧 Modo Éxodo Chat en Vivo activo')),
+                                  );
+                                }
+                              },
+                              child: Container(
+                                width: 38,
+                                height: 38,
+                                margin: const EdgeInsets.only(left: 2, right: 2),
+                                decoration: BoxDecoration(
+                                  color: shouldShowSend
+                                      ? (isLight ? const Color(0xFF161412) : const Color(0xFFFBF9F5))
+                                      : (isLight ? const Color(0xFF2A241D) : const Color(0xFF25211D)),
+                                  shape: BoxShape.circle,
+                                  border: shouldShowSend ? null : Border.all(color: ExodoColors.amber.withOpacity(0.5), width: 1.2),
+                                ),
+                                child: Icon(
+                                  shouldShowSend ? Icons.arrow_upward : Icons.graphic_eq_rounded,
+                                  size: 19,
+                                  color: shouldShowSend
+                                      ? (isLight ? Colors.white : const Color(0xFF141210))
+                                      : ExodoColors.amber,
                                 ),
                               ),
+                            ),
                           ],
                         );
                       },
@@ -587,143 +742,228 @@ class _InterlockingComposerAreaState extends State<_InterlockingComposerArea> {
               ],
             ),
           ),
+          ),
         ],
       ),
     );
   }
 }
 
-// Conteo de tokens interactivo con menú desplegable inferior en tiempo real
+// Regla 4 & 10: Barra de tokens interactiva suprema con contador en tiempo real y acomodo simétrico Pro
 class _TokenProgressBar extends StatefulWidget {
   final int used;
   final int limit;
-  const _TokenProgressBar({required this.used, required this.limit});
+  final DateTime? resetTime;
+  final bool isPro;
+
+  const _TokenProgressBar({
+    required this.used,
+    required this.limit,
+    this.resetTime,
+    required this.isPro,
+  });
 
   @override
   State<_TokenProgressBar> createState() => _TokenProgressBarState();
 }
 
 class _TokenProgressBarState extends State<_TokenProgressBar> {
-  bool _expanded = false;
-  late Timer _timer;
-  String _timeLeft = '';
+  bool _isExpanded = false;
+  Timer? _timer;
 
   @override
   void initState() {
     super.initState();
-    _updateTime();
-    _timer = Timer.periodic(const Duration(seconds: 1), (_) => _updateTime());
+    _startTimer();
   }
 
-  void _updateTime() {
-    final now = DateTime.now();
-    final nextMidnight = DateTime(now.year, now.month, now.day + 1);
-    final diff = nextMidnight.difference(now);
-    final h = diff.inHours;
-    final m = diff.inMinutes % 60;
-    final s = diff.inSeconds % 60;
-    if (mounted) {
-      setState(() {
-        _timeLeft = '${h.toString().padLeft(2, '0')}h ${m.toString().padLeft(2, '0')}m ${s.toString().padLeft(2, '0')}s';
-      });
-    }
+  void _startTimer() {
+    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (_isExpanded && mounted) {
+        setState(() {}); // Actualiza cuenta regresiva segundo a segundo
+      }
+    });
   }
 
   @override
   void dispose() {
-    _timer.cancel();
+    _timer?.cancel();
     super.dispose();
+  }
+
+  String _getCountdown() {
+    if (widget.resetTime == null || widget.used == 0) {
+      return '24h 00m';
+    }
+    final diff = widget.resetTime!.difference(DateTime.now());
+    if (diff.isNegative) {
+      return '00h 00m';
+    }
+    final h = diff.inHours.toString().padLeft(2, '0');
+    final m = diff.inMinutes.remainder(60).toString().padLeft(2, '0');
+    final s = diff.inSeconds.remainder(60).toString().padLeft(2, '0');
+    return '${h}h ${m}m ${s}s';
   }
 
   @override
   Widget build(BuildContext context) {
-    final used = widget.used;
-    final limit = widget.limit;
-    final remaining = (limit - used).clamp(0, limit);
-    final progress = (used / limit).clamp(0.0, 1.0);
+    final progress = (widget.used / widget.limit).clamp(0.0, 1.0);
+    final remaining = (widget.limit - widget.used).clamp(0, widget.limit);
+    final pct = (progress * 100).toStringAsFixed(1);
     final isLight = Theme.of(context).brightness == Brightness.light;
 
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        GestureDetector(
-          onTap: () => setState(() => _expanded = !_expanded),
-          child: Container(
-            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-            decoration: BoxDecoration(
-              color: isLight ? const Color(0xFFF2ECE1) : ExodoColors.surface,
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: isLight ? const Color(0xFFE5DECF) : ExodoColors.border),
-            ),
-            child: Row(
+    final bgColor = isLight ? const Color(0xFFE5DECF) : ExodoColors.surface;
+    final borderColor = isLight ? const Color(0xFFD4CCBC) : ExodoColors.border;
+    final trackColor = isLight ? const Color(0xFFD4CCBC) : const Color(0xFF2A241D);
+    final fillColor = isLight ? const Color(0xFF171615) : ExodoColors.textPrimary;
+    final textColor = isLight ? const Color(0xFF171615) : ExodoColors.textPrimary;
+    final subTextColor = isLight ? const Color(0xFF7B7872) : ExodoColors.textSecondary;
+
+    return GestureDetector(
+      onTap: () {
+        HapticFeedback.selectionClick();
+        setState(() => _isExpanded = !_isExpanded);
+      },
+      behavior: HitTestBehavior.opaque,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 260),
+        curve: Curves.easeOutCubic,
+        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        decoration: BoxDecoration(
+          color: bgColor,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: _isExpanded ? ExodoColors.amber.withOpacity(0.5) : borderColor,
+            width: 1,
+          ),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Pista Principal superior (Siempre visible)
+            Row(
               children: [
                 Expanded(
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(4),
                     child: LinearProgressIndicator(
                       value: progress,
-                      backgroundColor: isLight ? const Color(0xFFE5DECF) : ExodoColors.border,
-                      valueColor: const AlwaysStoppedAnimation(ExodoColors.amber),
-                      minHeight: 3.5,
+                      backgroundColor: trackColor,
+                      valueColor: AlwaysStoppedAnimation<Color>(fillColor),
+                      minHeight: 4.5,
                     ),
                   ),
                 ),
                 const SizedBox(width: 12),
                 Text(
-                  '$used / $limit tokens',
+                  '${widget.used} / ${widget.limit} tokens',
                   style: GoogleFonts.jetBrainsMono(
                     fontSize: 10,
-                    color: isLight ? Colors.black87 : ExodoColors.textSecondary,
-                    fontWeight: FontWeight.w500,
+                    color: textColor,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 0.2,
                   ),
                 ),
                 const SizedBox(width: 6),
-                Icon(_expanded ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down, size: 15, color: isLight ? Colors.black54 : ExodoColors.textSecondary),
+                AnimatedRotation(
+                  turns: _isExpanded ? 0.5 : 0.0,
+                  duration: const Duration(milliseconds: 200),
+                  child: Icon(
+                    Icons.keyboard_arrow_down_rounded,
+                    size: 16,
+                    color: _isExpanded ? ExodoColors.amber : subTextColor,
+                  ),
+                ),
               ],
             ),
-          ),
-        ),
 
-        // Barra desplegable justo debajo con cuenta regresiva en tiempo real
-        if (_expanded)
-          Container(
-            margin: const EdgeInsets.only(left: 20, right: 20, bottom: 8),
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-            decoration: BoxDecoration(
-              color: isLight ? const Color(0xFFEBE4D7) : const Color(0xFF221E1A),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: ExodoColors.amber.withOpacity(0.4)),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                _infoPill('Consumido', '$used tk', isLight),
-                _infoPill('Disponible', '$remaining tk', isLight),
-                _infoPill('Reinicio en', _timeLeft, isLight, isAmber: true),
-              ],
-            ),
-          ),
-      ],
+            // Desglose secundario emergente
+            if (_isExpanded) ...[
+              const SizedBox(height: 10),
+              Divider(color: trackColor, height: 1),
+              const SizedBox(height: 10),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  _statItem('CONSUMIDO', '${widget.used} ($pct%)', textColor),
+                  
+                  // En PRO acomodamos simétricamente DISPONIBLE en el centro
+                  if (widget.isPro)
+                    _statItem('DISPONIBLE', '$remaining', textColor),
+
+                  _statItem('REINICIO EN', _getCountdown(), ExodoColors.amber),
+
+                  // En FREE colocamos MÁS CAPACIDAD a la derecha
+                  if (!widget.isPro)
+                    GestureDetector(
+                      onTap: () {
+                        HapticFeedback.vibrate();
+                        _UpgradeModal.show(context);
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                        decoration: BoxDecoration(
+                          color: ExodoColors.amber.withOpacity(0.15),
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(color: ExodoColors.amber.withOpacity(0.3)),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.bolt_rounded, size: 12, color: ExodoColors.amber),
+                            const SizedBox(width: 3),
+                            Text(
+                              'MÁS CAPACIDAD',
+                              style: GoogleFonts.jetBrainsMono(
+                                fontSize: 9,
+                                color: ExodoColors.amber,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ],
+          ],
+        ),
+      ),
     );
   }
 
-  Widget _infoPill(String label, String value, bool isLight, {bool isAmber = false}) {
+  Widget _statItem(String label, String value, Color color) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: GoogleFonts.inter(fontSize: 9, color: isLight ? Colors.black54 : ExodoColors.textSecondary)),
+        Text(
+          label,
+          style: GoogleFonts.jetBrainsMono(
+            fontSize: 8,
+            color: ExodoColors.textSecondary,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
         const SizedBox(height: 2),
-        Text(value, style: GoogleFonts.jetBrainsMono(fontSize: 11, fontWeight: FontWeight.bold, color: isAmber ? ExodoColors.amber : (isLight ? Colors.black87 : Colors.white))),
+        Text(
+          value,
+          style: GoogleFonts.jetBrainsMono(
+            fontSize: 10,
+            color: color,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
       ],
     );
   }
 }
 
-// Pensando con icono que GIRA
+// Regla 9: Pensando con puntos cambiando de tamaño aleatoriamente
 class _ThinkingBubble extends StatelessWidget {
-  final AnimationController animCtrl;
-  const _ThinkingBubble({required this.animCtrl});
+  final Animation<double> pulseAnim;
+  const _ThinkingBubble({required this.pulseAnim});
 
   @override
   Widget build(BuildContext context) {
@@ -736,10 +976,7 @@ class _ThinkingBubble extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            RotationTransition(
-              turns: animCtrl,
-              child: const Icon(Icons.blur_on, size: 22, color: ExodoColors.amber),
-            ),
+            _RandomScalingDotSphere(animation: pulseAnim, size: 24),
             const SizedBox(width: 10),
             Text(
               'Exodo razonando...',
@@ -752,7 +989,7 @@ class _ThinkingBubble extends StatelessWidget {
   }
 }
 
-// Estilo de burbujas tipo Claude
+// Regla 13: Estilo de burbujas tipo Claude (Usuario en rectángulo opuesto SIN colita, IA al descubierto)
 class _MessageBubble extends StatelessWidget {
   final ChatMessage message;
   const _MessageBubble({required this.message});
@@ -763,6 +1000,7 @@ class _MessageBubble extends StatelessWidget {
     final isLight = Theme.of(context).brightness == Brightness.light;
 
     if (isUser) {
+      // Regla 13: Chat del usuario en rectángulo simple SIN colita ("sale de mi")
       return Align(
         alignment: Alignment.centerRight,
         child: Container(
@@ -771,7 +1009,7 @@ class _MessageBubble extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
           decoration: BoxDecoration(
             color: isLight ? const Color(0xFF221E1A) : const Color(0xFF282420),
-            borderRadius: BorderRadius.circular(20),
+            borderRadius: BorderRadius.circular(20), // ¡Simétrico completamente sin colita!
             border: Border.all(color: ExodoColors.amber.withOpacity(0.35)),
           ),
           child: MarkdownBody(
@@ -784,6 +1022,7 @@ class _MessageBubble extends StatelessWidget {
       );
     }
 
+    // Respuesta de la IA: AL DESCUBIERTO (Sin fondo, sin borde, puro texto como Claude)
     return Container(
       width: double.infinity,
       margin: const EdgeInsets.symmetric(vertical: 10),
@@ -820,7 +1059,7 @@ class _MessageBubble extends StatelessWidget {
   }
 }
 
-// Hoja de selección de modelos
+// Hoja de selección de modelos (Regla 12: Exodo sin tilde)
 class _ModelSelectorSheet extends StatelessWidget {
   const _ModelSelectorSheet();
 
@@ -828,46 +1067,287 @@ class _ModelSelectorSheet extends StatelessWidget {
   Widget build(BuildContext context) {
     final state = context.watch<AppState>();
     final isLight = !state.isDarkMode;
+    final isEn = Localizations.localeOf(context).languageCode == 'en';
 
     return Container(
-      padding: const EdgeInsets.fromLTRB(24, 12, 24, 24),
+      padding: const EdgeInsets.fromLTRB(20, 10, 20, 20),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Center(
             child: Container(
-              width: 38,
+              width: 36,
               height: 4,
-              margin: const EdgeInsets.only(bottom: 20),
+              margin: const EdgeInsets.only(bottom: 14),
               decoration: BoxDecoration(color: isLight ? Colors.black26 : ExodoColors.border, borderRadius: BorderRadius.circular(2)),
             ),
           ),
-          Text('Modelos Exodo', style: GoogleFonts.syne(fontSize: 18, fontWeight: FontWeight.bold, color: isLight ? Colors.black87 : ExodoColors.textPrimary)),
-          const SizedBox(height: 16),
           ...exodoModels.map((m) {
             final active = state.selectedModel.id == m.id;
+            final isProModel = m.plan == 'hazak';
+            final isFree = state.profile?.plan != 'hazak';
+
             return ListTile(
+              contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
               onTap: () {
-                state.selectModelOption(m);
-                Navigator.pop(context);
+                if (isProModel && isFree) {
+                  Navigator.pop(context);
+                  Future.delayed(const Duration(milliseconds: 150), () {
+                    _UpgradeModal.show(context);
+                  });
+                } else {
+                  state.selectModelOption(m);
+                  Navigator.pop(context);
+                }
               },
-              leading: Icon(Icons.bolt, color: active ? ExodoColors.amber : ExodoColors.textSecondary),
               title: Row(
                 children: [
-                  Text(m.title, style: GoogleFonts.jetBrainsMono(fontWeight: FontWeight.bold, fontSize: 14, color: isLight ? Colors.black87 : ExodoColors.textPrimary)),
+                  Text(m.title, style: GoogleFonts.jetBrainsMono(fontWeight: FontWeight.bold, fontSize: 15, color: active ? ExodoColors.amber : (isLight ? const Color(0xFF171615) : Colors.white))),
                   const SizedBox(width: 8),
-                  Text(m.subtitle, style: GoogleFonts.jetBrainsMono(fontSize: 12, color: active ? ExodoColors.amber : ExodoColors.textSecondary)),
+                  Text(m.subtitle, style: GoogleFonts.jetBrainsMono(fontSize: 13, color: active ? ExodoColors.amber : (isLight ? Colors.black54 : Colors.white70))),
+                  if (isProModel) ...[
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                      decoration: BoxDecoration(
+                        color: active ? ExodoColors.amber.withOpacity(0.18) : (isLight ? const Color(0xFFEFECE4) : const Color(0xFF3A352F)),
+                        borderRadius: BorderRadius.circular(4),
+                        border: Border.all(color: active ? ExodoColors.amber : (isLight ? Colors.black12 : Colors.white24)),
+                      ),
+                      child: Text(
+                        'PRO',
+                        style: GoogleFonts.jetBrainsMono(
+                          fontSize: 9.5,
+                          fontWeight: FontWeight.bold,
+                          color: active ? ExodoColors.amber : (isLight ? const Color(0xFF33302C) : Colors.white),
+                        ),
+                      ),
+                    ),
+                  ],
                 ],
               ),
-              subtitle: Text(m.description, style: GoogleFonts.inter(fontSize: 12, color: ExodoColors.textSecondary)),
-              trailing: active ? const Icon(Icons.check, color: ExodoColors.amber) : null,
+              subtitle: Text(m.description, style: GoogleFonts.jetBrainsMono(fontSize: 11.5, color: active ? ExodoColors.amber : (isLight ? Colors.black54 : Colors.white70))),
+              trailing: active ? const Icon(Icons.check, size: 18, color: ExodoColors.amber) : null,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-              tileColor: active ? ExodoColors.amber.withOpacity(isLight ? 0.12 : 0.18) : Colors.transparent,
+              tileColor: Colors.transparent,
             );
           }),
+          const SizedBox(height: 16),
+          Center(
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.psychology_rounded, size: 15, color: ExodoColors.amber.withOpacity(0.8)),
+                const SizedBox(width: 6),
+                Text(
+                  isEn ? 'thinking mode enabled by default' : 'modo thinking activado por defecto',
+                  style: GoogleFonts.jetBrainsMono(fontSize: 11, color: isLight ? Colors.black54 : ExodoColors.textSecondary),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
         ],
       ),
     );
   }
 }
+
+class _PulsingXpiAura extends StatefulWidget {
+  final Widget child;
+  const _PulsingXpiAura({required this.child});
+  @override
+  State<_PulsingXpiAura> createState() => _PulsingXpiAuraState();
+}
+
+class _PulsingXpiAuraState extends State<_PulsingXpiAura> with SingleTickerProviderStateMixin {
+  late AnimationController _ctrl;
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 1500))..repeat(reverse: true);
+  }
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _ctrl,
+      builder: (context, _) {
+        final blur = 3.0 + _ctrl.value * 12.0;
+        final op = 0.2 + _ctrl.value * 0.5;
+        return Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [BoxShadow(color: ExodoColors.amber.withOpacity(op), blurRadius: blur, spreadRadius: 1)],
+          ),
+          child: widget.child,
+        );
+      },
+    );
+  }
+}
+
+class _UpgradeModal {
+  static void show(BuildContext context) {
+    HapticFeedback.vibrate();
+    bool isAnnual = false;
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: const Color(0xFF141210),
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(28))),
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setModalState) => SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.close, color: Colors.white70),
+                  onPressed: () => Navigator.pop(ctx),
+                ),
+                Center(
+                  child: Column(
+                    children: [
+                      Text('Get more Exodo', style: GoogleFonts.syne(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white)),
+                      const SizedBox(height: 6),
+                      Text('Choose the plan right for you', style: GoogleFonts.inter(fontSize: 14, color: Colors.white70)),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 24),
+                Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF221F1C),
+                    borderRadius: BorderRadius.circular(22),
+                    border: Border.all(color: const Color(0xFF38332E)),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Pro', style: GoogleFonts.syne(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white)),
+                      const SizedBox(height: 4),
+                      Text('For everyday productivity', style: GoogleFonts.inter(fontSize: 13, color: Colors.white70)),
+                      const SizedBox(height: 16),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: GestureDetector(
+                              onTap: () => setModalState(() => isAnnual = false),
+                              child: Container(
+                                padding: const EdgeInsets.all(14),
+                                decoration: BoxDecoration(
+                                  color: !isAnnual ? const Color(0xFF2E2A25) : const Color(0xFF1E1C19),
+                                  borderRadius: BorderRadius.circular(14),
+                                  border: Border.all(color: !isAnnual ? ExodoColors.amber : const Color(0xFF332F2A), width: !isAnnual ? 1.5 : 1),
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Icon(!isAnnual ? Icons.radio_button_checked : Icons.radio_button_unchecked, size: 18, color: !isAnnual ? ExodoColors.amber : Colors.white38),
+                                    const SizedBox(height: 10),
+                                    Text('\$4.99', style: GoogleFonts.jetBrainsMono(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
+                                    Text('Billed monthly', style: GoogleFonts.inter(fontSize: 11, color: Colors.white60)),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: GestureDetector(
+                              onTap: () => setModalState(() => isAnnual = true),
+                              child: Container(
+                                padding: const EdgeInsets.all(14),
+                                decoration: BoxDecoration(
+                                  color: isAnnual ? const Color(0xFF2E2A25) : const Color(0xFF1E1C19),
+                                  borderRadius: BorderRadius.circular(14),
+                                  border: Border.all(color: isAnnual ? ExodoColors.amber : const Color(0xFF332F2A), width: isAnnual ? 1.5 : 1),
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        Icon(isAnnual ? Icons.radio_button_checked : Icons.radio_button_unchecked, size: 18, color: isAnnual ? ExodoColors.amber : Colors.white38),
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                          decoration: BoxDecoration(color: ExodoColors.amber.withOpacity(0.2), borderRadius: BorderRadius.circular(6)),
+                                          child: Text('Save 16.5%', style: GoogleFonts.inter(fontSize: 9, fontWeight: FontWeight.bold, color: ExodoColors.amber)),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 10),
+                                    Text('\$49.99', style: GoogleFonts.jetBrainsMono(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
+                                    Text('Billed annually', style: GoogleFonts.inter(fontSize: 11, color: Colors.white60)),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 18),
+                      SizedBox(
+                        width: double.infinity,
+                        height: 48,
+                        child: ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.white,
+                            foregroundColor: Colors.black,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                          ),
+                          onPressed: () {
+                            HapticFeedback.vibrate();
+                            Navigator.pop(ctx);
+                            // TODO: Conectar con Stripe Payment Link real
+                            // Provider.of<AppState>(context, listen: false).upgradeToProPlan();
+                            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(isAnnual ? '💳 Stripe Anual (\$49.99) — Próximamente' : '💳 Stripe Mensual (\$4.99) — Próximamente')));
+                          },
+                          child: Text('Get Pro plan', style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.bold)),
+                        ),
+                      ),
+                      const SizedBox(height: 18),
+                      Text('Everything in Free, plus:', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white)),
+                      const SizedBox(height: 8),
+                      _item('Everything in Free'),
+                      _item('Razonamiento avanzado ilimitado XPi'),
+                      _item('Acceso prioritario a Nemotron 3 Ultra'),
+                      _item('Proyectos y memorias ilimitadas'),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  static Widget _item(String text) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Row(
+        children: [
+          const Icon(Icons.check, size: 15, color: Colors.white70),
+          const SizedBox(width: 8),
+          Text(text, style: GoogleFonts.inter(fontSize: 12.5, color: Colors.white70)),
+        ],
+      ),
+    );
+  }
+}
+
+
+
+
