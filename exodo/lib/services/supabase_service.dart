@@ -16,7 +16,7 @@ class SupabaseService {
         // Detecta y procesa el ?code= del deep link al arrancar la app
         detectSessionInUri: true,
         // PKCE: en móvil usa memoria para guardar el code_verifier
-        pkceAsyncStorage: SharedPreferencesGoTrueAsyncStorage(),
+        pkceAsyncStorage: SharedPreferencesGotrueAsyncStorage(),
       ),
     );
   }
