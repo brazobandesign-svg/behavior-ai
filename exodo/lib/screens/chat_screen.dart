@@ -19,14 +19,15 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
   final _scrollCtrl = ScrollController();
   late AnimationController _thinkingAnimCtrl;
   late AnimationController _ambientBgCtrl;
-  late AnimationController _logoRotCtrl;
+  late AnimationController _pulseCtrl;
 
   @override
   void initState() {
     super.initState();
-    _thinkingAnimCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 1600))..repeat();
-    _ambientBgCtrl = AnimationController(vsync: this, duration: const Duration(seconds: 8))..repeat(reverse: true);
-    _logoRotCtrl = AnimationController(vsync: this, duration: const Duration(seconds: 16))..repeat();
+    _thinkingAnimCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 1400))..repeat(reverse: true);
+    _ambientBgCtrl = AnimationController(vsync: this, duration: const Duration(seconds: 7))..repeat(reverse: true);
+    // Regla 5 & 9: Animación de cambio de tamaño (pulso dinámico) en lugar de giro
+    _pulseCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 1800))..repeat(reverse: true);
   }
 
   @override
@@ -35,7 +36,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
     _scrollCtrl.dispose();
     _thinkingAnimCtrl.dispose();
     _ambientBgCtrl.dispose();
-    _logoRotCtrl.dispose();
+    _pulseCtrl.dispose();
     super.dispose();
   }
 
@@ -64,7 +65,6 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
 
     return Scaffold(
       drawer: const DrawerMenu(),
-      // Fondo animado ambiental a pantalla completa (Regla 2)
       body: _AnimatedAmbientBackground(
         animation: _ambientBgCtrl,
         child: SafeArea(
@@ -75,7 +75,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 child: Row(
                   children: [
-                    // Regla 1: Menú Profile estilo Library (3 líneas, la última más corta)
+                    // Regla 1: Menú Profile estilo Library (3 líneas escalonadas)
                     Builder(
                       builder: (ctx) => InkWell(
                         onTap: () => Scaffold.of(ctx).openDrawer(),
@@ -99,22 +99,16 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
 
                     const Spacer(),
 
-                    // Regla 3: Íconos de Incógnito, Dark mode y Nuevo chat
-                    // 1. Incógnito
+                    // Regla 3: Orden exacto -> 1ro New Chat, 2do Dark mode, 3ro Incognito (nuevos íconos)
+                    // 1. Nuevo Chat
                     IconButton(
                       icon: Icon(
-                        state.isIncognito ? Icons.privacy_tip : Icons.privacy_tip_outlined,
-                        size: 22,
-                        color: state.isIncognito ? ExodoColors.amber : (isLight ? Colors.black54 : ExodoColors.textSecondary),
+                        Icons.chat_bubble_outline_rounded,
+                        size: 21,
+                        color: isLight ? Colors.black87 : ExodoColors.textSecondary,
                       ),
-                      tooltip: 'Modo incógnito',
-                      onPressed: () {
-                        state.toggleIncognito();
-                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                          content: Text(state.isIncognito ? '🕵️ Modo incógnito activo (no guarda DB)' : '💬 Modo normal activo'),
-                          duration: const Duration(seconds: 2),
-                        ));
-                      },
+                      tooltip: 'Nuevo chat',
+                      onPressed: () => state.startNewChat(),
                     ),
 
                     // 2. Dark / Light Mode
@@ -122,34 +116,40 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
                       icon: Icon(
                         state.isDarkMode ? Icons.light_mode_outlined : Icons.dark_mode_outlined,
                         size: 22,
-                        color: isLight ? Colors.black54 : ExodoColors.textSecondary,
+                        color: isLight ? Colors.black87 : ExodoColors.textSecondary,
                       ),
                       tooltip: 'Cambiar tema',
                       onPressed: () => state.toggleTheme(),
                     ),
 
-                    // 3. Nuevo Chat
+                    // 3. Incógnito
                     IconButton(
                       icon: Icon(
-                        Icons.add_comment_outlined,
+                        state.isIncognito ? Icons.visibility_off : Icons.visibility_off_outlined,
                         size: 22,
-                        color: isLight ? Colors.black54 : ExodoColors.textSecondary,
+                        color: state.isIncognito ? ExodoColors.amber : (isLight ? Colors.black87 : ExodoColors.textSecondary),
                       ),
-                      tooltip: 'Nuevo chat',
-                      onPressed: () => state.startNewChat(),
+                      tooltip: 'Modo incógnito',
+                      onPressed: () {
+                        state.toggleIncognito();
+                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                          content: Text(state.isIncognito ? '🕵️ Modo incógnito activo (no guarda en DB)' : '💬 Modo normal activo'),
+                          duration: const Duration(seconds: 2),
+                        ));
+                      },
                     ),
                   ],
                 ),
               ),
 
-              // Regla 4: Conteo de tokens sutil dentro de un rectángulo con bordes curvos
+              // Regla 4: Conteo de tokens en tarjeta curva sutil
               _TokenProgressBar(used: state.tokensUsed, limit: state.tokensLimit),
 
-              // Stage principal o lista de mensajes (Regla 8: desaparece al enviar mensaje)
+              // Stage principal o lista de mensajes (Regla 8)
               Expanded(
                 child: state.currentMessages.isEmpty
                     ? _OriginalDesignStage(
-                        rotAnim: _logoRotCtrl,
+                        pulseAnim: _pulseCtrl,
                         fullName: state.profile?.fullName,
                       )
                     : ListView.builder(
@@ -159,15 +159,15 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
                         itemBuilder: (context, index) {
                           final msg = state.currentMessages[index];
                           if (msg.isThinking) {
-                            // Regla 9: Animación thinking con el logo de login girando
-                            return _ThinkingBubble(anim: _thinkingAnimCtrl);
+                            // Regla 9: Pensando con puntos cambiando de tamaño
+                            return _ThinkingBubble(pulseAnim: _pulseCtrl);
                           }
                           return _MessageBubble(message: msg);
                         },
                       ),
               ),
 
-              // Regla 7, 10, 11: Tab 1 y Tab 2 entrelazados con resplandor opuesto y botón reactivo
+              // Regla 7, 10, 11, 13, 14: Tab 1 y Tab 2 entrelazados supremos
               _InterlockingComposerArea(
                 controller: _inputCtrl,
                 onSend: () {
@@ -186,7 +186,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
   }
 }
 
-// Fondo ambiental a pantalla completa sin cortes (Regla 2, 13)
+// Fondo ambiental a pantalla completa (Regla 2: visible y cálido en modo claro)
 class _AnimatedAmbientBackground extends StatelessWidget {
   final Animation<double> animation;
   final Widget child;
@@ -206,17 +206,17 @@ class _AnimatedAmbientBackground extends StatelessWidget {
           height: double.infinity,
           decoration: BoxDecoration(
             gradient: LinearGradient(
-              begin: Alignment(-1.0 + (t * 0.6), -1.0),
-              end: Alignment(1.0 - (t * 0.6), 1.0),
+              begin: Alignment(-1.0 + (t * 0.7), -1.0),
+              end: Alignment(1.0 - (t * 0.7), 1.0),
               colors: isLight
                   ? [
-                      const Color(0xFFFBF9F5), // Blanco yeso o hueso cremoso
-                      const Color(0xFFF4EFE6),
-                      Color.lerp(const Color(0xFFEFE9DE), const Color(0xFFE7DFD0), t)!,
+                      const Color(0xFFFBF9F5), // Blanco yeso/hueso cremoso
+                      Color.lerp(const Color(0xFFF5ECE0), const Color(0xFFEEDCC8), t)!, // Degradado durazno/ámbar cálido bien visible
+                      const Color(0xFFF7F4EE),
                     ]
                   : [
                       const Color(0xFF0E0C0A), // Negro Cálido
-                      Color.lerp(const Color(0xFF18101C), const Color(0xFF1E1410), t)!, // Ambiente degradado sutil
+                      Color.lerp(const Color(0xFF1A1220), const Color(0xFF221610), t)!, // Resplandor atmosférico sutil
                       const Color(0xFF0A0908),
                     ],
             ),
@@ -229,9 +229,9 @@ class _AnimatedAmbientBackground extends StatelessWidget {
 }
 
 class _OriginalDesignStage extends StatelessWidget {
-  final Animation<double> rotAnim;
+  final Animation<double> pulseAnim;
   final String? fullName;
-  const _OriginalDesignStage({required this.rotAnim, required this.fullName});
+  const _OriginalDesignStage({required this.pulseAnim, required this.fullName});
 
   String _getGreeting() {
     final firstName = (fullName != null && fullName!.trim().isNotEmpty)
@@ -253,23 +253,23 @@ class _OriginalDesignStage extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            // Regla 5: Logo girando de la pantalla de login (Esfera de puntos dorados)
+            // Regla 5: Esfera geométrica cambiando de tamaño (Escala dinámica) en lugar de giro
             AnimatedBuilder(
-              animation: rotAnim,
-              builder: (context, child) => Transform.rotate(
-                angle: rotAnim.value * 2 * 3.1415926535,
+              animation: pulseAnim,
+              builder: (context, child) => Transform.scale(
+                scale: 0.90 + (pulseAnim.value * 0.18), // Respira de 0.90 a 1.08
                 child: child,
               ),
-              child: const Icon(Icons.blur_on, size: 76, color: ExodoColors.amber),
+              child: const Icon(Icons.blur_on, size: 78, color: ExodoColors.amber),
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 26),
 
-            // Regla 6: Saludo más pequeño
+            // Regla 6: Saludo de tamaño adecuado
             Text(
               _getGreeting(),
               textAlign: TextAlign.center,
               style: GoogleFonts.syne(
-                fontSize: 23, // Más pequeño
+                fontSize: 23,
                 fontWeight: FontWeight.bold,
                 color: isLight ? const Color(0xFF171615) : ExodoColors.textPrimary,
                 height: 1.25,
@@ -277,7 +277,7 @@ class _OriginalDesignStage extends StatelessWidget {
             ),
             const SizedBox(height: 8),
 
-            // Regla 6: Tipografía de "continuar con google" (JetBrains Mono oficial) para Exodo by Behavior
+            // Regla 6 & 12: Tipografía JetBrains Mono oficial y Exodo sin tilde
             Text(
               'Exodo by Behavior',
               style: GoogleFonts.jetBrainsMono(
@@ -294,7 +294,7 @@ class _OriginalDesignStage extends StatelessWidget {
   }
 }
 
-// Regla 7, 10, 11: Estructura entrelazada de Tab 1 y Tab 2
+// Estructura entrelazada Tab 1 y Tab 2
 class _InterlockingComposerArea extends StatefulWidget {
   final TextEditingController controller;
   final VoidCallback onSend;
@@ -312,6 +312,13 @@ class _InterlockingComposerArea extends StatefulWidget {
 class _InterlockingComposerAreaState extends State<_InterlockingComposerArea> {
   bool _showTab2 = true;
 
+  String _getPlaceholder(BuildContext context) {
+    // Regla 14: Detectar automáticamente idioma de dispositivo
+    final lang = Localizations.localeOf(context).languageCode;
+    if (lang == 'en') return 'Reply to Exodo...';
+    return 'Hablar con Exodo...'; // Equivalente corto y elegante sin tilde
+  }
+
   @override
   Widget build(BuildContext context) {
     final state = context.watch<AppState>();
@@ -323,72 +330,75 @@ class _InterlockingComposerAreaState extends State<_InterlockingComposerArea> {
         clipBehavior: Clip.none,
         alignment: Alignment.bottomCenter,
         children: [
-          // Regla 7: Tab 2 (Límites más altos con XPi) sobresaliendo arriba de Tab 1
+          // Regla 7: Tab 2 más ancho (0.86 width) con FittedBox para garantizar texto 100% visible sin cortes
           if (_showTab2)
             Positioned(
-              top: -36, // Sobresale arriba
+              top: -36,
               child: Container(
-                width: MediaQuery.of(context).size.width * 0.76, // Menos ancho que Tab 1
-                padding: const EdgeInsets.fromLTRB(18, 8, 14, 20), // Padding inferior oculto dentro de Tab 1
+                width: MediaQuery.of(context).size.width * 0.86, // Más ancho pero siempre menor a Tab 1
+                padding: const EdgeInsets.fromLTRB(16, 7, 14, 20),
                 decoration: BoxDecoration(
-                  color: isLight ? const Color(0xFFEFECE4) : const Color(0xFF221E1A),
+                  color: const Color(0xFF221E1A), // Oscuro elegante en ambos modos
                   borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-                  border: Border.all(color: isLight ? const Color(0xFFDCD5C5) : ExodoColors.border),
+                  border: Border.all(color: ExodoColors.border),
                 ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      'Limites mas altos con XPi',
-                      style: GoogleFonts.jetBrainsMono( // Misma tipografía oficial
-                        color: isLight ? const Color(0xFF55514C) : const Color(0xFFD5D1C9),
-                        fontSize: 11.5,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    GestureDetector(
-                      onTap: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('⚡ Plan XPi seleccionado')),
-                        );
-                      },
-                      child: Text(
-                        'Actualizar',
+                child: FittedBox(
+                  fit: BoxFit.scaleDown, // ¡Garantiza que salga completo sin cortarse en cualquier pantalla!
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        'Limites mas altos con XPi',
                         style: GoogleFonts.jetBrainsMono(
-                          color: ExodoColors.amber, // Color ámbar de la marca
-                          fontWeight: FontWeight.bold,
-                          fontSize: 11.5,
+                          color: const Color(0xFFD5D1C9),
+                          fontSize: 12.0,
+                          fontWeight: FontWeight.w500,
                         ),
                       ),
-                    ),
-                    const SizedBox(width: 8),
-                    InkWell(
-                      onTap: () => setState(() => _showTab2 = false),
-                      child: Icon(Icons.close, size: 14, color: isLight ? Colors.black45 : ExodoColors.textSecondary),
-                    ),
-                  ],
+                      const SizedBox(width: 10),
+                      GestureDetector(
+                        onTap: () {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('⚡ Plan XPi seleccionado')),
+                          );
+                        },
+                        child: Text(
+                          'Actualizar',
+                          style: GoogleFonts.jetBrainsMono(
+                            color: ExodoColors.amber, // Color ámbar en ambos modos (Regla 13)
+                            fontWeight: FontWeight.bold,
+                            fontSize: 12.0,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      InkWell(
+                        onTap: () => setState(() => _showTab2 = false),
+                        child: const Icon(Icons.close, size: 15, color: ExodoColors.textSecondary),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
 
-          // Regla 10: Tab 1 (Principal) sin neón, con resplandor opuesto en esquinas
+          // Regla 10 & 13: Tab 1 oscuro en ambos modos (#161412) con resplandor ámbar potenciado
           Container(
             decoration: BoxDecoration(
-              color: isLight ? const Color(0xFFFFFFFF) : const Color(0xFF161412),
+              color: const Color(0xFF161412), // Negro no puro en modo claro y oscuro
               borderRadius: BorderRadius.circular(32),
-              border: Border.all(color: isLight ? const Color(0xFFE5DECF) : ExodoColors.border),
-              // Resplandor opuesto diagonal original
+              border: Border.all(color: ExodoColors.border),
+              // Regla 10: Resplandor ámbar diagonal opuesto con mayor potencia (0.32)
               boxShadow: [
                 BoxShadow(
-                  color: ExodoColors.amber.withOpacity(isLight ? 0.08 : 0.12),
-                  blurRadius: 26,
-                  offset: const Offset(-8, -8), // Esquina superior izquierda
+                  color: ExodoColors.amber.withOpacity(isLight ? 0.22 : 0.32),
+                  blurRadius: 32,
+                  offset: const Offset(-8, -8),
                 ),
                 BoxShadow(
-                  color: (isLight ? const Color(0xFF0D8B8B) : const Color(0xFF6F5CF6)).withOpacity(isLight ? 0.05 : 0.08),
-                  blurRadius: 26,
-                  offset: const Offset(8, 8), // Esquina inferior derecha opuesta
+                  color: const Color(0xFF6F5CF6).withOpacity(isLight ? 0.12 : 0.18),
+                  blurRadius: 32,
+                  offset: const Offset(8, 8),
                 ),
               ],
             ),
@@ -401,10 +411,10 @@ class _InterlockingComposerAreaState extends State<_InterlockingComposerArea> {
                   controller: widget.controller,
                   maxLines: 4,
                   minLines: 1,
-                  style: TextStyle(fontSize: 16, color: isLight ? const Color(0xFF171615) : ExodoColors.textPrimary),
+                  style: const TextStyle(fontSize: 16, color: Colors.white), // Texto blanco siempre (Regla 13)
                   decoration: InputDecoration(
-                    hintText: 'Pregunta lo que quieras...',
-                    hintStyle: GoogleFonts.inter(color: isLight ? const Color(0xFF9E9689) : const Color(0xFF7B7872), fontSize: 16),
+                    hintText: _getPlaceholder(context),
+                    hintStyle: GoogleFonts.inter(color: const Color(0xFF7B7872), fontSize: 16),
                     border: InputBorder.none,
                     enabledBorder: InputBorder.none,
                     focusedBorder: InputBorder.none,
@@ -415,74 +425,78 @@ class _InterlockingComposerAreaState extends State<_InterlockingComposerArea> {
                 const SizedBox(height: 4),
                 Row(
                   children: [
-                    // Botón circular +
+                    // Botón +
                     InkWell(
-                      onTap: () {
-                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('📎 Menú de adjuntos listo')));
-                      },
+                      onTap: () => ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('📎 Menú de adjuntos listo'))),
                       borderRadius: BorderRadius.circular(20),
                       child: Container(
                         width: 36,
                         height: 36,
-                        decoration: BoxDecoration(
-                          color: isLight ? const Color(0xFFF2ECE1) : const Color(0xFF25211D),
-                          shape: BoxShape.circle,
-                        ),
-                        child: Icon(Icons.add, size: 20, color: isLight ? Colors.black87 : ExodoColors.textSecondary),
+                        decoration: const BoxDecoration(color: Color(0xFF25211D), shape: BoxShape.circle),
+                        child: const Icon(Icons.add, size: 20, color: Colors.white70),
                       ),
                     ),
                     const SizedBox(width: 8),
 
                     // Selector de modelo
-                    GestureDetector(
-                      onTap: widget.onModelTap,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
-                        decoration: BoxDecoration(
-                          color: isLight ? const Color(0xFFF2ECE1) : const Color(0xFF25211D),
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(color: isLight ? const Color(0xFFE5DECF) : ExodoColors.border),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              state.selectedModel.title,
-                              style: GoogleFonts.jetBrainsMono(fontSize: 12.5, fontWeight: FontWeight.bold, color: isLight ? Colors.black87 : ExodoColors.textPrimary),
-                            ),
-                            const SizedBox(width: 4),
-                            Icon(Icons.keyboard_arrow_down, size: 16, color: isLight ? Colors.black54 : ExodoColors.textSecondary),
-                          ],
+                    Flexible(
+                      child: GestureDetector(
+                        onTap: widget.onModelTap,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF25211D),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(color: ExodoColors.border),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Flexible(
+                                child: Text(
+                                  state.selectedModel.title,
+                                  style: GoogleFonts.jetBrainsMono(fontSize: 12.0, fontWeight: FontWeight.bold, color: Colors.white),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              const SizedBox(width: 4),
+                              const Icon(Icons.keyboard_arrow_down, size: 16, color: ExodoColors.textSecondary),
+                            ],
+                          ),
                         ),
                       ),
                     ),
 
                     const Spacer(),
 
-                    // Micrófono
-                    IconButton(
-                      icon: Icon(Icons.mic_none, color: isLight ? Colors.black54 : ExodoColors.textSecondary),
-                      onPressed: () {
-                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('🎙️ Entrada de voz lista')));
-                      },
-                    ),
-
-                    // Regla 11: Botón de envío reactivo (Solo sale cuando hay texto/contenido)
+                    // Regla 11: Swap dinámico de Micrófono y Enviar
                     ValueListenableBuilder<TextEditingValue>(
                       valueListenable: widget.controller,
                       builder: (context, val, _) {
-                        if (val.text.trim().isEmpty) return const SizedBox.shrink();
-                        return GestureDetector(
-                          onTap: widget.onSend,
-                          child: Container(
-                            width: 38,
-                            height: 38,
-                            decoration: BoxDecoration(
-                              color: isLight ? const Color(0xFF171615) : ExodoColors.textPrimary,
-                              shape: BoxShape.circle,
+                        final hasText = val.text.trim().isNotEmpty;
+
+                        return Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            // Micrófono (Si hay texto, se mueve a la izquierda del botón enviar)
+                            IconButton(
+                              icon: Icon(Icons.mic_none, color: hasText ? ExodoColors.textSecondary : Colors.white70),
+                              onPressed: () => ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('🎙️ Entrada de voz lista'))),
                             ),
-                            child: Icon(Icons.arrow_upward, size: 18, color: isLight ? Colors.white : const Color(0xFF141210)),
-                          ),
+
+                            // Botón enviar (Toma el lugar derecho cuando hay texto)
+                            if (hasText)
+                              GestureDetector(
+                                onTap: widget.onSend,
+                                child: Container(
+                                  width: 38,
+                                  height: 38,
+                                  margin: const EdgeInsets.only(left: 4),
+                                  decoration: const BoxDecoration(color: ExodoColors.amber, shape: BoxShape.circle),
+                                  child: const Icon(Icons.arrow_upward, size: 19, color: Color(0xFF141210)),
+                                ),
+                              ),
+                          ],
                         );
                       },
                     ),
@@ -497,7 +511,7 @@ class _InterlockingComposerAreaState extends State<_InterlockingComposerArea> {
   }
 }
 
-// Regla 4: Conteo de tokens en rectángulo con bordes curvos
+// Conteo de tokens en tarjeta curva sutil
 class _TokenProgressBar extends StatelessWidget {
   final int used;
   final int limit;
@@ -544,39 +558,35 @@ class _TokenProgressBar extends StatelessWidget {
   }
 }
 
-// Regla 9: Animación thinking con el logo geométrica oficial de login
+// Regla 9: Pensando con puntos cambiando de tamaño dinámicamente
 class _ThinkingBubble extends StatelessWidget {
-  final Animation<double> anim;
-  const _ThinkingBubble({required this.anim});
+  final Animation<double> pulseAnim;
+  const _ThinkingBubble({required this.pulseAnim});
 
   @override
   Widget build(BuildContext context) {
-    final isLight = Theme.of(context).brightness == Brightness.light;
-
     return Align(
       alignment: Alignment.centerLeft,
       child: Container(
         margin: const EdgeInsets.symmetric(vertical: 8),
         padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
         decoration: BoxDecoration(
-          color: isLight ? Colors.white : ExodoColors.surface,
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: ExodoColors.amber.withOpacity(0.4)),
+          color: Colors.transparent, // Al descubierto (Regla 13)
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             AnimatedBuilder(
-              animation: anim,
-              builder: (context, child) => Transform.rotate(
-                angle: anim.value * 2 * 3.1415926535,
+              animation: pulseAnim,
+              builder: (context, child) => Transform.scale(
+                scale: 0.85 + (pulseAnim.value * 0.30),
                 child: child,
               ),
               child: const Icon(Icons.blur_on, size: 22, color: ExodoColors.amber),
             ),
-            const SizedBox(height: 0, width: 10),
+            const SizedBox(width: 10),
             Text(
-              'Éxodo razonando...',
+              'Exodo razonando...',
               style: GoogleFonts.jetBrainsMono(fontSize: 12, color: ExodoColors.amber, fontWeight: FontWeight.w500),
             ),
           ],
@@ -586,6 +596,7 @@ class _ThinkingBubble extends StatelessWidget {
   }
 }
 
+// Regla 13: Estilo de burbujas tipo Claude (Usuario en rectángulo opuesto, IA al descubierto)
 class _MessageBubble extends StatelessWidget {
   final ChatMessage message;
   const _MessageBubble({required this.message});
@@ -595,45 +606,67 @@ class _MessageBubble extends StatelessWidget {
     final isUser = message.role == 'user';
     final isLight = Theme.of(context).brightness == Brightness.light;
 
-    return Align(
-      alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
-      child: Container(
-        constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.82),
-        margin: const EdgeInsets.symmetric(vertical: 6),
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: isUser ? (isLight ? const Color(0xFF221E1A) : const Color(0xFF282420)) : (isLight ? Colors.white : ExodoColors.surface),
-          borderRadius: BorderRadius.circular(18).copyWith(
-            bottomRight: isUser ? Radius.zero : const Radius.circular(18),
-            bottomLeft: isUser ? const Radius.circular(18) : Radius.zero,
+    if (isUser) {
+      // Chat del usuario: dentro de un rectángulo elegante que destaca sin perderse
+      return Align(
+        alignment: Alignment.centerRight,
+        child: Container(
+          constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.82),
+          margin: const EdgeInsets.symmetric(vertical: 6),
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+          decoration: BoxDecoration(
+            color: isLight ? const Color(0xFF221E1A) : const Color(0xFF282420),
+            borderRadius: BorderRadius.circular(20).copyWith(bottomRight: const Radius.circular(4)),
+            border: Border.all(color: ExodoColors.amber.withOpacity(0.35)),
           ),
-          border: isUser ? Border.all(color: ExodoColors.amber.withOpacity(0.3)) : Border.all(color: isLight ? const Color(0xFFE5DECF) : ExodoColors.border),
+          child: MarkdownBody(
+            data: message.content,
+            styleSheet: MarkdownStyleSheet.fromTheme(Theme.of(context)).copyWith(
+              p: GoogleFonts.inter(fontSize: 15, color: Colors.white),
+            ),
+          ),
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            MarkdownBody(
-              data: message.content,
-              styleSheet: MarkdownStyleSheet.fromTheme(Theme.of(context)).copyWith(
-                p: GoogleFonts.inter(
-                  fontSize: 15,
-                  color: isUser ? Colors.white : (isLight ? const Color(0xFF171615) : ExodoColors.textPrimary),
-                ),
-                code: GoogleFonts.jetBrainsMono(backgroundColor: ExodoColors.background.withOpacity(0.3)),
+      );
+    }
+
+    // Respuesta de la IA: AL DESCUBIERTO (Sin fondo, sin borde, puro texto como Claude)
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.symmetric(vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          MarkdownBody(
+            data: message.content,
+            styleSheet: MarkdownStyleSheet.fromTheme(Theme.of(context)).copyWith(
+              p: GoogleFonts.inter(
+                fontSize: 15.5,
+                color: isLight ? const Color(0xFF171615) : ExodoColors.textPrimary,
+                height: 1.45,
+              ),
+              code: GoogleFonts.jetBrainsMono(
+                backgroundColor: isLight ? const Color(0xFFEFECE4) : ExodoColors.surface,
+                color: isLight ? const Color(0xFFB85A35) : ExodoColors.amber,
+              ),
+              codeblockDecoration: BoxDecoration(
+                color: isLight ? const Color(0xFFF2ECE1) : ExodoColors.surface,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: ExodoColors.border),
               ),
             ),
-            if (!isUser && message.intentDetected != null) ...[
-              const SizedBox(height: 8),
-              Text('Intención: ${message.intentDetected}', style: GoogleFonts.jetBrainsMono(fontSize: 9.5, color: ExodoColors.amber.withOpacity(0.8))),
-            ],
+          ),
+          if (message.intentDetected != null) ...[
+            const SizedBox(height: 8),
+            Text('Intención: ${message.intentDetected}', style: GoogleFonts.jetBrainsMono(fontSize: 10, color: ExodoColors.amber.withOpacity(0.8))),
           ],
-        ),
+        ],
       ),
     );
   }
 }
 
-// Regla 12: Hoja de modelos con indicador dot/barra superior y tipografía oficial JetBrains Mono
+// Hoja de selección de modelos (Regla 12: Exodo sin tilde)
 class _ModelSelectorSheet extends StatelessWidget {
   const _ModelSelectorSheet();
 
@@ -648,20 +681,15 @@ class _ModelSelectorSheet extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Regla 12: Dot/Barra superior deslizable
           Center(
             child: Container(
               width: 38,
               height: 4,
               margin: const EdgeInsets.only(bottom: 20),
-              decoration: BoxDecoration(
-                color: isLight ? Colors.black26 : ExodoColors.border,
-                borderRadius: BorderRadius.circular(2),
-              ),
+              decoration: BoxDecoration(color: isLight ? Colors.black26 : ExodoColors.border, borderRadius: BorderRadius.circular(2)),
             ),
           ),
-
-          Text('Modelos Éxodo', style: GoogleFonts.syne(fontSize: 18, fontWeight: FontWeight.bold, color: isLight ? Colors.black87 : ExodoColors.textPrimary)),
+          Text('Modelos Exodo', style: GoogleFonts.syne(fontSize: 18, fontWeight: FontWeight.bold, color: isLight ? Colors.black87 : ExodoColors.textPrimary)),
           const SizedBox(height: 16),
           ...exodoModels.map((m) {
             final active = state.selectedModel.id == m.id;
@@ -689,5 +717,6 @@ class _ModelSelectorSheet extends StatelessWidget {
     );
   }
 }
+
 
 
