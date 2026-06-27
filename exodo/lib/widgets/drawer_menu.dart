@@ -24,6 +24,7 @@ class DrawerMenu extends StatefulWidget {
 
 class _DrawerMenuState extends State<DrawerMenu> {
   static final Set<String> _starredIds = {};
+  Set<String> _matchingIds = {};
   String _searchQuery = '';
   bool _isSearching = false;
   final TextEditingController _searchCtrl = TextEditingController();
@@ -44,7 +45,7 @@ class _DrawerMenuState extends State<DrawerMenu> {
 
     final filtered = state.conversations.where((c) {
       if (_searchQuery.isEmpty) return true;
-      return c.title.toLowerCase().contains(_searchQuery.toLowerCase());
+      return c.title.toLowerCase().contains(_searchQuery.toLowerCase()) || _matchingIds.contains(c.id);
     }).toList();
 
     final starredConvs = filtered.where((c) => _starredIds.contains(c.id)).toList();
@@ -64,7 +65,7 @@ class _DrawerMenuState extends State<DrawerMenu> {
                 children: [
                   Text(
                     'Exodo',
-                    style: GoogleFonts.syne(
+                    style: GoogleFonts.jetBrainsMono(
                       fontSize: 26,
                       fontWeight: FontWeight.bold,
                       color: textCol,
@@ -124,24 +125,40 @@ class _DrawerMenuState extends State<DrawerMenu> {
                       decoration: BoxDecoration(
                         color: isLight ? Colors.white : const Color(0xFF1E1C19),
                         borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: ExodoColors.amber),
                       ),
                       child: Row(
                         children: [
-                          const Icon(Icons.search, size: 18, color: ExodoColors.amber),
+                          Icon(Icons.search, size: 18, color: subTextCol),
                           const SizedBox(width: 8),
                           Expanded(
                             child: TextField(
                               controller: _searchCtrl,
                               autofocus: true,
+                              cursorColor: textCol,
                               style: TextStyle(fontSize: 13, color: textCol),
                               decoration: InputDecoration(
                                 hintText: _isDrawerEn(context) ? 'Search chats...' : 'Buscar chat...',
                                 hintStyle: TextStyle(fontSize: 13, color: subTextCol),
+                                filled: false,
                                 border: InputBorder.none,
+                                enabledBorder: InputBorder.none,
+                                focusedBorder: InputBorder.none,
+                                disabledBorder: InputBorder.none,
+                                contentPadding: EdgeInsets.zero,
                                 isDense: true,
                               ),
-                              onChanged: (v) => setState(() => _searchQuery = v),
+                              onChanged: (v) {
+                                setState(() => _searchQuery = v);
+                                if (v.trim().length >= 2) {
+                                  SupabaseService.searchConversationIdsByMessage(v.trim()).then((ids) {
+                                    if (mounted && _searchQuery == v) {
+                                      setState(() => _matchingIds = ids.toSet());
+                                    }
+                                  });
+                                } else {
+                                  setState(() => _matchingIds.clear());
+                                }
+                              },
                             ),
                           ),
                           InkWell(
@@ -149,6 +166,7 @@ class _DrawerMenuState extends State<DrawerMenu> {
                               _searchCtrl.clear();
                               setState(() {
                                 _searchQuery = '';
+                                _matchingIds.clear();
                                 _isSearching = false;
                               });
                             },
@@ -492,6 +510,7 @@ class _ClaudeAccountModal {
                 title: Text('Log out', style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.w500, color: const Color(0xFFE57373))),
                 onTap: () async {
                   Navigator.pop(ctx);
+                  state.selectModelOption(exodoModels[0]);
                   await SupabaseService.signOut();
                 },
               ),

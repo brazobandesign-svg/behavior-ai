@@ -91,12 +91,7 @@ class _RootSwitcherState extends State<_RootSwitcher> {
       return const AuthScreen();
     }
 
-    // 2. Si inició sesión pero no ha elegido perfil profesional (Docente/Abogado/General) -> Onboarding
-    if (state.profile?.onboarding == null) {
-      return const OnboardingScreen();
-    }
-
-    // 3. Todo listo -> Chat Principal
+    // 2. Todo listo -> Chat Principal directo (las preguntas de enfoque saldrán como modal dentro del chat)
     return const ChatScreen();
   }
 }

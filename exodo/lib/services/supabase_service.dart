@@ -49,6 +49,19 @@ class SupabaseService {
     );
   }
 
+  static Future<bool> signInWithApple() async {
+    return await client.auth.signInWithOAuth(
+      OAuthProvider.apple,
+      redirectTo: kIsWeb ? null : 'io.supabase.exodo://login-callback',
+    );
+  }
+
+  static Future<AuthResponse> signInAnonymously() async {
+    return await client.auth.signInAnonymously(
+      data: {'full_name': 'Invitado Éxodo'},
+    );
+  }
+
   // Perfil del usuario con auto-creación y fallback resiliente
   static Future<UserProfile?> getProfile() async {
     final user = currentUser;
@@ -155,5 +168,20 @@ class SupabaseService {
   // Fijar / desfijar conversación
   static Future<void> toggleConversationStarred(String convId, bool isStarred) async {
     await client.from('conversations').update({'is_starred': isStarred}).eq('id', convId);
+  }
+
+  // Buscar palabra exacta en el contenido de todos los chats
+  static Future<List<String>> searchConversationIdsByMessage(String query) async {
+    final user = currentUser;
+    if (user == null || query.trim().isEmpty) return [];
+    try {
+      final res = await client
+          .from('messages')
+          .select('conversation_id')
+          .ilike('content', '%$query%');
+      return (res as List).map((e) => e['conversation_id'].toString()).toSet().toList();
+    } catch (_) {
+      return [];
+    }
   }
 }

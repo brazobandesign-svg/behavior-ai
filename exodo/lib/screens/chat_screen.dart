@@ -9,8 +9,10 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/models.dart';
 import '../services/app_state.dart';
+import '../services/supabase_service.dart';
 import '../widgets/drawer_menu.dart';
 import '../theme/exodo_theme.dart';
 
@@ -43,6 +45,11 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
     _ambientBgCtrl = AnimationController(vsync: this, duration: const Duration(seconds: 7))..repeat(reverse: true);
     // Regla 5 & 9: Pulso continuo para cambio de tamaño de puntos aleatorio
     _pulseCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 2200))..repeat(reverse: true);
+
+  }
+
+  void _checkAndShowFocusModal() {
+    // Extirpado por completo. Cero modales de preguntas.
   }
 
   @override
@@ -629,7 +636,7 @@ class _InterlockingComposerAreaState extends State<_InterlockingComposerArea> wi
         children: [
           // Regla 7 & Recreación limpia: Tab 2 nativo con preservación de espacio geométrica
           Visibility(
-            visible: state.showTab2Banner && !state.isIncognito,
+            visible: state.showTab2Banner && !state.isIncognito && !state.isPro,
             maintainSize: true,
             maintainAnimation: true,
             maintainState: true,
@@ -694,7 +701,7 @@ class _InterlockingComposerAreaState extends State<_InterlockingComposerArea> wi
               borderRadius: BorderRadius.circular(32),
               border: Border.all(color: isLight ? const Color(0xFFD4CEBF) : ExodoColors.border),
             ),
-            padding: const EdgeInsets.fromLTRB(30, 8, 6, 8),
+            padding: const EdgeInsets.fromLTRB(20, 8, 18, 8),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -716,105 +723,108 @@ class _InterlockingComposerAreaState extends State<_InterlockingComposerArea> wi
                 ),
                 const SizedBox(height: 4),
                 Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    // Botón +
-                    InkWell(
-                      onTap: _showAttachmentMenu,
-                      borderRadius: BorderRadius.circular(20),
-                      child: Container(
-                        width: 36,
-                        height: 36,
-                        decoration: BoxDecoration(color: isLight ? const Color(0xFFFBF9F5) : const Color(0xFF25211D), shape: BoxShape.circle),
-                        child: Icon(Icons.add, size: 20, color: isLight ? const Color(0xFF171615) : Colors.white70),
+                    // Compartimento Izquierdo expandido para absorber cambios de texto/tamaño
+                    Expanded(
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          // Botón +
+                          InkWell(
+                            onTap: _showAttachmentMenu,
+                            borderRadius: BorderRadius.circular(20),
+                            child: Container(
+                              width: 36,
+                              height: 36,
+                              decoration: BoxDecoration(color: isLight ? const Color(0xFFFBF9F5) : const Color(0xFF25211D), shape: BoxShape.circle),
+                              child: Icon(Icons.add, size: 20, color: isLight ? const Color(0xFF171615) : Colors.white70),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+
+                          // Selector de modelo
+                          Flexible(
+                            child: GestureDetector(
+                              onTap: widget.onModelTap,
+                              child: AnimatedBuilder(
+                                animation: _auraController,
+                                builder: (context, _) {
+                                  final isXpiPro = state.isPro && (state.selectedModel.id == 'ehyeh' || state.selectedModel.title == 'XPi');
+                                  final t = _auraController.value;
+                                  return Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                                    decoration: BoxDecoration(
+                                      color: isLight ? const Color(0xFFFBF9F5) : const Color(0xFF25211D),
+                                      borderRadius: BorderRadius.circular(16),
+                                      border: Border.all(
+                                        color: isXpiPro
+                                            ? ExodoColors.amber.withOpacity(0.40 + 0.60 * ((math.sin(t * math.pi * 2) + 1) / 2))
+                                            : Colors.transparent,
+                                        width: 1.0,
+                                      ),
+                                      boxShadow: isXpiPro
+                                          ? [
+                                              BoxShadow(
+                                                color: ExodoColors.amber.withOpacity(0.15 + 0.25 * ((math.sin(t * math.pi * 2) + 1) / 2)),
+                                                blurRadius: 10,
+                                                spreadRadius: 1,
+                                                offset: Offset(6 * math.cos(t * math.pi * 2), 3 * math.sin(t * math.pi * 2)),
+                                              ),
+                                              BoxShadow(
+                                                color: ExodoColors.amber.withOpacity(0.10 + 0.18 * ((math.cos(t * math.pi * 2 * 1.3) + 1) / 2)),
+                                                blurRadius: 14,
+                                                spreadRadius: 0,
+                                                offset: Offset(-5 * math.sin(t * math.pi * 2), -3 * math.cos(t * math.pi * 2)),
+                                              ),
+                                            ]
+                                          : null,
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Flexible(
+                                          child: Text(
+                                            state.selectedModel.title,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: GoogleFonts.jetBrainsMono(
+                                              fontSize: 13,
+                                              fontWeight: FontWeight.bold,
+                                              color: isLight ? const Color(0xFF171615) : Colors.white,
+                                            ),
+                                          ),
+                                        ),
+                                        if (state.selectedModel.plan == 'hazak') ...[
+                                          const SizedBox(width: 4),
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                                            decoration: BoxDecoration(
+                                              color: isLight ? const Color(0xFFE5DECF) : const Color(0xFF3A352F),
+                                              borderRadius: BorderRadius.circular(4),
+                                              border: Border.all(color: isLight ? Colors.black12 : Colors.white24),
+                                            ),
+                                            child: Text(
+                                              'PRO',
+                                              style: GoogleFonts.jetBrainsMono(
+                                                fontSize: 9.0,
+                                                fontWeight: FontWeight.bold,
+                                                color: isLight ? const Color(0xFF171615) : Colors.white,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                        const SizedBox(width: 4),
+                                        Icon(Icons.keyboard_arrow_down, size: 16, color: isLight ? const Color(0xFF171615) : Colors.white70),
+                                      ],
+                                    ),
+                                  );
+                                },
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                    const SizedBox(width: 8),
-
-                    // Selector de modelo
-                    Flexible(
-                      child: GestureDetector(
-                        onTap: () {
-                          final isFree = !state.isPro;
-                          if (state.selectedModel.plan == 'hazak' && isFree) {
-                            _UpgradeModal.show(context);
-                          } else {
-                            widget.onModelTap();
-                          }
-                        },
-                        child: AnimatedBuilder(
-                          animation: _auraController,
-                          builder: (context, _) {
-                            final isXpiPro = state.isPro && (state.selectedModel.id == 'ehyeh' || state.selectedModel.title == 'XPi');
-                            final t = _auraController.value;
-                            return Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                              decoration: BoxDecoration(
-                                color: isLight ? const Color(0xFFFBF9F5) : const Color(0xFF25211D),
-                                borderRadius: BorderRadius.circular(16),
-                                border: Border.all(
-                                  color: isXpiPro
-                                      ? ExodoColors.amber.withOpacity(0.40 + 0.60 * ((math.sin(t * math.pi * 2) + 1) / 2))
-                                      : Colors.transparent,
-                                  width: 1.0,
-                                ),
-                                boxShadow: isXpiPro
-                                    ? [
-                                        BoxShadow(
-                                          color: ExodoColors.amber.withOpacity(0.15 + 0.25 * ((math.sin(t * math.pi * 2) + 1) / 2)),
-                                          blurRadius: 10,
-                                          spreadRadius: 1,
-                                          offset: Offset(6 * math.cos(t * math.pi * 2), 3 * math.sin(t * math.pi * 2)),
-                                        ),
-                                        BoxShadow(
-                                          color: ExodoColors.amber.withOpacity(0.10 + 0.18 * ((math.cos(t * math.pi * 2 * 1.3) + 1) / 2)),
-                                          blurRadius: 14,
-                                          spreadRadius: 0,
-                                          offset: Offset(-5 * math.sin(t * math.pi * 2), -3 * math.cos(t * math.pi * 2)),
-                                        ),
-                                      ]
-                                    : null,
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Text(
-                                    state.selectedModel.title,
-                                    style: GoogleFonts.jetBrainsMono(
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.bold,
-                                      color: isLight ? const Color(0xFF171615) : Colors.white,
-                                    ),
-                                  ),
-                                  if (state.selectedModel.plan == 'hazak') ...[
-                                    const SizedBox(width: 6),
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
-                                      decoration: BoxDecoration(
-                                        color: isLight ? const Color(0xFFE5DECF) : const Color(0xFF3A352F),
-                                        borderRadius: BorderRadius.circular(4),
-                                        border: Border.all(color: isLight ? Colors.black12 : Colors.white24),
-                                      ),
-                                      child: Text(
-                                        'PRO',
-                                        style: GoogleFonts.jetBrainsMono(
-                                          fontSize: 9.5,
-                                          fontWeight: FontWeight.bold,
-                                          color: isLight ? const Color(0xFF171615) : Colors.white,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                  const SizedBox(width: 6),
-                                  Icon(Icons.keyboard_arrow_down, size: 16, color: isLight ? const Color(0xFF171615) : Colors.white70),
-                                ],
-                              ),
-                            );
-                          },
-                        ),
-                      ),
-                    ),
-
-                    const Spacer(),
 
                     // Botón Mic y Botón Dinámico (Live Chat / Send)
                     AnimatedBuilder(
@@ -1168,8 +1178,7 @@ class _MessageBubble extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
           decoration: BoxDecoration(
             color: isLight ? const Color(0xFF221E1A) : const Color(0xFF282420),
-            borderRadius: BorderRadius.circular(20), // ¡Simétrico completamente sin colita!
-            border: Border.all(color: ExodoColors.amber.withOpacity(0.35)),
+            borderRadius: BorderRadius.circular(20), // ¡Simétrico completamente sin colita ni contorno!
           ),
           child: MarkdownBody(
             data: message.content,
@@ -1260,13 +1269,14 @@ class _ModelSelectorSheet extends StatelessWidget {
                   Navigator.pop(context);
                 }
               },
-              title: Row(
+              title: Wrap(
+                crossAxisAlignment: WrapCrossAlignment.center,
+                spacing: 8,
+                runSpacing: 4,
                 children: [
                   Text(m.title, style: GoogleFonts.jetBrainsMono(fontWeight: FontWeight.bold, fontSize: 15, color: active ? ExodoColors.amber : (isLight ? const Color(0xFF171615) : Colors.white))),
-                  const SizedBox(width: 8),
                   Text(m.subtitle, style: GoogleFonts.jetBrainsMono(fontSize: 13, color: active ? ExodoColors.amber : (isLight ? Colors.black54 : Colors.white70))),
-                  if (isProModel) ...[
-                    const SizedBox(width: 8),
+                  if (isProModel)
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
                       decoration: BoxDecoration(
@@ -1283,7 +1293,6 @@ class _ModelSelectorSheet extends StatelessWidget {
                         ),
                       ),
                     ),
-                  ],
                 ],
               ),
               subtitle: Text(isEn ? m.descriptionEn : m.description, style: GoogleFonts.jetBrainsMono(fontSize: 11.5, color: active ? ExodoColors.amber : (isLight ? Colors.black54 : Colors.white70))),

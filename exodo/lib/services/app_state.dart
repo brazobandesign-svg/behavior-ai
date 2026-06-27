@@ -61,6 +61,7 @@ class AppState extends ChangeNotifier {
         activeConversation = null;
         currentMessages = [];
         tokensUsed = 0;
+        selectedModel = exodoModels[0];
         notifyListeners();
       }
     });
@@ -160,6 +161,9 @@ class AppState extends ChangeNotifier {
   }
 
   void selectModelOption(ExodoModelOption option) {
+    if (option.plan == 'hazak' && !isPro) {
+      return;
+    }
     selectedModel = option;
     notifyListeners();
   }

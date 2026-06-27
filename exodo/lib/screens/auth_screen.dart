@@ -1,5 +1,7 @@
+import 'dart:math' as math;
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../services/supabase_service.dart';
 import '../services/app_state.dart';
@@ -22,6 +24,7 @@ class AuthScreen extends StatefulWidget {
 class _AuthScreenState extends State<AuthScreen> {
   bool isLogin = true;
   bool isLoading = false;
+  bool showEmailForm = false;
 
   final _emailCtrl = TextEditingController();
   final _passCtrl = TextEditingController();
@@ -61,14 +64,23 @@ class _AuthScreenState extends State<AuthScreen> {
           }
         }
       }
-      
-      // Forzar recarga de estado si la sesión quedó activa
-      if (SupabaseService.currentUser != null && mounted) {
-        await context.read<AppState>().loadUserData();
-      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: ${e.toString().replaceAll('Exception: ', '')}')));
+      }
+    } finally {
+      if (mounted) setState(() => isLoading = false);
+    }
+  }
+
+  // Nueva función para manejar el acceso como invitado
+  Future<void> _signInAsGuest() async {
+    setState(() => isLoading = true);
+    try {
+      await SupabaseService.signInAnonymously();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error Guest: ${e.toString()}')));
       }
     } finally {
       if (mounted) setState(() => isLoading = false);
@@ -79,18 +91,50 @@ class _AuthScreenState extends State<AuthScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(28.0),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Icon(Icons.blur_on, size: 68, color: ExodoColors.amber),
-                const SizedBox(height: 12),
-                Text('Éxodo by Behavior', style: Theme.of(context).textTheme.headlineLarge),
-                const SizedBox(height: 36),
+        child: SingleChildScrollView(
+            padding: const EdgeInsets.only(left: 28, right: 28, top: 180, bottom: 28),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.start,
+            children: [
+              SizedBox(
+                height: 200,
+                child: Stack(
+                  alignment: Alignment.center,
+                  clipBehavior: Clip.none,
+                  children: [
+                    Positioned(
+                      bottom: 0,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Image.asset(
+                            'assets/images/Logo_behavior.png',
+                            height: 96,
+                            color: ExodoColors.amber,
+                          ),
+                          Image.asset(
+                            'assets/images/exodo_text.png',
+                            height: 60,
+                            color: ExodoColors.textPrimary,
+                          ),
+                          Transform.translate(
+                            offset: const Offset(0, -22),
+                            child: Image.asset(
+                              'assets/images/bybehavior_text.png',
+                              height: 40,
+                              color: ExodoColors.textPrimary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 24),
 
                 // 1. PRIMERA OPCIÓN: Botón oficial de Continuar con Google
+                // 1. Google
                 SizedBox(
                   width: double.infinity,
                   height: 54,
@@ -102,9 +146,7 @@ class _AuthScreenState extends State<AuthScreen> {
                             try {
                               await SupabaseService.signInWithGoogle();
                             } catch (e) {
-                              if (mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error Google: $e')));
-                              }
+                              if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error Google: $e')));
                             } finally {
                               if (mounted) setState(() => isLoading = false);
                             }
@@ -118,76 +160,72 @@ class _AuthScreenState extends State<AuthScreen> {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Image.asset(
-                          'assets/images/google_logo.png',
-                          width: 26,
-                          height: 26,
-                        ),
+                        Image.asset('assets/images/google_logo.png', width: 26, height: 26),
                         const SizedBox(width: 14),
                         Text(
                           _isAuthEn(context) ? 'Continue with Google' : 'Continuar con Google',
-                          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, letterSpacing: 0.2),
+                          style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.bold, letterSpacing: 0.2),
                         ),
                       ],
                     ),
                   ),
                 ),
 
-                const SizedBox(height: 28),
+                const SizedBox(height: 14),
 
-                // Separador claro
-                Row(
-                  children: [
-                    Expanded(child: Divider(color: ExodoColors.border)),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: Text(_isAuthEn(context) ? 'or with email' : 'o con correo electrónico', style: Theme.of(context).textTheme.bodySmall),
-                    ),
-                    Expanded(child: Divider(color: ExodoColors.border)),
-                  ],
-                ),
-
-                const SizedBox(height: 24),
-
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    _TabBtn(title: _isAuthEn(context) ? 'Sign In' : 'Iniciar Sesión', active: isLogin, onTap: () => setState(() => isLogin = true)),
-                    const SizedBox(width: 16),
-                    _TabBtn(title: _isAuthEn(context) ? 'Sign Up' : 'Crear Cuenta', active: !isLogin, onTap: () => setState(() => isLogin = false)),
-                  ],
-                ),
-                const SizedBox(height: 24),
-
-                if (!isLogin) ...[
-                  TextField(controller: _nameCtrl, decoration: InputDecoration(labelText: _isAuthEn(context) ? 'Full Name' : 'Nombre Completo', prefixIcon: const Icon(Icons.person_outline))),
-                  const SizedBox(height: 16),
-                ],
-                TextField(controller: _emailCtrl, keyboardType: TextInputType.emailAddress, decoration: InputDecoration(labelText: _isAuthEn(context) ? 'Email' : 'Correo Electrónico', prefixIcon: const Icon(Icons.email_outlined))),
-                const SizedBox(height: 16),
-                TextField(controller: _passCtrl, obscureText: true, decoration: InputDecoration(labelText: _isAuthEn(context) ? 'Password' : 'Contraseña', prefixIcon: const Icon(Icons.lock_outline))),
-                const SizedBox(height: 32),
-
+                // 2. Apple (Desactivado temporalmente)
                 SizedBox(
                   width: double.infinity,
                   height: 54,
                   child: ElevatedButton(
-                    onPressed: isLoading ? null : _submit,
+                    onPressed: null,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: ExodoColors.amber,
-                      foregroundColor: ExodoColors.background,
+                      backgroundColor: const Color(0xFF161412),
+                      disabledBackgroundColor: const Color(0xFF161412).withOpacity(0.5),
+                      disabledForegroundColor: Colors.white38,
+                      elevation: 0,
+                      side: BorderSide(color: const Color(0xFF2E2923).withOpacity(0.5)),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(27)),
                     ),
-                    child: isLoading
-                        ? const CircularProgressIndicator(color: ExodoColors.background)
-                        : Text(isLogin ? (_isAuthEn(context) ? 'Sign In with Email' : 'Entrar con Correo') : (_isAuthEn(context) ? 'Sign Up with Email' : 'Registrarse con Correo'), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.apple, size: 28, color: Colors.white38),
+                        const SizedBox(width: 14),
+                        Text(
+                          _isAuthEn(context) ? 'Continue with Apple' : 'Continuar con Apple',
+                          style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.bold, letterSpacing: 0.2),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 24),
+                SizedBox(
+                  width: double.infinity,
+                  child: TextButton(
+                    onPressed: isLoading
+                        ? null
+                        : _signInAsGuest,
+                    style: TextButton.styleFrom(foregroundColor: ExodoColors.textSecondary),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.privacy_tip_outlined, size: 16),
+                        const SizedBox(width: 8),
+                        Text(
+                          _isAuthEn(context) ? 'Continue as Guest' : 'Entrar como Invitado',
+                          style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w500, decoration: TextDecoration.underline),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ],
             ),
           ),
         ),
-      ),
     );
   }
 }
@@ -224,3 +262,5 @@ class _TabBtn extends StatelessWidget {
     );
   }
 }
+
+
