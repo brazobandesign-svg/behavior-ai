@@ -177,31 +177,31 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
                 ),
 
               // Stage principal o lista de mensajes (Regla 8)
-              // Stage principal o vista Offline de bloqueo Guest
+              // Stage principal o lista de mensajes (SIEMPRE VISIBLE)
               Expanded(
-                child: state.guestIsBlocked
-                    ? const _GuestOfflineStage()
-                    : state.currentMessages.isEmpty
-                        ? _OriginalDesignStage(
-                            pulseAnim: _pulseCtrl,
-                            fullName: state.profile?.fullName,
-                          )
-                        : ListView.builder(
-                            controller: _scrollCtrl,
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                            itemCount: state.currentMessages.length,
-                            itemBuilder: (context, index) {
-                              final msg = state.currentMessages[index];
-                              if (msg.isThinking) {
-                                return _ThinkingBubble(pulseAnim: _pulseCtrl);
-                              }
-                              return _MessageBubble(message: msg);
-                            },
-                          ),
+                child: state.currentMessages.isEmpty
+                    ? _OriginalDesignStage(
+                        pulseAnim: _pulseCtrl,
+                        fullName: state.profile?.fullName,
+                      )
+                    : ListView.builder(
+                        controller: _scrollCtrl,
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        itemCount: state.currentMessages.length,
+                        itemBuilder: (context, index) {
+                          final msg = state.currentMessages[index];
+                          if (msg.isThinking) {
+                            return _ThinkingBubble(pulseAnim: _pulseCtrl);
+                          }
+                          return _MessageBubble(message: msg);
+                        },
+                      ),
               ),
 
-              // Ocultar barra inferior si está bloqueado ("sin botones y sin nada")
-              if (!state.guestIsBlocked)
+              // Reemplazar barra inferior de escritura por banner Offline si está bloqueado
+              if (state.guestIsBlocked)
+                const _GuestOfflineBanner()
+              else
                 _InterlockingComposerArea(
                   controller: _inputCtrl,
                   onSend: () {
@@ -1513,8 +1513,8 @@ class _UpgradeModal {
   }
 }
 
-class _GuestOfflineStage extends StatelessWidget {
-  const _GuestOfflineStage();
+class _GuestOfflineBanner extends StatelessWidget {
+  const _GuestOfflineBanner();
 
   @override
   Widget build(BuildContext context) {
@@ -1527,24 +1527,35 @@ class _GuestOfflineStage extends StatelessWidget {
       await SupabaseService.signOut();
     }
 
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 32),
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 26),
+      decoration: const BoxDecoration(
+        color: Color(0xFF161412),
+        border: Border(top: BorderSide(color: Color(0xFF2A241D), width: 1)),
+      ),
+      child: SafeArea(
+        top: false,
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.cloud_off_rounded, size: 76, color: ExodoColors.amber),
-            const SizedBox(height: 24),
-            Text(
-              isEn ? "You're offline" : "Estás desconectado",
-              style: GoogleFonts.syne(fontSize: 30, fontWeight: FontWeight.bold, color: ExodoColors.textPrimary),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.cloud_off_rounded, size: 22, color: ExodoColors.amber),
+                const SizedBox(width: 10),
+                Text(
+                  isEn ? "You're offline" : "Estás desconectado",
+                  style: GoogleFonts.syne(fontSize: 17, fontWeight: FontWeight.bold, color: ExodoColors.textPrimary),
+                ),
+              ],
             ),
-            const SizedBox(height: 18),
+            const SizedBox(height: 12),
             if (isEn)
               RichText(
                 textAlign: TextAlign.center,
                 text: TextSpan(
-                  style: GoogleFonts.inter(fontSize: 15.5, color: ExodoColors.textSecondary, height: 1.55),
+                  style: GoogleFonts.inter(fontSize: 14, color: ExodoColors.textSecondary, height: 1.45),
                   children: [
                     const TextSpan(text: "To continue sending messages, "),
                     WidgetSpan(
@@ -1554,7 +1565,7 @@ class _GuestOfflineStage extends StatelessWidget {
                         onTap: goToLogin,
                         child: Text(
                           "upgrade",
-                          style: GoogleFonts.inter(fontSize: 15.5, fontWeight: FontWeight.bold, color: ExodoColors.amber, decoration: TextDecoration.underline, decorationColor: ExodoColors.amber),
+                          style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.bold, color: ExodoColors.amber, decoration: TextDecoration.underline, decorationColor: ExodoColors.amber),
                         ),
                       ),
                     ),
@@ -1566,7 +1577,7 @@ class _GuestOfflineStage extends StatelessWidget {
                         onTap: goToLogin,
                         child: Text(
                           "sign in",
-                          style: GoogleFonts.inter(fontSize: 15.5, fontWeight: FontWeight.bold, color: ExodoColors.amber, decoration: TextDecoration.underline, decorationColor: ExodoColors.amber),
+                          style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.bold, color: ExodoColors.amber, decoration: TextDecoration.underline, decorationColor: ExodoColors.amber),
                         ),
                       ),
                     ),
@@ -1578,7 +1589,7 @@ class _GuestOfflineStage extends StatelessWidget {
               RichText(
                 textAlign: TextAlign.center,
                 text: TextSpan(
-                  style: GoogleFonts.inter(fontSize: 15.5, color: ExodoColors.textSecondary, height: 1.55),
+                  style: GoogleFonts.inter(fontSize: 14, color: ExodoColors.textSecondary, height: 1.45),
                   children: [
                     const TextSpan(text: "Para seguir enviando mensajes, "),
                     WidgetSpan(
@@ -1588,7 +1599,7 @@ class _GuestOfflineStage extends StatelessWidget {
                         onTap: goToLogin,
                         child: Text(
                           "actualice",
-                          style: GoogleFonts.inter(fontSize: 15.5, fontWeight: FontWeight.bold, color: ExodoColors.amber, decoration: TextDecoration.underline, decorationColor: ExodoColors.amber),
+                          style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.bold, color: ExodoColors.amber, decoration: TextDecoration.underline, decorationColor: ExodoColors.amber),
                         ),
                       ),
                     ),
@@ -1600,7 +1611,7 @@ class _GuestOfflineStage extends StatelessWidget {
                         onTap: goToLogin,
                         child: Text(
                           "inicie sesión",
-                          style: GoogleFonts.inter(fontSize: 15.5, fontWeight: FontWeight.bold, color: ExodoColors.amber, decoration: TextDecoration.underline, decorationColor: ExodoColors.amber),
+                          style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.bold, color: ExodoColors.amber, decoration: TextDecoration.underline, decorationColor: ExodoColors.amber),
                         ),
                       ),
                     ),
