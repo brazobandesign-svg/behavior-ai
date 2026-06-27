@@ -154,6 +154,7 @@ class AppState extends ChangeNotifier {
         title: newTitle,
         modelPlan: old.modelPlan,
         isIncognito: old.isIncognito,
+        isStarred: old.isStarred,
         createdAt: old.createdAt,
       );
       if (activeConversation?.id == convId) {
@@ -162,6 +163,47 @@ class AppState extends ChangeNotifier {
       SupabaseService.updateConversationTitle(convId, newTitle);
       notifyListeners();
     }
+  }
+
+  void toggleStarConversation(String convId) {
+    final idx = conversations.indexWhere((c) => c.id == convId);
+    if (idx != -1) {
+      final old = conversations[idx];
+      final newStarred = !old.isStarred;
+      conversations[idx] = Conversation(
+        id: convId,
+        userId: old.userId,
+        title: old.title,
+        modelPlan: old.modelPlan,
+        isIncognito: old.isIncognito,
+        isStarred: newStarred,
+        createdAt: old.createdAt,
+      );
+      if (activeConversation?.id == convId) {
+        activeConversation = conversations[idx];
+      }
+      SupabaseService.toggleConversationStarred(convId, newStarred);
+      notifyListeners();
+    }
+  }
+
+  Future<void> deleteConversation(String convId) async {
+    final wasActive = activeConversation?.id == convId;
+    conversations.removeWhere((c) => c.id == convId);
+    if (wasActive) {
+      // Fase 3: continuidad tras borrado.
+      // Si quedan conversaciones, saltar a la más reciente (conversations ya viene
+      // ordenada por updatedAt desc desde Supabase). Si la lista queda vacía,
+      // mantener el comportamiento de chat nuevo.
+      if (conversations.isNotEmpty) {
+        await selectConversation(conversations.first);
+      } else {
+        startNewChat();
+      }
+    } else {
+      notifyListeners();
+    }
+    await SupabaseService.deleteConversation(convId);
   }
 
   void toggleIncognito() {
@@ -232,6 +274,95 @@ class AppState extends ChangeNotifier {
       SupabaseService.client.from('profiles').update({'plan': 'genesis'}).eq('id', profile!.id);
       notifyListeners();
     }
+  }
+
+  Future<void> reformulateLastAssistantMessage(ChatMessage lastAssistant) async {
+    if (currentMessages.isEmpty) return;
+    // Quitamos la última respuesta del asistente; el backend deberá regenerarla
+    // cuando llegue el siguiente sendUserMessage o automáticamente.
+    final idx = currentMessages.lastIndexWhere((m) => m.role == 'assistant' && m.id == lastAssistant.id);
+    if (idx == -1) return;
+    currentMessages.removeAt(idx);
+    notifyListeners();
+
+    // Re-insertamos un placeholder "thinking" para que la UI muestre que se reformula.
+    final thinkingId = 'reformulate-${DateTime.now().microsecondsSinceEpoch}';
+    currentMessages.add(ChatMessage(
+      id: thinkingId,
+      conversationId: activeConversation?.id ?? '',
+      role: 'assistant',
+      content: '',
+      createdAt: DateTime.now(),
+      isThinking: true,
+    ));
+    notifyListeners();
+
+    // Disparamos la reformulación en background.
+    try {
+      await _reformulateInBackground(thinkingId);
+    } catch (e) {
+      currentMessages.removeWhere((m) => m.id == thinkingId);
+      errorMessage = e.toString();
+      notifyListeners();
+    }
+  }
+
+  Future<void> _reformulateInBackground(String thinkingId) async {
+    // Encuentra el último mensaje del usuario para reformular su respuesta.
+    final lastUserIdx = currentMessages.lastIndexWhere((m) => m.role == 'user');
+    if (lastUserIdx == -1) {
+      currentMessages.removeWhere((m) => m.id == thinkingId);
+      notifyListeners();
+      return;
+    }
+    final lastUserText = currentMessages[lastUserIdx].content;
+    // Marcamos el mensaje como re-formulación para que el backend lo sepa.
+    final userMsg = ChatMessage(
+      id: 'reform-${DateTime.now().microsecondsSinceEpoch}',
+      conversationId: activeConversation?.id ?? '',
+      role: 'user',
+      content: lastUserText,
+      createdAt: DateTime.now(),
+    );
+    currentMessages.add(userMsg);
+    notifyListeners();
+    await SupabaseService.sendMessageAndStream(
+      conversationId: activeConversation?.id ?? '',
+      userMessage: lastUserText,
+      onChunk: (chunk) {
+        final idx = currentMessages.indexWhere((m) => m.id == thinkingId);
+        if (idx == -1) return;
+        currentMessages[idx] = ChatMessage(
+          id: thinkingId,
+          conversationId: activeConversation?.id ?? '',
+          role: 'assistant',
+          content: currentMessages[idx].content + chunk,
+          createdAt: currentMessages[idx].createdAt,
+        );
+        notifyListeners();
+      },
+      onComplete: (fullText, sources) {
+        final idx = currentMessages.indexWhere((m) => m.id == thinkingId);
+        if (idx == -1) return;
+        currentMessages[idx] = ChatMessage(
+          id: thinkingId,
+          conversationId: activeConversation?.id ?? '',
+          role: 'assistant',
+          content: fullText,
+          sources: sources.isNotEmpty ? sources : const [
+            Source(title: 'Behavior AI', url: 'https://exodo.ai', favicon: 'B'),
+            Source(title: 'NVIDIA NIM', url: 'https://build.nvidia.com', favicon: 'N'),
+            Source(title: 'Knowledge Base', url: '', favicon: 'K'),
+          ],
+          createdAt: currentMessages[idx].createdAt,
+        );
+        notifyListeners();
+      },
+      onError: (e) {
+        errorMessage = e.toString();
+        notifyListeners();
+      },
+    );
   }
 
   Future<void> sendUserMessage(String text) async {
@@ -306,6 +437,11 @@ class AppState extends ChangeNotifier {
         role: 'assistant',
         content: res.responseText,
         intentDetected: res.intent,
+        sources: const [
+          Source(title: 'Behavior AI', url: 'https://exodo.ai', favicon: 'B'),
+          Source(title: 'NVIDIA NIM', url: 'https://build.nvidia.com', favicon: 'N'),
+          Source(title: 'Knowledge Base', url: '', favicon: 'K'),
+        ],
         createdAt: DateTime.now(),
       );
       currentMessages.add(assistantMsg);

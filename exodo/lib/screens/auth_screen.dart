@@ -1,10 +1,7 @@
-import 'dart:math' as math;
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:provider/provider.dart';
 import '../services/supabase_service.dart';
-import '../services/app_state.dart';
 import '../theme/exodo_theme.dart';
 
 bool _isAuthEn(BuildContext context) {
@@ -22,56 +19,7 @@ class AuthScreen extends StatefulWidget {
 }
 
 class _AuthScreenState extends State<AuthScreen> {
-  bool isLogin = true;
   bool isLoading = false;
-  bool showEmailForm = false;
-
-  final _emailCtrl = TextEditingController();
-  final _passCtrl = TextEditingController();
-  final _nameCtrl = TextEditingController();
-
-  Future<void> _submit() async {
-    final email = _emailCtrl.text.trim();
-    final pass = _passCtrl.text.trim();
-    final name = _nameCtrl.text.trim();
-    final isEn = _isAuthEn(context);
-
-    if (email.isEmpty || pass.isEmpty || (!isLogin && name.isEmpty)) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(isEn ? 'Please fill all fields' : 'Por favor llena todos los campos')));
-      return;
-    }
-
-    setState(() => isLoading = true);
-
-    try {
-      if (isLogin) {
-        await SupabaseService.signIn(email, pass);
-      } else {
-        final res = await SupabaseService.signUp(email, pass, name);
-        if (res.session == null) {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                backgroundColor: ExodoColors.amber,
-                content: Text(
-                  isEn
-                      ? '📬 Account created. Check your email for confirmation if required.'
-                      : '📬 Cuenta creada. Si Supabase pide confirmación, revisa tu correo. Si no, ya puedes iniciar sesión.',
-                  style: const TextStyle(color: Colors.black87, fontWeight: FontWeight.bold),
-                ),
-              ),
-            );
-          }
-        }
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: ${e.toString().replaceAll('Exception: ', '')}')));
-      }
-    } finally {
-      if (mounted) setState(() => isLoading = false);
-    }
-  }
 
   // Nueva función para manejar el acceso como invitado
   Future<void> _signInAsGuest() async {
@@ -90,6 +38,8 @@ class _AuthScreenState extends State<AuthScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      // Pantalla de login SIEMPRE en Negro Cálido (#0E0C0A), inamovible.
+      backgroundColor: ExodoColors.background,
       body: SafeArea(
         child: SingleChildScrollView(
             padding: const EdgeInsets.only(left: 28, right: 28, top: 180, bottom: 28),
@@ -180,11 +130,11 @@ class _AuthScreenState extends State<AuthScreen> {
                   child: ElevatedButton(
                     onPressed: null,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF161412),
-                      disabledBackgroundColor: const Color(0xFF161412).withOpacity(0.5),
+                      backgroundColor: const Color(0xFF131313),
+                      disabledBackgroundColor: const Color(0xFF131313).withOpacity(0.5),
                       disabledForegroundColor: Colors.white38,
                       elevation: 0,
-                      side: BorderSide(color: const Color(0xFF2E2923).withOpacity(0.5)),
+                      side: BorderSide(color: const Color(0xFF131313).withOpacity(0.5)),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(27)),
                     ),
                     child: Row(
@@ -226,39 +176,6 @@ class _AuthScreenState extends State<AuthScreen> {
             ),
           ),
         ),
-    );
-  }
-}
-
-class _TabBtn extends StatelessWidget {
-  final String title;
-  final bool active;
-  final VoidCallback onTap;
-
-  const _TabBtn({required this.title, required this.active, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Column(
-        children: [
-          Text(
-            title,
-            style: TextStyle(
-              color: active ? ExodoColors.amber : ExodoColors.textSecondary,
-              fontWeight: active ? FontWeight.bold : FontWeight.normal,
-              fontSize: 15,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Container(
-            width: 40,
-            height: 2,
-            color: active ? ExodoColors.amber : Colors.transparent,
-          ),
-        ],
-      ),
     );
   }
 }

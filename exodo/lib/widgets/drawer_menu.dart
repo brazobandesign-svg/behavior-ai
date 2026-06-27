@@ -15,6 +15,32 @@ bool _isDrawerEn(BuildContext context) {
   return Localizations.localeOf(context).languageCode == 'en';
 }
 
+/// Item de menú reutilizable con padding responsive.
+class _DrawerItem extends StatelessWidget {
+  final Widget icon;
+  final Widget title;
+  final VoidCallback onTap;
+  final double horizontalPad;
+
+  const _DrawerItem({
+    required this.icon,
+    required this.title,
+    required this.onTap,
+    required this.horizontalPad,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      dense: true,
+      contentPadding: EdgeInsets.symmetric(horizontal: horizontalPad),
+      leading: icon,
+      title: title,
+      onTap: onTap,
+    );
+  }
+}
+
 class DrawerMenu extends StatefulWidget {
   const DrawerMenu({super.key});
 
@@ -23,7 +49,6 @@ class DrawerMenu extends StatefulWidget {
 }
 
 class _DrawerMenuState extends State<DrawerMenu> {
-  static final Set<String> _starredIds = {};
   Set<String> _matchingIds = {};
   String _searchQuery = '';
   bool _isSearching = false;
@@ -39,7 +64,7 @@ class _DrawerMenuState extends State<DrawerMenu> {
   Widget build(BuildContext context) {
     final state = context.watch<AppState>();
     final isLight = !state.isDarkMode;
-    final bg = isLight ? const Color(0xFFF7F5F0) : const Color(0xFF161412);
+    final bg = isLight ? const Color(0xFFF7F5F0) : const Color(0xFF181817);
     final textCol = isLight ? const Color(0xFF171615) : ExodoColors.textPrimary;
     final subTextCol = isLight ? Colors.black54 : ExodoColors.textSecondary;
 
@@ -48,221 +73,282 @@ class _DrawerMenuState extends State<DrawerMenu> {
       return c.title.toLowerCase().contains(_searchQuery.toLowerCase()) || _matchingIds.contains(c.id);
     }).toList();
 
-    final starredConvs = filtered.where((c) => _starredIds.contains(c.id)).toList();
-    final recentConvs = filtered.where((c) => !_starredIds.contains(c.id)).toList();
+    // Fase 2: leer/escribir fijados únicamente desde DB (c.isStarred).
+    final starredConvs = filtered.where((c) => c.isStarred).toList();
+    final recentConvs = filtered.where((c) => !c.isStarred).toList();
+
+    // ============================================================
+    // RESPONSIVE: el drawer se adapta al ancho de pantalla sin
+    // tocar los bordes. Tamaños calculados proporcionalmente a
+    // un ancho base de 360 dp (LG V60 ~390 dp).
+    // ============================================================
+    final mq = MediaQuery.of(context);
+    final scale = (mq.size.width / 360.0).clamp(0.85, 1.20);
+    final hPad = (20.0 * scale).clamp(16.0, 24.0);
+
+    double s(double v) => v * scale;
+
+    final logoH = s(44).clamp(36.0, 52.0);
+    final exodoTextH = s(30).clamp(24.0, 36.0);
+    final avatarR = s(22).clamp(18.0, 26.0);
+    final bybehaviorH = s(28).clamp(22.0, 34.0);
 
     return Drawer(
       backgroundColor: bg,
       child: SafeArea(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        child: Stack(
           children: [
-            // 1. Arriba: Exodo
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 18, 16, 12),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Exodo',
-                    style: GoogleFonts.jetBrainsMono(
-                      fontSize: 26,
-                      fontWeight: FontWeight.bold,
-                      color: textCol,
-                      letterSpacing: -0.5,
-                    ),
-                  ),
-                  IconButton(
-                    icon: Icon(Icons.close_rounded, color: subTextCol, size: 20),
-                    onPressed: () => Navigator.pop(context),
-                  ),
-                ],
-              ),
-            ),
-
-            // 2. Opciones de menú al descubierto en color normal
-            ListTile(
-              dense: true,
-              contentPadding: const EdgeInsets.symmetric(horizontal: 20),
-              leading: Icon(Icons.chat_bubble_outline_rounded, size: 20, color: textCol),
-              title: Text('New chat', style: GoogleFonts.inter(fontSize: 14, color: textCol, fontWeight: FontWeight.w500)),
-              onTap: () {
-                state.startNewChat();
-                Navigator.pop(context);
-              },
-            ),
-            ListTile(
-              dense: true,
-              contentPadding: const EdgeInsets.symmetric(horizontal: 20),
-              leading: Icon(state.isDarkMode ? Icons.light_mode_outlined : Icons.dark_mode_outlined, size: 20, color: textCol),
-              title: Text(state.isDarkMode ? 'Light mode' : 'Dark mode', style: GoogleFonts.inter(fontSize: 14, color: textCol, fontWeight: FontWeight.w500)),
-              onTap: () => state.toggleTheme(),
-            ),
-            ListTile(
-              dense: true,
-              contentPadding: const EdgeInsets.symmetric(horizontal: 20),
-              leading: Image.asset(
-                'assets/images/incognito-svgrepo-com.png',
-                width: 20,
-                height: 20,
-                color: state.isIncognito ? ExodoColors.amber : textCol,
-              ),
-              title: Text(_isDrawerEn(context) ? 'Incognito mode' : 'Modo Incógnito', style: GoogleFonts.inter(fontSize: 14, color: state.isIncognito ? ExodoColors.amber : textCol, fontWeight: FontWeight.w500)),
-              onTap: () {
-                HapticFeedback.vibrate();
-                state.toggleIncognito();
-              },
-            ),
-
-            // 3. Buscar conversación
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
-              child: _isSearching
-                  ? Container(
-                      height: 38,
-                      padding: const EdgeInsets.symmetric(horizontal: 8),
-                      margin: const EdgeInsets.symmetric(horizontal: 8),
-                      decoration: BoxDecoration(
-                        color: isLight ? Colors.white : const Color(0xFF1E1C19),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(Icons.search, size: 18, color: subTextCol),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: TextField(
-                              controller: _searchCtrl,
-                              autofocus: true,
-                              cursorColor: textCol,
-                              style: TextStyle(fontSize: 13, color: textCol),
-                              decoration: InputDecoration(
-                                hintText: _isDrawerEn(context) ? 'Search chats...' : 'Buscar chat...',
-                                hintStyle: TextStyle(fontSize: 13, color: subTextCol),
-                                filled: false,
-                                border: InputBorder.none,
-                                enabledBorder: InputBorder.none,
-                                focusedBorder: InputBorder.none,
-                                disabledBorder: InputBorder.none,
-                                contentPadding: EdgeInsets.zero,
-                                isDense: true,
+            // Capa 1: Column con header + historial (este último scrollea)
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // 1. Header fijo: Logo_behavior + exodo_text (izquierda) + botón cerrar (derecha)
+                Padding(
+                  padding: EdgeInsets.fromLTRB(hPad, s(28), s(12), s(18)),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Flexible(
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            Image.asset(
+                              'assets/images/Logo_behavior.png',
+                              height: logoH,
+                              color: ExodoColors.amber,
+                            ),
+                            SizedBox(width: s(10)),
+                            Flexible(
+                              child: Image.asset(
+                                'assets/images/exodo_text.png',
+                                height: exodoTextH,
+                                color: textCol,
+                                fit: BoxFit.scaleDown,
                               ),
-                              onChanged: (v) {
-                                setState(() => _searchQuery = v);
-                                if (v.trim().length >= 2) {
-                                  SupabaseService.searchConversationIdsByMessage(v.trim()).then((ids) {
-                                    if (mounted && _searchQuery == v) {
-                                      setState(() => _matchingIds = ids.toSet());
-                                    }
-                                  });
-                                } else {
-                                  setState(() => _matchingIds.clear());
-                                }
-                              },
                             ),
-                          ),
-                          InkWell(
-                            onTap: () {
-                              _searchCtrl.clear();
-                              setState(() {
-                                _searchQuery = '';
-                                _matchingIds.clear();
-                                _isSearching = false;
-                              });
-                            },
-                            child: Icon(Icons.close, size: 16, color: subTextCol),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
-                    )
-                  : ListTile(
-                      dense: true,
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 8),
-                      leading: Icon(Icons.search_rounded, size: 20, color: textCol),
-                      title: Text(_isDrawerEn(context) ? 'Search chats' : 'Buscar conversación', style: GoogleFonts.inter(fontSize: 14, color: textCol, fontWeight: FontWeight.w500)),
-                      onTap: () => setState(() => _isSearching = true),
-                    ),
-            ),
-
-            const SizedBox(height: 6),
-            Divider(color: isLight ? const Color(0xFFE2DDD2) : const Color(0xFF2A2622), height: 1),
-            const SizedBox(height: 8),
-
-            // 4. Historial (Starred & Recents)
-            Expanded(
-              child: filtered.isEmpty
-                  ? Center(
-                      child: Text(
-                        state.conversations.isEmpty
-                            ? (_isDrawerEn(context) ? 'No chat history' : 'Sin historial de chats')
-                            : (_isDrawerEn(context) ? 'No chats found' : 'No se encontraron chats'),
-                        style: GoogleFonts.inter(fontSize: 12.5, color: subTextCol),
+                      IconButton(
+                        icon: Icon(Icons.close_rounded, color: subTextCol, size: s(20)),
+                        onPressed: () => Navigator.pop(context),
                       ),
-                    )
-                  : CustomScrollView(
-                      slivers: [
-                        if (starredConvs.isNotEmpty) ...[
-                          SliverPadding(
-                            padding: const EdgeInsets.fromLTRB(20, 6, 16, 4),
-                            sliver: SliverToBoxAdapter(
-                              child: Text('Starred', style: GoogleFonts.inter(fontSize: 11.5, fontWeight: FontWeight.bold, color: subTextCol)),
-                            ),
-                          ),
-                          SliverList(
-                            delegate: SliverChildBuilderDelegate(
-                              (context, index) => _buildConvItem(starredConvs[index], state, isLight, true),
-                              childCount: starredConvs.length,
-                            ),
-                          ),
-                          const SliverToBoxAdapter(child: SizedBox(height: 10)),
-                        ],
-
-                        SliverPadding(
-                          padding: const EdgeInsets.fromLTRB(20, 6, 16, 4),
-                          sliver: SliverToBoxAdapter(
-                            child: Text('Recents', style: GoogleFonts.inter(fontSize: 11.5, fontWeight: FontWeight.bold, color: subTextCol)),
-                          ),
-                        ),
-                        SliverList(
-                          delegate: SliverChildBuilderDelegate(
-                            (context, index) => _buildConvItem(recentConvs[index], state, isLight, false),
-                            childCount: recentConvs.length,
-                          ),
-                        ),
-                      ],
-                    ),
-            ),
-
-            Divider(color: isLight ? const Color(0xFFE2DDD2) : const Color(0xFF2A2622), height: 1),
-
-            // 5. Al fondo: SIN engranaje, solo avatar de perfil que abre modal
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-              child: Row(
-                children: [
-                  GestureDetector(
-                    onTap: () => _ClaudeAccountModal.show(context, state),
-                    child: Row(
-                      children: [
-                        CircleAvatar(
-                          radius: 16,
-                          backgroundColor: ExodoColors.amber,
-                          child: Text(
-                            state.profile?.fullName?.isNotEmpty == true
-                                ? state.profile!.fullName!.substring(0, 1).toUpperCase()
-                                : 'U',
-                            style: GoogleFonts.syne(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.black),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Text(
-                          state.profile?.fullName ?? (_isDrawerEn(context) ? 'Exodo User' : 'Usuario Éxodo'),
-                          style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w600, color: textCol),
-                        ),
-                      ],
-                    ),
+                    ],
                   ),
-                ],
+                ),
+
+                // 2. Opciones de menú
+                _DrawerItem(
+                  horizontalPad: hPad,
+                  icon: Icon(Icons.chat_bubble_outline_rounded, size: s(20), color: textCol),
+                  title: Text('New chat', style: GoogleFonts.jetBrainsMono(fontSize: s(14), color: textCol, fontWeight: FontWeight.w600, letterSpacing: -0.2)),
+                  onTap: () {
+                    state.startNewChat();
+                    Navigator.pop(context);
+                  },
+                ),
+                _DrawerItem(
+                  horizontalPad: hPad,
+                  icon: Icon(state.isDarkMode ? Icons.light_mode_outlined : Icons.dark_mode_outlined, size: s(20), color: textCol),
+                  title: Text(state.isDarkMode ? 'Light mode' : 'Dark mode', style: GoogleFonts.jetBrainsMono(fontSize: s(14), color: textCol, fontWeight: FontWeight.w600, letterSpacing: -0.2)),
+                  onTap: () => state.toggleTheme(),
+                ),
+                _DrawerItem(
+                  horizontalPad: hPad,
+                  icon: Image.asset(
+                    'assets/images/incognito-svgrepo-com.png',
+                    width: s(20),
+                    height: s(20),
+                    color: state.isIncognito ? ExodoColors.amber : textCol,
+                  ),
+                  title: Text(_isDrawerEn(context) ? 'Incognito mode' : 'Modo Incógnito', style: GoogleFonts.jetBrainsMono(fontSize: s(14), color: state.isIncognito ? ExodoColors.amber : textCol, fontWeight: FontWeight.w600, letterSpacing: -0.2)),
+                  onTap: () {
+                    HapticFeedback.vibrate();
+                    state.toggleIncognito();
+                  },
+                ),
+
+                // 3. Buscar conversación
+                Padding(
+                  padding: EdgeInsets.symmetric(horizontal: hPad - s(8), vertical: 2),
+                  child: _isSearching
+                      ? Container(
+                          height: s(38).clamp(34.0, 44.0),
+                          padding: const EdgeInsets.symmetric(horizontal: 8),
+                          margin: const EdgeInsets.symmetric(horizontal: 8),
+                          decoration: BoxDecoration(
+                            color: isLight ? Colors.white : const Color(0xFF1E1C19),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(Icons.search, size: s(18), color: subTextCol),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: TextField(
+                                  controller: _searchCtrl,
+                                  autofocus: true,
+                                  cursorColor: textCol,
+                                  style: TextStyle(fontSize: s(13), color: textCol),
+                                  decoration: InputDecoration(
+                                    hintText: _isDrawerEn(context) ? 'Search chats...' : 'Buscar chat...',
+                                    hintStyle: TextStyle(fontSize: s(13), color: subTextCol),
+                                    filled: false,
+                                    border: InputBorder.none,
+                                    enabledBorder: InputBorder.none,
+                                    focusedBorder: InputBorder.none,
+                                    disabledBorder: InputBorder.none,
+                                    contentPadding: EdgeInsets.zero,
+                                    isDense: true,
+                                  ),
+                                  onChanged: (v) {
+                                    setState(() => _searchQuery = v);
+                                    if (v.trim().length >= 2) {
+                                      SupabaseService.searchConversationIdsByMessage(v.trim()).then((ids) {
+                                        if (mounted && _searchQuery == v) {
+                                          setState(() => _matchingIds = ids.toSet());
+                                        }
+                                      });
+                                    } else {
+                                      setState(() => _matchingIds.clear());
+                                    }
+                                  },
+                                ),
+                              ),
+                              InkWell(
+                                onTap: () {
+                                  _searchCtrl.clear();
+                                  setState(() {
+                                    _searchQuery = '';
+                                    _matchingIds.clear();
+                                    _isSearching = false;
+                                  });
+                                },
+                                child: Icon(Icons.close, size: s(16), color: subTextCol),
+                              ),
+                            ],
+                          ),
+                        )
+                      : _DrawerItem(
+                          horizontalPad: hPad - s(8),
+                          icon: Icon(Icons.search_rounded, size: s(20), color: textCol),
+                          title: Text(_isDrawerEn(context) ? 'Search chats' : 'Buscar conversación', style: GoogleFonts.jetBrainsMono(fontSize: s(14), color: textCol, fontWeight: FontWeight.w600, letterSpacing: -0.2)),
+                          onTap: () => setState(() => _isSearching = true),
+                        ),
+                ),
+
+                const SizedBox(height: 6),
+                Divider(color: isLight ? const Color(0xFFE2DDD2) : const Color(0xFF2A2622), height: 1),
+                const SizedBox(height: 8),
+
+                // 4. Historial (Expanded real, ocupa todo el espacio disponible entre header y footer)
+                Expanded(
+                  child: filtered.isEmpty
+                      ? Center(
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                            child: Text(
+                              state.conversations.isEmpty
+                                  ? (_isDrawerEn(context) ? 'No chat history' : 'Sin historial de chats')
+                                  : (_isDrawerEn(context) ? 'No chats found' : 'No se encontraron chats'),
+                              style: GoogleFonts.jetBrainsMono(fontSize: s(12.5), color: subTextCol, letterSpacing: -0.1),
+                              textAlign: TextAlign.center,
+                            ),
+                          ),
+                        )
+                      : CustomScrollView(
+                          slivers: [
+                            if (starredConvs.isNotEmpty) ...[
+                              SliverPadding(
+                                padding: EdgeInsets.fromLTRB(hPad, 6, hPad, 4),
+                                sliver: SliverToBoxAdapter(
+                                  child: Text('Starred', style: GoogleFonts.jetBrainsMono(fontSize: s(11.5), fontWeight: FontWeight.bold, color: subTextCol, letterSpacing: -0.1)),
+                                ),
+                              ),
+                              SliverList(
+                                delegate: SliverChildBuilderDelegate(
+                                  (context, index) => _buildConvItem(starredConvs[index], state, isLight, true, hPad, s),
+                                  childCount: starredConvs.length,
+                                ),
+                              ),
+                              const SliverToBoxAdapter(child: SizedBox(height: 10)),
+                            ],
+
+                            SliverPadding(
+                              padding: EdgeInsets.fromLTRB(hPad, 6, hPad, 4),
+                              sliver: SliverToBoxAdapter(
+                                child: Text('Recents', style: GoogleFonts.jetBrainsMono(fontSize: s(11.5), fontWeight: FontWeight.bold, color: subTextCol, letterSpacing: -0.1)),
+                              ),
+                            ),
+                            SliverList(
+                              delegate: SliverChildBuilderDelegate(
+                                (context, index) => _buildConvItem(recentConvs[index], state, isLight, false, hPad, s),
+                                childCount: recentConvs.length,
+                              ),
+                            ),
+                            // Padding inferior para que el último item no quede tapado por el footer
+                            const SliverToBoxAdapter(child: SizedBox(height: 130)),
+                          ],
+                        ),
+                ),
+              ],
+            ),
+
+            // Capa 2: Footer anclado al fondo (Stack), siempre visible, NO se mueve con el historial
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 0,
+              child: Container(
+                color: bg, // mismo fondo del drawer
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Divider(color: isLight ? const Color(0xFFE2DDD2) : const Color(0xFF2A2622), height: 1),
+                    Padding(
+                      padding: EdgeInsets.fromLTRB(hPad, s(12), hPad, s(14)),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          GestureDetector(
+                            onTap: () => _ClaudeAccountModal.show(context, state),
+                            child: Row(
+                              children: [
+                                CircleAvatar(
+                                  radius: avatarR,
+                                  backgroundColor: ExodoColors.amber,
+                                  child: Text(
+                                    state.profile?.fullName?.isNotEmpty == true
+                                        ? state.profile!.fullName!.substring(0, 1).toUpperCase()
+                                        : 'U',
+                                    style: GoogleFonts.syne(fontSize: s(19), fontWeight: FontWeight.bold, color: Colors.black),
+                                  ),
+                                ),
+                                SizedBox(width: s(12)),
+                                Flexible(
+                                  child: Text(
+                                    state.profile?.fullName ?? (_isDrawerEn(context) ? 'Exodo User' : 'Usuario Éxodo'),
+                                    style: GoogleFonts.jetBrainsMono(fontSize: s(14), fontWeight: FontWeight.w600, color: textCol, letterSpacing: -0.2),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          SizedBox(height: s(6)),
+                          Image.asset(
+                            'assets/images/bybehavior_text.png',
+                            height: bybehaviorH,
+                            color: isLight ? const Color(0xFF66605A) : ExodoColors.textSecondary,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ],
@@ -271,15 +357,15 @@ class _DrawerMenuState extends State<DrawerMenu> {
     );
   }
 
-  Widget _buildConvItem(Conversation conv, AppState state, bool isLight, bool isStarred) {
+  Widget _buildConvItem(Conversation conv, AppState state, bool isLight, bool isStarred, double hPad, double Function(double) s) {
     final active = state.activeConversation?.id == conv.id;
     final textCol = isLight ? const Color(0xFF171615) : ExodoColors.textPrimary;
 
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 1),
+      margin: EdgeInsets.symmetric(horizontal: (hPad - s(10)).clamp(0.0, 10.0), vertical: 1),
       child: ListTile(
         dense: true,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+        contentPadding: EdgeInsets.symmetric(horizontal: s(12)),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
         tileColor: active ? (isLight ? const Color(0xFFEBE7DE) : const Color(0xFF262320)) : Colors.transparent,
         onTap: () {
@@ -294,14 +380,15 @@ class _DrawerMenuState extends State<DrawerMenu> {
           conv.title,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
-          style: GoogleFonts.inter(
-            fontSize: 13,
+          style: GoogleFonts.jetBrainsMono(
+            fontSize: s(13),
             fontWeight: active ? FontWeight.w600 : FontWeight.normal,
             color: active ? (isLight ? Colors.black : Colors.white) : (isLight ? const Color(0xFF171615) : Colors.white),
+            letterSpacing: -0.1,
           ),
         ),
         trailing: isStarred
-            ? Icon(Icons.push_pin_rounded, size: 14, color: isLight ? Colors.black54 : Colors.white70)
+            ? Icon(Icons.push_pin_rounded, size: s(14), color: isLight ? Colors.black54 : Colors.white70)
             : null,
       ),
     );
@@ -334,23 +421,18 @@ class _DrawerMenuState extends State<DrawerMenu> {
               title: Text(isEn ? (isStarred ? 'Unpin' : 'Pin') : (isStarred ? 'Desfijar' : 'Fijar'), style: GoogleFonts.inter(fontSize: 15, color: isLight ? Colors.black : Colors.white, fontWeight: FontWeight.w500)),
               onTap: () {
                 Navigator.pop(ctx);
-                setState(() {
-                  if (isStarred) {
-                    _starredIds.remove(conv.id);
-                  } else {
-                    _starredIds.add(conv.id);
-                  }
-                });
+                // Fase 2: la DB se actualiza vía AppState.toggleStarConversation.
+                // El setState() dispara el rebuild del drawer para reflejar el cambio.
+                state.toggleStarConversation(conv.id);
+                setState(() {});
               },
             ),
             ListTile(
               leading: const Icon(Icons.delete_outline, color: Colors.redAccent),
               title: Text(isEn ? 'Delete' : 'Borrar', style: GoogleFonts.inter(fontSize: 15, color: Colors.redAccent, fontWeight: FontWeight.w500)),
-              onTap: () async {
+              onTap: () {
                 Navigator.pop(ctx);
-                await SupabaseService.deleteConversation(conv.id);
-                state.conversations.removeWhere((c) => c.id == conv.id);
-                if (state.activeConversation?.id == conv.id) state.startNewChat();
+                _showDeleteConfirmationDialog(context, conv, state);
               },
             ),
             const SizedBox(height: 12),
@@ -395,6 +477,53 @@ class _DrawerMenuState extends State<DrawerMenu> {
               Navigator.pop(ctx);
             },
             child: Text(isEn ? 'Save' : 'Guardar', style: TextStyle(color: isLight ? Colors.black : Colors.white, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showDeleteConfirmationDialog(BuildContext context, Conversation conv, AppState state) {
+    final isLight = Theme.of(context).brightness == Brightness.light;
+    final isEn = _isDrawerEn(context);
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: isLight ? Colors.white : const Color(0xFF1E1C19),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            const Icon(Icons.warning_amber_rounded, color: Colors.redAccent, size: 24),
+            const SizedBox(width: 10),
+            Text(
+              isEn ? 'Delete chat?' : '¿Eliminar chat?',
+              style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.bold, color: isLight ? Colors.black : Colors.white),
+            ),
+          ],
+        ),
+        content: Text(
+          isEn
+              ? 'Are you sure you want to delete "${conv.title}"? This action cannot be undone.'
+              : '¿Estás seguro de que deseas eliminar "${conv.title}"? Esta acción no se puede deshacer.',
+          style: GoogleFonts.inter(fontSize: 14, color: isLight ? Colors.black87 : Colors.white70, height: 1.4),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(isEn ? 'Cancel' : 'Cancelar', style: TextStyle(color: isLight ? Colors.black54 : Colors.white54)),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(ctx);
+              await state.deleteConversation(conv.id);
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.redAccent,
+              foregroundColor: Colors.white,
+              elevation: 0,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            child: Text(isEn ? 'Delete' : 'Eliminar', style: const TextStyle(fontWeight: FontWeight.bold)),
           ),
         ],
       ),
@@ -560,7 +689,7 @@ class _ClaudeAccountModal {
               style: const TextStyle(color: Colors.white),
               decoration: InputDecoration(
                 filled: true,
-                fillColor: const Color(0xFF161412),
+                fillColor: const Color(0xFF131313),
                 hintText: isEn ? 'Your name or nickname...' : 'Tu nombre o apodo...',
                 hintStyle: const TextStyle(color: Colors.white38),
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
