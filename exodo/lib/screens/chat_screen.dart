@@ -198,13 +198,10 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
                       ),
               ),
 
-              // Reemplazar barra inferior de escritura por banner Offline si está bloqueado
-              if (state.guestIsBlocked)
-                const _GuestOfflineBanner()
-              else
-                _InterlockingComposerArea(
-                  controller: _inputCtrl,
-                  onSend: () {
+              // Barra inferior entrelazada del Tab 1 (SIEMPRE en su sitio exacto)
+              _InterlockingComposerArea(
+                controller: _inputCtrl,
+                onSend: () {
                     final text = _inputCtrl.text;
                     if (text.trim().isEmpty) return;
                     if (state.tokensUsed >= state.tokensLimit && state.profile?.plan != 'hazak') {
@@ -627,10 +624,118 @@ class _InterlockingComposerAreaState extends State<_InterlockingComposerArea> wi
     return 'Hablar con Exodo...';
   }
 
+  Widget _buildOfflineInsideCapsule(BuildContext context, AppState state, bool isEn) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 12),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.cloud_off_rounded, size: 20, color: ExodoColors.amber),
+              const SizedBox(width: 8),
+              Text(
+                isEn ? "You're offline" : "Estás desconectado",
+                style: GoogleFonts.syne(fontSize: 16, fontWeight: FontWeight.bold, color: ExodoColors.textPrimary),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          if (isEn)
+            RichText(
+              textAlign: TextAlign.center,
+              text: TextSpan(
+                style: GoogleFonts.inter(fontSize: 13, color: ExodoColors.textSecondary, height: 1.4),
+                children: [
+                  const TextSpan(text: "To continue sending messages, "),
+                  WidgetSpan(
+                    alignment: PlaceholderAlignment.baseline,
+                    baseline: TextBaseline.alphabetic,
+                    child: GestureDetector(
+                      onTap: () async {
+                        HapticFeedback.vibrate();
+                        state.selectModelOption(exodoModels[0]);
+                        await SupabaseService.signOut();
+                      },
+                      child: Text(
+                        "upgrade",
+                        style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.bold, color: ExodoColors.amber, decoration: TextDecoration.underline, decorationColor: ExodoColors.amber),
+                      ),
+                    ),
+                  ),
+                  const TextSpan(text: " your plan to Pro or "),
+                  WidgetSpan(
+                    alignment: PlaceholderAlignment.baseline,
+                    baseline: TextBaseline.alphabetic,
+                    child: GestureDetector(
+                      onTap: () async {
+                        HapticFeedback.vibrate();
+                        state.selectModelOption(exodoModels[0]);
+                        await SupabaseService.signOut();
+                      },
+                      child: Text(
+                        "sign in",
+                        style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.bold, color: ExodoColors.amber, decoration: TextDecoration.underline, decorationColor: ExodoColors.amber),
+                      ),
+                    ),
+                  ),
+                  const TextSpan(text: "."),
+                ],
+              ),
+            )
+          else
+            RichText(
+              textAlign: TextAlign.center,
+              text: TextSpan(
+                style: GoogleFonts.inter(fontSize: 13, color: ExodoColors.textSecondary, height: 1.4),
+                children: [
+                  const TextSpan(text: "Para seguir enviando mensajes, "),
+                  WidgetSpan(
+                    alignment: PlaceholderAlignment.baseline,
+                    baseline: TextBaseline.alphabetic,
+                    child: GestureDetector(
+                      onTap: () async {
+                        HapticFeedback.vibrate();
+                        state.selectModelOption(exodoModels[0]);
+                        await SupabaseService.signOut();
+                      },
+                      child: Text(
+                        "actualice",
+                        style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.bold, color: ExodoColors.amber, decoration: TextDecoration.underline, decorationColor: ExodoColors.amber),
+                      ),
+                    ),
+                  ),
+                  const TextSpan(text: " su plan a Pro o "),
+                  WidgetSpan(
+                    alignment: PlaceholderAlignment.baseline,
+                    baseline: TextBaseline.alphabetic,
+                    child: GestureDetector(
+                      onTap: () async {
+                        HapticFeedback.vibrate();
+                        state.selectModelOption(exodoModels[0]);
+                        await SupabaseService.signOut();
+                      },
+                      child: Text(
+                        "inicie sesión",
+                        style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.bold, color: ExodoColors.amber, decoration: TextDecoration.underline, decorationColor: ExodoColors.amber),
+                      ),
+                    ),
+                  ),
+                  const TextSpan(text: "."),
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final state = context.watch<AppState>();
     final isLight = !state.isDarkMode && !state.isIncognito;
+    final isEn = _isDeviceEnglish(context);
 
     return Padding(
       padding: const EdgeInsets.only(left: 14, right: 14, bottom: 12),
@@ -704,214 +809,219 @@ class _InterlockingComposerAreaState extends State<_InterlockingComposerArea> wi
               borderRadius: BorderRadius.circular(32),
               border: Border.all(color: isLight ? const Color(0xFFD4CEBF) : ExodoColors.border),
             ),
-            padding: const EdgeInsets.fromLTRB(20, 8, 18, 8),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                TextField(
-                  controller: widget.controller,
-                  maxLines: 4,
-                  minLines: 1,
-                  style: TextStyle(fontSize: 16, color: isLight ? const Color(0xFF171615) : Colors.white),
-                  decoration: InputDecoration(
-                    hintText: _getPlaceholder(context),
-                    hintStyle: GoogleFonts.inter(color: const Color(0xFF7B7872), fontSize: 16),
-                    border: InputBorder.none,
-                    enabledBorder: InputBorder.none,
-                    focusedBorder: InputBorder.none,
-                    filled: false,
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    // Compartimento Izquierdo expandido para absorber cambios de texto/tamaño
-                    Expanded(
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
+            padding: state.guestIsBlocked 
+                ? const EdgeInsets.symmetric(horizontal: 16, vertical: 6)
+                : const EdgeInsets.fromLTRB(20, 8, 18, 8),
+            child: state.guestIsBlocked
+                ? _buildOfflineInsideCapsule(context, state, isEn)
+                : Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      TextField(
+                        controller: widget.controller,
+                        maxLines: 4,
+                        minLines: 1,
+                        style: TextStyle(fontSize: 16, color: isLight ? const Color(0xFF171615) : Colors.white),
+                        decoration: InputDecoration(
+                          hintText: _getPlaceholder(context),
+                          hintStyle: GoogleFonts.inter(color: const Color(0xFF7B7872), fontSize: 16),
+                          border: InputBorder.none,
+                          enabledBorder: InputBorder.none,
+                          focusedBorder: InputBorder.none,
+                          filled: false,
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          // Botón +
-                          InkWell(
-                            onTap: _showAttachmentMenu,
-                            borderRadius: BorderRadius.circular(20),
-                            child: Container(
-                              width: 36,
-                              height: 36,
-                              decoration: BoxDecoration(color: isLight ? const Color(0xFFFBF9F5) : const Color(0xFF25211D), shape: BoxShape.circle),
-                              child: Icon(Icons.add, size: 20, color: isLight ? const Color(0xFF171615) : Colors.white70),
+                          // Compartimento Izquierdo expandido para absorber cambios de texto/tamaño
+                          Expanded(
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                // Botón +
+                                InkWell(
+                                  onTap: _showAttachmentMenu,
+                                  borderRadius: BorderRadius.circular(20),
+                                  child: Container(
+                                    width: 36,
+                                    height: 36,
+                                    decoration: BoxDecoration(color: isLight ? const Color(0xFFFBF9F5) : const Color(0xFF25211D), shape: BoxShape.circle),
+                                    child: Icon(Icons.add, size: 20, color: isLight ? const Color(0xFF171615) : Colors.white70),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+
+                                // Selector de modelo
+                                Flexible(
+                                  child: GestureDetector(
+                                    onTap: widget.onModelTap,
+                                    child: AnimatedBuilder(
+                                      animation: _auraController,
+                                      builder: (context, _) {
+                                        final isXpiPro = state.isPro && (state.selectedModel.id == 'ehyeh' || state.selectedModel.title == 'XPi');
+                                        final t = _auraController.value;
+                                        return Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                                          decoration: BoxDecoration(
+                                            color: isLight ? const Color(0xFFFBF9F5) : const Color(0xFF25211D),
+                                            borderRadius: BorderRadius.circular(16),
+                                            border: Border.all(
+                                              color: isXpiPro
+                                                  ? ExodoColors.amber.withOpacity(0.40 + 0.60 * ((math.sin(t * math.pi * 2) + 1) / 2))
+                                                  : Colors.transparent,
+                                              width: 1.0,
+                                            ),
+                                            boxShadow: isXpiPro
+                                                ? [
+                                                    BoxShadow(
+                                                      color: ExodoColors.amber.withOpacity(0.15 + 0.25 * ((math.sin(t * math.pi * 2) + 1) / 2)),
+                                                      blurRadius: 10,
+                                                      spreadRadius: 1,
+                                                      offset: Offset(6 * math.cos(t * math.pi * 2), 3 * math.sin(t * math.pi * 2)),
+                                                    ),
+                                                    BoxShadow(
+                                                      color: ExodoColors.amber.withOpacity(0.10 + 0.18 * ((math.cos(t * math.pi * 2 * 1.3) + 1) / 2)),
+                                                      blurRadius: 14,
+                                                      spreadRadius: 0,
+                                                      offset: Offset(-5 * math.sin(t * math.pi * 2), -3 * math.cos(t * math.pi * 2)),
+                                                    ),
+                                                  ]
+                                                : null,
+                                          ),
+                                          child: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Flexible(
+                                                child: Text(
+                                                  state.selectedModel.title,
+                                                  overflow: TextOverflow.ellipsis,
+                                                  style: GoogleFonts.jetBrainsMono(
+                                                    fontSize: 13,
+                                                    fontWeight: FontWeight.bold,
+                                                    color: isLight ? const Color(0xFF171615) : Colors.white,
+                                                  ),
+                                                ),
+                                              ),
+                                              if (state.selectedModel.plan == 'hazak') ...[
+                                                const SizedBox(width: 4),
+                                                Container(
+                                                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                                                  decoration: BoxDecoration(
+                                                    color: isLight ? const Color(0xFFE5DECF) : const Color(0xFF3A352F),
+                                                    borderRadius: BorderRadius.circular(4),
+                                                    border: Border.all(color: isLight ? Colors.black12 : Colors.white24),
+                                                  ),
+                                                  child: Text(
+                                                    'PRO',
+                                                    style: GoogleFonts.jetBrainsMono(
+                                                      fontSize: 9.0,
+                                                      fontWeight: FontWeight.bold,
+                                                      color: isLight ? const Color(0xFF171615) : Colors.white,
+                                                    ),
+                                                  ),
+                                                ),
+                                              ],
+                                              const SizedBox(width: 4),
+                                              Icon(Icons.keyboard_arrow_down, size: 16, color: isLight ? const Color(0xFF171615) : Colors.white70),
+                                            ],
+                                          ),
+                                        );
+                                      },
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
-                          const SizedBox(width: 8),
 
-                          // Selector de modelo
-                          Flexible(
-                            child: GestureDetector(
-                              onTap: widget.onModelTap,
-                              child: AnimatedBuilder(
-                                animation: _auraController,
-                                builder: (context, _) {
-                                  final isXpiPro = state.isPro && (state.selectedModel.id == 'ehyeh' || state.selectedModel.title == 'XPi');
-                                  final t = _auraController.value;
-                                  return Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                                    decoration: BoxDecoration(
-                                      color: isLight ? const Color(0xFFFBF9F5) : const Color(0xFF25211D),
-                                      borderRadius: BorderRadius.circular(16),
-                                      border: Border.all(
-                                        color: isXpiPro
-                                            ? ExodoColors.amber.withOpacity(0.40 + 0.60 * ((math.sin(t * math.pi * 2) + 1) / 2))
-                                            : Colors.transparent,
-                                        width: 1.0,
+                          // Botón Mic y Botón Dinámico (Live Chat / Send)
+                          AnimatedBuilder(
+                            animation: widget.controller,
+                            builder: (context, _) {
+                              final hasText = widget.controller.text.trim().isNotEmpty;
+                              final shouldShowSend = hasText || _hasAttachment || _isRecording;
+
+                              return Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  // Micrófono absolutamente fijo sin animación ni desplazamiento
+                                  IconButton(
+                                    icon: Icon(
+                                      _isRecording ? Icons.mic : Icons.mic_none,
+                                      color: _isRecording
+                                          ? ExodoColors.error
+                                          : (shouldShowSend
+                                              ? (isLight ? Colors.black54 : ExodoColors.textSecondary)
+                                              : (isLight ? Colors.black87 : Colors.white70)),
+                                    ),
+                                    onPressed: () async {
+                                      HapticFeedback.vibrate();
+                                      if (!_isRecording) {
+                                        if (_speechEnabled) {
+                                          setState(() => _isRecording = true);
+                                          await _speech.listen(
+                                            onResult: (result) {
+                                              widget.controller.text = result.recognizedWords;
+                                            },
+                                            localeId: 'es_DO',
+                                          );
+                                        } else {
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            SnackBar(content: Text(_isDeviceEnglish(context) ? '⚠️ Microphone permission required for voice dictation' : '⚠️ Permiso de micrófono requerido para dictado de voz')),
+                                          );
+                                        }
+                                      } else {
+                                        setState(() => _isRecording = false);
+                                        await _speech.stop();
+                                      }
+                                    },
+                                  ),
+
+                                  // Botón dinámico: Chat en Vivo fijo <-> Botón de enviar
+                                  GestureDetector(
+                                    onTap: () {
+                                      if (shouldShowSend) {
+                                        setState(() {
+                                          _hasAttachment = false;
+                                          _isRecording = false;
+                                        });
+                                        widget.onSend();
+                                      } else {
+                                        // Botón chat en vivo desactivado por ahora, no hace nada
+                                      }
+                                    },
+                                    child: Container(
+                                      width: 38,
+                                      height: 38,
+                                      margin: const EdgeInsets.only(left: 2, right: 2),
+                                      decoration: BoxDecoration(
+                                        color: shouldShowSend
+                                            ? (isLight ? const Color(0xFF161412) : const Color(0xFFFBF9F5))
+                                            : (isLight ? const Color(0xFF2A241D) : const Color(0xFF25211D)),
+                                        shape: BoxShape.circle,
+                                        border: shouldShowSend ? null : Border.all(color: ExodoColors.amber.withOpacity(0.5), width: 1.2),
                                       ),
-                                      boxShadow: isXpiPro
-                                          ? [
-                                              BoxShadow(
-                                                color: ExodoColors.amber.withOpacity(0.15 + 0.25 * ((math.sin(t * math.pi * 2) + 1) / 2)),
-                                                blurRadius: 10,
-                                                spreadRadius: 1,
-                                                offset: Offset(6 * math.cos(t * math.pi * 2), 3 * math.sin(t * math.pi * 2)),
-                                              ),
-                                              BoxShadow(
-                                                color: ExodoColors.amber.withOpacity(0.10 + 0.18 * ((math.cos(t * math.pi * 2 * 1.3) + 1) / 2)),
-                                                blurRadius: 14,
-                                                spreadRadius: 0,
-                                                offset: Offset(-5 * math.sin(t * math.pi * 2), -3 * math.cos(t * math.pi * 2)),
-                                              ),
-                                            ]
-                                          : null,
+                                      child: Icon(
+                                        shouldShowSend ? Icons.arrow_upward : Icons.graphic_eq_rounded,
+                                        size: 19,
+                                        color: shouldShowSend
+                                            ? (isLight ? Colors.white : const Color(0xFF141210))
+                                            : ExodoColors.amber,
+                                      ),
                                     ),
-                                    child: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Flexible(
-                                          child: Text(
-                                            state.selectedModel.title,
-                                            overflow: TextOverflow.ellipsis,
-                                            style: GoogleFonts.jetBrainsMono(
-                                              fontSize: 13,
-                                              fontWeight: FontWeight.bold,
-                                              color: isLight ? const Color(0xFF171615) : Colors.white,
-                                            ),
-                                          ),
-                                        ),
-                                        if (state.selectedModel.plan == 'hazak') ...[
-                                          const SizedBox(width: 4),
-                                          Container(
-                                            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-                                            decoration: BoxDecoration(
-                                              color: isLight ? const Color(0xFFE5DECF) : const Color(0xFF3A352F),
-                                              borderRadius: BorderRadius.circular(4),
-                                              border: Border.all(color: isLight ? Colors.black12 : Colors.white24),
-                                            ),
-                                            child: Text(
-                                              'PRO',
-                                              style: GoogleFonts.jetBrainsMono(
-                                                fontSize: 9.0,
-                                                fontWeight: FontWeight.bold,
-                                                color: isLight ? const Color(0xFF171615) : Colors.white,
-                                              ),
-                                            ),
-                                          ),
-                                        ],
-                                        const SizedBox(width: 4),
-                                        Icon(Icons.keyboard_arrow_down, size: 16, color: isLight ? const Color(0xFF171615) : Colors.white70),
-                                      ],
-                                    ),
-                                  );
-                                },
-                              ),
-                            ),
+                                  ),
+                                ],
+                              );
+                            },
                           ),
                         ],
                       ),
-                    ),
-
-                    // Botón Mic y Botón Dinámico (Live Chat / Send)
-                    AnimatedBuilder(
-                      animation: widget.controller,
-                      builder: (context, _) {
-                        final hasText = widget.controller.text.trim().isNotEmpty;
-                        final shouldShowSend = hasText || _hasAttachment || _isRecording;
-
-                        return Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            // Micrófono absolutamente fijo sin animación ni desplazamiento
-                            IconButton(
-                              icon: Icon(
-                                _isRecording ? Icons.mic : Icons.mic_none,
-                                color: _isRecording
-                                    ? ExodoColors.error
-                                    : (shouldShowSend
-                                        ? (isLight ? Colors.black54 : ExodoColors.textSecondary)
-                                        : (isLight ? Colors.black87 : Colors.white70)),
-                              ),
-                              onPressed: () async {
-                                HapticFeedback.vibrate();
-                                if (!_isRecording) {
-                                  if (_speechEnabled) {
-                                    setState(() => _isRecording = true);
-                                    await _speech.listen(
-                                      onResult: (result) {
-                                        widget.controller.text = result.recognizedWords;
-                                      },
-                                      localeId: 'es_DO',
-                                    );
-                                  } else {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(content: Text(_isDeviceEnglish(context) ? '⚠️ Microphone permission required for voice dictation' : '⚠️ Permiso de micrófono requerido para dictado de voz')),
-                                    );
-                                  }
-                                } else {
-                                  setState(() => _isRecording = false);
-                                  await _speech.stop();
-                                }
-                              },
-                            ),
-
-                            // Botón dinámico: Chat en Vivo fijo <-> Botón de enviar
-                            GestureDetector(
-                              onTap: () {
-                                if (shouldShowSend) {
-                                  setState(() {
-                                    _hasAttachment = false;
-                                    _isRecording = false;
-                                  });
-                                  widget.onSend();
-                                } else {
-                                  // Botón chat en vivo desactivado por ahora, no hace nada
-                                }
-                              },
-                              child: Container(
-                                width: 38,
-                                height: 38,
-                                margin: const EdgeInsets.only(left: 2, right: 2),
-                                decoration: BoxDecoration(
-                                  color: shouldShowSend
-                                      ? (isLight ? const Color(0xFF161412) : const Color(0xFFFBF9F5))
-                                      : (isLight ? const Color(0xFF2A241D) : const Color(0xFF25211D)),
-                                  shape: BoxShape.circle,
-                                  border: shouldShowSend ? null : Border.all(color: ExodoColors.amber.withOpacity(0.5), width: 1.2),
-                                ),
-                                child: Icon(
-                                  shouldShowSend ? Icons.arrow_upward : Icons.graphic_eq_rounded,
-                                  size: 19,
-                                  color: shouldShowSend
-                                      ? (isLight ? Colors.white : const Color(0xFF141210))
-                                      : ExodoColors.amber,
-                                ),
-                              ),
-                            ),
-                          ],
-                        );
-                      },
-                    ),
-                  ],
-                ),
-              ],
+                    ],
+                  ),
             ),
           ),
           ),

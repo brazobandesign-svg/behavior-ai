@@ -90,7 +90,11 @@ class AppState extends ChangeNotifier {
         );
       }
     }
-    conversations = await SupabaseService.getConversations();
+    if (isGuestUser || isIncognito) {
+      conversations = [];
+    } else {
+      conversations = await SupabaseService.getConversations();
+    }
     
     final usage = await SupabaseService.getTodayUsage();
     if (usage != null) {
@@ -234,8 +238,10 @@ class AppState extends ChangeNotifier {
 
     errorMessage = null;
 
-    // 1. Crear conversación en DB si no existe y no estamos en incógnito
-    if (activeConversation == null && !isIncognito) {
+    final shouldSaveHistory = !isIncognito && !isGuest;
+
+    // 1. Crear conversación en DB si no existe y debemos guardar historial
+    if (activeConversation == null && shouldSaveHistory) {
       final title = text.length > 30 ? '${text.substring(0, 30)}...' : text;
       activeConversation = await SupabaseService.createConversation(
         title,
@@ -248,7 +254,7 @@ class AppState extends ChangeNotifier {
     // 2. Añadir mensaje de usuario a UI
     final userMsg = ChatMessage(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
-      conversationId: activeConversation?.id ?? 'incognito',
+      conversationId: activeConversation?.id ?? 'guest',
       role: 'user',
       content: text,
       createdAt: DateTime.now(),
@@ -259,7 +265,7 @@ class AppState extends ChangeNotifier {
     isThinking = true;
     final thinkingMsg = ChatMessage(
       id: 'thinking',
-      conversationId: activeConversation?.id ?? 'incognito',
+      conversationId: activeConversation?.id ?? 'guest',
       role: 'assistant',
       content: '',
       createdAt: DateTime.now(),
@@ -272,7 +278,7 @@ class AppState extends ChangeNotifier {
       // 4. Llamar a API
       final res = await ChatService.sendMessage(
         message: text,
-        conversationId: isIncognito ? null : activeConversation?.id,
+        conversationId: shouldSaveHistory ? activeConversation?.id : null,
       );
 
       // Quitar burbuja thinking
