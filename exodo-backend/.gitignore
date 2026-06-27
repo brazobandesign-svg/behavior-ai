@@ -1,0 +1,9 @@
+# Variables de entorno secretas (NUNCA en GitHub)
+.env
+*.env
+*.env.*
+!.env.example
+
+# Módulos y logs
+node_modules/
+*.log

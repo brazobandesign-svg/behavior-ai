@@ -24,6 +24,7 @@ class AppState extends ChangeNotifier {
   bool isIncognito = false;
   bool showTab2Banner = true;
   bool isDarkMode = true;
+  bool guestIsBlocked = false;
   ExodoModelOption selectedModel = exodoModels[0]; // Origo (G1.1)
   double? currentTempC;
   
@@ -107,6 +108,11 @@ class AppState extends ChangeNotifier {
       await selectConversation(conversations.first);
     } else {
       startNewChat();
+    }
+    if (SupabaseService.currentUser?.isAnonymous == true) {
+      guestIsBlocked = await SupabaseService.isGuestIpBlocked();
+    } else {
+      guestIsBlocked = false;
     }
     notifyListeners();
   }
@@ -216,6 +222,9 @@ class AppState extends ChangeNotifier {
 
   Future<void> sendUserMessage(String text) async {
     if (text.trim().isEmpty) return;
+    final isGuest = SupabaseService.currentUser?.isAnonymous == true;
+    if (isGuest && guestIsBlocked) return;
+
     errorMessage = null;
 
     // 1. Crear conversación en DB si no existe y no estamos en incógnito
@@ -294,6 +303,10 @@ class AppState extends ChangeNotifier {
         content: _isStateEn() ? '⚠️ **Network or plan error**: $errorMessage' : '⚠️ **Error de red o plan**: $errorMessage',
         createdAt: DateTime.now(),
       ));
+    }
+
+    if (isGuest) {
+      guestIsBlocked = await SupabaseService.recordGuestIpMessage();
     }
 
     notifyListeners();

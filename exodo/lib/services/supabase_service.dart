@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/models.dart';
 
@@ -183,5 +184,63 @@ class SupabaseService {
     } catch (_) {
       return [];
     }
+  }
+
+  // --- ANTI-ABUSO GUEST IP ---
+  static Future<String?> getPublicIp() async {
+    try {
+      final res = await http.get(Uri.parse('https://api.ipify.org')).timeout(const Duration(seconds: 3));
+      if (res.statusCode == 200 && res.body.trim().isNotEmpty) {
+        return res.body.trim();
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  static Future<bool> recordGuestIpMessage() async {
+    final ip = await getPublicIp();
+    if (ip == null) return false;
+    final now = DateTime.now().toUtc();
+    try {
+      final data = await client.from('guest_ip_limits').select().eq('ip', ip).maybeSingle();
+      if (data != null) {
+        final resetTime = DateTime.tryParse(data['reset_time'].toString())?.toUtc() ?? now.add(const Duration(hours: 24));
+        if (now.isAfter(resetTime)) {
+          await client.from('guest_ip_limits').update({
+            'messages_sent': 1,
+            'reset_time': now.add(const Duration(hours: 24)).toIso8601String(),
+          }).eq('ip', ip);
+          return false;
+        } else {
+          final count = (data['messages_sent'] as int? ?? 0) + 1;
+          await client.from('guest_ip_limits').update({'messages_sent': count}).eq('ip', ip);
+          return count >= 3;
+        }
+      } else {
+        await client.from('guest_ip_limits').insert({
+          'ip': ip,
+          'messages_sent': 1,
+          'reset_time': now.add(const Duration(hours: 24)).toIso8601String(),
+        });
+        return false;
+      }
+    } catch (_) {
+      return false;
+    }
+  }
+
+  static Future<bool> isGuestIpBlocked() async {
+    final ip = await getPublicIp();
+    if (ip == null) return false;
+    final now = DateTime.now().toUtc();
+    try {
+      final data = await client.from('guest_ip_limits').select().eq('ip', ip).maybeSingle();
+      if (data != null) {
+        final resetTime = DateTime.tryParse(data['reset_time'].toString())?.toUtc() ?? now;
+        if (now.isAfter(resetTime)) return false;
+        return (data['messages_sent'] as int? ?? 0) >= 3;
+      }
+    } catch (_) {}
+    return false;
   }
 }

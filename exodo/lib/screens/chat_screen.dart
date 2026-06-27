@@ -167,8 +167,8 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
                 ),
               ),
 
-              // Regla 4: Conteo de tokens (desaparece en modo incógnito)
-              if (!state.isIncognito)
+              // Regla 4: Conteo de tokens (desaparece en modo incógnito y modo Guest)
+              if (!state.isIncognito && SupabaseService.currentUser?.isAnonymous != true)
                 _TokenProgressBar(
                   used: state.tokensUsed,
                   limit: state.tokensLimit,
@@ -177,49 +177,52 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
                 ),
 
               // Stage principal o lista de mensajes (Regla 8)
+              // Stage principal o vista Offline de bloqueo Guest
               Expanded(
-                child: state.currentMessages.isEmpty
-                    ? _OriginalDesignStage(
-                        pulseAnim: _pulseCtrl,
-                        fullName: state.profile?.fullName,
-                      )
-                    : ListView.builder(
-                        controller: _scrollCtrl,
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                        itemCount: state.currentMessages.length,
-                        itemBuilder: (context, index) {
-                          final msg = state.currentMessages[index];
-                          if (msg.isThinking) {
-                            // Regla 9: Pensando con puntos cambiando de tamaño aleatorio
-                            return _ThinkingBubble(pulseAnim: _pulseCtrl);
-                          }
-                          return _MessageBubble(message: msg);
-                        },
-                      ),
+                child: state.guestIsBlocked
+                    ? const _GuestOfflineStage()
+                    : state.currentMessages.isEmpty
+                        ? _OriginalDesignStage(
+                            pulseAnim: _pulseCtrl,
+                            fullName: state.profile?.fullName,
+                          )
+                        : ListView.builder(
+                            controller: _scrollCtrl,
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                            itemCount: state.currentMessages.length,
+                            itemBuilder: (context, index) {
+                              final msg = state.currentMessages[index];
+                              if (msg.isThinking) {
+                                return _ThinkingBubble(pulseAnim: _pulseCtrl);
+                              }
+                              return _MessageBubble(message: msg);
+                            },
+                          ),
               ),
 
-              // Regla 7, 10, 11, 13, 14: Tab 1 y Tab 2 entrelazados supremos
-              _InterlockingComposerArea(
-                controller: _inputCtrl,
-                onSend: () {
-                  final text = _inputCtrl.text;
-                  if (text.trim().isEmpty) return;
-                  if (state.tokensUsed >= state.tokensLimit && state.profile?.plan != 'hazak') {
-                    HapticFeedback.vibrate();
-                    _UpgradeModal.show(context);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(_isDeviceEnglish(context) ? '⚠️ Daily limit reached. Activate Hazak Pro to continue.' : '⚠️ Alcanzaste tu capacidad diaria. Activa Hazak Pro para continuar.'),
-                        backgroundColor: const Color(0xFFC9933A),
-                      ),
-                    );
-                    return;
-                  }
-                  _inputCtrl.clear();
-                  state.sendUserMessage(text);
-                },
-                onModelTap: _showModelSheet,
-              ),
+              // Ocultar barra inferior si está bloqueado ("sin botones y sin nada")
+              if (!state.guestIsBlocked)
+                _InterlockingComposerArea(
+                  controller: _inputCtrl,
+                  onSend: () {
+                    final text = _inputCtrl.text;
+                    if (text.trim().isEmpty) return;
+                    if (state.tokensUsed >= state.tokensLimit && state.profile?.plan != 'hazak') {
+                      HapticFeedback.vibrate();
+                      _UpgradeModal.show(context);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(_isDeviceEnglish(context) ? '⚠️ Daily limit reached. Activate Hazak Pro to continue.' : '⚠️ Alcanzaste tu capacidad diaria. Activa Hazak Pro para continuar.'),
+                          backgroundColor: const Color(0xFFC9933A),
+                        ),
+                      );
+                      return;
+                    }
+                    _inputCtrl.clear();
+                    state.sendUserMessage(text);
+                  },
+                  onModelTap: _showModelSheet,
+                ),
             ],
           ),
         ),
@@ -1505,6 +1508,108 @@ class _UpgradeModal {
           const SizedBox(width: 8),
           Text(text, style: GoogleFonts.inter(fontSize: 12.5, color: Colors.white70)),
         ],
+      ),
+    );
+  }
+}
+
+class _GuestOfflineStage extends StatelessWidget {
+  const _GuestOfflineStage();
+
+  @override
+  Widget build(BuildContext context) {
+    final isEn = _isDeviceEnglish(context);
+    final state = context.watch<AppState>();
+
+    void goToLogin() async {
+      HapticFeedback.vibrate();
+      state.selectModelOption(exodoModels[0]);
+      await SupabaseService.signOut();
+    }
+
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 32),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.cloud_off_rounded, size: 76, color: ExodoColors.amber),
+            const SizedBox(height: 24),
+            Text(
+              isEn ? "You're offline" : "Estás desconectado",
+              style: GoogleFonts.syne(fontSize: 30, fontWeight: FontWeight.bold, color: ExodoColors.textPrimary),
+            ),
+            const SizedBox(height: 18),
+            if (isEn)
+              RichText(
+                textAlign: TextAlign.center,
+                text: TextSpan(
+                  style: GoogleFonts.inter(fontSize: 15.5, color: ExodoColors.textSecondary, height: 1.55),
+                  children: [
+                    const TextSpan(text: "To continue sending messages, "),
+                    WidgetSpan(
+                      alignment: PlaceholderAlignment.baseline,
+                      baseline: TextBaseline.alphabetic,
+                      child: GestureDetector(
+                        onTap: goToLogin,
+                        child: Text(
+                          "upgrade",
+                          style: GoogleFonts.inter(fontSize: 15.5, fontWeight: FontWeight.bold, color: ExodoColors.amber, decoration: TextDecoration.underline, decorationColor: ExodoColors.amber),
+                        ),
+                      ),
+                    ),
+                    const TextSpan(text: " your plan to Pro or "),
+                    WidgetSpan(
+                      alignment: PlaceholderAlignment.baseline,
+                      baseline: TextBaseline.alphabetic,
+                      child: GestureDetector(
+                        onTap: goToLogin,
+                        child: Text(
+                          "sign in",
+                          style: GoogleFonts.inter(fontSize: 15.5, fontWeight: FontWeight.bold, color: ExodoColors.amber, decoration: TextDecoration.underline, decorationColor: ExodoColors.amber),
+                        ),
+                      ),
+                    ),
+                    const TextSpan(text: "."),
+                  ],
+                ),
+              )
+            else
+              RichText(
+                textAlign: TextAlign.center,
+                text: TextSpan(
+                  style: GoogleFonts.inter(fontSize: 15.5, color: ExodoColors.textSecondary, height: 1.55),
+                  children: [
+                    const TextSpan(text: "Para seguir enviando mensajes, "),
+                    WidgetSpan(
+                      alignment: PlaceholderAlignment.baseline,
+                      baseline: TextBaseline.alphabetic,
+                      child: GestureDetector(
+                        onTap: goToLogin,
+                        child: Text(
+                          "actualice",
+                          style: GoogleFonts.inter(fontSize: 15.5, fontWeight: FontWeight.bold, color: ExodoColors.amber, decoration: TextDecoration.underline, decorationColor: ExodoColors.amber),
+                        ),
+                      ),
+                    ),
+                    const TextSpan(text: " su plan a Pro o "),
+                    WidgetSpan(
+                      alignment: PlaceholderAlignment.baseline,
+                      baseline: TextBaseline.alphabetic,
+                      child: GestureDetector(
+                        onTap: goToLogin,
+                        child: Text(
+                          "inicie sesión",
+                          style: GoogleFonts.inter(fontSize: 15.5, fontWeight: FontWeight.bold, color: ExodoColors.amber, decoration: TextDecoration.underline, decorationColor: ExodoColors.amber),
+                        ),
+                      ),
+                    ),
+                    const TextSpan(text: "."),
+                  ],
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }

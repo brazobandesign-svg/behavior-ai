@@ -1,0 +1,97 @@
+================================================================================
+                    DOCUMENTACIÓN CROMÁTICA BLINDADA — ÉXODO AI
+                             Éxodo by Behavior (2026)
+================================================================================
+REGLA DE ARQUITECTURA:
+Este archivo contiene el mapa de colores oficial y el histórico de pruebas.
+ESTE DOCUMENTO ES DE SOLO LECTURA PARA EL AGENTE. Únicamente se modifica cuando
+el usuario valide explícitamente un nuevo trazo visual o color.
+
+================================================================================
+1. PALETA DE COLORES OFICIAL (Maestro Éxodo AI)
+================================================================================
+
+1. NEGRO CÁLIDO ÉXODO (Fondo Principal)
+   - Hexadecimal: #0E0C0A
+   - Código Flutter: Color(0xFF0E0C0A)
+   - Uso: Fondo general de la aplicación en Modo Oscuro.
+
+2. SUPERFICIE TARJETAS / TABS / COMPOSER
+   - Hexadecimal: #1A1612
+   - Código Flutter: Color(0xFF1A1612)
+   - Uso: Tarjetas de chat, pestañas superiores, campos de entrada.
+
+3. BORDES SUTILES
+   - Hexadecimal: #2A241D
+   - Código Flutter: Color(0xFF2A241D)
+   - Uso: Divisores y contornos de tarjetas.
+
+4. ÁMBAR ÉXODO (Primario / Resplandores)
+   - Hexadecimal: #C9933A
+   - Código Flutter: Color(0xFFC9933A)
+   - Resplandor traslúcido (20% alfa): Color(0x33C9933A)
+   - Uso: Botones activos, acentos, íconos principales, resplandor ambiental.
+
+5. BLANCO HUESO / YESO (Texto Principal / Botón Enviar)
+   - Hexadecimal: #F5F2EB
+   - Código Flutter: Color(0xFFF5F2EB)
+   - Uso: Títulos principales, texto destacado, botón de enviar en Modo Oscuro.
+
+6. GRIS ARENA (Texto Secundario)
+   - Hexadecimal: #9E9689
+   - Código Flutter: Color(0xFF9E9689)
+   - Uso: Subtítulos, horas, conteo de tokens, placeholders.
+
+7. ROJO ÉXODO (Alertas / Errores)
+   - Hexadecimal: #E5534B
+   - Código Flutter: Color(0xFFE5534B)
+   - Uso: Mensajes de error, desconexión de base de datos.
+
+--------------------------------------------------------------------------------
+MODO CLARO (LIGHT MODE)
+--------------------------------------------------------------------------------
+- Fondo Claro Crema: #FBF9F5 | Color(0xFFFBF9F5)
+- Superficie Contenedores de Código: #F2ECE1 | Color(0xFFF2ECE1)
+- Dark Ink (Texto Principal Light): #171615 | Color(0xFF171615)
+- Subtítulos Light: #7B7872 | Color(0xFF7B7872)
+
+================================================================================
+2. TODOS LOS COLORES IMPLEMENTADOS EN EL CÓDIGO FLUTTER (lib/)
+================================================================================
+Tonos Oscuros y Superficies (Dark):
+- 0xFF0A0908 (Negro ultra profundo para sombras extremas)
+- 0xFF0E0C0A (Fondo principal oficial)
+- 0xFF141210, 0xFF161412, 0xFF171615 (Variaciones de tarjetas y modales)
+- 0xFF1A1220 (Matiz púrpura oscuro muy sutil)
+- 0xFF1A1612 (Superficie secundaria oficial)
+- 0xFF1C1A17, 0xFF1E1C19, 0xFF1F1C18 (Gradaciones para el menú lateral)
+
+Bordes, Divisores y Hover:
+- 0xFF221610 (Ámbar oscurecido para estados inactivos)
+- 0xFF221E1A, 0xFF221F1C, 0xFF25211D, 0xFF262320, 0xFF282420, 0xFF282521 (Elevaciones intermedias)
+- 0xFF2A241D (Borde oficial)
+- 0xFF2A2622, 0xFF2E2A25, 0xFF332F2A, 0xFF38332E (Fondos presionados)
+- 0xFF55514C, 0xFF7B7872 (Placeholders y deshabilitados)
+
+Acentos, Blancos y Alertas:
+- 0xFF9E9689 (Gris arena oficial)
+- 0xFFB85A35 (Terracota / naranja rojizo)
+- 0xFFC9933A (Ámbar Éxodo oficial)
+- 0xFFE5534B (Rojo error oficial) | 0xFFE57373 (Rojo claro advertencia)
+- 0xFFDCD5C5, 0xFFE2DDD2, 0xFFE5DECF, 0xFFEBE7DE, 0xFFEFECE4 (Gama marfiles para bloques de código)
+- 0xFFF5F2EB (Blanco Hueso oficial)
+- 0xFFF7F5F0, 0xFFFAF8F5, 0xFFFBF9F5 (Fondos marfil claro)
+- 0xFFE5E9F0, 0xFFF2F4F7, 0xFFF8F9FA (Grises azulados neutros para tests/librerías)
+
+================================================================================
+3. COLORES ADICIONALES MENCIONADOS EN EL HISTORIAL DE CHAT
+================================================================================
+- Pruebas de botones y fondos cálidos: #161412, #221E1A, #3A3228
+- Gama crepitante de blancos (tipografías / botón Enviar): #CCC3B0, #D4CCBC, #E5DECF, #E5DFCF, #EEDCC8, #EFECE4, #F5ECE0, #FAF8F5, #FFFFFF
+- Referencias externas citadas en chat: #4285F4 (Azul Google), #F2F4F7, #E5E9F0
+
+================================================================================
+RUTAS OFICIALES EN DISCO:
+D:\Proyecto Behavior AI Exodo\exodo-app\colores_oficiales.txt
+D:\Proyecto Behavior AI Exodo\colores_oficiales.txt
+================================================================================

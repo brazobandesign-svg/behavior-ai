@@ -16,7 +16,6 @@ create table profiles (
   created_at    timestamp default now()
 );
 
--- USER_USAGE: contador de tokens por período diario
 create table user_usage (
   id              uuid default gen_random_uuid() primary key,
   user_id         uuid references profiles(id),
@@ -25,6 +24,17 @@ create table user_usage (
   period          date,                    -- '2026-06-25' (diario, se resetea)
   updated_at      timestamp default now(),
   unique(user_id, period)
+);
+
+-- GUEST_USAGE: contador de mensajes diarios para usuarios anónimos (invitados)
+-- Se usa el identificador del dispositivo (IP o IMEI) como clave.
+create table guest_usage (
+  id            uuid default gen_random_uuid() primary key,
+  device_id     text not null,
+  messages_used int default 0,
+  period        date,                     -- '2026-06-25' (diario, se resetea)
+  updated_at    timestamp default now(),
+  unique(device_id, period)
 );
 
 -- CONVERSATIONS: hilos de conversación
