@@ -168,7 +168,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
               ),
 
               // Regla 4: Conteo de tokens (desaparece en modo incógnito y modo Guest)
-              if (!state.isIncognito && SupabaseService.currentUser?.isAnonymous != true)
+              if (!state.isIncognito && !state.isGuestUser)
                 _TokenProgressBar(
                   used: state.tokensUsed,
                   limit: state.tokensLimit,

@@ -34,6 +34,13 @@ class AppState extends ChangeNotifier {
   bool get isPro => profile?.plan == 'hazak' || tokensLimit > 15000;
   bool isThinking = false;
   String? errorMessage;
+  int guestMessagesSessionCount = 0;
+
+  bool get isGuestUser {
+    final u = SupabaseService.currentUser;
+    if (u == null) return false;
+    return u.isAnonymous == true || (u.email == null || u.email!.trim().isEmpty);
+  }
 
   AppState() {
     _init();
@@ -109,7 +116,7 @@ class AppState extends ChangeNotifier {
     } else {
       startNewChat();
     }
-    if (SupabaseService.currentUser?.isAnonymous == true) {
+    if (isGuestUser) {
       guestIsBlocked = await SupabaseService.isGuestIpBlocked();
     } else {
       guestIsBlocked = false;
@@ -222,7 +229,7 @@ class AppState extends ChangeNotifier {
 
   Future<void> sendUserMessage(String text) async {
     if (text.trim().isEmpty) return;
-    final isGuest = SupabaseService.currentUser?.isAnonymous == true;
+    final isGuest = isGuestUser;
     if (isGuest && guestIsBlocked) return;
 
     errorMessage = null;
@@ -306,7 +313,11 @@ class AppState extends ChangeNotifier {
     }
 
     if (isGuest) {
-      guestIsBlocked = await SupabaseService.recordGuestIpMessage();
+      guestMessagesSessionCount++;
+      final ipBlocked = await SupabaseService.recordGuestIpMessage();
+      if (guestMessagesSessionCount >= 3 || ipBlocked) {
+        guestIsBlocked = true;
+      }
     }
 
     notifyListeners();
