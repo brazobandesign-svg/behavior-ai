@@ -1024,7 +1024,6 @@ class _InterlockingComposerAreaState extends State<_InterlockingComposerArea> wi
                   ),
             ),
           ),
-          ),
         ],
       ),
     );
