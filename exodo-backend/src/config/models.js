@@ -21,37 +21,39 @@ const PLANS = {
 // Regla #8: en caso de duda → SIMPLE → Gemini Flash (error hacia lo barato)
 const MODEL_MAP = {
   SIMPLE: {
-    genesis: 'gemini-2.5-flash',
-    hazak:   'gemini-2.5-flash',
+    genesis: 'qwen2.5:7b',
+    hazak:   'qwen2.5:7b',
   },
   REDACCION: {
-    genesis: 'gemini-2.5-flash',
-    hazak:   'claude-sonnet-4-6',
+    genesis: 'qwen2.5:7b',
+    hazak:   'qwen2.5:7b',
   },
   RAZONAMIENTO: {
-    genesis: 'gemini-2.5-flash',
-    hazak:   'deepseek-v4-pro',
+    genesis: 'qwen2.5:7b',
+    hazak:   'qwen2.5:7b',
   },
   DOCUMENTO: {
-    genesis: 'gemini-2.5-flash',
-    hazak:   'gemini-3.1-pro',
+    genesis: 'qwen2.5:7b',
+    hazak:   'qwen2.5:7b',
   },
   IMAGEN: {
-    genesis: null, // no disponible
+    genesis: null,
     hazak:   'flux-local',
   },
 };
 
-// Cadena de fallback para Genesis (4 proveedores en cascada)
+// Cadena de fallback para Genesis (Ollama local primario)
 const GENESIS_FALLBACK_CHAIN = [
-  'gemini-2.5-flash',   // Google AI Studio (primario)
-  'groq-llama-3.3-70b', // Groq (fallback 1)
-  'nim-llama-4',        // NVIDIA NIM (fallback 2)
-  'cerebras-llama-3.1', // Cerebras (fallback 3)
+  'qwen2.5:7b',         // Ollama Local (primario)
+  'gemini-2.5-flash',   // Google AI Studio
+  'groq-llama-3.3-70b', // Groq
+  'nim-llama-4',        // NVIDIA NIM
+  'cerebras-llama-3.1', // Cerebras
 ];
 
 // Mapeo modelo → proveedor para saber qué archivo de provider usar
 const MODEL_TO_PROVIDER = {
+  'qwen2.5:7b':         'ollama',
   'gemini-2.5-flash':   'gemini',
   'gemini-3.1-pro':     'gemini',
   'claude-sonnet-4-6':  'anthropic',

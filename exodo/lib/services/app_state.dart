@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -121,7 +122,9 @@ class AppState extends ChangeNotifier {
       startNewChat();
     }
     if (isGuestUser) {
-      guestIsBlocked = await SupabaseService.isGuestIpBlocked();
+      final ipBlocked = await SupabaseService.isGuestIpBlocked();
+      final localBlocked = await _checkLocalHardwareBlocked();
+      guestIsBlocked = ipBlocked || localBlocked || guestMessagesSessionCount >= 3;
     } else {
       guestIsBlocked = false;
     }
@@ -201,8 +204,9 @@ class AppState extends ChangeNotifier {
     }
   }
 
-  void upgradeToProPlan() {
+  Future<void> upgradeToPro() async {
     if (profile != null) {
+      await SupabaseService.client.from('profiles').update({'plan': 'hazak'}).eq('id', profile!.id);
       profile = UserProfile(
         id: profile!.id,
         fullName: profile!.fullName,
@@ -211,12 +215,11 @@ class AppState extends ChangeNotifier {
         onboarding: profile!.onboarding,
       );
       tokensLimit = 150000;
-      SupabaseService.client.from('profiles').update({'plan': 'hazak'}).eq('id', profile!.id);
       notifyListeners();
     }
   }
 
-  void cancelProPlan() {
+  Future<void> simulateCancelPro() async {
     if (profile != null) {
       profile = UserProfile(
         id: profile!.id,
@@ -234,7 +237,11 @@ class AppState extends ChangeNotifier {
   Future<void> sendUserMessage(String text) async {
     if (text.trim().isEmpty) return;
     final isGuest = isGuestUser;
-    if (isGuest && guestIsBlocked) return;
+    if (isGuest && (guestIsBlocked || guestMessagesSessionCount >= 3 || await _checkLocalHardwareBlocked())) {
+      guestIsBlocked = true;
+      notifyListeners();
+      return;
+    }
 
     errorMessage = null;
 
@@ -243,29 +250,33 @@ class AppState extends ChangeNotifier {
     // 1. Crear conversación en DB si no existe y debemos guardar historial
     if (activeConversation == null && shouldSaveHistory) {
       final title = text.length > 30 ? '${text.substring(0, 30)}...' : text;
-      activeConversation = await SupabaseService.createConversation(
-        title,
-        selectedModel.plan,
-        false,
-      );
-      conversations.insert(0, activeConversation!);
+      final newConv = await SupabaseService.createConversation(title, isIncognito: isIncognito);
+      if (newConv != null) {
+        activeConversation = newConv;
+        conversations.insert(0, newConv);
+      }
     }
 
-    // 2. Añadir mensaje de usuario a UI
+    // 2. Añadir mensaje del usuario localmente (optimista)
     final userMsg = ChatMessage(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
-      conversationId: activeConversation?.id ?? 'guest',
+      conversationId: activeConversation?.id ?? 'incognito',
       role: 'user',
       content: text,
       createdAt: DateTime.now(),
     );
     currentMessages.add(userMsg);
+    
+    // 3. Guardar en DB si aplica
+    if (shouldSaveHistory && activeConversation != null) {
+      await SupabaseService.saveMessage(userMsg);
+    }
 
-    // 3. Añadir burbuja temporal de pensamiento con animación personalizada
+    // 4. Añadir burbuja temporal de pensamiento
     isThinking = true;
     final thinkingMsg = ChatMessage(
       id: 'thinking',
-      conversationId: activeConversation?.id ?? 'guest',
+      conversationId: activeConversation?.id ?? 'incognito',
       role: 'assistant',
       content: '',
       createdAt: DateTime.now(),
@@ -275,7 +286,7 @@ class AppState extends ChangeNotifier {
     notifyListeners();
 
     try {
-      // 4. Llamar a API
+      // 5. Llamar a API
       final res = await ChatService.sendMessage(
         message: text,
         conversationId: shouldSaveHistory ? activeConversation?.id : null,
@@ -292,7 +303,7 @@ class AppState extends ChangeNotifier {
         tokensResetTime = DateTime.now().add(const Duration(hours: 24));
       }
 
-      // 5. Añadir respuesta final
+      // 6. Añadir respuesta final
       final assistantMsg = ChatMessage(
         id: DateTime.now().millisecondsSinceEpoch.toString(),
         conversationId: activeConversation?.id ?? 'incognito',
@@ -320,6 +331,7 @@ class AppState extends ChangeNotifier {
 
     if (isGuest) {
       guestMessagesSessionCount++;
+      await _recordLocalHardwareMessage();
       final ipBlocked = await SupabaseService.recordGuestIpMessage();
       if (guestMessagesSessionCount >= 3 || ipBlocked) {
         guestIsBlocked = true;
@@ -328,4 +340,44 @@ class AppState extends ChangeNotifier {
 
     notifyListeners();
   }
+
+  // --- CANDADO FÍSICO DE HARDWARE LOCAL ---
+  Future<File> _getHardwareLockFile() async {
+    final dir = Directory.systemTemp.path;
+    return File('$dir/exodo_guest_hw_lock.json');
+  }
+
+  Future<bool> _checkLocalHardwareBlocked() async {
+    try {
+      final file = await _getHardwareLockFile();
+      if (!await file.exists()) return false;
+      final data = jsonDecode(await file.readAsString());
+      final date = data['date'] as String?;
+      final count = data['count'] as int? ?? 0;
+      final today = DateTime.now().toIso8601String().substring(0, 10);
+      if (date != today) return false;
+      guestMessagesSessionCount = count;
+      return count >= 3;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<void> _recordLocalHardwareMessage() async {
+    try {
+      final file = await _getHardwareLockFile();
+      final today = DateTime.now().toIso8601String().substring(0, 10);
+      int count = guestMessagesSessionCount;
+      if (await file.exists()) {
+        final data = jsonDecode(await file.readAsString());
+        if (data['date'] == today) {
+          count = mathMax(count, (data['count'] as int? ?? 0) + 1);
+        }
+      }
+      guestMessagesSessionCount = count;
+      await file.writeAsString(jsonEncode({'date': today, 'count': count}));
+    } catch (_) {}
+  }
+
+  int mathMax(int a, int b) => a > b ? a : b;
 }
