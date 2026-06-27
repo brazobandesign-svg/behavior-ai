@@ -2,14 +2,20 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class ExodoColors {
-  static const Color background = Color(0xFF0E0C0A); // Negro Cálido
+  static const Color background = Color(0xFF0E0C0A); // Negro Cálido (fondo global dark)
   static const Color surface = Color(0xFF1A1612);    // Superficie tarjeta
-  static const Color border = Color(0xFF2A241D);     // Bordes sutiles
+  static const Color border = Color(0xFF131313);     // Bordes sutiles (actualizado a #131313)
   static const Color amber = Color(0xFFC9933A);      // Ámbar Éxodo
   static const Color amberGlow = Color(0x33C9933A);  // Ámbar traslúcido para resplandores
   static const Color textPrimary = Color(0xFFF5F2EB);
   static const Color textSecondary = Color(0xFF9E9689);
   static const Color error = Color(0xFFE5534B);
+
+  // === Dark mode: colores específicos por zona ===
+  static const Color chatBg = Color(0xFF20201F);         // Fondo del chat (donde va el saludo)
+  static const Color composerBg = Color(0xFF2C2C2A);     // Tab/cápsula donde se escribe
+  static const Color modelChipBg = Color(0xFF131313);    // Rectángulo selector de modelo
+  static const Color tokenBarBg = Color(0xFF2C2C2A);     // Barra de progreso de tokens
 }
 
 class ExodoTheme {

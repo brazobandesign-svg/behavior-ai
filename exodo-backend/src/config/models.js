@@ -21,20 +21,20 @@ const PLANS = {
 // Regla #8: en caso de duda → SIMPLE → Gemini Flash (error hacia lo barato)
 const MODEL_MAP = {
   SIMPLE: {
-    genesis: 'qwen2.5:7b',
-    hazak:   'qwen2.5:7b',
+    genesis: 'nim-nemotron-3-ultra',
+    hazak:   'nim-nemotron-3-ultra',
   },
   REDACCION: {
-    genesis: 'qwen2.5:7b',
-    hazak:   'qwen2.5:7b',
+    genesis: 'nim-nemotron-3-ultra',
+    hazak:   'nim-nemotron-3-ultra',
   },
   RAZONAMIENTO: {
-    genesis: 'qwen2.5:7b',
-    hazak:   'qwen2.5:7b',
+    genesis: 'nim-deepseek-v4-pro',
+    hazak:   'nim-deepseek-v4-pro',
   },
   DOCUMENTO: {
-    genesis: 'qwen2.5:7b',
-    hazak:   'qwen2.5:7b',
+    genesis: 'nim-kimi-2-6',
+    hazak:   'nim-kimi-2-6',
   },
   IMAGEN: {
     genesis: null,
@@ -42,17 +42,27 @@ const MODEL_MAP = {
   },
 };
 
-// Cadena de fallback para Genesis (Ollama local primario)
+// Cadena de fallback en cascada (NIM primero, Ollama local al final por si NIM cae)
 const GENESIS_FALLBACK_CHAIN = [
-  'qwen2.5:7b',         // Ollama Local (primario)
-  'gemini-2.5-flash',   // Google AI Studio
-  'groq-llama-3.3-70b', // Groq
-  'nim-llama-4',        // NVIDIA NIM
-  'cerebras-llama-3.1', // Cerebras
+  'nim-nemotron-3-ultra',
+  'nim-deepseek-v4-flash',
+  'nim-deepseek-v4-pro',
+  'nim-minimax-m3',
+  'nim-kimi-2-6',
+  'nim-glm-5-1',
+  'nim-minimax-m2-7',
+  'qwen2.5:7b', // Ollama Local (al final)
 ];
 
 // Mapeo modelo → proveedor para saber qué archivo de provider usar
 const MODEL_TO_PROVIDER = {
+  'nim-nemotron-3-ultra': 'nim',
+  'nim-deepseek-v4-flash': 'nim',
+  'nim-deepseek-v4-pro': 'nim',
+  'nim-minimax-m3': 'nim',
+  'nim-kimi-2-6': 'nim',
+  'nim-glm-5-1': 'nim',
+  'nim-minimax-m2-7': 'nim',
   'qwen2.5:7b':         'ollama',
   'gemini-2.5-flash':   'gemini',
   'gemini-3.1-pro':     'gemini',

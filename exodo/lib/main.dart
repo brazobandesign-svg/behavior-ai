@@ -33,6 +33,13 @@ class ExodoApp extends StatelessWidget {
     return MaterialApp(
       title: 'Éxodo by Behavior',
       debugShowCheckedModeBanner: false,
+      // Sin flash: ambos temas preconstruidos + themeMode reactivo.
+      theme: ExodoTheme.lightTheme,
+      darkTheme: ExodoTheme.darkTheme,
+      themeMode: (state.isDarkMode || state.isIncognito) ? ThemeMode.dark : ThemeMode.light,
+      // Transición instantánea entre temas (sin animación) para evitar el flash blanco/negro.
+      themeAnimationDuration: Duration.zero,
+      themeAnimationCurve: Curves.linear,
       supportedLocales: const [
         Locale('en', ''),
         Locale('es', ''),
@@ -43,7 +50,6 @@ class ExodoApp extends StatelessWidget {
         }
         return const Locale('es', '');
       },
-      theme: (state.isDarkMode || state.isIncognito) ? ExodoTheme.darkTheme : ExodoTheme.lightTheme,
       home: const _RootSwitcher(),
       // Necesario para que supabase_flutter maneje el deep link OAuth (?code=...)
       // sin que el Navigator crashee al no encontrar la ruta

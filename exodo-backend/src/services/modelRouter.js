@@ -28,12 +28,12 @@ async function routeMessage(plan, intent, messages, systemPrompt) {
     };
   }
 
-  // Para Genesis, usar cadena de fallback en caso de error
-  if (plan === 'genesis') {
+  // Usar cascada de fallback en caso de error (intenta toda la lista hasta llegar a Ollama local)
+  if (intent !== 'IMAGEN') {
     return await callWithFallback(GENESIS_FALLBACK_CHAIN, messages, systemPrompt);
   }
 
-  // Para Hazak, llamar directo al modelo asignado
+  // Para Hazak IMAGEN, llamar directo al modelo asignado
   return await callProvider(modelId, messages, systemPrompt);
 }
 

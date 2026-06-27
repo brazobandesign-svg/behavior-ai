@@ -71,6 +71,7 @@ class ChatMessage {
   final String content;
   final String? intentDetected;
   final String? modelCalled;
+  final List<Source> sources;
   final DateTime createdAt;
   final bool isThinking;
 
@@ -81,11 +82,19 @@ class ChatMessage {
     required this.content,
     this.intentDetected,
     this.modelCalled,
+    this.sources = const [],
     required this.createdAt,
     this.isThinking = false,
   });
 
   factory ChatMessage.fromJson(Map<String, dynamic> json) {
+    final rawSources = json['sources'];
+    final sourcesList = (rawSources is List)
+        ? rawSources
+            .whereType<Map<String, dynamic>>()
+            .map((s) => Source.fromJson(s))
+            .toList()
+        : <Source>[];
     return ChatMessage(
       id: json['id'] as String? ?? '',
       conversationId: json['conversation_id'] as String? ?? '',
@@ -93,7 +102,29 @@ class ChatMessage {
       content: json['content'] as String? ?? '',
       intentDetected: json['intent_detected'] as String?,
       modelCalled: json['model_called'] as String?,
+      sources: sourcesList,
       createdAt: json['created_at'] != null ? DateTime.parse(json['created_at'] as String) : DateTime.now(),
+    );
+  }
+}
+
+/// Fuente que Éxodo consultó para generar la respuesta.
+class Source {
+  final String title;
+  final String url;
+  final String? favicon; // emoji o iniciales (ej: "Q" para Quora, "ATM" para ATM)
+
+  const Source({
+    required this.title,
+    required this.url,
+    this.favicon,
+  });
+
+  factory Source.fromJson(Map<String, dynamic> json) {
+    return Source(
+      title: json['title'] as String? ?? '',
+      url: json['url'] as String? ?? '',
+      favicon: json['favicon'] as String?,
     );
   }
 }

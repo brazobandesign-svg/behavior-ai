@@ -68,7 +68,7 @@ Tonos Oscuros y Superficies (Dark):
 
 Bordes, Divisores y Hover:
 - 0xFF221610 (Ámbar oscurecido para estados inactivos)
-- 0xFF221E1A, 0xFF221F1C, 0xFF25211D, 0xFF262320, 0xFF282420, 0xFF282521 (Elevaciones intermedias)
+- 0xFF221E1A, 0xFF221F1C, 0xFF131313, 0xFF262320, 0xFF282420, 0xFF282521 (Elevaciones intermedias)
 - 0xFF2A241D (Borde oficial)
 - 0xFF2A2622, 0xFF2E2A25, 0xFF332F2A, 0xFF38332E (Fondos presionados)
 - 0xFF55514C, 0xFF7B7872 (Placeholders y deshabilitados)

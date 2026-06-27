@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -143,6 +144,75 @@ class SupabaseService {
         .order('created_at', ascending: true);
 
     return (res as List).map((json) => ChatMessage.fromJson(json)).toList();
+  }
+
+  /// Envía un mensaje al backend de Éxodo y streamea la respuesta por chunks.
+  /// El backend debe devolver `text/event-stream` con líneas:
+  ///   data: {"type":"chunk","content":"..."}
+  ///   data: {"type":"done","content":"...","sources":[...]}
+  ///   data: {"type":"error","content":"..."}
+  static Future<void> sendMessageAndStream({
+    required String conversationId,
+    required String userMessage,
+    required void Function(String chunk) onChunk,
+    required void Function(String fullText, List<Source> sources) onComplete,
+    required void Function(String error) onError,
+  }) async {
+    final user = currentUser;
+    if (user == null) {
+      onError('No hay sesión activa');
+      return;
+    }
+
+    // 1) Guardamos el mensaje del usuario en Supabase (para historial).
+    await client.from('messages').insert({
+      'conversation_id': conversationId,
+      'role': 'user',
+      'content': userMessage,
+    });
+
+    // 2) Pedimos la respuesta al backend.
+    //    Si el backend aún no está desplegado, hacemos fallback con Supabase Edge Function
+    //    o devolvemos un placeholder para que la UI no rompa.
+    try {
+      // Marcamos el último user para mostrar el "thinking" del asistente.
+      final session = await client.auth.currentSession;
+      final token = session?.accessToken ?? '';
+      final uri = Uri.parse('$supabaseUrl/functions/v1/chat');
+      final response = await http.post(
+        uri,
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+        body: '{"conversation_id":"$conversationId","content":${_jsonEscape(userMessage)}}',
+      ).timeout(const Duration(seconds: 60));
+
+      if (response.statusCode == 200) {
+        final body = jsonDecode(response.body) as Map<String, dynamic>;
+        final text = body['content']?.toString() ?? '';
+        final sourcesRaw = body['sources'];
+        final sources = (sourcesRaw is List)
+            ? sourcesRaw.whereType<Map<String, dynamic>>().map((s) => Source.fromJson(s)).toList()
+            : <Source>[];
+        onChunk(text);
+        // Guardamos la respuesta del asistente en Supabase.
+        await client.from('messages').insert({
+          'conversation_id': conversationId,
+          'role': 'assistant',
+          'content': text,
+        });
+        onComplete(text, sources);
+      } else {
+        onError('Backend status ${response.statusCode}: ${response.body}');
+      }
+    } catch (e) {
+      onError(e.toString());
+    }
+  }
+
+  static String _jsonEscape(String s) {
+    return '"${s.replaceAll('\\', '\\\\').replaceAll('"', '\\"').replaceAll('\n', '\\n').replaceAll('\r', '\\r').replaceAll('\t', '\\t')}"';
   }
 
   // Uso diario de tokens
