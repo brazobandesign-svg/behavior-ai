@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -70,8 +71,6 @@ class AppState extends ChangeNotifier {
         currentMessages = [];
         tokensUsed = 0;
         selectedModel = exodoModels[0];
-        guestMessagesSessionCount = 0;
-        guestIsBlocked = false;
         notifyListeners();
       }
     });
@@ -122,9 +121,13 @@ class AppState extends ChangeNotifier {
     } else {
       startNewChat();
     }
-    // Regla de desarrollo: otorgar 3 mensajes limpios en Guest tras cada reload o login
-    guestMessagesSessionCount = 0;
-    guestIsBlocked = false;
+    if (isGuestUser) {
+      final ipBlocked = await SupabaseService.isGuestIpBlocked();
+      final hwBlocked = await _checkHardwareBlocked();
+      guestIsBlocked = ipBlocked || hwBlocked || guestMessagesSessionCount >= 3;
+    } else {
+      guestIsBlocked = false;
+    }
     notifyListeners();
   }
 
@@ -234,7 +237,11 @@ class AppState extends ChangeNotifier {
   Future<void> sendUserMessage(String text) async {
     if (text.trim().isEmpty) return;
     final isGuest = isGuestUser;
-    if (isGuest && guestIsBlocked) return;
+    if (isGuest && (guestIsBlocked || guestMessagesSessionCount >= 3 || await _checkHardwareBlocked())) {
+      guestIsBlocked = true;
+      notifyListeners();
+      return;
+    }
 
     errorMessage = null;
 
@@ -320,6 +327,7 @@ class AppState extends ChangeNotifier {
 
     if (isGuest) {
       guestMessagesSessionCount++;
+      await _recordHardwareMessage();
       final ipBlocked = await SupabaseService.recordGuestIpMessage();
       if (guestMessagesSessionCount >= 3 || ipBlocked) {
         guestIsBlocked = true;
@@ -327,5 +335,44 @@ class AppState extends ChangeNotifier {
     }
 
     notifyListeners();
+  }
+
+  // --- CANDADO FÍSICO DE HARDWARE INMUTABLE ---
+  Future<File> _getHardwareLockFile() async {
+    final dir = Directory.systemTemp.path;
+    return File('$dir/exodo_guest_hw_lock.json');
+  }
+
+  Future<bool> _checkHardwareBlocked() async {
+    try {
+      final file = await _getHardwareLockFile();
+      if (!await file.exists()) return false;
+      final data = jsonDecode(await file.readAsString());
+      final date = data['date'] as String?;
+      final count = data['count'] as int? ?? 0;
+      final today = DateTime.now().toIso8601String().substring(0, 10);
+      if (date != today) return false;
+      guestMessagesSessionCount = count;
+      return count >= 3;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<void> _recordHardwareMessage() async {
+    try {
+      final file = await _getHardwareLockFile();
+      final today = DateTime.now().toIso8601String().substring(0, 10);
+      int count = guestMessagesSessionCount;
+      if (await file.exists()) {
+        final data = jsonDecode(await file.readAsString());
+        if (data['date'] == today) {
+          final existing = data['count'] as int? ?? 0;
+          if (existing > count) count = existing;
+        }
+      }
+      guestMessagesSessionCount = count;
+      await file.writeAsString(jsonEncode({'date': today, 'count': count}));
+    } catch (_) {}
   }
 }
