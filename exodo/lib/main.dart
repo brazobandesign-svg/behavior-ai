@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'l10n/app_i18n.dart';
@@ -43,6 +44,13 @@ class ExodoApp extends StatelessWidget {
       // Transición instantánea entre temas (sin animación) para evitar el flash blanco/negro.
       themeAnimationDuration: Duration.zero,
       themeAnimationCurve: Curves.linear,
+      // [v1.2.2 fix pantalla roja] DrawerController requiere
+      // MaterialLocalizations ancestor. Sin estos delegates, la app crashea.
+      localizationsDelegates: const [
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
       supportedLocales:
           kAppLocales.map((l) => Locale(l.code, '')).toList(growable: false),
       locale: _resolveLocale(userLocale), // null → cae a localeResolutionCallback
