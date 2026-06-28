@@ -1138,7 +1138,7 @@ class _ClaudeAccountModal {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(isEn ? 'Current plan' : 'Plan actual', style: GoogleFonts.inter(color: Colors.white60, fontSize: 13)),
-                        Text(isPro ? (isEn ? '🌟 Hazak Pro (\$4.99/mo)' : '🌟 Hazak Pro (\$4.99/mes)') : (isEn ? '⚡ Genesis Free' : '⚡ Génesis Gratis'), style: GoogleFonts.inter(color: ExodoColors.amber, fontWeight: FontWeight.bold)),
+                        Text(isPro ? (isEn ? '🌟 XPi PRO (\$4.99/mo)' : '🌟 XPi PRO (\$4.99/mes)') : (isEn ? '⚡ Genesis Free' : '⚡ Génesis Gratis'), style: GoogleFonts.inter(color: ExodoColors.amber, fontWeight: FontWeight.bold)),
                       ],
                     ),
                     const SizedBox(height: 10),

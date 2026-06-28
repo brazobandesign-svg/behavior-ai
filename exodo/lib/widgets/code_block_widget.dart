@@ -48,7 +48,6 @@ class _CodeBlockWidgetState extends State<CodeBlockWidget> {
 
   @override
   Widget build(BuildContext context) {
-    final isLight = Theme.of(context).brightness == Brightness.light;
     // Fondo tipo "terminal" — siempre oscuro para que el código se lea bien
     // independientemente del theme de la app.
     final bgColor = const Color(0xFF131313);
@@ -140,18 +139,10 @@ class _CodeBlockWidgetState extends State<CodeBlockWidget> {
               ),
             ),
           ),
-          // Ajustar el contraste si el theme es claro para que se vea integrado.
-          if (isLight)
-            Positioned.fill(
-              child: IgnorePointer(
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: Colors.black.withValues(alpha: 0.02),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-              ),
-            ),
+          // (Removido: Positioned.fill era inválido dentro de un Column.
+          // Causaba "Incorrect use of ParentDataWidget" → cuadro rojo de
+          // Flutter cuando la IA generaba código. Si en el futuro queremos
+          // un overlay, hay que envolver TODO el Column en un Stack.)
         ],
       ),
     );

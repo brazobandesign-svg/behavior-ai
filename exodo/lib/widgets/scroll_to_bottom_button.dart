@@ -62,6 +62,7 @@ class ScrollToBottomButtonState extends State<ScrollToBottomButton> {
   bool _checkAtBottom() {
     if (!widget.controller.hasClients) return true;
     final pos = widget.controller.position;
+    if (!pos.hasContentDimensions) return true;
     // Tolerancia de 32 píxeles para no parpadear con el teclado.
     return pos.pixels >= pos.maxScrollExtent - 32;
   }
@@ -76,8 +77,10 @@ class ScrollToBottomButtonState extends State<ScrollToBottomButton> {
 
   void _scrollToBottom() {
     if (!widget.controller.hasClients) return;
+    final pos = widget.controller.position;
+    if (!pos.hasContentDimensions) return;
     widget.controller.animateTo(
-      widget.controller.position.maxScrollExtent,
+      pos.maxScrollExtent,
       duration: const Duration(milliseconds: 300),
       curve: Curves.easeOut,
     );
@@ -94,9 +97,9 @@ class ScrollToBottomButtonState extends State<ScrollToBottomButton> {
     if (_isAtBottom) return const SizedBox.shrink();
 
     final isLight = Theme.of(context).brightness == Brightness.light;
-    final bgColor = isLight ? const Color(0xFFFBF9F5) : const Color(0xFF1A1612);
+    final bgColor = isLight ? const Color(0xFFE5DECF) : ExodoColors.composerBg;
     final fgColor = ExodoColors.amber;
-    final borderColor = ExodoColors.border.withValues(alpha: 0.6);
+    final borderColor = isLight ? const Color(0xFFD4CEBF) : Colors.transparent;
 
     return AnimatedScale(
       scale: 1.0,

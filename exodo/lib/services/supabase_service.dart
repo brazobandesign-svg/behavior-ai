@@ -245,4 +245,13 @@ class SupabaseService {
     } catch (_) {}
     return false;
   }
+
+  static Future<void> resetGuestIpForTesting() async {
+    final ip = await getPublicIp();
+    if (ip != null) {
+      try {
+        await client.from('guest_ip_limits').update({'messages_sent': 0}).eq('ip', ip);
+      } catch (_) {}
+    }
+  }
 }

@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/models.dart';
 import 'supabase_service.dart';
 import 'chat_service.dart';
+import '../l10n/app_i18n.dart';
 
 class AppState extends ChangeNotifier {
   UserProfile? profile;
@@ -22,10 +23,11 @@ class AppState extends ChangeNotifier {
   double? currentTempC;
   
   int tokensUsed = 0;
-  int tokensLimit = 15000;
+  int get tokensLimit => isPro ? 300 : 100;
   DateTime? tokensResetTime;
-  bool get isPro => profile?.plan == 'hazak' || tokensLimit > 15000;
+  bool get isPro => profile?.plan == 'hazak';
   bool isThinking = false;
+  bool isGenerating = false;
   String? errorMessage;
   int guestMessagesSessionCount = 0;
 
@@ -91,10 +93,15 @@ class AppState extends ChangeNotifier {
       conversations = await SupabaseService.getConversations();
     }
     
+    if (profile?.plan == 'hazak') {
+      selectedModel = exodoModels[1];
+    } else {
+      selectedModel = exodoModels[0];
+    }
+
     final usage = await SupabaseService.getTodayUsage();
     if (usage != null) {
       tokensUsed = usage['tokens_used'] as int? ?? 0;
-      tokensLimit = usage['tokens_limit'] as int? ?? 15000;
       if (tokensUsed > 0) {
         if (usage['created_at'] != null) {
           tokensResetTime = DateTime.tryParse(usage['created_at'].toString())?.toLocal().add(const Duration(hours: 24));
@@ -106,15 +113,12 @@ class AppState extends ChangeNotifier {
       }
     } else {
       tokensUsed = 0;
-      tokensLimit = profile?.plan == 'hazak' ? 150000 : 15000;
       tokensResetTime = null;
     }
 
     startNewChat();
     if (isGuestUser) {
-      final ipBlocked = await SupabaseService.isGuestIpBlocked();
-      final hwBlocked = await _checkHardwareBlocked();
-      guestIsBlocked = ipBlocked || hwBlocked || guestMessagesSessionCount >= 3;
+      guestIsBlocked = await _checkHardwareBlocked();
     } else {
       guestIsBlocked = false;
     }
@@ -245,7 +249,7 @@ class AppState extends ChangeNotifier {
         avatarUrl: profile!.avatarUrl,
         onboarding: profile!.onboarding,
       );
-      tokensLimit = 150000;
+      selectedModel = exodoModels[1];
       SupabaseService.client.from('profiles').update({'plan': 'hazak'}).eq('id', profile!.id);
       notifyListeners();
     }
@@ -260,7 +264,7 @@ class AppState extends ChangeNotifier {
         avatarUrl: profile!.avatarUrl,
         onboarding: profile!.onboarding,
       );
-      tokensLimit = 15000;
+      selectedModel = exodoModels[0];
       SupabaseService.client.from('profiles').update({'plan': 'genesis'}).eq('id', profile!.id);
       notifyListeners();
     }
@@ -289,8 +293,11 @@ class AppState extends ChangeNotifier {
 
     // Disparamos la reformulación en background.
     try {
+      isGenerating = true;
+      notifyListeners();
       await _reformulateInBackground(thinkingId);
     } catch (e) {
+      isGenerating = false;
       currentMessages.removeWhere((m) => m.id == thinkingId);
       errorMessage = e.toString();
       notifyListeners();
@@ -319,7 +326,7 @@ class AppState extends ChangeNotifier {
     await ChatService.sendMessageStream(
       conversationId: activeConversation?.id ?? '',
       message: lastUserText,
-      history: isIncognito ? currentMessages.where((m) => !m.isThinking).map((m) => {'role': m.role, 'content': m.content}).toList() : null,
+      history: (isIncognito || isGuestUser) ? currentMessages.where((m) => !m.isThinking).map((m) => {'role': m.role, 'content': m.content}).toList() : null,
       modelOverride: selectedModel.modelId,
       onChunk: (chunk) {
         final idx = currentMessages.indexWhere((m) => m.id == thinkingId);
@@ -334,6 +341,7 @@ class AppState extends ChangeNotifier {
         notifyListeners();
       },
       onComplete: (fullText, sources) {
+        isGenerating = false;
         final idx = currentMessages.indexWhere((m) => m.id == thinkingId);
         if (idx == -1) return;
         currentMessages[idx] = ChatMessage(
@@ -347,6 +355,7 @@ class AppState extends ChangeNotifier {
         notifyListeners();
       },
       onError: (e) {
+        isGenerating = false;
         errorMessage = e.toString();
         notifyListeners();
       },
@@ -356,10 +365,29 @@ class AppState extends ChangeNotifier {
   Future<void> sendUserMessage(String text) async {
     if (text.trim().isEmpty) return;
     final isGuest = isGuestUser;
-    if (isGuest && (guestIsBlocked || guestMessagesSessionCount >= 3 || await _checkHardwareBlocked())) {
-      guestIsBlocked = true;
-      notifyListeners();
-      return;
+    if (isGuest) {
+      if (guestIsBlocked || guestMessagesSessionCount >= 3) {
+        guestIsBlocked = true;
+        notifyListeners();
+        return;
+      }
+    } else {
+      final estNew = tokensUsed + (text.length ~/ 3) + 15;
+      if (tokensUsed >= tokensLimit || estNew > tokensLimit) {
+        final isEn = AppI18n.instance.localeCode == 'en';
+        final limitMsg = isPro
+            ? (isEn ? '⚠️ XPi PRO daily capacity reached. Tokens reset tomorrow.' : '⚠️ Capacidad diaria de XPi PRO alcanzada. Tus tokens se renovarán mañana.')
+            : (isEn ? '⚠️ Daily limit reached. Activate XPi PRO to continue.' : '⚠️ Alcanzaste tu capacidad diaria. Activa XPi PRO para continuar.');
+        currentMessages.add(ChatMessage(
+          id: 'limit-${DateTime.now().microsecondsSinceEpoch}',
+          conversationId: activeConversation?.id ?? 'free',
+          role: 'assistant',
+          content: limitMsg,
+          createdAt: DateTime.now(),
+        ));
+        notifyListeners();
+        return;
+      }
     }
 
     errorMessage = null;
@@ -379,8 +407,10 @@ class AppState extends ChangeNotifier {
 
     // 2. Añadir mensaje de usuario a UI
     currentMessages.removeWhere((m) => m.id == 'error');
+    tokensUsed += (text.length ~/ 3) + 15;
+    tokensResetTime ??= DateTime.now().add(const Duration(hours: 24));
     final userMsg = ChatMessage(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      id: 'user-${DateTime.now().microsecondsSinceEpoch}',
       conversationId: activeConversation?.id ?? 'guest',
       role: 'user',
       content: text,
@@ -399,6 +429,7 @@ class AppState extends ChangeNotifier {
 
     // 3. Añadir burbuja temporal de pensamiento con animación personalizada
     isThinking = true;
+    isGenerating = true;
     final thinkingMsg = ChatMessage(
       id: 'thinking',
       conversationId: activeConversation?.id ?? 'guest',
@@ -411,13 +442,13 @@ class AppState extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final msgId = DateTime.now().millisecondsSinceEpoch.toString();
+      final msgId = 'asst-${DateTime.now().microsecondsSinceEpoch}';
       bool firstChunk = true;
 
       await ChatService.sendMessageStream(
         message: text,
         conversationId: shouldSaveHistory ? activeConversation?.id : null,
-        history: isIncognito ? currentMessages.where((m) => !m.isThinking).map((m) => {'role': m.role, 'content': m.content}).toList() : null,
+        history: (isIncognito || isGuestUser) ? currentMessages.where((m) => !m.isThinking).map((m) => {'role': m.role, 'content': m.content}).toList() : null,
         modelOverride: selectedModel.modelId,
         onChunk: (chunk) {
           if (firstChunk) {
@@ -442,11 +473,24 @@ class AppState extends ChangeNotifier {
                 sources: currentMessages[idx].sources,
                 createdAt: currentMessages[idx].createdAt,
               );
+              final currentEst = tokensUsed + (currentMessages[idx].content.length ~/ 3) + 35;
+              if (!isGuestUser && currentEst >= tokensLimit) {
+                tokensUsed = tokensLimit;
+                final isEn = AppI18n.instance.localeCode == 'en';
+                final reason = isPro
+                    ? (isEn ? 'XPi PRO daily capacity reached. Tokens reset tomorrow.' : 'Capacidad diaria de XPi PRO alcanzada. Tus tokens se renovarán mañana.')
+                    : (isEn ? 'Daily token limit reached' : 'Límite diario de tokens alcanzado');
+                stopGeneration(reasonText: reason);
+                return;
+              }
             }
           }
           notifyListeners();
         },
         onComplete: (fullText, sources) async {
+          if (!isGenerating) return;
+          isGenerating = false;
+          tokensUsed += (fullText.length ~/ 3) + 35;
           final idx = currentMessages.indexWhere((m) => m.id == msgId);
           if (idx != -1) {
             currentMessages[idx] = ChatMessage(
@@ -478,12 +522,21 @@ class AppState extends ChangeNotifier {
               });
             } catch (_) {}
           }
+          if (isGuest) {
+            guestMessagesSessionCount++;
+            _recordHardwareMessage();
+            SupabaseService.recordGuestIpMessage();
+            if (guestMessagesSessionCount >= 3) {
+              guestIsBlocked = true;
+            }
+          }
           HapticFeedback.vibrate();
           notifyListeners();
         },
         onError: (err) {
           currentMessages.removeWhere((m) => m.isThinking);
           isThinking = false;
+          isGenerating = false;
           errorMessage = err.replaceAll('Exception: ', '');
           currentMessages.add(ChatMessage(
             id: 'error',
@@ -499,6 +552,7 @@ class AppState extends ChangeNotifier {
     } catch (e) {
       currentMessages.removeWhere((m) => m.isThinking);
       isThinking = false;
+      isGenerating = false;
       errorMessage = e.toString().replaceAll('Exception: ', '');
       currentMessages.add(ChatMessage(
         id: 'error',
@@ -507,15 +561,6 @@ class AppState extends ChangeNotifier {
         content: '⚠️ $errorMessage',
         createdAt: DateTime.now(),
       ));
-    }
-
-    if (isGuest) {
-      guestMessagesSessionCount++;
-      await _recordHardwareMessage();
-      final ipBlocked = await SupabaseService.recordGuestIpMessage();
-      if (guestMessagesSessionCount >= 3 || ipBlocked) {
-        guestIsBlocked = true;
-      }
     }
 
     notifyListeners();
@@ -547,21 +592,63 @@ class AppState extends ChangeNotifier {
     }
   }
 
-  void stopGeneration() {
+  void stopGeneration({String? reasonText}) {
     ChatService.cancelStream();
     currentMessages.removeWhere((m) => m.isThinking);
     isThinking = false;
+    isGenerating = false;
+    
+    final isEn = AppI18n.instance.localeCode == 'en';
+    final stopText = reasonText ?? (isEn ? 'You stopped the response' : 'Usted detuvo la respuesta');
+
+    if (currentMessages.isEmpty || currentMessages.last.role != 'assistant' || currentMessages.last.content.trim().isEmpty) {
+      if (currentMessages.isNotEmpty && currentMessages.last.role == 'assistant') {
+        currentMessages[currentMessages.length - 1] = ChatMessage(
+          id: currentMessages.last.id,
+          conversationId: currentMessages.last.conversationId,
+          role: 'assistant',
+          content: stopText,
+          createdAt: currentMessages.last.createdAt,
+        );
+      } else {
+        currentMessages.add(ChatMessage(
+          id: 'stop-${DateTime.now().microsecondsSinceEpoch}',
+          conversationId: activeConversation?.id ?? 'guest',
+          role: 'assistant',
+          content: stopText,
+          createdAt: DateTime.now(),
+        ));
+      }
+    } else {
+      final lastMsg = currentMessages.last;
+      currentMessages[currentMessages.length - 1] = ChatMessage(
+        id: lastMsg.id,
+        conversationId: lastMsg.conversationId,
+        role: 'assistant',
+        content: '${lastMsg.content}\n\n*[$stopText]*',
+        sources: lastMsg.sources,
+        createdAt: lastMsg.createdAt,
+      );
+    }
+
     notifyListeners();
   }
 
-  // --- CANDADO PERSISTENTE DE HARDWARE VIA SHARED PREFERENCES ---
+  // --- CANDADO PERSISTENTE DE HARDWARE VIA SHARED PREFERENCES (24H EXACTAS DESDE EL 1ER MENSAJE) ---
   Future<bool> _checkHardwareBlocked() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final date = prefs.getString('exodo_guest_hw_date');
+      final firstMsgStr = prefs.getString('exodo_guest_first_msg_time');
+      if (firstMsgStr != null) {
+        final firstTime = DateTime.tryParse(firstMsgStr);
+        if (firstTime != null && DateTime.now().difference(firstTime).inHours >= 24) {
+          await prefs.remove('exodo_guest_first_msg_time');
+          await prefs.remove('exodo_guest_hw_count');
+          guestMessagesSessionCount = 0;
+          return false;
+        }
+      }
       final count = prefs.getInt('exodo_guest_hw_count') ?? 0;
-      final today = DateTime.now().toIso8601String().substring(0, 10);
-      if (date != today) return false;
       guestMessagesSessionCount = count;
       return count >= 3;
     } catch (_) {
@@ -572,15 +659,11 @@ class AppState extends ChangeNotifier {
   Future<void> _recordHardwareMessage() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final today = DateTime.now().toIso8601String().substring(0, 10);
-      int count = guestMessagesSessionCount;
-      if (prefs.getString('exodo_guest_hw_date') == today) {
-        final existing = prefs.getInt('exodo_guest_hw_count') ?? 0;
-        if (existing > count) count = existing;
+      final firstMsgStr = prefs.getString('exodo_guest_first_msg_time');
+      if (firstMsgStr == null || (prefs.getInt('exodo_guest_hw_count') ?? 0) == 0) {
+        await prefs.setString('exodo_guest_first_msg_time', DateTime.now().toIso8601String());
       }
-      guestMessagesSessionCount = count;
-      await prefs.setString('exodo_guest_hw_date', today);
-      await prefs.setInt('exodo_guest_hw_count', count);
+      await prefs.setInt('exodo_guest_hw_count', guestMessagesSessionCount);
     } catch (_) {}
   }
 }

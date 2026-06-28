@@ -52,6 +52,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
   late AnimationController _thinkingAnimCtrl;
   late AnimationController _ambientBgCtrl;
   late AnimationController _pulseCtrl;
+  int _lastMessageCount = 0;
 
   @override
   void initState() {
@@ -95,7 +96,12 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
   Widget build(BuildContext context) {
     final state = context.watch<AppState>();
     final isLight = !state.isDarkMode && !state.isIncognito;
-    _scrollToBottom();
+    if (state.currentMessages.length > _lastMessageCount) {
+      _lastMessageCount = state.currentMessages.length;
+      _scrollToBottom();
+    } else {
+      _lastMessageCount = state.currentMessages.length;
+    }
 
     return Scaffold(
       drawer: const DrawerMenu(),
@@ -193,9 +199,14 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
                 child: Stack(
                   children: [
                     if (state.currentMessages.isEmpty)
-                      _OriginalDesignStage(
-                        pulseAnim: _pulseCtrl,
-                        fullName: state.profile?.fullName,
+                      Center(
+                        child: SingleChildScrollView(
+                          physics: const ClampingScrollPhysics(),
+                          child: _OriginalDesignStage(
+                            pulseAnim: _pulseCtrl,
+                            fullName: state.profile?.fullName,
+                          ),
+                        ),
                       )
                     else
                       ListView.builder(
@@ -229,15 +240,12 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
                 onSend: () {
                     final text = _inputCtrl.text;
                     if (text.trim().isEmpty) return;
-                    if (state.tokensUsed >= state.tokensLimit && state.profile?.plan != 'hazak') {
+                    if (!state.isGuestUser && (state.tokensUsed >= state.tokensLimit || state.tokensUsed + (text.length ~/ 3) + 15 > state.tokensLimit)) {
                       HapticFeedback.vibrate();
-                      _UpgradeModal.show(context);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(_isDeviceEnglish(context) ? '⚠  Daily limit reached. Activate Hazak Pro to continue.' : '⚠  Alcanzaste tu capacidad diaria. Activa Hazak Pro para continuar.'),
-                          backgroundColor: const Color(0xFFC9933A),
-                        ),
-                      );
+                      if (!state.isPro) {
+                        _UpgradeModal.show(context);
+                      }
+                      state.sendUserMessage(text);
                       return;
                     }
                     _inputCtrl.clear();
@@ -425,28 +433,6 @@ class _OriginalDesignStage extends StatelessWidget {
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
                 style: GoogleFonts.inter(fontSize: 13.5, color: Colors.white70),
-              ),
-            ] else ...[
-              const SizedBox(height: 24),
-              Wrap(
-                alignment: WrapAlignment.center,
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  'starter.1',
-                  'starter.2',
-                  'starter.3',
-                  'starter.4',
-                ].map((key) {
-                  final text = AppI18n.of(context).t(key);
-                  return ActionChip(
-                    label: Text(text, style: GoogleFonts.inter(fontSize: 12.5, color: isLight ? Colors.black87 : Colors.white70)),
-                    backgroundColor: isLight ? Colors.black.withValues(alpha: 0.04) : Colors.white.withValues(alpha: 0.05),
-                    side: BorderSide(color: isLight ? Colors.black12 : Colors.white12),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                    onPressed: () => context.read<AppState>().sendUserMessage(text),
-                  );
-                }).toList(),
               ),
             ],
           ],
@@ -987,10 +973,13 @@ class _InterlockingComposerAreaState extends State<_InterlockingComposerArea> wi
                                     },
                                   ),
 
-                                  // Botón dinámico: Chat en Vivo fijo <-> Botón de enviar
+                                  // Botón dinámico: Chat en Vivo fijo <-> Botón de enviar / detener
                                   GestureDetector(
                                     onTap: () {
-                                      if (shouldShowSend) {
+                                      if (state.isGenerating) {
+                                        HapticFeedback.mediumImpact();
+                                        state.stopGeneration();
+                                      } else if (shouldShowSend) {
                                         setState(() {
                                           _hasAttachment = false;
                                           _isRecording = false;
@@ -1025,16 +1014,18 @@ class _InterlockingComposerAreaState extends State<_InterlockingComposerArea> wi
                                       height: 38,
                                       margin: const EdgeInsets.only(left: 2, right: 2),
                                       decoration: BoxDecoration(
-                                        color: shouldShowSend
+                                        color: (state.isGenerating || shouldShowSend)
                                             ? (isLight ? const Color(0xFF131313) : const Color(0xFFFBF9F5))
                                             : const Color(0xFF131313),
                                         shape: BoxShape.circle,
-                                        border: shouldShowSend ? null : Border.all(color: ExodoColors.amber.withValues(alpha: 0.5), width: 1.2),
+                                        border: (state.isGenerating || shouldShowSend) ? null : Border.all(color: ExodoColors.amber.withValues(alpha: 0.5), width: 1.2),
                                       ),
                                       child: Icon(
-                                        shouldShowSend ? Icons.arrow_upward : Icons.graphic_eq_rounded,
-                                        size: 19,
-                                        color: shouldShowSend
+                                        state.isGenerating
+                                            ? Icons.stop_rounded
+                                            : (shouldShowSend ? Icons.arrow_upward : Icons.graphic_eq_rounded),
+                                        size: state.isGenerating ? 22 : 19,
+                                        color: (state.isGenerating || shouldShowSend)
                                             ? (isLight ? Colors.white : const Color(0xFF141210))
                                             : ExodoColors.amber,
                                       ),
@@ -1263,50 +1254,37 @@ class _TokenProgressBarState extends State<_TokenProgressBar> {
   }
 }
 
-// Regla 9: Pensando con puntos cambiando de tamaño aleatoriamente
+// Regla 9: Burbuja de "razonando" mientras la IA piensa.
+// FIX v1.2.3: Se quita el Container con padding/decoration porque se
+// renderizaba como una caja visible. Ahora es un Row directo sin
+// envoltorio decorado, alineado a la izquierda como texto plano.
 class _ThinkingBubble extends StatelessWidget {
   final Animation<double> pulseAnim;
   const _ThinkingBubble({required this.pulseAnim});
 
   @override
   Widget build(BuildContext context) {
+    final state = context.watch<AppState>();
+    final isLight = !state.isDarkMode && !state.isIncognito;
+    final logoColor = isLight ? ExodoColors.background : ExodoColors.amber;
     return Align(
       alignment: Alignment.centerLeft,
-      child: Container(
-        margin: const EdgeInsets.symmetric(vertical: 8),
-        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-        decoration: const BoxDecoration(color: Colors.transparent),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Logo animado con opacidad de abajo hacia arriba
-            AnimatedBuilder(
-              animation: pulseAnim,
-              builder: (context, _) {
-                final v = pulseAnim.value;
-                return Opacity(
-                  opacity: 0.3 + (v * 0.7).clamp(0.0, 0.7),
-                  child: Image.asset(
-                    'assets/images/exodo_arrow_logo.png',
-                    width: 32,
-                    height: 32,
-                    color: ExodoColors.amber,
-                  ),
-                );
-              },
-            ),
-            const SizedBox(width: 12),
-            Text(
-              _isDeviceEnglish(context) ? 'Exodo reasoning...' : 'Exodo razonando...',
-              style: GoogleFonts.jetBrainsMono(fontSize: 13, color: ExodoColors.amber, fontWeight: FontWeight.w500),
-            ),
-            const SizedBox(width: 12),
-            IconButton(
-              icon: const Icon(Icons.stop_circle_outlined, color: ExodoColors.amber, size: 22),
-              tooltip: _isDeviceEnglish(context) ? 'Stop generation' : 'Detener generación',
-              onPressed: () => context.read<AppState>().stopGeneration(),
-            ),
-          ],
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 12),
+        child: AnimatedBuilder(
+          animation: pulseAnim,
+          builder: (context, _) {
+            final v = pulseAnim.value;
+            return Opacity(
+              opacity: 0.4 + (v * 0.6).clamp(0.0, 0.6),
+              child: Image.asset(
+                'assets/images/exodo_arrow_logo.png',
+                width: 28,
+                height: 28,
+                color: logoColor,
+              ),
+            );
+          },
         ),
       ),
     );
@@ -1604,38 +1582,43 @@ class _SourcesSheet extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 8),
-            SizedBox(
-              height: 24,
-              width: (sources.length * 16.0) + 8.0,
-              child: Stack(
-                children: [
-                  for (int i = 0; i < sources.length; i++)
-                    Positioned(
-                      left: i * 16.0,
-                      child: Container(
-                        width: 24,
-                        height: 24,
-                        alignment: Alignment.center,
-                        decoration: BoxDecoration(
-                          color: circleColors[i % circleColors.length],
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: isLight ? const Color(0xFFEFECE4) : const Color(0xFF1E1C19),
-                            width: 1.5,
+            Builder(
+              builder: (ctx) {
+                final displaySources = sources.take(4).toList();
+                return SizedBox(
+                  height: 24,
+                  width: (displaySources.length * 16.0) + 8.0,
+                  child: Stack(
+                    children: [
+                      for (int i = 0; i < displaySources.length; i++)
+                        Positioned(
+                          left: i * 16.0,
+                          child: Container(
+                            width: 24,
+                            height: 24,
+                            alignment: Alignment.center,
+                            decoration: BoxDecoration(
+                              color: circleColors[i % circleColors.length],
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color: isLight ? const Color(0xFFEFECE4) : const Color(0xFF1E1C19),
+                                width: 1.5,
+                              ),
+                            ),
+                            child: Text(
+                              _sourceInitials(displaySources[i]),
+                              style: GoogleFonts.jetBrainsMono(
+                                fontSize: 9.5,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                            ),
                           ),
                         ),
-                        child: Text(
-                          _sourceInitials(sources[i]),
-                          style: GoogleFonts.jetBrainsMono(
-                            fontSize: 9.5,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ),
-                    ),
-                ],
-              ),
+                    ],
+                  ),
+                );
+              },
             ),
           ],
         ),
@@ -2014,7 +1997,7 @@ class _UpgradeModal {
                             Navigator.pop(context);
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
-                                content: Text(_isDeviceEnglish(context) ? '🎉 Hazak Pro activated for this session!' : '🎉 ¡Plan Hazak Pro activado con éxito!'),
+                                content: Text(_isDeviceEnglish(context) ? '🎉 XPi PRO activated for this session!' : '🎉 ¡Plan XPi PRO activado con éxito!'),
                                 backgroundColor: ExodoColors.amber,
                               ),
                             );
