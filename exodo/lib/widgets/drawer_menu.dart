@@ -9,7 +9,6 @@ import '../services/widget_service.dart';
 import '../theme/exodo_theme.dart';
 import '../l10n/app_i18n.dart';
 import '../l10n/app_translations.dart';
-import 'horizontal_widgets_preview.dart';
 
 /// Item de menú reutilizable con padding responsive.
 class _DrawerItem extends StatelessWidget {
@@ -518,9 +517,10 @@ void _showAddWidgetSheet(BuildContext context) {
               ),
               const SizedBox(height: 10),
               InkWell(
-                onTap: () {
+                onTap: () async {
                   Navigator.pop(sheetCtx);
-                  HorizontalWidgetsPreview.show(context);
+                  HapticFeedback.selectionClick();
+                  await WidgetService.instance.requestPinWidget(type: 'horizontal');
                 },
                 borderRadius: BorderRadius.circular(14),
                 child: Container(
@@ -1028,9 +1028,9 @@ class _ClaudeAccountModal {
                 textCol: textCol,
                 subTextCol: subTextCol,
                 onTap: () async {
+                  Navigator.pop(sheetCtx);
                   HapticFeedback.selectionClick();
-                  await context.setLocale(null);
-                  if (sheetCtx.mounted) Navigator.pop(sheetCtx);
+                  await sheetCtx.setLocale(null);
                 },
               ),
               Divider(color: subTextCol.withValues(alpha: 0.2), height: 1, indent: 20, endIndent: 20),
@@ -1052,9 +1052,9 @@ class _ClaudeAccountModal {
                       textCol: textCol,
                       subTextCol: subTextCol,
                       onTap: () async {
+                        Navigator.pop(sheetCtx);
                         HapticFeedback.selectionClick();
-                        await context.setLocale(loc.code);
-                        if (sheetCtx.mounted) Navigator.pop(sheetCtx);
+                        await sheetCtx.setLocale(loc.code);
                       },
                     );
                   },

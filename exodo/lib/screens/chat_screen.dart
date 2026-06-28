@@ -478,7 +478,6 @@ class _InterlockingComposerAreaState extends State<_InterlockingComposerArea> wi
   final stt.SpeechToText _speech = stt.SpeechToText();
   bool _speechEnabled = false;
   bool _speechInitialized = false; // lazy: solo true después del primer tap
-  final FocusNode _focusNode = FocusNode(); // [v1.2] foco del input estilo Grok
 
   @override
   void initState() {
@@ -561,7 +560,6 @@ class _InterlockingComposerAreaState extends State<_InterlockingComposerArea> wi
   @override
   void dispose() {
     _auraController.dispose();
-    _focusNode.dispose(); // [v1.2]
     super.dispose();
   }
 
@@ -585,6 +583,11 @@ class _InterlockingComposerAreaState extends State<_InterlockingComposerArea> wi
       default:
         return 'en-US';
     }
+  }
+
+  String _getPlaceholder(BuildContext context) {
+    if (_isDeviceEnglish(context)) return 'Reply to Exodo...';
+    return 'Hablar con Exodo...';
   }
 
   Widget _buildOfflineInsideCapsule(BuildContext context, AppState state, bool isEn, bool isLight) {
@@ -722,302 +725,6 @@ class _InterlockingComposerAreaState extends State<_InterlockingComposerArea> wi
     );
   }
 
-  // ==========================================================================
-  // [v1.2] COMPOSER ESTILO GROK — píldora horizontal delgada con:
-  //   • Círculo-izquierda: Logo_behavior tintado amber (foco/abre app).
-  //     Cuando hay texto/adjunto, muta a botón de enviar (arrow_upward).
-  //   • Rectángulo-central de escritura con placeholder "Chat".
-  //   • Chips derechos: modelo (con aura XPi PRO), adjuntos (+), micrófono.
-  //
-  // Patrón visual: el círculo-logo SIEMPRE está en la izquierda. Cuando el
-  // usuario empieza a escribir, ese mismo círculo se transforma en botón
-  // de enviar (color amber sólido + ícono arrow_upward). Esto emula el
-  // comportamiento del widget de Grok (NO el de Claude).
-  // ==========================================================================
-  Widget _buildGrokPill(BuildContext context, AppState state, bool isLight, bool isEn) {
-    final pillBg = isLight ? const Color(0xFFE5DECF) : ExodoColors.composerBg;
-    final pillBorder = isLight ? const Color(0xFFD4CEBF) : Colors.transparent;
-    final chipBg = isLight ? const Color(0xFFFBF9F5) : const Color(0xFF131313);
-    final titleColor = isLight ? const Color(0xFF171615) : Colors.white;
-    final placeholderColor = const Color(0xFF7B7872);
-    final dimIcon = isLight ? Colors.black54 : Colors.white60;
-    final brightIcon = isLight ? Colors.black87 : Colors.white;
-
-    return AnimatedBuilder(
-      animation: widget.controller,
-      builder: (context, _) {
-        final hasText = widget.controller.text.trim().isNotEmpty;
-        final shouldShowSend = hasText || _hasAttachment || _isRecording;
-
-        return Container(
-          decoration: BoxDecoration(
-            color: pillBg,
-            borderRadius: BorderRadius.circular(32),
-            border: Border.all(color: pillBorder, width: 1.0),
-          ),
-          padding: const EdgeInsets.fromLTRB(6, 6, 6, 6),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              // ────────────────────────────────────────────────────────────
-              // IZQUIERDA: círculo con Logo_behavior tintado amber. Cuando
-              // hay texto, muta a botón de enviar (amber sólido + arrow).
-              // ────────────────────────────────────────────────────────────
-              GestureDetector(
-                onTap: () {
-                  HapticFeedback.selectionClick();
-                  if (shouldShowSend) {
-                    setState(() {
-                      _hasAttachment = false;
-                      _isRecording = false;
-                    });
-                    widget.onSend();
-                  } else {
-                    // Sin texto: el círculo-izquierda solo abre/foco al input.
-                    FocusScope.of(context).requestFocus(_focusNode);
-                  }
-                },
-                child: Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: shouldShowSend
-                        ? ExodoColors.amber
-                        : (isLight ? const Color(0xFFFBF9F5) : const Color(0xFF131313)),
-                    shape: BoxShape.circle,
-                    border: shouldShowSend
-                        ? null
-                        : Border.all(color: ExodoColors.amber.withValues(alpha: 0.5), width: 1.2),
-                  ),
-                  child: Center(
-                    child: shouldShowSend
-                        ? const Icon(Icons.arrow_upward, size: 22, color: Colors.black)
-                        : Image.asset(
-                            'assets/images/Logo_behavior.png',
-                            width: 22,
-                            height: 22,
-                            color: ExodoColors.amber,
-                          ),
-                  ),
-                ),
-              ),
-
-              const SizedBox(width: 8),
-
-              // ────────────────────────────────────────────────────────────
-              // CENTRO: rectángulo de escritura "Chat". Stack con
-              // placeholder visual ("Chat") y TextField transparente encima.
-              // ────────────────────────────────────────────────────────────
-              Expanded(
-                child: Container(
-                  height: 40,
-                  padding: const EdgeInsets.symmetric(horizontal: 14),
-                  alignment: Alignment.centerLeft,
-                  decoration: BoxDecoration(
-                    color: chipBg,
-                    borderRadius: BorderRadius.circular(24),
-                  ),
-                  child: Stack(
-                    children: [
-                      if (!hasText)
-                        Center(
-                          child: Text(
-                            'Chat',
-                            style: GoogleFonts.jetBrainsMono(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w600,
-                              color: placeholderColor,
-                              letterSpacing: -0.2,
-                            ),
-                          ),
-                        ),
-                      TextField(
-                        controller: widget.controller,
-                        focusNode: _focusNode,
-                        maxLines: 1,
-                        textInputAction: TextInputAction.send,
-                        onSubmitted: (_) {
-                          if (shouldShowSend) {
-                            setState(() {
-                              _hasAttachment = false;
-                              _isRecording = false;
-                            });
-                            widget.onSend();
-                          }
-                        },
-                        style: GoogleFonts.inter(
-                          fontSize: 15,
-                          color: hasText ? titleColor : Colors.transparent,
-                          fontWeight: hasText ? FontWeight.w500 : FontWeight.normal,
-                        ),
-                        decoration: const InputDecoration(
-                          border: InputBorder.none,
-                          enabledBorder: InputBorder.none,
-                          focusedBorder: InputBorder.none,
-                          filled: false,
-                          isCollapsed: true,
-                          contentPadding: EdgeInsets.zero,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-
-              const SizedBox(width: 8),
-
-              // ────────────────────────────────────────────────────────────
-              // MODELO (chip compacto con aura XPi PRO si aplica).
-              // ────────────────────────────────────────────────────────────
-              AnimatedBuilder(
-                animation: _auraController,
-                builder: (context, _) {
-                  final isXpiPro = state.isPro &&
-                      (state.selectedModel.id == 'ehyeh' ||
-                          state.selectedModel.title == 'XPi');
-                  final t = _auraController.value;
-                  return GestureDetector(
-                    onTap: widget.onModelTap,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: chipBg,
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(
-                          color: isXpiPro
-                              ? ExodoColors.amber.withValues(
-                                  alpha: 0.40 + 0.60 * ((math.sin(t * math.pi * 2) + 1) / 2))
-                              : Colors.transparent,
-                          width: 1.0,
-                        ),
-                        boxShadow: isXpiPro
-                            ? [
-                                BoxShadow(
-                                  color: ExodoColors.amber.withValues(
-                                      alpha: 0.15 + 0.25 * ((math.sin(t * math.pi * 2) + 1) / 2)),
-                                  blurRadius: 10,
-                                  spreadRadius: 1,
-                                  offset: Offset(6 * math.cos(t * math.pi * 2),
-                                      3 * math.sin(t * math.pi * 2)),
-                                ),
-                              ]
-                            : null,
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            state.selectedModel.title,
-                            overflow: TextOverflow.ellipsis,
-                            style: GoogleFonts.jetBrainsMono(
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
-                              color: titleColor,
-                            ),
-                          ),
-                          if (state.selectedModel.plan == 'hazak') ...[
-                            const SizedBox(width: 4),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-                              decoration: BoxDecoration(
-                                color: isLight ? const Color(0xFFE5DECF) : const Color(0xFF3A352F),
-                                borderRadius: BorderRadius.circular(4),
-                                border: Border.all(color: isLight ? Colors.black12 : Colors.white24),
-                              ),
-                              child: Text(
-                                'PRO',
-                                style: GoogleFonts.jetBrainsMono(
-                                  fontSize: 9.0,
-                                  fontWeight: FontWeight.bold,
-                                  color: titleColor,
-                                ),
-                              ),
-                            ),
-                          ],
-                          const SizedBox(width: 4),
-                          Icon(Icons.keyboard_arrow_down,
-                              size: 16, color: titleColor.withValues(alpha: 0.7)),
-                        ],
-                      ),
-                    ),
-                  );
-                },
-              ),
-
-              const SizedBox(width: 4),
-
-              // ────────────────────────────────────────────────────────────
-              // ADJUNTOS (+)
-              // ────────────────────────────────────────────────────────────
-              InkWell(
-                onTap: _showAttachmentMenu,
-                borderRadius: BorderRadius.circular(20),
-                child: Container(
-                  width: 36,
-                  height: 36,
-                  decoration: BoxDecoration(color: chipBg, shape: BoxShape.circle),
-                  child: Icon(Icons.add, size: 20,
-                      color: isLight ? const Color(0xFF171615) : Colors.white70),
-                ),
-              ),
-
-              const SizedBox(width: 4),
-
-              // ────────────────────────────────────────────────────────────
-              // MICRÓFONO (estado: normal / grabando)
-              // ────────────────────────────────────────────────────────────
-              InkWell(
-                onTap: () async {
-                  HapticFeedback.vibrate();
-                  if (!_isRecording) {
-                    final sttLocaleId = _sttLocaleFor(AppI18n.of(context).localeCode);
-                    final micPermissionMsg = AppI18n.of(context).t('mic.permission_required');
-                    final messenger = ScaffoldMessenger.of(context);
-                    await _ensureSpeechInitialized();
-                    if (!mounted) return;
-                    if (_speechEnabled) {
-                      setState(() => _isRecording = true);
-                      await _speech.listen(
-                        onResult: (result) {
-                          widget.controller.text = result.recognizedWords;
-                        },
-                        listenOptions: stt.SpeechListenOptions(
-                          partialResults: true,
-                          localeId: sttLocaleId,
-                          cancelOnError: true,
-                        ),
-                      );
-                    } else {
-                      messenger.showSnackBar(
-                        SnackBar(content: Text(micPermissionMsg)),
-                      );
-                    }
-                  } else {
-                    setState(() => _isRecording = false);
-                    await _speech.stop();
-                  }
-                },
-                borderRadius: BorderRadius.circular(20),
-                child: Container(
-                  width: 36,
-                  height: 36,
-                  decoration: BoxDecoration(color: chipBg, shape: BoxShape.circle),
-                  child: Icon(
-                    _isRecording ? Icons.mic : Icons.mic_none,
-                    size: 20,
-                    color: _isRecording
-                        ? ExodoColors.error
-                        : (shouldShowSend ? dimIcon : brightIcon),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final state = context.watch<AppState>();
@@ -1087,17 +794,261 @@ class _InterlockingComposerAreaState extends State<_InterlockingComposerArea> wi
             ),
           ),
 
-          // [v1.2] COMPOSER ESTILO GROK — píldora horizontal delgada con:
-          //   • Círculo-izquierda: Logo_behavior tintado amber (foco/abre app)
-          //     o botón arrow_upward cuando hay texto (enviar).
-          //   • Rectángulo-central de escritura con placeholder "Chat".
-          //   • Chips: modelo, adjuntos (+), micrófono.
-          // Cuando hay texto o adjunto, el círculo se transforma en enviar.
+          // Regla 10 & 13 Validados: Tab 1 entrelazado con traslación constante e inmutable
           Transform.translate(
             offset: const Offset(0, -14),
+            child: Container(
+            decoration: BoxDecoration(
+              color: isLight ? const Color(0xFFE5DECF) : ExodoColors.composerBg,
+              borderRadius: BorderRadius.circular(32),
+              border: isLight ? Border.all(color: const Color(0xFFD4CEBF), width: 1.0) : Border.all(color: Colors.transparent, width: 1.0),
+            ),
+            padding: state.guestIsBlocked 
+                ? const EdgeInsets.symmetric(horizontal: 16, vertical: 6)
+                : const EdgeInsets.fromLTRB(20, 8, 18, 8),
             child: state.guestIsBlocked
                 ? _buildOfflineInsideCapsule(context, state, isEn, isLight)
-                : _buildGrokPill(context, state, isLight, isEn),
+                : Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      TextField(
+                        controller: widget.controller,
+                        maxLines: 4,
+                        minLines: 1,
+                        style: TextStyle(fontSize: 16, color: isLight ? const Color(0xFF171615) : Colors.white),
+                        decoration: InputDecoration(
+                          hintText: _getPlaceholder(context),
+                          hintStyle: GoogleFonts.inter(color: const Color(0xFF7B7872), fontSize: 16),
+                          border: InputBorder.none,
+                          enabledBorder: InputBorder.none,
+                          focusedBorder: InputBorder.none,
+                          filled: false,
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          // Compartimento Izquierdo expandido para absorber cambios de texto/tamaño
+                          Expanded(
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                // Botón +
+                                InkWell(
+                                  onTap: _showAttachmentMenu,
+                                  borderRadius: BorderRadius.circular(20),
+                                  child: Container(
+                                    width: 36,
+                                    height: 36,
+                                    decoration: BoxDecoration(color: isLight ? const Color(0xFFFBF9F5) : const Color(0xFF131313), shape: BoxShape.circle),
+                                    child: Icon(Icons.add, size: 20, color: isLight ? const Color(0xFF171615) : Colors.white70),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+
+                                // Selector de modelo
+                                Flexible(
+                                  child: GestureDetector(
+                                    onTap: widget.onModelTap,
+                                    child: AnimatedBuilder(
+                                      animation: _auraController,
+                                      builder: (context, _) {
+                                        final isXpiPro = state.isPro && (state.selectedModel.id == 'ehyeh' || state.selectedModel.title == 'XPi');
+                                        final t = _auraController.value;
+                                        return Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                                          decoration: BoxDecoration(
+                                            color: isLight ? const Color(0xFFFBF9F5) : const Color(0xFF131313),
+                                            borderRadius: BorderRadius.circular(16),
+                                            border: Border.all(
+                                              color: isXpiPro
+                                                  ? ExodoColors.amber.withValues(alpha: 0.40 + 0.60 * ((math.sin(t * math.pi * 2) + 1) / 2))
+                                                  : Colors.transparent,
+                                              width: 1.0,
+                                            ),
+                                            boxShadow: isXpiPro
+                                                ? [
+                                                    BoxShadow(
+                                                      color: ExodoColors.amber.withValues(alpha: 0.15 + 0.25 * ((math.sin(t * math.pi * 2) + 1) / 2)),
+                                                      blurRadius: 10,
+                                                      spreadRadius: 1,
+                                                      offset: Offset(6 * math.cos(t * math.pi * 2), 3 * math.sin(t * math.pi * 2)),
+                                                    ),
+                                                    BoxShadow(
+                                                      color: ExodoColors.amber.withValues(alpha: 0.10 + 0.18 * ((math.cos(t * math.pi * 2 * 1.3) + 1) / 2)),
+                                                      blurRadius: 14,
+                                                      spreadRadius: 0,
+                                                      offset: Offset(-5 * math.sin(t * math.pi * 2), -3 * math.cos(t * math.pi * 2)),
+                                                    ),
+                                                  ]
+                                                : null,
+                                          ),
+                                          child: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Flexible(
+                                                child: Text(
+                                                  state.selectedModel.title,
+                                                  overflow: TextOverflow.ellipsis,
+                                                  style: GoogleFonts.jetBrainsMono(
+                                                    fontSize: 13,
+                                                    fontWeight: FontWeight.bold,
+                                                    color: isLight ? const Color(0xFF171615) : Colors.white,
+                                                  ),
+                                                ),
+                                              ),
+                                              if (state.selectedModel.plan == 'hazak') ...[
+                                                const SizedBox(width: 4),
+                                                Container(
+                                                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                                                  decoration: BoxDecoration(
+                                                    color: isLight ? const Color(0xFFE5DECF) : const Color(0xFF3A352F),
+                                                    borderRadius: BorderRadius.circular(4),
+                                                    border: Border.all(color: isLight ? Colors.black12 : Colors.white24),
+                                                  ),
+                                                  child: Text(
+                                                    'PRO',
+                                                    style: GoogleFonts.jetBrainsMono(
+                                                      fontSize: 9.0,
+                                                      fontWeight: FontWeight.bold,
+                                                      color: isLight ? const Color(0xFF171615) : Colors.white,
+                                                    ),
+                                                  ),
+                                                ),
+                                              ],
+                                              const SizedBox(width: 4),
+                                              Icon(Icons.keyboard_arrow_down, size: 16, color: isLight ? const Color(0xFF171615) : Colors.white70),
+                                            ],
+                                          ),
+                                        );
+                                      },
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+
+                          // Botón Mic y Botón Dinámico (Live Chat / Send)
+                          AnimatedBuilder(
+                            animation: widget.controller,
+                            builder: (context, _) {
+                              final hasText = widget.controller.text.trim().isNotEmpty;
+                              final shouldShowSend = hasText || _hasAttachment || _isRecording;
+
+                              return Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  // Micrófono absolutamente fijo sin animación ni desplazamiento
+                                  IconButton(
+                                    icon: Icon(
+                                      _isRecording ? Icons.mic : Icons.mic_none,
+                                      color: _isRecording
+                                          ? ExodoColors.error
+                                          : (shouldShowSend
+                                              ? (isLight ? Colors.black54 : ExodoColors.textSecondary)
+                                              : (isLight ? Colors.black87 : Colors.white70)),
+                                    ),
+                                    onPressed: () async {
+                                      HapticFeedback.vibrate();
+                                      if (!_isRecording) {
+                                        // [D3] Capturamos locale, mensaje y messenger ANTES del await
+                                        // para evitar usar `context` después de una espera.
+                                        final sttLocaleId = _sttLocaleFor(AppI18n.of(context).localeCode);
+                                        final micPermissionMsg = AppI18n.of(context).t('mic.permission_required');
+                                        final messenger = ScaffoldMessenger.of(context);
+                                        // Inicialización lazy: solo pedimos permisos cuando el usuario toca el mic.
+                                        await _ensureSpeechInitialized();
+                                        if (!mounted) return; // Parche Fase 1: evita usar context si el widget se desmontó
+                                        if (_speechEnabled) {
+                                          setState(() => _isRecording = true);
+                                          await _speech.listen(
+                                            onResult: (result) {
+                                              widget.controller.text = result.recognizedWords;
+                                            },
+                                            listenOptions: stt.SpeechListenOptions(
+                                              partialResults: true,
+                                              localeId: sttLocaleId,
+                                              cancelOnError: true,
+                                            ),
+                                          );
+                                        } else {
+                                          messenger.showSnackBar(
+                                            SnackBar(content: Text(micPermissionMsg)),
+                                          );
+                                        }
+                                      } else {
+                                        setState(() => _isRecording = false);
+                                        await _speech.stop();
+                                      }
+                                    },
+                                  ),
+
+                                  // Botón dinámico: Chat en Vivo fijo <-> Botón de enviar
+                                  GestureDetector(
+                                    onTap: () {
+                                      if (shouldShowSend) {
+                                        setState(() {
+                                          _hasAttachment = false;
+                                          _isRecording = false;
+                                        });
+                                        widget.onSend();
+                                      } else {
+                                        // [D1] Live chat no implementado todavía: feedback visual
+                                        // honesto para que el usuario sepa que NO es un botón roto.
+                                        HapticFeedback.lightImpact();
+                                        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          SnackBar(
+                                            duration: const Duration(seconds: 2),
+                                            content: Row(
+                                              children: [
+                                                const Icon(Icons.bolt_outlined, color: ExodoColors.amber, size: 18),
+                                                const SizedBox(width: 10),
+                                                Expanded(
+                                                  child: Text(
+                                                    AppI18n.of(context).t('live.coming_soon'),
+                                                    style: const TextStyle(color: Colors.white),
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        );
+                                      }
+                                    },
+                                    child: Container(
+                                      width: 38,
+                                      height: 38,
+                                      margin: const EdgeInsets.only(left: 2, right: 2),
+                                      decoration: BoxDecoration(
+                                        color: shouldShowSend
+                                            ? (isLight ? const Color(0xFF131313) : const Color(0xFFFBF9F5))
+                                            : const Color(0xFF131313),
+                                        shape: BoxShape.circle,
+                                        border: shouldShowSend ? null : Border.all(color: ExodoColors.amber.withValues(alpha: 0.5), width: 1.2),
+                                      ),
+                                      child: Icon(
+                                        shouldShowSend ? Icons.arrow_upward : Icons.graphic_eq_rounded,
+                                        size: 19,
+                                        color: shouldShowSend
+                                            ? (isLight ? Colors.white : const Color(0xFF141210))
+                                            : ExodoColors.amber,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              );
+                            },
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+            ),
           ),
         ],
       ),
@@ -1328,17 +1279,18 @@ class _ThinkingBubble extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Logo animado con pulsación suave sin ShaderMask (evita recuadros de error)
+            // Logo animado con opacidad de abajo hacia arriba
             AnimatedBuilder(
               animation: pulseAnim,
               builder: (context, _) {
                 final v = pulseAnim.value;
                 return Opacity(
-                  opacity: 0.4 + (0.6 * v),
+                  opacity: 0.3 + (v * 0.7).clamp(0.0, 0.7),
                   child: Image.asset(
                     'assets/images/exodo_arrow_logo.png',
                     width: 32,
                     height: 32,
+                    color: ExodoColors.amber,
                   ),
                 );
               },
