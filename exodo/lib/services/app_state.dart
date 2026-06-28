@@ -272,14 +272,37 @@ class AppState extends ChangeNotifier {
 
   Future<void> reformulateLastAssistantMessage(ChatMessage lastAssistant) async {
     if (currentMessages.isEmpty) return;
-    // Quitamos la última respuesta del asistente; el backend deberá regenerarla
-    // cuando llegue el siguiente sendUserMessage o automáticamente.
+
+    final isGuest = isGuestUser;
+    if (isGuest) {
+      if (guestIsBlocked || guestMessagesSessionCount >= 3) {
+        guestIsBlocked = true;
+        notifyListeners();
+        return;
+      }
+    } else {
+      if (tokensUsed >= tokensLimit) {
+        final isEn = AppI18n.instance.localeCode == 'en';
+        final limitMsg = isPro
+            ? (isEn ? '⚠️ XPi PRO daily capacity reached. Tokens reset tomorrow.' : '⚠️ Capacidad diaria de XPi PRO alcanzada. Tus tokens se renovarán mañana.')
+            : (isEn ? '⚠️ Daily limit reached. Activate XPi PRO to continue.' : '⚠️ Alcanzaste tu capacidad diaria. Activa XPi PRO para continuar.');
+        currentMessages.add(ChatMessage(
+          id: 'limit-${DateTime.now().microsecondsSinceEpoch}',
+          conversationId: activeConversation?.id ?? 'free',
+          role: 'assistant',
+          content: limitMsg,
+          createdAt: DateTime.now(),
+        ));
+        notifyListeners();
+        return;
+      }
+    }
+
     final idx = currentMessages.lastIndexWhere((m) => m.role == 'assistant' && m.id == lastAssistant.id);
     if (idx == -1) return;
     currentMessages.removeAt(idx);
     notifyListeners();
 
-    // Re-insertamos un placeholder "thinking" para que la UI muestre que se reformula.
     final thinkingId = 'reformulate-${DateTime.now().microsecondsSinceEpoch}';
     currentMessages.add(ChatMessage(
       id: thinkingId,
@@ -291,7 +314,6 @@ class AppState extends ChangeNotifier {
     ));
     notifyListeners();
 
-    // Disparamos la reformulación en background.
     try {
       isGenerating = true;
       notifyListeners();
@@ -305,7 +327,6 @@ class AppState extends ChangeNotifier {
   }
 
   Future<void> _reformulateInBackground(String thinkingId) async {
-    // Encuentra el último mensaje del usuario para reformular su respuesta.
     final lastUserIdx = currentMessages.lastIndexWhere((m) => m.role == 'user');
     if (lastUserIdx == -1) {
       currentMessages.removeWhere((m) => m.id == thinkingId);
@@ -313,6 +334,8 @@ class AppState extends ChangeNotifier {
       return;
     }
     final lastUserText = currentMessages[lastUserIdx].content;
+    tokensUsed += (lastUserText.length ~/ 3) + 15;
+
     await ChatService.sendMessageStream(
       conversationId: activeConversation?.id ?? '',
       message: lastUserText,
@@ -328,10 +351,33 @@ class AppState extends ChangeNotifier {
           content: currentMessages[idx].content + chunk,
           createdAt: currentMessages[idx].createdAt,
         );
+        if (!isGuestUser) {
+          final currentEst = tokensUsed + (currentMessages[idx].content.length ~/ 3) + 35;
+          if (currentEst >= tokensLimit) {
+            tokensUsed = tokensLimit;
+            final isEn = AppI18n.instance.localeCode == 'en';
+            final reason = isPro
+                ? (isEn ? 'XPi PRO daily capacity reached. Tokens reset tomorrow.' : 'Capacidad diaria de XPi PRO alcanzada. Tus tokens se renovarán mañana.')
+                : (isEn ? 'Daily token limit reached' : 'Límite diario de tokens alcanzado');
+            stopGeneration(reasonText: reason);
+            return;
+          }
+        }
         notifyListeners();
       },
       onComplete: (fullText, sources) {
         isGenerating = false;
+        if (!isGuestUser) {
+          tokensUsed += (fullText.length ~/ 3) + 35;
+          if (tokensUsed > tokensLimit) tokensUsed = tokensLimit;
+        } else {
+          guestMessagesSessionCount++;
+          _recordHardwareMessage();
+          SupabaseService.recordGuestIpMessage();
+          if (guestMessagesSessionCount >= 3) {
+            guestIsBlocked = true;
+          }
+        }
         final idx = currentMessages.indexWhere((m) => m.id == thinkingId);
         if (idx == -1) return;
         currentMessages[idx] = ChatMessage(
