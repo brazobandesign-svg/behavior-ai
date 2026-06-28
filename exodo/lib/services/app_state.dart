@@ -313,16 +313,6 @@ class AppState extends ChangeNotifier {
       return;
     }
     final lastUserText = currentMessages[lastUserIdx].content;
-    // Marcamos el mensaje como re-formulación para que el backend lo sepa.
-    final userMsg = ChatMessage(
-      id: 'reform-${DateTime.now().microsecondsSinceEpoch}',
-      conversationId: activeConversation?.id ?? '',
-      role: 'user',
-      content: lastUserText,
-      createdAt: DateTime.now(),
-    );
-    currentMessages.add(userMsg);
-    notifyListeners();
     await ChatService.sendMessageStream(
       conversationId: activeConversation?.id ?? '',
       message: lastUserText,
