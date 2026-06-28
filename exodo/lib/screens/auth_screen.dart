@@ -89,9 +89,9 @@ class _AuthScreenState extends State<AuthScreen> {
                             try {
                               await SupabaseService.signInWithGoogle();
                             } catch (e) {
-                              if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error Google: $e')));
+                              if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error Google: $e')));
                             } finally {
-                              if (mounted) setState(() => isLoading = false);
+                              if (context.mounted) setState(() => isLoading = false);
                             }
                           },
                     style: ElevatedButton.styleFrom(

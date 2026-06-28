@@ -7,7 +7,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/models.dart';
 import 'supabase_service.dart';
 import 'chat_service.dart';
-import '../l10n/app_i18n.dart';
 
 class AppState extends ChangeNotifier {
   UserProfile? profile;
@@ -379,6 +378,7 @@ class AppState extends ChangeNotifier {
     }
 
     // 2. Añadir mensaje de usuario a UI
+    currentMessages.removeWhere((m) => m.id == 'error');
     final userMsg = ChatMessage(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
       conversationId: activeConversation?.id ?? 'guest',
@@ -485,12 +485,11 @@ class AppState extends ChangeNotifier {
           currentMessages.removeWhere((m) => m.isThinking);
           isThinking = false;
           errorMessage = err.replaceAll('Exception: ', '');
-          final isEn = AppI18n.instance.localeCode == 'en';
           currentMessages.add(ChatMessage(
             id: 'error',
             conversationId: activeConversation?.id ?? 'incognito',
             role: 'assistant',
-            content: isEn ? '⚠️ **Network or plan error**: $errorMessage' : '⚠️ **Error de red o plan**: $errorMessage',
+            content: '⚠️ $errorMessage',
             createdAt: DateTime.now(),
           ));
           notifyListeners();
@@ -501,13 +500,11 @@ class AppState extends ChangeNotifier {
       currentMessages.removeWhere((m) => m.isThinking);
       isThinking = false;
       errorMessage = e.toString().replaceAll('Exception: ', '');
-      final isEn = AppI18n.instance.localeCode == 'en';
-      
       currentMessages.add(ChatMessage(
         id: 'error',
         conversationId: activeConversation?.id ?? 'incognito',
         role: 'assistant',
-        content: isEn ? '⚠️ **Network or plan error**: $errorMessage' : '⚠️ **Error de red o plan**: $errorMessage',
+        content: '⚠️ $errorMessage',
         createdAt: DateTime.now(),
       ));
     }

@@ -34,6 +34,12 @@ class ExodoApp extends StatelessWidget {
     final userLocale = context.currentLocaleCode; // del AppI18nProvider
 
     return MaterialApp(
+      // [v1.2] KEY DINÁMICO POR LOCALE: garantiza rebuild completo de
+      // TODO el árbol de widgets (incluidos widgets `const` y stateles
+      // que cacheaban traducciones) cuando el usuario cambia de idioma.
+      // Es el patrón estándar que usan Claude, Grok y Gemini para
+      // asegurar que ningún string traducido quede stale.
+      key: ValueKey('exodo-app-${userLocale ?? "sys"}'),
       title: AppI18n.of(context).t('app.title'),
       debugShowCheckedModeBanner: false,
       // Sin flash: ambos temas preconstruidos + themeMode reactivo.

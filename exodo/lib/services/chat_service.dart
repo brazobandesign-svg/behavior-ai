@@ -54,7 +54,6 @@ class ChatService {
 
       http.StreamedResponse? response;
       http.Client? client;
-      String lastError = 'Error indefinido';
 
       for (final url in _candidateUrls) {
         if (_isCancelled) return;
@@ -68,47 +67,31 @@ class ChatService {
           request.body = jsonEncode({
             'message': message,
             'conversationId': conversationId,
-            'history': ?history,
-            'model_override': ?modelOverride,
+            'history': history,
+            'model_override': modelOverride,
           });
-          final resp = await reqClient.send(request).timeout(const Duration(seconds: 15));
+          final resp = await reqClient.send(request).timeout(const Duration(milliseconds: 1800));
           client = reqClient;
           _activeClient = client;
           response = resp;
           _workingUrl = url;
           break;
-        } catch (e) {
-          lastError = e.toString().replaceAll('Exception: ', '');
-        }
+        } catch (_) {}
       }
 
-      if (response == null || client == null) {
-        if (!_isCancelled) {
-          onError('⚠️ No se pudo conectar al servidor ($lastError). Verifica tu conexión o que el servidor local esté activo.');
-        }
-        return;
-      }
-
-      if (response.statusCode != 200) {
-        if (response.statusCode == 429) {
-          if (!_isCancelled) {
-            onError('⏳ Has excedido el límite de peticiones por minuto. Por favor, espera unos segundos antes de continuar.');
-          }
-          if (_activeClient == client) _activeClient = null;
-          client.close();
-          return;
-        }
-        final body = await response.stream.bytesToString();
-        try {
-          final err = jsonDecode(body);
-          if (!_isCancelled) {
-            onError(err['message'] ?? err['detail'] ?? err['error'] ?? 'Error del backend (${response.statusCode})');
-          }
-        } catch (_) {
-          if (!_isCancelled) onError('Error del backend (${response.statusCode})');
-        }
+      if (response == null || client == null || response.statusCode != 200) {
         if (_activeClient == client) _activeClient = null;
-        client.close();
+        client?.close();
+        if (!_isCancelled) {
+          await _sendDirectNimStream(
+            message: message,
+            history: history,
+            modelOverride: modelOverride,
+            onChunk: onChunk,
+            onComplete: onComplete,
+            onError: onError,
+          );
+        }
         return;
       }
 
@@ -153,6 +136,112 @@ class ChatService {
       });
     } catch (e) {
       if (!_isCancelled) onError(e.toString());
+    }
+  }
+
+  static Future<void> _sendDirectNimStream({
+    required String message,
+    List<Map<String, dynamic>>? history,
+    String? modelOverride,
+    required void Function(String chunk) onChunk,
+    required void Function(String fullText, List<Source> sources) onComplete,
+    required void Function(String error) onError,
+  }) async {
+    try {
+      String nimModel = 'nvidia/nemotron-3-ultra-550b-a55b';
+      String apiKey = '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';
+
+      if (modelOverride == 'nim-deepseek-v4-pro') {
+        nimModel = 'deepseek-ai/deepseek-v4-pro';
+        apiKey = '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';
+      } else if (modelOverride == 'nim-deepseek-v4-flash') {
+        nimModel = 'deepseek-ai/deepseek-v4-flash';
+        apiKey = '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';
+      } else if (modelOverride == 'nim-minimax-m3') {
+        nimModel = 'minimaxai/minimax-m3';
+        apiKey = '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';
+      }
+
+      final reqClient = http.Client();
+      _activeClient = reqClient;
+      final request = http.Request('POST', Uri.parse('https://integrate.api.nvidia.com/v1/chat/completions'));
+      request.headers.addAll({
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $apiKey',
+      });
+
+      const systemPrompt = "Eres Éxodo by Behavior, un asistente de IA avanzado con contexto dominicano. Sé útil, claro, directo y preciso.";
+      final messages = [
+        {'role': 'system', 'content': systemPrompt},
+        if (history != null)
+          ...history.map((m) => {'role': m['role']?.toString() ?? 'user', 'content': m['content']?.toString() ?? ''}),
+        {'role': 'user', 'content': message},
+      ];
+
+      request.body = jsonEncode({
+        'model': nimModel,
+        'messages': messages,
+        'temperature': 0.7,
+        'max_tokens': 4096,
+        'stream': true,
+      });
+
+      final response = await reqClient.send(request).timeout(const Duration(seconds: 45));
+      if (response.statusCode != 200) {
+        if (!_isCancelled) onError('Error de API directa (${response.statusCode})');
+        reqClient.close();
+        return;
+      }
+
+      String fullText = '';
+      bool isCompleted = false;
+      response.stream
+          .transform(utf8.decoder)
+          .transform(const LineSplitter())
+          .listen((line) {
+        if (_isCancelled) return;
+        if (line.startsWith('data: ')) {
+          final dataStr = line.substring(6).trim();
+          if (dataStr == '[DONE]') {
+            if (!isCompleted) {
+              isCompleted = true;
+              onComplete(fullText, []);
+            }
+            return;
+          }
+          if (dataStr.isEmpty) return;
+          try {
+            final data = jsonDecode(dataStr);
+            final choices = data['choices'] as List?;
+            if (choices != null && choices.isNotEmpty) {
+              final delta = choices[0]['delta'];
+              if (delta != null && delta['content'] != null) {
+                final content = delta['content'] as String;
+                fullText += content;
+                onChunk(content);
+              }
+            }
+          } catch (_) {}
+        }
+      }, onDone: () {
+        if (_activeClient == reqClient) _activeClient = null;
+        reqClient.close();
+        if (fullText.isNotEmpty && !isCompleted) {
+          isCompleted = true;
+          onComplete(fullText, []);
+        }
+      }, onError: (e) {
+        if (_activeClient == reqClient) _activeClient = null;
+        reqClient.close();
+        if (fullText.isNotEmpty && !isCompleted) {
+          isCompleted = true;
+          onComplete(fullText, []);
+        } else if (!_isCancelled) {
+          onError(e.toString());
+        }
+      });
+    } catch (e) {
+      if (!_isCancelled) onError('Error de conexión: ${e.toString().replaceAll('Exception: ', '')}');
     }
   }
 }
