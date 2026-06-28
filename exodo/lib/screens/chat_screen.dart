@@ -1548,9 +1548,9 @@ class _SourcesSheet extends StatelessWidget {
                           title: Text(s.title.isNotEmpty ? s.title : s.url, style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w600, color: isLight ? Colors.black87 : Colors.white)),
                           subtitle: s.url.isNotEmpty ? Text(s.url, maxLines: 1, overflow: TextOverflow.ellipsis, style: GoogleFonts.inter(fontSize: 12, color: ExodoColors.amber)) : null,
                           onTap: s.url.isNotEmpty ? () {
+                            HapticFeedback.lightImpact();
                             Clipboard.setData(ClipboardData(text: s.url));
                             Navigator.pop(ctx);
-                            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(_isDeviceEnglish(context) ? 'URL copied to clipboard' : 'URL copiada al portapapeles')));
                           } : null,
                         );
                       },
@@ -1652,51 +1652,27 @@ class _MessageActionBar extends StatelessWidget {
     void copy() {
       HapticFeedback.lightImpact();
       Clipboard.setData(ClipboardData(text: message.content));
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(_isDeviceEnglish(context) ? 'Message copied to clipboard' : 'Mensaje copiado al portapapeles'), duration: const Duration(seconds: 2)));
     }
 
     void share() {
       HapticFeedback.lightImpact();
       Clipboard.setData(ClipboardData(text: message.content));
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(_isDeviceEnglish(context) ? 'Copied for sharing' : 'Listo para compartir (copiado)'), duration: const Duration(seconds: 2)));
     }
 
     void like() {
       HapticFeedback.mediumImpact();
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(_isDeviceEnglish(context) ? 'Thanks for your feedback! 👍' : '¡Gracias por tu retroalimentación! 👍'), duration: const Duration(seconds: 2)));
     }
 
     void dislike() {
       HapticFeedback.mediumImpact();
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(_isDeviceEnglish(context) ? 'Response flagged for review 👎' : 'Respuesta reportada para mejorar 👎'), duration: const Duration(seconds: 2)));
     }
 
     void play() async {
       HapticFeedback.lightImpact();
-      // [v1.1] TTS real con flutter_tts. Locale sigue el idioma de la app
-      // (AppI18n.of(context).localeCode → BCP-47 via TtsService).
       final text = message.content.trim();
-      if (text.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(AppI18n.of(context).t('tts.empty')),
-          duration: const Duration(seconds: 2),
-        ));
-        return;
-      }
-      final messenger = ScaffoldMessenger.of(context);
+      if (text.isEmpty) return;
       final i18n = AppI18n.of(context);
-      final ok = await TtsService.instance.speak(text, appLocale: i18n.localeCode);
-      if (!ok) {
-        messenger.showSnackBar(SnackBar(
-          content: Text(i18n.t('tts.unsupported')),
-          duration: const Duration(seconds: 2),
-        ));
-      } else {
-        messenger.showSnackBar(SnackBar(
-          content: Text(i18n.t('tts.playing')),
-          duration: const Duration(seconds: 1),
-        ));
-      }
+      await TtsService.instance.speak(text, appLocale: i18n.localeCode);
     }
 
     void recharge() {
