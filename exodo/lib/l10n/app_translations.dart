@@ -117,6 +117,8 @@ const Map<String, String> _es = <String, String>{
   'act.like':     'Me gusta',
   'act.dislike':  'No me gusta',
   'act.recharge': 'Reformular',
+  'live.coming_soon': 'Chat en vivo próximamente — escribe un mensaje para empezar.',
+  'mic.permission_required': '⚠️ Permiso de micrófono requerido para dictado de voz.',
 
   // Sources sheet
   'sources.title': 'Fuentes',
@@ -141,6 +143,12 @@ const Map<String, String> _es = <String, String>{
   'lang.sheet_title': 'Idioma de la app',
   'lang.sheet_subtitle': 'Selecciona tu idioma preferido',
   'lang.system': 'Predeterminado del sistema',
+
+  // Starters
+  'starter.1': 'Resúmeme las noticias de hoy',
+  'starter.2': 'Explícame un concepto complejo',
+  'starter.3': 'Escríbeme un correo profesional',
+  'starter.4': 'Ideas para un proyecto innovador',
 };
 
 const Map<String, String> _en = <String, String>{
@@ -192,6 +200,8 @@ const Map<String, String> _en = <String, String>{
   'act.like':     'Like',
   'act.dislike':  'Dislike',
   'act.recharge': 'Recharge',
+  'live.coming_soon': 'Live chat coming soon — type a message to start.',
+  'mic.permission_required': '⚠️ Microphone permission required for voice dictation.',
 
   'sources.title':    'Sources',
   'sources.title_en': 'Sources',
@@ -211,6 +221,12 @@ const Map<String, String> _en = <String, String>{
   'lang.sheet_title':    'App language',
   'lang.sheet_subtitle': 'Select your preferred language',
   'lang.system':         'System default',
+
+  // Starters
+  'starter.1': 'Summarize today\'s news',
+  'starter.2': 'Explain a complex concept',
+  'starter.3': 'Write a professional email',
+  'starter.4': 'Ideas for an innovative project',
 };
 
 const Map<String, String> _fr = <String, String>{
@@ -262,6 +278,8 @@ const Map<String, String> _fr = <String, String>{
   'act.like':     'J\'aime',
   'act.dislike':  'Je n\'aime pas',
   'act.recharge': 'Reformuler',
+  'live.coming_soon': 'Chat en direct bientôt disponible — tapez un message pour commencer.',
+  'mic.permission_required': '⚠️ Autorisation du microphone requise pour la dictée vocale.',
 
   'sources.title':    'Sources',
   'sources.title_en': 'Sources',
@@ -281,6 +299,12 @@ const Map<String, String> _fr = <String, String>{
   'lang.sheet_title':    'Langue de l\'application',
   'lang.sheet_subtitle': 'Sélectionnez votre langue préférée',
   'lang.system':         'Par défaut du système',
+
+  // Starters
+  'starter.1': 'Résumé les actualités du jour',
+  'starter.2': 'Explique un concept complexe',
+  'starter.3': 'Écris un e-mail professionnel',
+  'starter.4': 'Idées pour un projet innovant',
 };
 
 const Map<String, String> _pt = <String, String>{
@@ -332,6 +356,8 @@ const Map<String, String> _pt = <String, String>{
   'act.like':     'Curtir',
   'act.dislike':  'Não curtir',
   'act.recharge': 'Reformular',
+  'live.coming_soon': 'Chat ao vivo em breve — digite uma mensagem para começar.',
+  'mic.permission_required': '⚠️ Permissão de microfone necessária para ditado por voz.',
 
   'sources.title':    'Fontes',
   'sources.title_en': 'Sources',
@@ -351,6 +377,12 @@ const Map<String, String> _pt = <String, String>{
   'lang.sheet_title':    'Idioma do app',
   'lang.sheet_subtitle': 'Selecione seu idioma preferido',
   'lang.system':         'Padrão do sistema',
+
+  // Starters
+  'starter.1': 'Resuma as notícias de hoje',
+  'starter.2': 'Explique um conceito complexo',
+  'starter.3': 'Escreva um e-mail profissional',
+  'starter.4': 'Ideias para um projeto inovador',
 };
 
 const Map<String, String> _it = <String, String>{
@@ -402,6 +434,8 @@ const Map<String, String> _it = <String, String>{
   'act.like':     'Mi piace',
   'act.dislike':  'Non mi piace',
   'act.recharge': 'Riformula',
+  'live.coming_soon': 'Chat live in arrivo — scrivi un messaggio per iniziare.',
+  'mic.permission_required': '⚠️ Permesso del microfono richiesto per la dettatura vocale.',
 
   'sources.title':    'Fonti',
   'sources.title_en': 'Sources',
@@ -421,6 +455,12 @@ const Map<String, String> _it = <String, String>{
   'lang.sheet_title':    'Lingua dell\'app',
   'lang.sheet_subtitle': 'Seleziona la lingua preferita',
   'lang.system':         'Predefinito di sistema',
+
+  // Starters
+  'starter.1': 'Riassumi le notizie di oggi',
+  'starter.2': 'Spiega un concetto complesso',
+  'starter.3': 'Scrivi un\'email professionale',
+  'starter.4': 'Idee per un progetto innovativo',
 };
 
 const Map<String, String> _de = <String, String>{
@@ -472,6 +512,8 @@ const Map<String, String> _de = <String, String>{
   'act.like':     'Mag ich',
   'act.dislike':  'Mag ich nicht',
   'act.recharge': 'Neu formulieren',
+  'live.coming_soon': 'Live-Chat bald verfügbar — gib eine Nachricht ein, um zu starten.',
+  'mic.permission_required': '⚠️ Mikrofon-Berechtigung für Sprachdiktat erforderlich.',
 
   'sources.title':    'Quellen',
   'sources.title_en': 'Sources',
@@ -491,4 +533,10 @@ const Map<String, String> _de = <String, String>{
   'lang.sheet_title':    'App-Sprache',
   'lang.sheet_subtitle': 'Wähle deine bevorzugte Sprache',
   'lang.system':         'Systemstandard',
+
+  // Starters
+  'starter.1': 'Fasse die heutigen Nachrichten zusammen',
+  'starter.2': 'Erkläre ein komplexes Konzept',
+  'starter.3': 'Schreibe eine professionelle E-Mail',
+  'starter.4': 'Ideen für ein innovatives Projekt',
 };

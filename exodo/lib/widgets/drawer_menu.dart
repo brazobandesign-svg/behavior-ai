@@ -617,8 +617,8 @@ class _ClaudeAccountModal {
                   children: [
                     Expanded(
                       child: Text(
-                        state.userEmail,
-                        style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.white),
+                        state.userEmail.isNotEmpty ? state.userEmail : (_isDrawerEn(context) ? 'Session without email' : 'Sesión sin email'),
+                        style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w600, color: state.userEmail.isNotEmpty ? Colors.white : Colors.white54),
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
@@ -637,15 +637,19 @@ class _ClaudeAccountModal {
               const SizedBox(height: 16),
 
               // Opciones de lista con diseño limpio
-              _buildSettingTile(
-                icon: Icons.person_outline_rounded,
-                title: 'Profile',
-                onTap: () {
-                  Navigator.pop(ctx);
-                  _showProfileEditDialog(context, state);
-                },
-              ),
-              const SizedBox(height: 8),
+              // [v1.0] Profile y Billing NO están disponibles para usuarios guest.
+              // Solo aparecen tras login (Google/Email/Incognito registrado).
+              if (!state.isGuestUser) ...[
+                _buildSettingTile(
+                  icon: Icons.person_outline_rounded,
+                  title: 'Profile',
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    _showProfileEditDialog(context, state);
+                  },
+                ),
+                const SizedBox(height: 8),
+              ],
               _buildSettingTile(
                 icon: Icons.language_rounded,
                 title: AppI18n.of(context).t('drawer.language'),
@@ -656,15 +660,17 @@ class _ClaudeAccountModal {
                 },
               ),
               const SizedBox(height: 8),
-              _buildSettingTile(
-                icon: Icons.monetization_on_outlined,
-                title: 'Billing',
-                onTap: () {
-                  Navigator.pop(ctx);
-                  _showBillingModal(context, state);
-                },
-              ),
-              const SizedBox(height: 8),
+              if (!state.isGuestUser) ...[
+                _buildSettingTile(
+                  icon: Icons.monetization_on_outlined,
+                  title: 'Billing',
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    _showBillingModal(context, state);
+                  },
+                ),
+                const SizedBox(height: 8),
+              ],
               _buildSettingTile(
                 icon: Icons.privacy_tip_outlined,
                 title: _isDrawerEn(context) ? 'Terms & Privacy' : 'Términos y Privacidad',

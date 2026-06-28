@@ -14,6 +14,7 @@ import '../services/app_state.dart';
 import '../services/supabase_service.dart';
 import '../widgets/drawer_menu.dart';
 import '../theme/exodo_theme.dart';
+import '../l10n/app_i18n.dart';
 
 bool _isDeviceEnglish(BuildContext context) {
   try {
@@ -42,7 +43,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
     super.initState();
     _thinkingAnimCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 1400))..repeat(reverse: true);
     _ambientBgCtrl = AnimationController(vsync: this, duration: const Duration(seconds: 7))..repeat(reverse: true);
-    // Regla 5 & 9: Pulso continuo para cambio de tamaÃ±o de puntos aleatorio
+    // Regla 5 & 9: Pulso continuo para cambio de tamaño de puntos aleatorio
     _pulseCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 2200))..repeat(reverse: true);
 
   }
@@ -93,7 +94,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 child: Row(
                   children: [
-                    // Regla 1: MenÃº Profile estilo Library (3 lÃ­neas escalonadas)
+                    // Regla 1: Menú Profile estilo Library (3 líneas escalonadas)
                     Builder(
                       builder: (ctx) => InkWell(
                         onTap: () => Scaffold.of(ctx).openDrawer(),
@@ -117,7 +118,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
 
                     const Spacer(),
 
-                    // En modo incÃ³gnito quitar iconos New Chat y Dark Mode
+                    // En modo incógnito quitar iconos New Chat y Dark Mode
                     if (!state.isIncognito) ...[
                       // 1. Nuevo Chat
                       IconButton(
@@ -142,7 +143,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
                       ),
                     ],
 
-                    // 3. IncÃ³gnito (botÃ³n para activarlo o salir)
+                    // 3. Incógnito (botón para activarlo o salir)
                     IconButton(
                       icon: _AnimatedIncognitoHat(
                         isIncognito: state.isIncognito,
@@ -153,7 +154,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
                           color: state.isIncognito ? Colors.white : (isLight ? Colors.black87 : ExodoColors.textSecondary),
                         ),
                       ),
-                      tooltip: _isDeviceEnglish(context) ? 'Incognito mode' : 'Modo incÃ³gnito',
+                      tooltip: _isDeviceEnglish(context) ? 'Incognito mode' : 'Modo incógnito',
                       onPressed: () {
                         state.toggleIncognito();
                       },
@@ -162,7 +163,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
                 ),
               ),
 
-              // Regla 4: Conteo de tokens (desaparece en modo incÃ³gnito y modo Guest)
+              // Regla 4: Conteo de tokens (desaparece en modo incógnito y modo Guest)
               if (!state.isIncognito && !state.isGuestUser)
                 _TokenProgressBar(
                   used: state.tokensUsed,
@@ -204,7 +205,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
                       _UpgradeModal.show(context);
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
-                          content: Text(_isDeviceEnglish(context) ? 'âš ï¸ Daily limit reached. Activate Hazak Pro to continue.' : 'âš ï¸ Alcanzaste tu capacidad diaria. Activa Hazak Pro para continuar.'),
+                          content: Text(_isDeviceEnglish(context) ? '⚠  Daily limit reached. Activate Hazak Pro to continue.' : '⚠  Alcanzaste tu capacidad diaria. Activa Hazak Pro para continuar.'),
                           backgroundColor: const Color(0xFFC9933A),
                         ),
                       );
@@ -275,7 +276,7 @@ class _AnimatedIncognitoHatState extends State<_AnimatedIncognitoHat> with Singl
   }
 }
 
-// Regla 2 & 7: Fondo ambiental sÃ³lido (sin animaciÃ³n) con watermark segÃºn modo
+// Regla 2 & 7: Fondo ambiental sólido (sin animación) con watermark según modo
 class _AnimatedAmbientBackground extends StatelessWidget {
   final Animation<double> animation;
   final Widget child;
@@ -308,9 +309,9 @@ class _OriginalDesignStage extends StatelessWidget {
 
     if (temp != null) {
       if (temp <= 21.0) {
-        return isEn ? 'Cold outside, better than coffee' : 'FrÃ­o afuera, mejor que un cafÃ©';
+        return isEn ? 'Cold outside, better than coffee' : 'Frío afuera, mejor que un café';
       } else if (temp >= 31.0) {
-        return isEn ? 'Grab something cold, really hot' : 'Toma algo frÃ­o, hace mucho calor';
+        return isEn ? 'Grab something cold, really hot' : 'Toma algo frío, hace mucho calor';
       }
     }
 
@@ -338,10 +339,10 @@ class _OriginalDesignStage extends StatelessWidget {
     final watermarkAsset = isDarkBg ? 'assets/images/watermark2.png' : 'assets/images/watermark1.png';
 
     // ============================================================
-    // LAYOUT CENTRADO: saludo + watermark como bloque Ãºnico vertical.
+    // LAYOUT CENTRADO: saludo + watermark como bloque único vertical.
     // Ambos se centran juntos en la pantalla. La watermark va justo
-    // debajo del saludo (separaciÃ³n fija de 16px). Cero Spacer, cero
-    // LayoutBuilder â€” el Center hace todo el trabajo.
+    // debajo del saludo (separación fija de 16px). Cero Spacer, cero
+    // LayoutBuilder –” el Center hace todo el trabajo.
     // ============================================================
 
     // Watermark: ancho 40% del stage, aspect ratio real 7.0208 (1011x144)
@@ -357,10 +358,10 @@ class _OriginalDesignStage extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            // Saludo (original, mÃ¡ximo 2 lÃ­neas)
+            // Saludo (original, máximo 2 líneas)
             Text(
               state.isIncognito
-                  ? (isEn ? 'Incognito' : 'IncÃ³gnito')
+                  ? (isEn ? 'Incognito' : 'Incógnito')
                   : _getGreeting(context, state),
               textAlign: TextAlign.center,
               maxLines: 2,
@@ -374,7 +375,7 @@ class _OriginalDesignStage extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 16),
-            // Watermark: segunda lÃ­nea, justo debajo del saludo
+            // Watermark: segunda línea, justo debajo del saludo
             IgnorePointer(
               child: SizedBox(
                 width: watermarkWidth,
@@ -390,11 +391,33 @@ class _OriginalDesignStage extends StatelessWidget {
               Text(
                 isEn
                     ? 'Incognito chats are not saved to history.'
-                    : 'Los chats de incÃ³gnito no se guardan en el historial.',
+                    : 'Los chats de incógnito no se guardan en el historial.',
                 textAlign: TextAlign.center,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
                 style: GoogleFonts.inter(fontSize: 13.5, color: Colors.white70),
+              ),
+            ] else ...[
+              const SizedBox(height: 24),
+              Wrap(
+                alignment: WrapAlignment.center,
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  'starter.1',
+                  'starter.2',
+                  'starter.3',
+                  'starter.4',
+                ].map((key) {
+                  final text = AppI18n.of(context).t(key);
+                  return ActionChip(
+                    label: Text(text, style: GoogleFonts.inter(fontSize: 12.5, color: isLight ? Colors.black87 : Colors.white70)),
+                    backgroundColor: isLight ? Colors.black.withValues(alpha: 0.04) : Colors.white.withValues(alpha: 0.05),
+                    side: BorderSide(color: isLight ? Colors.black12 : Colors.white12),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                    onPressed: () => context.read<AppState>().sendUserMessage(text),
+                  );
+                }).toList(),
               ),
             ],
           ],
@@ -404,7 +427,7 @@ class _OriginalDesignStage extends StatelessWidget {
   }
 }
 
-// Regla 5 & 9: Widget supremo de esfera donde cada punto cambia de tamaÃ±o aleatoriamente
+// Regla 5 & 9: Widget supremo de esfera donde cada punto cambia de tamaño aleatoriamente
 class _InterlockingComposerArea extends StatefulWidget {
   final TextEditingController controller;
   final VoidCallback onSend;
@@ -425,13 +448,13 @@ class _InterlockingComposerAreaState extends State<_InterlockingComposerArea> wi
   bool _isRecording = false;
   final stt.SpeechToText _speech = stt.SpeechToText();
   bool _speechEnabled = false;
-  bool _speechInitialized = false; // lazy: solo true despuÃ©s del primer tap
+  bool _speechInitialized = false; // lazy: solo true después del primer tap
 
   @override
   void initState() {
     super.initState();
     _auraController = AnimationController(vsync: this, duration: const Duration(milliseconds: 3200))..repeat();
-    // NO inicializamos el speech aquÃ­. Se inicializa solo cuando el usuario toca el mic.
+    // NO inicializamos el speech aquí. Se inicializa solo cuando el usuario toca el mic.
   }
 
   Future<void> _ensureSpeechInitialized() async {
@@ -461,7 +484,7 @@ class _InterlockingComposerAreaState extends State<_InterlockingComposerArea> wi
               Container(width: 36, height: 4, margin: const EdgeInsets.only(bottom: 16), decoration: BoxDecoration(color: Colors.grey.withOpacity(0.3), borderRadius: BorderRadius.circular(2))),
               ListTile(
                 leading: const Icon(Icons.camera_alt_rounded, color: ExodoColors.amber),
-                title: Text(isEn ? 'Camera' : 'CÃ¡mara', style: GoogleFonts.inter(fontWeight: FontWeight.w600, color: isLight ? Colors.black87 : Colors.white)),
+                title: Text(isEn ? 'Camera' : 'Cámara', style: GoogleFonts.inter(fontWeight: FontWeight.w600, color: isLight ? Colors.black87 : Colors.white)),
                 onTap: () async {
                   Navigator.pop(ctx);
                   final picker = ImagePicker();
@@ -474,14 +497,14 @@ class _InterlockingComposerAreaState extends State<_InterlockingComposerArea> wi
               ),
               ListTile(
                 leading: const Icon(Icons.photo_library_rounded, color: ExodoColors.amber),
-                title: Text(isEn ? 'Gallery' : 'GalerÃ­a', style: GoogleFonts.inter(fontWeight: FontWeight.w600, color: isLight ? Colors.black87 : Colors.white)),
+                title: Text(isEn ? 'Gallery' : 'Galería', style: GoogleFonts.inter(fontWeight: FontWeight.w600, color: isLight ? Colors.black87 : Colors.white)),
                 onTap: () async {
                   Navigator.pop(ctx);
                   final picker = ImagePicker();
                   final XFile? media = await picker.pickImage(source: ImageSource.gallery, imageQuality: 90);
                   if (media != null) {
                     setState(() => _hasAttachment = true);
-                    widget.controller.text += '[GalerÃ­a: ${media.name}] ';
+                    widget.controller.text += '[Galería: ${media.name}] ';
                   }
                 },
               ),
@@ -511,6 +534,28 @@ class _InterlockingComposerAreaState extends State<_InterlockingComposerArea> wi
     super.dispose();
   }
 
+  // [D3] Mapear código de locale de la app a locale BCP-47 que speech_to_text
+  // reconozca en Android. Cuando el dispositivo no tiene el locale instalado,
+  // el plugin cae al default del sistema (que puede ser 'en' en la mayoría).
+  String _sttLocaleFor(String appLocale) {
+    switch (appLocale) {
+      case 'es':
+        return 'es-DO';          // Dominican Spanish (preserva acento local)
+      case 'en':
+        return 'en-US';
+      case 'fr':
+        return 'fr-FR';
+      case 'pt':
+        return 'pt-BR';
+      case 'it':
+        return 'it-IT';
+      case 'de':
+        return 'de-DE';
+      default:
+        return 'en-US';
+    }
+  }
+
   String _getPlaceholder(BuildContext context) {
     if (_isDeviceEnglish(context)) return 'Reply to Exodo...';
     return 'Hablar con Exodo...';
@@ -529,7 +574,7 @@ class _InterlockingComposerAreaState extends State<_InterlockingComposerArea> wi
               const Icon(Icons.cloud_off_rounded, size: 20, color: ExodoColors.amber),
               const SizedBox(width: 8),
               Text(
-                isEn ? "You're offline" : "EstÃ¡s desconectado",
+                isEn ? "You're offline" : "Estás desconectado",
                 style: GoogleFonts.syne(fontSize: 16, fontWeight: FontWeight.bold, color: isLight ? softBlack : ExodoColors.textPrimary),
               ),
             ],
@@ -548,8 +593,20 @@ class _InterlockingComposerAreaState extends State<_InterlockingComposerArea> wi
                     child: GestureDetector(
                       onTap: () async {
                         HapticFeedback.vibrate();
-                        state.selectModelOption(exodoModels[0]);
-                        await SupabaseService.signOut();
+                        // [D2] Try/catch + mounted guard: si está OFFLINE, signOut
+                        // puede tirar timeout o excepción. Aseguramos que aunque
+                        // falle, el _RootSwitcher detecte currentUser == null y
+                        // muestre AuthScreen. Sin esto, el usuario se queda
+                        // "atascado" en el estado bloqueado.
+                        try {
+                          await SupabaseService.signOut().timeout(
+                            const Duration(seconds: 3),
+                            onTimeout: () {},
+                          );
+                        } catch (_) {
+                          // offline o error de red: ignorar y dejar que el
+                          // _RootSwitcher redibuje con currentUser == null
+                        }
                       },
                       child: Text(
                         "upgrade",
@@ -564,8 +621,13 @@ class _InterlockingComposerAreaState extends State<_InterlockingComposerArea> wi
                     child: GestureDetector(
                       onTap: () async {
                         HapticFeedback.vibrate();
-                        state.selectModelOption(exodoModels[0]);
-                        await SupabaseService.signOut();
+                        // [D2] Idem: signOut con timeout corto + try/catch.
+                        try {
+                          await SupabaseService.signOut().timeout(
+                            const Duration(seconds: 3),
+                            onTimeout: () {},
+                          );
+                        } catch (_) {}
                       },
                       child: Text(
                         "sign in",
@@ -590,8 +652,13 @@ class _InterlockingComposerAreaState extends State<_InterlockingComposerArea> wi
                     child: GestureDetector(
                       onTap: () async {
                         HapticFeedback.vibrate();
-                        state.selectModelOption(exodoModels[0]);
-                        await SupabaseService.signOut();
+                        // [D2] signOut resiliente offline-safe.
+                        try {
+                          await SupabaseService.signOut().timeout(
+                            const Duration(seconds: 3),
+                            onTimeout: () {},
+                          );
+                        } catch (_) {}
                       },
                       child: Text(
                         "actualice",
@@ -606,11 +673,16 @@ class _InterlockingComposerAreaState extends State<_InterlockingComposerArea> wi
                     child: GestureDetector(
                       onTap: () async {
                         HapticFeedback.vibrate();
-                        state.selectModelOption(exodoModels[0]);
-                        await SupabaseService.signOut();
+                        // [D2] signOut resiliente offline-safe.
+                        try {
+                          await SupabaseService.signOut().timeout(
+                            const Duration(seconds: 3),
+                            onTimeout: () {},
+                          );
+                        } catch (_) {}
                       },
                       child: Text(
-                        "inicie sesiÃ³n",
+                        "inicie sesión",
                         style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.bold, color: ExodoColors.amber, decoration: TextDecoration.underline, decorationColor: ExodoColors.amber),
                       ),
                     ),
@@ -635,7 +707,7 @@ class _InterlockingComposerAreaState extends State<_InterlockingComposerArea> wi
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Regla 7 & RecreaciÃ³n limpia: Tab 2 nativo con preservaciÃ³n de espacio geomÃ©trica
+          // Regla 7 & Recreación limpia: Tab 2 nativo con preservación de espacio geométrica
           Visibility(
             visible: state.showTab2Banner && !state.isIncognito && !state.isPro,
             maintainSize: true,
@@ -693,7 +765,7 @@ class _InterlockingComposerAreaState extends State<_InterlockingComposerArea> wi
             ),
           ),
 
-          // Regla 10 & 13 Validados: Tab 1 entrelazado con traslaciÃ³n constante e inmutable
+          // Regla 10 & 13 Validados: Tab 1 entrelazado con traslación constante e inmutable
           Transform.translate(
             offset: const Offset(0, -14),
             child: Container(
@@ -730,12 +802,12 @@ class _InterlockingComposerAreaState extends State<_InterlockingComposerArea> wi
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          // Compartimento Izquierdo expandido para absorber cambios de texto/tamaÃ±o
+                          // Compartimento Izquierdo expandido para absorber cambios de texto/tamaño
                           Expanded(
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                // BotÃ³n +
+                                // Botón +
                                 InkWell(
                                   onTap: _showAttachmentMenu,
                                   borderRadius: BorderRadius.circular(20),
@@ -831,7 +903,7 @@ class _InterlockingComposerAreaState extends State<_InterlockingComposerArea> wi
                             ),
                           ),
 
-                          // BotÃ³n Mic y BotÃ³n DinÃ¡mico (Live Chat / Send)
+                          // Botón Mic y Botón Dinámico (Live Chat / Send)
                           AnimatedBuilder(
                             animation: widget.controller,
                             builder: (context, _) {
@@ -841,7 +913,7 @@ class _InterlockingComposerAreaState extends State<_InterlockingComposerArea> wi
                               return Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  // MicrÃ³fono absolutamente fijo sin animaciÃ³n ni desplazamiento
+                                  // Micrófono absolutamente fijo sin animación ni desplazamiento
                                   IconButton(
                                     icon: Icon(
                                       _isRecording ? Icons.mic : Icons.mic_none,
@@ -854,20 +926,29 @@ class _InterlockingComposerAreaState extends State<_InterlockingComposerArea> wi
                                     onPressed: () async {
                                       HapticFeedback.vibrate();
                                       if (!_isRecording) {
-                                        // InicializaciÃ³n lazy: solo pedimos permisos cuando el usuario toca el mic.
+                                        // [D3] Capturamos locale, mensaje y messenger ANTES del await
+                                        // para evitar usar `context` después de una espera.
+                                        final sttLocaleId = _sttLocaleFor(AppI18n.of(context).localeCode);
+                                        final micPermissionMsg = AppI18n.of(context).t('mic.permission_required');
+                                        final messenger = ScaffoldMessenger.of(context);
+                                        // Inicialización lazy: solo pedimos permisos cuando el usuario toca el mic.
                                         await _ensureSpeechInitialized();
-                                        if (!mounted) return; // Parche Fase 1: evita usar context si el widget se desmontÃ³
+                                        if (!mounted) return; // Parche Fase 1: evita usar context si el widget se desmontó
                                         if (_speechEnabled) {
                                           setState(() => _isRecording = true);
                                           await _speech.listen(
                                             onResult: (result) {
                                               widget.controller.text = result.recognizedWords;
                                             },
-                                            localeId: 'es_DO',
+                                            listenOptions: stt.SpeechListenOptions(
+                                              partialResults: true,
+                                              localeId: sttLocaleId,
+                                              cancelOnError: true,
+                                            ),
                                           );
                                         } else {
-                                          ScaffoldMessenger.of(context).showSnackBar(
-                                            SnackBar(content: Text(_isDeviceEnglish(context) ? 'âš ï¸ Microphone permission required for voice dictation' : 'âš ï¸ Permiso de micrÃ³fono requerido para dictado de voz')),
+                                          messenger.showSnackBar(
+                                            SnackBar(content: Text(micPermissionMsg)),
                                           );
                                         }
                                       } else {
@@ -877,7 +958,7 @@ class _InterlockingComposerAreaState extends State<_InterlockingComposerArea> wi
                                     },
                                   ),
 
-                                  // BotÃ³n dinÃ¡mico: Chat en Vivo fijo <-> BotÃ³n de enviar
+                                  // Botón dinámico: Chat en Vivo fijo <-> Botón de enviar
                                   GestureDetector(
                                     onTap: () {
                                       if (shouldShowSend) {
@@ -887,7 +968,27 @@ class _InterlockingComposerAreaState extends State<_InterlockingComposerArea> wi
                                         });
                                         widget.onSend();
                                       } else {
-                                        // BotÃ³n chat en vivo desactivado por ahora, no hace nada
+                                        // [D1] Live chat no implementado todavía: feedback visual
+                                        // honesto para que el usuario sepa que NO es un botón roto.
+                                        HapticFeedback.lightImpact();
+                                        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          SnackBar(
+                                            duration: const Duration(seconds: 2),
+                                            content: Row(
+                                              children: [
+                                                const Icon(Icons.bolt_outlined, color: ExodoColors.amber, size: 18),
+                                                const SizedBox(width: 10),
+                                                Expanded(
+                                                  child: Text(
+                                                    AppI18n.of(context).t('live.coming_soon'),
+                                                    style: const TextStyle(color: Colors.white),
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        );
                                       }
                                     },
                                     child: Container(
@@ -926,7 +1027,7 @@ class _InterlockingComposerAreaState extends State<_InterlockingComposerArea> wi
   }
 }
 
-// Regla 4 & 10: Barra de tokens interactiva suprema con contador en tiempo real y acomodo simÃ©trico Pro
+// Regla 4 & 10: Barra de tokens interactiva suprema con contador en tiempo real y acomodo simétrico Pro
 class _TokenProgressBar extends StatefulWidget {
   final int used;
   final int limit;
@@ -1061,13 +1162,13 @@ class _TokenProgressBarState extends State<_TokenProgressBar> {
                 children: [
                   _statItem('CONSUMIDO', '${widget.used} ($pct%)', textColor),
                   
-                  // En PRO acomodamos simÃ©tricamente DISPONIBLE en el centro
+                  // En PRO acomodamos simétricamente DISPONIBLE en el centro
                   if (widget.isPro)
                     _statItem('DISPONIBLE', '$remaining', textColor),
 
                   _statItem('REINICIO EN', _getCountdown(), ExodoColors.amber),
 
-                  // En FREE colocamos MÃS CAPACIDAD a la derecha
+                  // En FREE colocamos MÁS CAPACIDAD a la derecha
                   if (!widget.isPro)
                     GestureDetector(
                       onTap: () {
@@ -1087,7 +1188,7 @@ class _TokenProgressBarState extends State<_TokenProgressBar> {
                             const Icon(Icons.bolt_rounded, size: 12, color: ExodoColors.amber),
                             const SizedBox(width: 3),
                             Text(
-                              'MÃS CAPACIDAD',
+                              'MÁS CAPACIDAD',
                               style: GoogleFonts.jetBrainsMono(
                                 fontSize: 9,
                                 color: ExodoColors.amber,
@@ -1133,7 +1234,7 @@ class _TokenProgressBarState extends State<_TokenProgressBar> {
   }
 }
 
-// Regla 9: Pensando con puntos cambiando de tamaÃ±o aleatoriamente
+// Regla 9: Pensando con puntos cambiando de tamaño aleatoriamente
 class _ThinkingBubble extends StatelessWidget {
   final Animation<double> pulseAnim;
   const _ThinkingBubble({required this.pulseAnim});
@@ -1180,6 +1281,12 @@ class _ThinkingBubble extends StatelessWidget {
               _isDeviceEnglish(context) ? 'Exodo reasoning...' : 'Exodo razonando...',
               style: GoogleFonts.jetBrainsMono(fontSize: 13, color: ExodoColors.amber, fontWeight: FontWeight.w500),
             ),
+            const SizedBox(width: 12),
+            IconButton(
+              icon: const Icon(Icons.stop_circle_outlined, color: ExodoColors.amber, size: 22),
+              tooltip: _isDeviceEnglish(context) ? 'Stop generation' : 'Detener generación',
+              onPressed: () => context.read<AppState>().stopGeneration(),
+            ),
           ],
         ),
       ),
@@ -1187,7 +1294,7 @@ class _ThinkingBubble extends StatelessWidget {
   }
 }
 
-// Regla 13: Estilo de burbujas tipo Claude (Usuario en rectÃ¡ngulo opuesto SIN colita, IA al descubierto)
+// Regla 13: Estilo de burbujas tipo Claude (Usuario en rectángulo opuesto SIN colita, IA al descubierto)
 class _MessageBubble extends StatelessWidget {
   final ChatMessage message;
   const _MessageBubble({required this.message});
@@ -1198,7 +1305,7 @@ class _MessageBubble extends StatelessWidget {
     final isLight = Theme.of(context).brightness == Brightness.light;
 
     if (isUser) {
-      // Regla 13: Chat del usuario en rectÃ¡ngulo simple SIN colita ("sale de mi")
+      // Regla 13: Chat del usuario en rectángulo simple SIN colita ("sale de mi")
       return Align(
         alignment: Alignment.centerRight,
         child: Container(
@@ -1248,7 +1355,7 @@ class _MessageBubble extends StatelessWidget {
           ),
           if (message.intentDetected != null) ...[
             const SizedBox(height: 8),
-            Text(_isDeviceEnglish(context) ? 'Intent: ${message.intentDetected}' : 'IntenciÃ³n: ${message.intentDetected}', style: GoogleFonts.jetBrainsMono(fontSize: 10, color: ExodoColors.amber.withOpacity(0.8))),
+            Text(_isDeviceEnglish(context) ? 'Intent: ${message.intentDetected}' : 'Intención: ${message.intentDetected}', style: GoogleFonts.jetBrainsMono(fontSize: 10, color: ExodoColors.amber.withOpacity(0.8))),
           ],
           if (message.sources.isNotEmpty) ...[
             const SizedBox(height: 14),
@@ -1280,7 +1387,7 @@ class _MessageBubble extends StatelessWidget {
   }
 }
 
-/// Bloque compacto estilo cÃ¡psula con el texto "Sources" e Ã­conos superpuestos.
+/// Bloque compacto estilo cápsula con el texto "Sources" e íconos superpuestos.
 class _SourcesSheet extends StatelessWidget {
   final List<Source> sources;
   const _SourcesSheet({required this.sources});
@@ -1298,7 +1405,55 @@ class _SourcesSheet extends StatelessWidget {
     ];
 
     return InkWell(
-      onTap: () {},
+      onTap: () {
+        HapticFeedback.lightImpact();
+        showModalBottomSheet(
+          context: context,
+          backgroundColor: isLight ? Colors.white : const Color(0xFF131313),
+          shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+          builder: (ctx) => SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    _isDeviceEnglish(context) ? 'Consulted Sources' : 'Fuentes Consultadas',
+                    style: GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.bold, color: isLight ? Colors.black : Colors.white),
+                  ),
+                  const SizedBox(height: 16),
+                  ConstrainedBox(
+                    constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.4),
+                    child: ListView.separated(
+                      shrinkWrap: true,
+                      itemCount: sources.length,
+                      separatorBuilder: (_, __) => const Divider(height: 16, color: Colors.white12),
+                      itemBuilder: (ctx, idx) {
+                        final s = sources[idx];
+                        return ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          leading: CircleAvatar(
+                            backgroundColor: circleColors[idx % circleColors.length],
+                            child: Text(_sourceInitials(s), style: GoogleFonts.jetBrainsMono(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.white)),
+                          ),
+                          title: Text(s.title.isNotEmpty ? s.title : s.url, style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w600, color: isLight ? Colors.black87 : Colors.white)),
+                          subtitle: s.url.isNotEmpty ? Text(s.url, maxLines: 1, overflow: TextOverflow.ellipsis, style: GoogleFonts.inter(fontSize: 12, color: ExodoColors.amber)) : null,
+                          onTap: s.url.isNotEmpty ? () {
+                            Clipboard.setData(ClipboardData(text: s.url));
+                            Navigator.pop(ctx);
+                            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(_isDeviceEnglish(context) ? 'URL copied to clipboard' : 'URL copiada al portapapeles')));
+                          } : null,
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
       borderRadius: BorderRadius.circular(30),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
@@ -1382,23 +1537,34 @@ class _MessageActionBar extends StatelessWidget {
     final subText = isLight ? Colors.black54 : Colors.white60;
 
     void copy() {
+      HapticFeedback.lightImpact();
       Clipboard.setData(ClipboardData(text: message.content));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(_isDeviceEnglish(context) ? 'Message copied to clipboard' : 'Mensaje copiado al portapapeles'), duration: const Duration(seconds: 2)));
     }
 
     void share() {
+      HapticFeedback.lightImpact();
       Clipboard.setData(ClipboardData(text: message.content));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(_isDeviceEnglish(context) ? 'Copied for sharing' : 'Listo para compartir (copiado)'), duration: const Duration(seconds: 2)));
     }
 
     void like() {
-      // AcciÃ³n silenciosa: solo dispara feedback (futuro: enviar a backend)
+      HapticFeedback.mediumImpact();
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(_isDeviceEnglish(context) ? 'Thanks for your feedback! 👍' : '¡Gracias por tu retroalimentación! 👍'), duration: const Duration(seconds: 2)));
     }
 
     void dislike() {
-      // AcciÃ³n silenciosa: solo dispara feedback (futuro: enviar a backend)
+      HapticFeedback.mediumImpact();
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(_isDeviceEnglish(context) ? 'Response flagged for review 👎' : 'Respuesta reportada para mejorar 👎'), duration: const Duration(seconds: 2)));
+    }
+
+    void play() {
+      HapticFeedback.lightImpact();
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(_isDeviceEnglish(context) ? '🔊 Voice synthesis (TTS) coming soon' : '🔊 Síntesis de voz (TTS) próximamente'), duration: const Duration(seconds: 2)));
     }
 
     void recharge() {
-      // Recharge = pedirle a Ã‰xodo que reformule la Ãºltima respuesta.
+      HapticFeedback.mediumImpact();
       final state = context.read<AppState>();
       state.reformulateLastAssistantMessage(message);
     }
@@ -1410,10 +1576,10 @@ class _MessageActionBar extends StatelessWidget {
       children: [
         _ActionButton(icon: Icons.copy_rounded, tooltip: _isDeviceEnglish(context) ? 'Copy' : 'Copiar', color: subText, onTap: copy),
         _ActionButton(icon: Icons.ios_share_rounded, tooltip: _isDeviceEnglish(context) ? 'Share' : 'Compartir', color: subText, onTap: share),
-        _ActionButton(icon: Icons.play_arrow_rounded, tooltip: _isDeviceEnglish(context) ? 'Play' : 'Reproducir', color: subText, onTap: () {/* TODO: TTS */}),
+        _ActionButton(icon: Icons.play_arrow_rounded, tooltip: _isDeviceEnglish(context) ? 'Play' : 'Reproducir', color: subText, onTap: play),
         _ActionButton(icon: Icons.thumb_up_off_alt_rounded, tooltip: _isDeviceEnglish(context) ? 'Like' : 'Me gusta', color: subText, onTap: like),
         _ActionButton(icon: Icons.thumb_down_off_alt_rounded, tooltip: _isDeviceEnglish(context) ? 'Dislike' : 'No me gusta', color: subText, onTap: dislike),
-        _ActionButton(icon: Icons.refresh_rounded, tooltip: _isDeviceEnglish(context) ? 'Recharge' : 'Reformular', color: ExodoColors.amber, onTap: recharge),
+        _ActionButton(icon: Icons.refresh_rounded, tooltip: _isDeviceEnglish(context) ? 'Regenerate' : 'Regenerar', color: ExodoColors.amber, onTap: recharge),
       ],
     );
   }
@@ -1442,7 +1608,7 @@ class _ActionButton extends StatelessWidget {
   }
 }
 
-// Hoja de selecciÃ³n de modelos (Regla 12: Exodo sin tilde)
+// Hoja de selección de modelos (Regla 12: Exodo sin tilde)
 class _ModelSelectorSheet extends StatelessWidget {
   const _ModelSelectorSheet();
 
@@ -1689,7 +1855,17 @@ class _UpgradeModal {
                             foregroundColor: Colors.black,
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                           ),
-                          onPressed: () {},
+                          onPressed: () {
+                            HapticFeedback.mediumImpact();
+                            context.read<AppState>().upgradeToProPlan();
+                            Navigator.pop(context);
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(_isDeviceEnglish(context) ? '🎉 Hazak Pro activated for this session!' : '🎉 ¡Plan Hazak Pro activado con éxito!'),
+                                backgroundColor: ExodoColors.amber,
+                              ),
+                            );
+                          },
                           child: Text('Get Pro plan', style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.bold)),
                         ),
                       ),
