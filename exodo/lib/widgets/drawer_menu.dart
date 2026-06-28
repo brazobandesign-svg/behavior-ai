@@ -7,6 +7,8 @@ import '../models/models.dart';
 import '../services/app_state.dart';
 import '../services/supabase_service.dart';
 import '../theme/exodo_theme.dart';
+import '../l10n/app_i18n.dart';
+import '../l10n/app_translations.dart';
 
 bool _isDrawerEn(BuildContext context) {
   try {
@@ -338,7 +340,32 @@ class _DrawerMenuState extends State<DrawerMenu> {
                               ],
                             ),
                           ),
-                          SizedBox(height: s(6)),
+                          SizedBox(height: s(10)),
+                          // Item de Idioma (settings del drawer)
+                          _DrawerItem(
+                            horizontalPad: 0,
+                            icon: Icon(Icons.language_rounded, size: s(20), color: textCol),
+                            title: Row(
+                              children: [
+                                Text(
+                                  AppI18n.of(context).t('drawer.language'),
+                                  style: GoogleFonts.jetBrainsMono(
+                                    fontSize: s(14),
+                                    color: textCol,
+                                    fontWeight: FontWeight.w600,
+                                    letterSpacing: -0.2,
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  _currentLocaleFlag(context),
+                                  style: const TextStyle(fontSize: 16),
+                                ),
+                              ],
+                            ),
+                            onTap: () => _showLanguageSheet(context),
+                          ),
+                          SizedBox(height: s(4)),
                           Image.asset(
                             'assets/images/bybehavior_text.png',
                             height: bybehaviorH,
@@ -355,6 +382,115 @@ class _DrawerMenuState extends State<DrawerMenu> {
         ),
       ),
     );
+  }
+
+  // ============================================================
+  // Idioma: muestra la bandera del locale actualmente seleccionado.
+  // Si no hay override, devuelve null y se oculta.
+  // ============================================================
+  String _currentLocaleFlag(BuildContext context) {
+    final code = context.currentLocaleCode;
+    if (code == null) {
+      // Detectar locale del sistema
+      try {
+        final sys = ui.PlatformDispatcher.instance.locale.languageCode;
+        final match = kAppLocales.firstWhere((l) => l.code == sys, orElse: () => kAppLocales.first);
+        return '${match.nativeName} ${match.flag}';
+      } catch (_) {
+        return '${kAppLocales.first.nativeName} ${kAppLocales.first.flag}';
+      }
+    }
+    final match = kAppLocales.firstWhere((l) => l.code == code, orElse: () => kAppLocales.first);
+    return '${match.nativeName} ${match.flag}';
+  }
+
+  // ============================================================
+  // Sheet selector de idioma. Muestra los 6 disponibles (es/en/fr/pt/it/de)
+  // + opción "Predeterminado del sistema" para volver al auto-detect.
+  // ============================================================
+  void _showLanguageSheet(BuildContext context) {
+    final i18n = AppI18n.of(context);
+    final currentCode = context.currentLocaleCode;
+    final isLight = Theme.of(context).brightness == Brightness.light;
+    final bg = isLight ? Colors.white : const Color(0xFF1E1C19);
+    final textCol = isLight ? const Color(0xFF171615) : Colors.white;
+    final subTextCol = isLight ? Colors.black54 : Colors.white60;
+
+    HapticFeedback.selectionClick();
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: bg,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (sheetCtx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(width: 36, height: 4, margin: const EdgeInsets.only(bottom: 12), decoration: BoxDecoration(color: subTextCol.withValues(alpha: 0.3), borderRadius: BorderRadius.circular(2))),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 4, 20, 4),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    i18n.t('lang.sheet_title'),
+                    style: GoogleFonts.syne(fontSize: 18, fontWeight: FontWeight.bold, color: textCol),
+                  ),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    i18n.t('lang.sheet_subtitle'),
+                    style: GoogleFonts.inter(fontSize: 12.5, color: subTextCol),
+                  ),
+                ),
+              ),
+              // Opción "Predeterminado del sistema"
+              _LangTile(
+                flag: '🌐',
+                title: i18n.t('lang.system'),
+                subtitle: 'Auto-detect',
+                selected: currentCode == null,
+                textCol: textCol,
+                subTextCol: subTextCol,
+                onTap: () async {
+                  Navigator.pop(sheetCtx);
+                  HapticFeedback.selectionClick();
+                  await sheetCtx.setLocale(null);
+                },
+              ),
+              Divider(color: subTextCol.withValues(alpha: 0.2), height: 1, indent: 20, endIndent: 20),
+              const SizedBox(height: 4),
+              // Lista de idiomas disponibles
+              for (final loc in kAppLocales)
+                _LangTile(
+                  flag: loc.flag,
+                  title: loc.nativeName,
+                  subtitle: _langSubtitle(loc.code, i18n),
+                  selected: currentCode == loc.code,
+                  textCol: textCol,
+                  subTextCol: subTextCol,
+                  onTap: () async {
+                    Navigator.pop(sheetCtx);
+                    HapticFeedback.selectionClick();
+                    await sheetCtx.setLocale(loc.code);
+                  },
+                ),
+              const SizedBox(height: 8),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  String _langSubtitle(String code, AppI18n i18n) {
+    // Muestra el código en su propio idioma + el código ISO entre paréntesis
+    return '(${code.toUpperCase()})';
   }
 
   Widget _buildConvItem(Conversation conv, AppState state, bool isLight, bool isStarred, double hPad, double Function(double) s) {
@@ -531,6 +667,45 @@ class _DrawerMenuState extends State<DrawerMenu> {
 }
 
 // Modal estilo Claude Settings (fotos adjuntas)
+/// Tile reutilizable para el selector de idioma.
+class _LangTile extends StatelessWidget {
+  final String flag;
+  final String title;
+  final String subtitle;
+  final bool selected;
+  final Color textCol;
+  final Color subTextCol;
+  final VoidCallback onTap;
+
+  const _LangTile({
+    required this.flag,
+    required this.title,
+    required this.subtitle,
+    required this.selected,
+    required this.textCol,
+    required this.subTextCol,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      dense: true,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 2),
+      leading: Text(flag, style: const TextStyle(fontSize: 22)),
+      title: Text(
+        title,
+        style: TextStyle(fontSize: 15, fontWeight: selected ? FontWeight.w700 : FontWeight.w500, color: textCol),
+      ),
+      subtitle: Text(subtitle, style: TextStyle(fontSize: 11, color: subTextCol)),
+      trailing: selected
+          ? Icon(Icons.check_circle, size: 20, color: ExodoColors.amber)
+          : const SizedBox(width: 20),
+      onTap: onTap,
+    );
+  }
+}
+
 class _ClaudeAccountModal {
   static void show(BuildContext context, AppState state) {
     showModalBottomSheet(

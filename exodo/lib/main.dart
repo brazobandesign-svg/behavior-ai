@@ -2,6 +2,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'l10n/app_i18n.dart';
+import 'l10n/app_translations.dart';
 import 'services/supabase_service.dart';
 import 'services/app_state.dart';
 import 'theme/exodo_theme.dart';
@@ -18,7 +20,7 @@ void main() async {
       providers: [
         ChangeNotifierProvider(create: (_) => AppState()),
       ],
-      child: const ExodoApp(),
+      child: const AppI18nProvider(child: ExodoApp()),
     ),
   );
 }
@@ -29,9 +31,10 @@ class ExodoApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final state = context.watch<AppState>();
+    final userLocale = context.currentLocaleCode; // del AppI18nProvider
 
     return MaterialApp(
-      title: 'Éxodo by Behavior',
+      title: AppI18n.of(context).t('app.title'),
       debugShowCheckedModeBanner: false,
       // Sin flash: ambos temas preconstruidos + themeMode reactivo.
       theme: ExodoTheme.lightTheme,
@@ -40,13 +43,18 @@ class ExodoApp extends StatelessWidget {
       // Transición instantánea entre temas (sin animación) para evitar el flash blanco/negro.
       themeAnimationDuration: Duration.zero,
       themeAnimationCurve: Curves.linear,
-      supportedLocales: const [
-        Locale('en', ''),
-        Locale('es', ''),
-      ],
+      supportedLocales:
+          kAppLocales.map((l) => Locale(l.code, '')).toList(growable: false),
+      locale: userLocale != null && kAppLocales.any((l) => l.code == userLocale)
+          ? Locale(userLocale, '')
+          : null, // null → usa localeResolutionCallback (sistema o fallback es)
       localeResolutionCallback: (deviceLocale, supportedLocales) {
-        if (deviceLocale != null && deviceLocale.languageCode == 'en') {
-          return const Locale('en', '');
+        if (deviceLocale != null) {
+          for (final supported in supportedLocales) {
+            if (supported.languageCode == deviceLocale.languageCode) {
+              return supported;
+            }
+          }
         }
         return const Locale('es', '');
       },
@@ -69,11 +77,14 @@ class _RootSwitcher extends StatefulWidget {
 
 class _RootSwitcherState extends State<_RootSwitcher> {
   late final StreamSubscription<AuthState> _authSub;
-  bool _showSplash = true;
+  static bool _hasShownSplash = false;
+  late bool _showSplash;
 
   @override
   void initState() {
     super.initState();
+    _showSplash = !_hasShownSplash;
+    _hasShownSplash = true;
     // Escuchar cambios de autenticación para forzar rebuild del widget tree
     // (AppState._init() ya maneja loadUserData/clear internamente)
     _authSub = SupabaseService.client.auth.onAuthStateChange.listen((data) {
