@@ -117,6 +117,7 @@ const Map<String, String> _es = <String, String>{
   'drawer.sign_out':      'Cerrar sesión',
   'drawer.upgrade':       'Actualizar a Pro',
   'drawer.language':      'Idioma',
+  'drawer.add_widget':    'Añadir Gadget a Pantalla de Inicio',
 
   // Chat context menu
   'ctx.rename':   'Renombrar',
@@ -219,6 +220,7 @@ const Map<String, String> _en = <String, String>{
   'drawer.sign_out':     'Sign out',
   'drawer.upgrade':      'Upgrade to Pro',
   'drawer.language':     'Language',
+  'drawer.add_widget':   'Add Gadget to Home Screen',
 
   'ctx.rename':   'Rename',
   'ctx.pin':      'Pin',
@@ -314,6 +316,7 @@ const Map<String, String> _fr = <String, String>{
   'drawer.sign_out':     'Se déconnecter',
   'drawer.upgrade':      'Passer à Pro',
   'drawer.language':     'Langue',
+  'drawer.add_widget':   'Ajouter un gadget à lécran accueil',
 
   'ctx.rename':   'Renommer',
   'ctx.pin':      'Épingler',
@@ -409,6 +412,7 @@ const Map<String, String> _pt = <String, String>{
   'drawer.sign_out':     'Sair',
   'drawer.upgrade':      'Atualizar para Pro',
   'drawer.language':     'Idioma',
+  'drawer.add_widget':   'Adicionar Gadget à tela inicial',
 
   'ctx.rename':   'Renomear',
   'ctx.pin':      'Fixar',
@@ -504,6 +508,7 @@ const Map<String, String> _it = <String, String>{
   'drawer.sign_out':     'Esci',
   'drawer.upgrade':      'Passa a Pro',
   'drawer.language':     'Lingua',
+  'drawer.add_widget':   'Aggiungi gadget alla schermata iniziale',
 
   'ctx.rename':   'Rinomina',
   'ctx.pin':      'Fissa',
@@ -599,6 +604,7 @@ const Map<String, String> _de = <String, String>{
   'drawer.sign_out':     'Abmelden',
   'drawer.upgrade':      'Auf Pro upgraden',
   'drawer.language':     'Sprache',
+  'drawer.add_widget':   'Widget zum Startbildschirm hinzufügen',
 
   'ctx.rename':   'Umbenennen',
   'ctx.pin':      'Anheften',

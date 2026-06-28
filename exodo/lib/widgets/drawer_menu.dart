@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../models/models.dart';
 import '../services/app_state.dart';
 import '../services/supabase_service.dart';
+import '../services/widget_service.dart';
 import '../theme/exodo_theme.dart';
 import '../l10n/app_i18n.dart';
 import '../l10n/app_translations.dart';
@@ -162,6 +163,18 @@ class _DrawerMenuState extends State<DrawerMenu> {
                     HapticFeedback.vibrate();
                     state.toggleIncognito();
                   },
+                ),
+
+                // [v1.1] Mosaico "Añadir Gadget a Pantalla de Inicio" — integración
+                // con WidgetService (Android 12+ App Widgets pinning API).
+                _DrawerItem(
+                  horizontalPad: hPad,
+                  icon: Icon(Icons.widgets_outlined, size: s(20), color: ExodoColors.amber),
+                  title: Text(
+                    '✨ ${AppI18n.of(context).t('drawer.add_widget')}',
+                    style: GoogleFonts.jetBrainsMono(fontSize: s(14), color: ExodoColors.amber, fontWeight: FontWeight.w600, letterSpacing: -0.2),
+                  ),
+                  onTap: () => _showAddWidgetSheet(context),
                 ),
 
                 // 3. Buscar conversación
@@ -399,7 +412,167 @@ class _DrawerMenuState extends State<DrawerMenu> {
   }
 
   // ============================================================
-  // Helpers de idioma (movidos a _ClaudeAccountModal como static).
+// [v1.1] Sheet para anclar un Gadget (App Widget) a la pantalla
+// de inicio via WidgetService. Estilo Éxodo (dark, amber, mono).
+// ============================================================
+void _showAddWidgetSheet(BuildContext context) {
+  HapticFeedback.selectionClick();
+  showModalBottomSheet(
+    context: context,
+    backgroundColor: const Color(0xFF1C1A17),
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+    ),
+    builder: (sheetCtx) {
+      final isEn = AppI18n.of(sheetCtx).localeCode == 'en';
+      return SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 36,
+                  height: 4,
+                  margin: const EdgeInsets.only(bottom: 16),
+                  decoration: BoxDecoration(
+                    color: Colors.white24,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              Row(
+                children: [
+                  const Icon(Icons.widgets_outlined, color: ExodoColors.amber, size: 22),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      AppI18n.of(sheetCtx).t('drawer.add_widget'),
+                      style: GoogleFonts.syne(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Text(
+                isEn
+                    ? 'Pick the format you want on your home screen:'
+                    : 'Elige el formato que quieres en tu pantalla de inicio:',
+                style: GoogleFonts.inter(fontSize: 13, color: Colors.white60, height: 1.4),
+              ),
+              const SizedBox(height: 18),
+              InkWell(
+                onTap: () async {
+                  Navigator.pop(sheetCtx);
+                  HapticFeedback.selectionClick();
+                  await WidgetService.instance.requestPinWidget(type: 'square');
+                },
+                borderRadius: BorderRadius.circular(14),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF221F1C),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: Colors.white12),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF635BFF).withValues(alpha: 0.18),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Icon(Icons.crop_square_rounded, color: Color(0xFF635BFF), size: 22),
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              isEn ? 'Square Gadget' : 'Gadget Cuadrado',
+                              style: GoogleFonts.inter(fontSize: 15, color: Colors.white, fontWeight: FontWeight.w600),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              isEn ? 'Voice quick access' : 'Acceso rapido por voz',
+                              style: GoogleFonts.inter(fontSize: 12, color: Colors.white60),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const Icon(Icons.chevron_right_rounded, color: Colors.white38, size: 20),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
+              InkWell(
+                onTap: () async {
+                  Navigator.pop(sheetCtx);
+                  HapticFeedback.selectionClick();
+                  await WidgetService.instance.requestPinWidget(type: 'horizontal');
+                },
+                borderRadius: BorderRadius.circular(14),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF221F1C),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: Colors.white12),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          color: ExodoColors.amber.withValues(alpha: 0.18),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Icon(Icons.crop_landscape_rounded, color: ExodoColors.amber, size: 22),
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              isEn ? 'Horizontal Bar' : 'Barra Horizontal',
+                              style: GoogleFonts.inter(fontSize: 15, color: Colors.white, fontWeight: FontWeight.w600),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              isEn ? 'Quick search bar' : 'Buscador rapido',
+                              style: GoogleFonts.inter(fontSize: 12, color: Colors.white60),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const Icon(Icons.chevron_right_rounded, color: Colors.white38, size: 20),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    },
+  );
+}
+
+// ============================================================
   // ============================================================
 
   Widget _buildConvItem(Conversation conv, AppState state, bool isLight, bool isStarred, double hPad, double Function(double) s) {
