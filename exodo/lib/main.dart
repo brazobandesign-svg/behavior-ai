@@ -7,6 +7,7 @@ import 'services/app_state.dart';
 import 'theme/exodo_theme.dart';
 import 'screens/auth_screen.dart';
 import 'screens/chat_screen.dart';
+import 'screens/splash_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -68,6 +69,7 @@ class _RootSwitcher extends StatefulWidget {
 
 class _RootSwitcherState extends State<_RootSwitcher> {
   late final StreamSubscription<AuthState> _authSub;
+  bool _showSplash = true;
 
   @override
   void initState() {
@@ -89,14 +91,29 @@ class _RootSwitcherState extends State<_RootSwitcher> {
   @override
   Widget build(BuildContext context) {
     context.watch<AppState>();
+    
+    // 1. Si está activo el splash screen -> Mostrar splash
+    if (_showSplash) {
+      return SplashScreen(
+        onFinished: () {
+          if (mounted) {
+            setState(() {
+              _showSplash = false;
+            });
+          }
+        },
+      );
+    }
+
     final user = SupabaseService.currentUser;
 
-    // 1. Si no ha iniciado sesión -> Pantalla de Autenticación
+    // 2. Si no ha iniciado sesión -> Pantalla de Autenticación
     if (user == null) {
       return const AuthScreen();
     }
 
-    // 2. Todo listo -> Chat Principal directo (las preguntas de enfoque saldrán como modal dentro del chat)
+    // 3. Todo listo -> Chat Principal directo (las preguntas de enfoque saldrán como modal dentro del chat)
     return const ChatScreen();
   }
 }
+
