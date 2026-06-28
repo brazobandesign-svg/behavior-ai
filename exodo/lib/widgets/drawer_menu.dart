@@ -341,31 +341,6 @@ class _DrawerMenuState extends State<DrawerMenu> {
                             ),
                           ),
                           SizedBox(height: s(10)),
-                          // Item de Idioma (settings del drawer)
-                          _DrawerItem(
-                            horizontalPad: 0,
-                            icon: Icon(Icons.language_rounded, size: s(20), color: textCol),
-                            title: Row(
-                              children: [
-                                Text(
-                                  AppI18n.of(context).t('drawer.language'),
-                                  style: GoogleFonts.jetBrainsMono(
-                                    fontSize: s(14),
-                                    color: textCol,
-                                    fontWeight: FontWeight.w600,
-                                    letterSpacing: -0.2,
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                Text(
-                                  _currentLocaleFlag(context),
-                                  style: const TextStyle(fontSize: 16),
-                                ),
-                              ],
-                            ),
-                            onTap: () => _showLanguageSheet(context),
-                          ),
-                          SizedBox(height: s(4)),
                           Image.asset(
                             'assets/images/bybehavior_text.png',
                             height: bybehaviorH,
@@ -385,113 +360,8 @@ class _DrawerMenuState extends State<DrawerMenu> {
   }
 
   // ============================================================
-  // Idioma: muestra la bandera del locale actualmente seleccionado.
-  // Si no hay override, devuelve null y se oculta.
+  // Helpers de idioma (movidos a _ClaudeAccountModal como static).
   // ============================================================
-  String _currentLocaleFlag(BuildContext context) {
-    final code = context.currentLocaleCode;
-    if (code == null) {
-      // Detectar locale del sistema
-      try {
-        final sys = ui.PlatformDispatcher.instance.locale.languageCode;
-        final match = kAppLocales.firstWhere((l) => l.code == sys, orElse: () => kAppLocales.first);
-        return '${match.nativeName} ${match.flag}';
-      } catch (_) {
-        return '${kAppLocales.first.nativeName} ${kAppLocales.first.flag}';
-      }
-    }
-    final match = kAppLocales.firstWhere((l) => l.code == code, orElse: () => kAppLocales.first);
-    return '${match.nativeName} ${match.flag}';
-  }
-
-  // ============================================================
-  // Sheet selector de idioma. Muestra los 6 disponibles (es/en/fr/pt/it/de)
-  // + opción "Predeterminado del sistema" para volver al auto-detect.
-  // ============================================================
-  void _showLanguageSheet(BuildContext context) {
-    final i18n = AppI18n.of(context);
-    final currentCode = context.currentLocaleCode;
-    final isLight = Theme.of(context).brightness == Brightness.light;
-    final bg = isLight ? Colors.white : const Color(0xFF1E1C19);
-    final textCol = isLight ? const Color(0xFF171615) : Colors.white;
-    final subTextCol = isLight ? Colors.black54 : Colors.white60;
-
-    HapticFeedback.selectionClick();
-
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: bg,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
-      builder: (sheetCtx) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 12),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(width: 36, height: 4, margin: const EdgeInsets.only(bottom: 12), decoration: BoxDecoration(color: subTextCol.withValues(alpha: 0.3), borderRadius: BorderRadius.circular(2))),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(20, 4, 20, 4),
-                child: Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    i18n.t('lang.sheet_title'),
-                    style: GoogleFonts.syne(fontSize: 18, fontWeight: FontWeight.bold, color: textCol),
-                  ),
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
-                child: Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    i18n.t('lang.sheet_subtitle'),
-                    style: GoogleFonts.inter(fontSize: 12.5, color: subTextCol),
-                  ),
-                ),
-              ),
-              // Opción "Predeterminado del sistema"
-              _LangTile(
-                flag: '🌐',
-                title: i18n.t('lang.system'),
-                subtitle: 'Auto-detect',
-                selected: currentCode == null,
-                textCol: textCol,
-                subTextCol: subTextCol,
-                onTap: () async {
-                  Navigator.pop(sheetCtx);
-                  HapticFeedback.selectionClick();
-                  await sheetCtx.setLocale(null);
-                },
-              ),
-              Divider(color: subTextCol.withValues(alpha: 0.2), height: 1, indent: 20, endIndent: 20),
-              const SizedBox(height: 4),
-              // Lista de idiomas disponibles
-              for (final loc in kAppLocales)
-                _LangTile(
-                  flag: loc.flag,
-                  title: loc.nativeName,
-                  subtitle: _langSubtitle(loc.code, i18n),
-                  selected: currentCode == loc.code,
-                  textCol: textCol,
-                  subTextCol: subTextCol,
-                  onTap: () async {
-                    Navigator.pop(sheetCtx);
-                    HapticFeedback.selectionClick();
-                    await sheetCtx.setLocale(loc.code);
-                  },
-                ),
-              const SizedBox(height: 8),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  String _langSubtitle(String code, AppI18n i18n) {
-    // Muestra el código en su propio idioma + el código ISO entre paréntesis
-    return '(${code.toUpperCase()})';
-  }
 
   Widget _buildConvItem(Conversation conv, AppState state, bool isLight, bool isStarred, double hPad, double Function(double) s) {
     final active = state.activeConversation?.id == conv.id;
@@ -777,6 +647,16 @@ class _ClaudeAccountModal {
               ),
               const SizedBox(height: 8),
               _buildSettingTile(
+                icon: Icons.language_rounded,
+                title: AppI18n.of(context).t('drawer.language'),
+                subtitle: _currentLocaleFlag(context),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _showLanguageSheet(context);
+                },
+              ),
+              const SizedBox(height: 8),
+              _buildSettingTile(
                 icon: Icons.monetization_on_outlined,
                 title: 'Billing',
                 onTap: () {
@@ -824,7 +704,12 @@ class _ClaudeAccountModal {
     );
   }
 
-  static Widget _buildSettingTile({required IconData icon, required String title, required VoidCallback onTap}) {
+  static Widget _buildSettingTile({
+    required IconData icon,
+    required String title,
+    required VoidCallback onTap,
+    String? subtitle,
+  }) {
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(14),
@@ -835,9 +720,125 @@ class _ClaudeAccountModal {
           children: [
             Icon(icon, color: Colors.white70, size: 22),
             const SizedBox(width: 14),
-            Expanded(child: Text(title, style: GoogleFonts.inter(fontSize: 15, color: Colors.white, fontWeight: FontWeight.w500))),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(title, style: GoogleFonts.inter(fontSize: 15, color: Colors.white, fontWeight: FontWeight.w500)),
+                  if (subtitle != null && subtitle.isNotEmpty) ...[
+                    const SizedBox(height: 2),
+                    Text(subtitle, style: GoogleFonts.inter(fontSize: 12, color: Colors.white60)),
+                  ],
+                ],
+              ),
+            ),
             const Icon(Icons.chevron_right_rounded, color: Colors.white38, size: 20),
           ],
+        ),
+      ),
+    );
+  }
+
+  // ============================================================
+  // Idioma: helper y sheet movidos aquí (estaban en _DrawerMenuState).
+  // ============================================================
+
+  /// Devuelve "🇪🇸 Español" o el locale seleccionado. Si no hay override
+  /// del usuario, autodetecta el locale del sistema.
+  static String _currentLocaleFlag(BuildContext context) {
+    final code = context.currentLocaleCode;
+    if (code == null) {
+      try {
+        final sys = ui.PlatformDispatcher.instance.locale.languageCode;
+        final match = kAppLocales.firstWhere((l) => l.code == sys, orElse: () => kAppLocales.first);
+        return '${match.nativeName} ${match.flag}';
+      } catch (_) {
+        return '${kAppLocales.first.nativeName} ${kAppLocales.first.flag}';
+      }
+    }
+    final match = kAppLocales.firstWhere((l) => l.code == code, orElse: () => kAppLocales.first);
+    return '${match.nativeName} ${match.flag}';
+  }
+
+  /// Sheet selector de idioma. 6 disponibles + opción "Predeterminado
+  /// del sistema". El sheet se cierra solo al elegir; la app entera se
+  /// rerenderiza por el InheritedWidget del AppI18nProvider.
+  static void _showLanguageSheet(BuildContext context) {
+    final i18n = AppI18n.of(context);
+    final currentCode = context.currentLocaleCode;
+    final isLight = Theme.of(context).brightness == Brightness.light;
+    final bg = isLight ? Colors.white : const Color(0xFF1E1C19);
+    final textCol = isLight ? const Color(0xFF171615) : Colors.white;
+    final subTextCol = isLight ? Colors.black54 : Colors.white60;
+
+    HapticFeedback.selectionClick();
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: bg,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (sheetCtx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(width: 36, height: 4, margin: const EdgeInsets.only(bottom: 12), decoration: BoxDecoration(color: subTextCol.withValues(alpha: 0.3), borderRadius: BorderRadius.circular(2))),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 4, 20, 4),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    i18n.t('lang.sheet_title'),
+                    style: GoogleFonts.syne(fontSize: 18, fontWeight: FontWeight.bold, color: textCol),
+                  ),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    i18n.t('lang.sheet_subtitle'),
+                    style: GoogleFonts.inter(fontSize: 12.5, color: subTextCol),
+                  ),
+                ),
+              ),
+              // Opción "Predeterminado del sistema"
+              _LangTile(
+                flag: '🌐',
+                title: i18n.t('lang.system'),
+                subtitle: 'Auto-detect',
+                selected: currentCode == null,
+                textCol: textCol,
+                subTextCol: subTextCol,
+                onTap: () async {
+                  Navigator.pop(sheetCtx);
+                  HapticFeedback.selectionClick();
+                  await sheetCtx.setLocale(null);
+                },
+              ),
+              Divider(color: subTextCol.withValues(alpha: 0.2), height: 1, indent: 20, endIndent: 20),
+              const SizedBox(height: 4),
+              // Lista de idiomas disponibles
+              for (final loc in kAppLocales)
+                _LangTile(
+                  flag: loc.flag,
+                  title: loc.nativeName,
+                  subtitle: '(${loc.code.toUpperCase()})',
+                  selected: currentCode == loc.code,
+                  textCol: textCol,
+                  subTextCol: subTextCol,
+                  onTap: () async {
+                    Navigator.pop(sheetCtx);
+                    HapticFeedback.selectionClick();
+                    await sheetCtx.setLocale(loc.code);
+                  },
+                ),
+              const SizedBox(height: 8),
+            ],
+          ),
         ),
       ),
     );
