@@ -45,9 +45,7 @@ class ExodoApp extends StatelessWidget {
       themeAnimationCurve: Curves.linear,
       supportedLocales:
           kAppLocales.map((l) => Locale(l.code, '')).toList(growable: false),
-      locale: userLocale != null && kAppLocales.any((l) => l.code == userLocale)
-          ? Locale(userLocale, '')
-          : null, // null → usa localeResolutionCallback (sistema o fallback es)
+      locale: _resolveLocale(userLocale), // null → cae a localeResolutionCallback
       localeResolutionCallback: (deviceLocale, supportedLocales) {
         if (deviceLocale != null) {
           for (final supported in supportedLocales) {
@@ -66,6 +64,18 @@ class ExodoApp extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Resuelve el locale de la app para `MaterialApp.locale`.
+/// - Si el usuario eligió uno en el picker (vía AppI18nProvider) Y está en
+///   la lista de locales soportados → devuelve ese Locale.
+/// - En cualquier otro caso (sin override, o override inválido) → null,
+///   para que MaterialApp.useInheritedMediaQuery + localeResolutionCallback
+///   caigan al locale del sistema (con fallback a 'es').
+Locale? _resolveLocale(String? appLocale) {
+  if (appLocale == null) return null;
+  if (!kAppLocales.any((l) => l.code == appLocale)) return null;
+  return Locale(appLocale, '');
 }
 
 class _RootSwitcher extends StatefulWidget {

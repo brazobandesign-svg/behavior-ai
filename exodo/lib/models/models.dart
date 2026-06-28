@@ -40,6 +40,7 @@ class Conversation {
   final bool isIncognito;
   bool isStarred;
   final DateTime createdAt;
+  final DateTime? updatedAt;
 
   Conversation({
     required this.id,
@@ -49,6 +50,7 @@ class Conversation {
     this.isIncognito = false,
     this.isStarred = false,
     required this.createdAt,
+    this.updatedAt,
   });
 
   factory Conversation.fromJson(Map<String, dynamic> json) {
@@ -60,6 +62,7 @@ class Conversation {
       isIncognito: json['is_incognito'] as bool? ?? false,
       isStarred: json['is_starred'] as bool? ?? false,
       createdAt: DateTime.parse(json['created_at'] as String),
+      updatedAt: json['updated_at'] != null ? DateTime.tryParse(json['updated_at'] as String) : null,
     );
   }
 }
@@ -131,14 +134,16 @@ class Source {
 
 class ExodoModelOption {
   final String id;
+  final String modelId; // NIM model ID for backend routing (e.g. 'nim-nemotron-3-ultra')
   final String title; // 'G1.1', 'G1.3', 'XPi', 'J1.9'
-  final String subtitle; // 'Origon', 'Lux', 'Ehyeh', 'Hazak'
+  final String subtitle; // 'Origo', 'Lux', 'Ehyeh', 'Hazak'
   final String plan; // 'genesis' | 'hazak'
   final String description;
   final String descriptionEn;
 
   const ExodoModelOption({
     required this.id,
+    required this.modelId,
     required this.title,
     required this.subtitle,
     required this.plan,
@@ -150,6 +155,7 @@ class ExodoModelOption {
 const List<ExodoModelOption> exodoModels = [
   ExodoModelOption(
     id: 'origo',
+    modelId: 'nim-nemotron-3-ultra',
     title: 'G1.1',
     subtitle: 'Origo',
     plan: 'genesis',
@@ -158,6 +164,7 @@ const List<ExodoModelOption> exodoModels = [
   ),
   ExodoModelOption(
     id: 'ehyeh',
+    modelId: 'nim-deepseek-v4-pro',
     title: 'XPi',
     subtitle: 'Ehyeh',
     plan: 'hazak',

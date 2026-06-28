@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  DEBUG-ONLY network config.
+  Permite cleartext HTTP SOLO a IPs LAN privadas y loopback.
+  Este archivo SOLO se usa en builds debug. El main sigue exigiendo HTTPS.
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>

@@ -15,7 +15,11 @@ async function planGuard(req, res, next) {
     return next();
   }
 
-  const today = new Date().toISOString().split('T')[0]; // '2026-06-25'
+  // Usar zona horaria AST (UTC-4) para que el reset sea a medianoche local
+  const now = new Date();
+  const astOffset = 4 * 60 * 60 * 1000; // UTC-4
+  const astDate = new Date(now.getTime() - astOffset);
+  const today = astDate.toISOString().split('T')[0]; // '2026-06-25'
   const planConfig = PLANS[plan] || PLANS.genesis;
 
   try {

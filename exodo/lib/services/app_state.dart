@@ -1,20 +1,13 @@
 import 'dart:convert';
-import 'dart:io';
-import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/models.dart';
 import 'supabase_service.dart';
 import 'chat_service.dart';
-
-bool _isStateEn() {
-  try {
-    if (ui.PlatformDispatcher.instance.locale.languageCode == 'en') return true;
-  } catch (_) {}
-  return false;
-}
+import '../l10n/app_i18n.dart';
 
 class AppState extends ChangeNotifier {
   UserProfile? profile;
@@ -63,8 +56,10 @@ class AppState extends ChangeNotifier {
     SupabaseService.client.auth.onAuthStateChange.listen((data) async {
       final event = data.event;
       if (event == AuthChangeEvent.signedIn || event == AuthChangeEvent.initialSession) {
+        stopGeneration();
         await loadUserData();
       } else if (event == AuthChangeEvent.signedOut) {
+        stopGeneration();
         profile = null;
         conversations = [];
         activeConversation = null;
@@ -80,7 +75,7 @@ class AppState extends ChangeNotifier {
     profile = await SupabaseService.getProfile();
     final currentUserEmail = SupabaseService.currentUser?.email;
     if (currentUserEmail != null && currentUserEmail.toLowerCase() == 'brazobandesign@gmail.com') {
-      if (profile?.plan != 'hazak') {
+      if (profile != null && profile!.plan != 'hazak') {
         SupabaseService.client.from('profiles').update({'plan': 'hazak'}).eq('id', profile!.id);
         profile = UserProfile(
           id: profile!.id,
@@ -116,11 +111,7 @@ class AppState extends ChangeNotifier {
       tokensResetTime = null;
     }
 
-    if (conversations.isNotEmpty) {
-      await selectConversation(conversations.first);
-    } else {
-      startNewChat();
-    }
+    startNewChat();
     if (isGuestUser) {
       final ipBlocked = await SupabaseService.isGuestIpBlocked();
       final hwBlocked = await _checkHardwareBlocked();
@@ -230,7 +221,7 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
-  String get userEmail => SupabaseService.client.auth.currentUser?.email ?? 'overcomingchannel1@gmail.com';
+  String get userEmail => SupabaseService.client.auth.currentUser?.email ?? '';
 
   void updateProfileName(String newName) {
     if (profile != null) {
@@ -326,9 +317,11 @@ class AppState extends ChangeNotifier {
     );
     currentMessages.add(userMsg);
     notifyListeners();
-    await SupabaseService.sendMessageAndStream(
+    await ChatService.sendMessageStream(
       conversationId: activeConversation?.id ?? '',
-      userMessage: lastUserText,
+      message: lastUserText,
+      history: isIncognito ? currentMessages.where((m) => !m.isThinking).map((m) => {'role': m.role, 'content': m.content}).toList() : null,
+      modelOverride: selectedModel.modelId,
       onChunk: (chunk) {
         final idx = currentMessages.indexWhere((m) => m.id == thinkingId);
         if (idx == -1) return;
@@ -349,11 +342,7 @@ class AppState extends ChangeNotifier {
           conversationId: activeConversation?.id ?? '',
           role: 'assistant',
           content: fullText,
-          sources: sources.isNotEmpty ? sources : const [
-            Source(title: 'Behavior AI', url: 'https://exodo.ai', favicon: 'B'),
-            Source(title: 'NVIDIA NIM', url: 'https://build.nvidia.com', favicon: 'N'),
-            Source(title: 'Knowledge Base', url: '', favicon: 'K'),
-          ],
+          sources: sources,
           createdAt: currentMessages[idx].createdAt,
         );
         notifyListeners();
@@ -398,6 +387,15 @@ class AppState extends ChangeNotifier {
       createdAt: DateTime.now(),
     );
     currentMessages.add(userMsg);
+    if (shouldSaveHistory && activeConversation != null) {
+      try {
+        await SupabaseService.client.from('messages').insert({
+          'conversation_id': activeConversation!.id,
+          'role': 'user',
+          'content': text,
+        });
+      } catch (_) {}
+    }
 
     // 3. Añadir burbuja temporal de pensamiento con animación personalizada
     isThinking = true;
@@ -413,50 +411,103 @@ class AppState extends ChangeNotifier {
     notifyListeners();
 
     try {
-      // 4. Llamar a API
-      final res = await ChatService.sendMessage(
+      final msgId = DateTime.now().millisecondsSinceEpoch.toString();
+      bool firstChunk = true;
+
+      await ChatService.sendMessageStream(
         message: text,
         conversationId: shouldSaveHistory ? activeConversation?.id : null,
+        history: isIncognito ? currentMessages.where((m) => !m.isThinking).map((m) => {'role': m.role, 'content': m.content}).toList() : null,
+        modelOverride: selectedModel.modelId,
+        onChunk: (chunk) {
+          if (firstChunk) {
+            firstChunk = false;
+            currentMessages.removeWhere((m) => m.isThinking);
+            isThinking = false;
+            currentMessages.add(ChatMessage(
+              id: msgId,
+              conversationId: activeConversation?.id ?? 'incognito',
+              role: 'assistant',
+              content: chunk,
+              createdAt: DateTime.now(),
+            ));
+          } else {
+            final idx = currentMessages.indexWhere((m) => m.id == msgId);
+            if (idx != -1) {
+              currentMessages[idx] = ChatMessage(
+                id: msgId,
+                conversationId: currentMessages[idx].conversationId,
+                role: 'assistant',
+                content: currentMessages[idx].content + chunk,
+                sources: currentMessages[idx].sources,
+                createdAt: currentMessages[idx].createdAt,
+              );
+            }
+          }
+          notifyListeners();
+        },
+        onComplete: (fullText, sources) async {
+          final idx = currentMessages.indexWhere((m) => m.id == msgId);
+          if (idx != -1) {
+            currentMessages[idx] = ChatMessage(
+              id: msgId,
+              conversationId: currentMessages[idx].conversationId,
+              role: 'assistant',
+              content: fullText,
+              sources: sources,
+              createdAt: currentMessages[idx].createdAt,
+            );
+          } else if (firstChunk) {
+            currentMessages.removeWhere((m) => m.isThinking);
+            isThinking = false;
+            currentMessages.add(ChatMessage(
+              id: msgId,
+              conversationId: activeConversation?.id ?? 'incognito',
+              role: 'assistant',
+              content: fullText,
+              sources: sources,
+              createdAt: DateTime.now(),
+            ));
+          }
+          if (shouldSaveHistory && activeConversation != null) {
+            try {
+              await SupabaseService.client.from('messages').insert({
+                'conversation_id': activeConversation!.id,
+                'role': 'assistant',
+                'content': fullText,
+              });
+            } catch (_) {}
+          }
+          HapticFeedback.vibrate();
+          notifyListeners();
+        },
+        onError: (err) {
+          currentMessages.removeWhere((m) => m.isThinking);
+          isThinking = false;
+          errorMessage = err.replaceAll('Exception: ', '');
+          final isEn = AppI18n.instance.localeCode == 'en';
+          currentMessages.add(ChatMessage(
+            id: 'error',
+            conversationId: activeConversation?.id ?? 'incognito',
+            role: 'assistant',
+            content: isEn ? '⚠️ **Network or plan error**: $errorMessage' : '⚠️ **Error de red o plan**: $errorMessage',
+            createdAt: DateTime.now(),
+          ));
+          notifyListeners();
+        },
       );
-
-      // Quitar burbuja thinking
-      currentMessages.removeWhere((m) => m.isThinking);
-      isThinking = false;
-
-      // Actualizar tokens
-      tokensUsed = res.tokensUsed;
-      tokensLimit = res.tokensLimit;
-      if (tokensResetTime == null && tokensUsed > 0) {
-        tokensResetTime = DateTime.now().add(const Duration(hours: 24));
-      }
-
-      // 5. Añadir respuesta final
-      final assistantMsg = ChatMessage(
-        id: DateTime.now().millisecondsSinceEpoch.toString(),
-        conversationId: activeConversation?.id ?? 'incognito',
-        role: 'assistant',
-        content: res.responseText,
-        intentDetected: res.intent,
-        sources: const [
-          Source(title: 'Behavior AI', url: 'https://exodo.ai', favicon: 'B'),
-          Source(title: 'NVIDIA NIM', url: 'https://build.nvidia.com', favicon: 'N'),
-          Source(title: 'Knowledge Base', url: '', favicon: 'K'),
-        ],
-        createdAt: DateTime.now(),
-      );
-      currentMessages.add(assistantMsg);
-      HapticFeedback.vibrate();
 
     } catch (e) {
       currentMessages.removeWhere((m) => m.isThinking);
       isThinking = false;
       errorMessage = e.toString().replaceAll('Exception: ', '');
+      final isEn = AppI18n.instance.localeCode == 'en';
       
       currentMessages.add(ChatMessage(
         id: 'error',
         conversationId: activeConversation?.id ?? 'incognito',
         role: 'assistant',
-        content: _isStateEn() ? '⚠️ **Network or plan error**: $errorMessage' : '⚠️ **Error de red o plan**: $errorMessage',
+        content: isEn ? '⚠️ **Network or plan error**: $errorMessage' : '⚠️ **Error de red o plan**: $errorMessage',
         createdAt: DateTime.now(),
       ));
     }
@@ -473,19 +524,45 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
-  // --- CANDADO FÍSICO DE HARDWARE INMUTABLE ---
-  Future<File> _getHardwareLockFile() async {
-    final dir = Directory.systemTemp.path;
-    return File('$dir/exodo_guest_hw_lock.json');
+  void updateUserMessage(String id, String newContent) {
+    final idx = currentMessages.indexWhere((m) => m.id == id);
+    if (idx == -1) return;
+    final oldContent = currentMessages[idx].content;
+    currentMessages[idx] = ChatMessage(
+      id: currentMessages[idx].id,
+      conversationId: currentMessages[idx].conversationId,
+      role: currentMessages[idx].role,
+      content: newContent,
+      intentDetected: currentMessages[idx].intentDetected,
+      modelCalled: currentMessages[idx].modelCalled,
+      sources: currentMessages[idx].sources,
+      createdAt: currentMessages[idx].createdAt,
+      isThinking: currentMessages[idx].isThinking,
+    );
+    notifyListeners();
+    if (!isIncognito && !isGuestUser && activeConversation != null) {
+      try {
+        SupabaseService.client.from('messages').update({'content': newContent})
+            .eq('conversation_id', activeConversation!.id)
+            .eq('role', 'user')
+            .eq('content', oldContent);
+      } catch (_) {}
+    }
   }
 
+  void stopGeneration() {
+    ChatService.cancelStream();
+    currentMessages.removeWhere((m) => m.isThinking);
+    isThinking = false;
+    notifyListeners();
+  }
+
+  // --- CANDADO PERSISTENTE DE HARDWARE VIA SHARED PREFERENCES ---
   Future<bool> _checkHardwareBlocked() async {
     try {
-      final file = await _getHardwareLockFile();
-      if (!await file.exists()) return false;
-      final data = jsonDecode(await file.readAsString());
-      final date = data['date'] as String?;
-      final count = data['count'] as int? ?? 0;
+      final prefs = await SharedPreferences.getInstance();
+      final date = prefs.getString('exodo_guest_hw_date');
+      final count = prefs.getInt('exodo_guest_hw_count') ?? 0;
       final today = DateTime.now().toIso8601String().substring(0, 10);
       if (date != today) return false;
       guestMessagesSessionCount = count;
@@ -497,18 +574,16 @@ class AppState extends ChangeNotifier {
 
   Future<void> _recordHardwareMessage() async {
     try {
-      final file = await _getHardwareLockFile();
+      final prefs = await SharedPreferences.getInstance();
       final today = DateTime.now().toIso8601String().substring(0, 10);
       int count = guestMessagesSessionCount;
-      if (await file.exists()) {
-        final data = jsonDecode(await file.readAsString());
-        if (data['date'] == today) {
-          final existing = data['count'] as int? ?? 0;
-          if (existing > count) count = existing;
-        }
+      if (prefs.getString('exodo_guest_hw_date') == today) {
+        final existing = prefs.getInt('exodo_guest_hw_count') ?? 0;
+        if (existing > count) count = existing;
       }
       guestMessagesSessionCount = count;
-      await file.writeAsString(jsonEncode({'date': today, 'count': count}));
+      await prefs.setString('exodo_guest_hw_date', today);
+      await prefs.setInt('exodo_guest_hw_count', count);
     } catch (_) {}
   }
 }

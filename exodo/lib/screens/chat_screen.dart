@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:math' as math;
-import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -12,16 +11,32 @@ import 'package:speech_to_text/speech_to_text.dart' as stt;
 import '../models/models.dart';
 import '../services/app_state.dart';
 import '../services/supabase_service.dart';
+import '../services/tts_service.dart';
 import '../widgets/drawer_menu.dart';
+import '../widgets/scroll_to_bottom_button.dart';
 import '../theme/exodo_theme.dart';
 import '../l10n/app_i18n.dart';
 
+// [GLM-P1-2] Antes leía el locale del SISTEMA operativo (PlatformDispatcher +
+// Localizations). Eso causaba que, tras cambiar el idioma en el drawer, los
+// textos hardcoded siguieran en el idioma del dispositivo.
+// Ahora consulta el locale seleccionado en la app vía AppI18n (que vive en
+// MaterialApp.locale y persiste en SharedPreferences clave 'exodo_locale').
 bool _isDeviceEnglish(BuildContext context) {
-  try {
-    final sys = ui.PlatformDispatcher.instance.locale.languageCode;
-    if (sys == 'en') return true;
-  } catch (_) {}
-  return Localizations.localeOf(context).languageCode == 'en';
+  return AppI18n.of(context).localeCode == 'en';
+}
+
+String _formatTime(BuildContext context, DateTime dt) {
+  final isEn = _isDeviceEnglish(context);
+  if (isEn) {
+    final hour = dt.hour > 12 ? dt.hour - 12 : (dt.hour == 0 ? 12 : dt.hour);
+    final amPm = dt.hour < 12 ? 'AM' : 'PM';
+    final minute = dt.minute.toString().padLeft(2, '0');
+    return '$hour:$minute $amPm';
+  }
+  final hour = dt.hour.toString().padLeft(2, '0');
+  final minute = dt.minute.toString().padLeft(2, '0');
+  return '$hour:$minute';
 }
 
 class ChatScreen extends StatefulWidget {
@@ -175,12 +190,15 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
               // Stage principal o lista de mensajes (Regla 8)
               // Stage principal o lista de mensajes (SIEMPRE VISIBLE)
               Expanded(
-                child: state.currentMessages.isEmpty
-                    ? _OriginalDesignStage(
+                child: Stack(
+                  children: [
+                    if (state.currentMessages.isEmpty)
+                      _OriginalDesignStage(
                         pulseAnim: _pulseCtrl,
                         fullName: state.profile?.fullName,
                       )
-                    : ListView.builder(
+                    else
+                      ListView.builder(
                         controller: _scrollCtrl,
                         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                         itemCount: state.currentMessages.length,
@@ -192,6 +210,17 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
                           return _MessageBubble(message: msg);
                         },
                       ),
+                    // Botón flotante "scroll to bottom" (esquina inferior derecha).
+                    Positioned(
+                      right: 16,
+                      bottom: 12,
+                      child: _ScrollToBottomHost(
+                        controller: _scrollCtrl,
+                        messagesCount: state.currentMessages.length,
+                      ),
+                    ),
+                  ],
+                ),
               ),
 
               // Barra inferior entrelazada del Tab 1 (SIEMPRE en su sitio exacto)
@@ -481,7 +510,7 @@ class _InterlockingComposerAreaState extends State<_InterlockingComposerArea> wi
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Container(width: 36, height: 4, margin: const EdgeInsets.only(bottom: 16), decoration: BoxDecoration(color: Colors.grey.withOpacity(0.3), borderRadius: BorderRadius.circular(2))),
+              Container(width: 36, height: 4, margin: const EdgeInsets.only(bottom: 16), decoration: BoxDecoration(color: Colors.grey.withValues(alpha: 0.3), borderRadius: BorderRadius.circular(2))),
               ListTile(
                 leading: const Icon(Icons.camera_alt_rounded, color: ExodoColors.amber),
                 title: Text(isEn ? 'Camera' : 'Cámara', style: GoogleFonts.inter(fontWeight: FontWeight.w600, color: isLight ? Colors.black87 : Colors.white)),
@@ -836,20 +865,20 @@ class _InterlockingComposerAreaState extends State<_InterlockingComposerArea> wi
                                             borderRadius: BorderRadius.circular(16),
                                             border: Border.all(
                                               color: isXpiPro
-                                                  ? ExodoColors.amber.withOpacity(0.40 + 0.60 * ((math.sin(t * math.pi * 2) + 1) / 2))
+                                                  ? ExodoColors.amber.withValues(alpha: 0.40 + 0.60 * ((math.sin(t * math.pi * 2) + 1) / 2))
                                                   : Colors.transparent,
                                               width: 1.0,
                                             ),
                                             boxShadow: isXpiPro
                                                 ? [
                                                     BoxShadow(
-                                                      color: ExodoColors.amber.withOpacity(0.15 + 0.25 * ((math.sin(t * math.pi * 2) + 1) / 2)),
+                                                      color: ExodoColors.amber.withValues(alpha: 0.15 + 0.25 * ((math.sin(t * math.pi * 2) + 1) / 2)),
                                                       blurRadius: 10,
                                                       spreadRadius: 1,
                                                       offset: Offset(6 * math.cos(t * math.pi * 2), 3 * math.sin(t * math.pi * 2)),
                                                     ),
                                                     BoxShadow(
-                                                      color: ExodoColors.amber.withOpacity(0.10 + 0.18 * ((math.cos(t * math.pi * 2 * 1.3) + 1) / 2)),
+                                                      color: ExodoColors.amber.withValues(alpha: 0.10 + 0.18 * ((math.cos(t * math.pi * 2 * 1.3) + 1) / 2)),
                                                       blurRadius: 14,
                                                       spreadRadius: 0,
                                                       offset: Offset(-5 * math.sin(t * math.pi * 2), -3 * math.cos(t * math.pi * 2)),
@@ -1000,7 +1029,7 @@ class _InterlockingComposerAreaState extends State<_InterlockingComposerArea> wi
                                             ? (isLight ? const Color(0xFF131313) : const Color(0xFFFBF9F5))
                                             : const Color(0xFF131313),
                                         shape: BoxShape.circle,
-                                        border: shouldShowSend ? null : Border.all(color: ExodoColors.amber.withOpacity(0.5), width: 1.2),
+                                        border: shouldShowSend ? null : Border.all(color: ExodoColors.amber.withValues(alpha: 0.5), width: 1.2),
                                       ),
                                       child: Icon(
                                         shouldShowSend ? Icons.arrow_upward : Icons.graphic_eq_rounded,
@@ -1178,9 +1207,9 @@ class _TokenProgressBarState extends State<_TokenProgressBar> {
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
                         decoration: BoxDecoration(
-                          color: ExodoColors.amber.withOpacity(0.15),
+                          color: ExodoColors.amber.withValues(alpha: 0.15),
                           borderRadius: BorderRadius.circular(6),
-                          border: Border.all(color: ExodoColors.amber.withOpacity(0.3)),
+                          border: Border.all(color: ExodoColors.amber.withValues(alpha: 0.3)),
                         ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
@@ -1299,29 +1328,140 @@ class _MessageBubble extends StatelessWidget {
   final ChatMessage message;
   const _MessageBubble({required this.message});
 
+  void _showEditDialog(BuildContext context) {
+    final ctrl = TextEditingController(text: message.content);
+    final isLight = Theme.of(context).brightness == Brightness.light;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: isLight ? const Color(0xFFF5F2EB) : const Color(0xFF1E1C19),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text(
+          _isDeviceEnglish(context) ? 'Edit message' : 'Editar mensaje',
+          style: GoogleFonts.inter(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+            color: isLight ? const Color(0xFF171615) : ExodoColors.textPrimary,
+          ),
+        ),
+        content: TextField(
+          controller: ctrl,
+          maxLines: 5,
+          minLines: 2,
+          style: GoogleFonts.inter(
+            fontSize: 14,
+            color: isLight ? const Color(0xFF171615) : ExodoColors.textPrimary,
+          ),
+          decoration: InputDecoration(
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: BorderSide(color: ExodoColors.border),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: const BorderSide(color: ExodoColors.amber),
+            ),
+            filled: true,
+            fillColor: isLight ? Colors.white : const Color(0xFF131313),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(
+              _isDeviceEnglish(context) ? 'Cancel' : 'Cancelar',
+              style: GoogleFonts.inter(color: ExodoColors.textSecondary),
+            ),
+          ),
+          TextButton(
+            onPressed: () {
+              final newText = ctrl.text.trim();
+              if (newText.isNotEmpty) {
+                context.read<AppState>().updateUserMessage(message.id, newText);
+              }
+              Navigator.pop(ctx);
+            },
+            child: Text(
+              _isDeviceEnglish(context) ? 'Save' : 'Guardar',
+              style: GoogleFonts.inter(
+                color: ExodoColors.amber,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final isUser = message.role == 'user';
     final isLight = Theme.of(context).brightness == Brightness.light;
 
     if (isUser) {
-      // Regla 13: Chat del usuario en rectángulo simple SIN colita ("sale de mi")
       return Align(
         alignment: Alignment.centerRight,
-        child: Container(
-          constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.82),
-          margin: const EdgeInsets.symmetric(vertical: 6),
-          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
-          decoration: BoxDecoration(
-            color: const Color(0xFF131313),
-            borderRadius: BorderRadius.circular(20),
-          ),
-          child: MarkdownBody(
-            data: message.content,
-            styleSheet: MarkdownStyleSheet.fromTheme(Theme.of(context)).copyWith(
-              p: GoogleFonts.inter(fontSize: 15, color: Colors.white),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            Container(
+              constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.82),
+              margin: const EdgeInsets.symmetric(vertical: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+              decoration: BoxDecoration(
+                color: const Color(0xFF131313),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: MarkdownBody(
+                data: message.content,
+                styleSheet: MarkdownStyleSheet.fromTheme(Theme.of(context)).copyWith(
+                  p: GoogleFonts.inter(fontSize: 15, color: Colors.white),
+                ),
+              ),
             ),
-          ),
+            Padding(
+              padding: const EdgeInsets.only(right: 6, top: 3),
+              child: Text(
+                _formatTime(context, message.createdAt),
+                style: GoogleFonts.inter(
+                  fontSize: 10,
+                  color: isLight ? Colors.black38 : Colors.white38,
+                ),
+              ),
+            ),
+            const SizedBox(height: 2),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _ActionButton(
+                  icon: Icons.copy_rounded,
+                  tooltip: _isDeviceEnglish(context) ? 'Copy' : 'Copiar',
+                  color: isLight ? Colors.black38 : Colors.white38,
+                  onTap: () {
+                    HapticFeedback.lightImpact();
+                    Clipboard.setData(ClipboardData(text: message.content));
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          _isDeviceEnglish(context) ? 'Copied' : 'Copiado',
+                        ),
+                        duration: const Duration(seconds: 2),
+                      ),
+                    );
+                  },
+                ),
+                const SizedBox(width: 8),
+                _ActionButton(
+                  icon: Icons.edit_rounded,
+                  tooltip: _isDeviceEnglish(context) ? 'Edit' : 'Editar',
+                  color: isLight ? Colors.black38 : Colors.white38,
+                  onTap: () => _showEditDialog(context),
+                ),
+              ],
+            ),
+          ],
         ),
       );
     }
@@ -1355,7 +1495,7 @@ class _MessageBubble extends StatelessWidget {
           ),
           if (message.intentDetected != null) ...[
             const SizedBox(height: 8),
-            Text(_isDeviceEnglish(context) ? 'Intent: ${message.intentDetected}' : 'Intención: ${message.intentDetected}', style: GoogleFonts.jetBrainsMono(fontSize: 10, color: ExodoColors.amber.withOpacity(0.8))),
+            Text(_isDeviceEnglish(context) ? 'Intent: ${message.intentDetected}' : 'Intención: ${message.intentDetected}', style: GoogleFonts.jetBrainsMono(fontSize: 10, color: ExodoColors.amber.withValues(alpha: 0.8))),
           ],
           if (message.sources.isNotEmpty) ...[
             const SizedBox(height: 14),
@@ -1558,9 +1698,32 @@ class _MessageActionBar extends StatelessWidget {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(_isDeviceEnglish(context) ? 'Response flagged for review 👎' : 'Respuesta reportada para mejorar 👎'), duration: const Duration(seconds: 2)));
     }
 
-    void play() {
+    void play() async {
       HapticFeedback.lightImpact();
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(_isDeviceEnglish(context) ? '🔊 Voice synthesis (TTS) coming soon' : '🔊 Síntesis de voz (TTS) próximamente'), duration: const Duration(seconds: 2)));
+      // [v1.1] TTS real con flutter_tts. Locale sigue el idioma de la app
+      // (AppI18n.of(context).localeCode → BCP-47 via TtsService).
+      final text = message.content.trim();
+      if (text.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(AppI18n.of(context).t('tts.empty')),
+          duration: const Duration(seconds: 2),
+        ));
+        return;
+      }
+      final messenger = ScaffoldMessenger.of(context);
+      final i18n = AppI18n.of(context);
+      final ok = await TtsService.instance.speak(text, appLocale: i18n.localeCode);
+      if (!ok) {
+        messenger.showSnackBar(SnackBar(
+          content: Text(i18n.t('tts.unsupported')),
+          duration: const Duration(seconds: 2),
+        ));
+      } else {
+        messenger.showSnackBar(SnackBar(
+          content: Text(i18n.t('tts.playing')),
+          duration: const Duration(seconds: 1),
+        ));
+      }
     }
 
     void recharge() {
@@ -1661,7 +1824,7 @@ class _ModelSelectorSheet extends StatelessWidget {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
                       decoration: BoxDecoration(
-                        color: active ? ExodoColors.amber.withOpacity(0.18) : (isLight ? const Color(0xFFEFECE4) : const Color(0xFF3A352F)),
+                        color: active ? ExodoColors.amber.withValues(alpha: 0.18) : (isLight ? const Color(0xFFEFECE4) : const Color(0xFF3A352F)),
                         borderRadius: BorderRadius.circular(4),
                         border: Border.all(color: active ? ExodoColors.amber : (isLight ? Colors.black12 : Colors.white24)),
                       ),
@@ -1687,7 +1850,7 @@ class _ModelSelectorSheet extends StatelessWidget {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.psychology_rounded, size: 15, color: ExodoColors.amber.withOpacity(0.8)),
+                Icon(Icons.psychology_rounded, size: 15, color: ExodoColors.amber.withValues(alpha: 0.8)),
                 const SizedBox(width: 6),
                 Text(
                   isEn ? 'thinking mode enabled by default' : 'modo thinking activado por defecto',
@@ -1732,7 +1895,7 @@ class _PulsingXpiAuraState extends State<_PulsingXpiAura> with SingleTickerProvi
         return Container(
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(20),
-            boxShadow: [BoxShadow(color: ExodoColors.amber.withOpacity(op), blurRadius: blur, spreadRadius: 1)],
+            boxShadow: [BoxShadow(color: ExodoColors.amber.withValues(alpha: op), blurRadius: blur, spreadRadius: 1)],
           ),
           child: widget.child,
         );
@@ -1830,7 +1993,7 @@ class _UpgradeModal {
                                         Icon(isAnnual ? Icons.radio_button_checked : Icons.radio_button_unchecked, size: 18, color: isAnnual ? ExodoColors.amber : Colors.white38),
                                         Container(
                                           padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                          decoration: BoxDecoration(color: ExodoColors.amber.withOpacity(0.2), borderRadius: BorderRadius.circular(6)),
+                                          decoration: BoxDecoration(color: ExodoColors.amber.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(6)),
                                           child: Text('Save 16.5%', style: GoogleFonts.inter(fontSize: 9, fontWeight: FontWeight.bold, color: ExodoColors.amber)),
                                         ),
                                       ],
@@ -1897,6 +2060,27 @@ class _UpgradeModal {
           Text(text, style: GoogleFonts.inter(fontSize: 12.5, color: Colors.white70)),
         ],
       ),
+    );
+  }
+}
+
+/// Wrapper interno para usar ScrollToBottomButton dentro de chat_screen.
+/// Maneja la lógica de "mostrar solo cuando hay suficientes mensajes".
+class _ScrollToBottomHost extends StatefulWidget {
+  final ScrollController controller;
+  final int messagesCount;
+  const _ScrollToBottomHost({required this.controller, required this.messagesCount});
+
+  @override
+  State<_ScrollToBottomHost> createState() => _ScrollToBottomHostState();
+}
+
+class _ScrollToBottomHostState extends State<_ScrollToBottomHost> {
+  @override
+  Widget build(BuildContext context) {
+    return ScrollToBottomButton(
+      controller: widget.controller,
+      messagesCount: widget.messagesCount,
     );
   }
 }

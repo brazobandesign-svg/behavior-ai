@@ -30,7 +30,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
 
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 2800),
+      duration: const Duration(milliseconds: 1800),
     );
 
     // 1. Logo behavior (animates from 0ms to 1000ms)
@@ -88,7 +88,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
 
     // Start animation and call onFinished when done
     _controller.forward().then((_) {
-      Future.delayed(const Duration(milliseconds: 300), () {
+      Future.delayed(const Duration(milliseconds: 150), () {
         if (mounted) {
           widget.onFinished();
         }
@@ -132,89 +132,94 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
           
           // Elements layout
           SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 28.0, vertical: 36.0),
-              child: Column(
-                children: [
-                  const Spacer(flex: 3),
-                  
-                  // Top section: Logo + Exodo text
-                  AnimatedBuilder(
-                    animation: _controller,
-                    builder: (context, child) {
-                      return Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          // Logo_behavior
-                          Opacity(
-                            opacity: _logoOpacity.value,
-                            child: Transform.scale(
-                              scale: _logoScale.value,
-                              child: Image.asset(
-                                'assets/images/Logo_behavior.png',
-                                height: 110,
-                                color: ExodoColors.amber,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 16),
-                          
-                          // exodo_text justo debajo de logo behavior
-                          Opacity(
-                            opacity: _exodoOpacity.value,
-                            child: Transform.translate(
-                              offset: Offset(0, _exodoSlide.value),
-                              child: Image.asset(
-                                'assets/images/exodo_text.png',
-                                height: 64,
-                                color: ExodoColors.textPrimary,
-                              ),
-                            ),
-                          ),
-                        ],
-                      );
-                    },
-                  ),
-                  
-                  const Spacer(flex: 4),
-                  
-                  // Bottom section: bybehavior_text
-                  AnimatedBuilder(
-                    animation: _controller,
-                    builder: (context, child) {
-                      return Opacity(
-                        opacity: _byBehaviorOpacity.value,
-                        child: Transform.translate(
-                          offset: Offset(0, _byBehaviorSlide.value),
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Image.asset(
-                                'assets/images/bybehavior_text.png',
-                                height: 42,
-                                color: ExodoColors.textPrimary,
-                              ),
-                              const SizedBox(height: 24),
-                              // Sleek micro-loading indicator
-                              SizedBox(
-                                width: 24,
-                                height: 24,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2.0,
-                                  valueColor: AlwaysStoppedAnimation<Color>(
-                                    ExodoColors.amber.withOpacity(0.6),
-                                  ),
+            child: SizedBox.expand(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 28.0, vertical: 36.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    const Spacer(flex: 3),
+                    
+                    // Top section: Logo + Exodo text
+                    AnimatedBuilder(
+                      animation: _controller,
+                      builder: (context, child) {
+                        return Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            // Logo_behavior
+                            Opacity(
+                              opacity: _logoOpacity.value,
+                              child: Transform.scale(
+                                scale: _logoScale.value,
+                                child: Image.asset(
+                                  'assets/images/Logo_behavior.png',
+                                  height: 110,
+                                  color: ExodoColors.amber,
                                 ),
                               ),
-                            ],
+                            ),
+                            const SizedBox(height: 16),
+                            
+                            // exodo_text justo debajo de logo behavior
+                            Opacity(
+                              opacity: _exodoOpacity.value,
+                              child: Transform.translate(
+                                offset: Offset(0, _exodoSlide.value),
+                                child: Image.asset(
+                                  'assets/images/exodo_text.png',
+                                  height: 64,
+                                  color: ExodoColors.textPrimary,
+                                ),
+                              ),
+                            ),
+                          ],
+                        );
+                      },
+                    ),
+                    
+                    const Spacer(flex: 4),
+                    
+                    // Bottom section: bybehavior_text
+                    AnimatedBuilder(
+                      animation: _controller,
+                      builder: (context, child) {
+                        return Opacity(
+                          opacity: _byBehaviorOpacity.value,
+                          child: Transform.translate(
+                            offset: Offset(0, _byBehaviorSlide.value),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              crossAxisAlignment: CrossAxisAlignment.center,
+                              children: [
+                                Image.asset(
+                                  'assets/images/bybehavior_text.png',
+                                  height: 42,
+                                  color: ExodoColors.textPrimary,
+                                ),
+                                const SizedBox(height: 24),
+                                // Sleek micro-loading indicator
+                                SizedBox(
+                                  width: 24,
+                                  height: 24,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2.0,
+                                    valueColor: AlwaysStoppedAnimation<Color>(
+                                      ExodoColors.amber.withValues(alpha: 0.6),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
-                        ),
-                      );
-                    },
-                  ),
-                  
-                  const SizedBox(height: 12),
-                ],
+                        );
+                      },
+                    ),
+                    
+                    const SizedBox(height: 12),
+                  ],
+                ),
               ),
             ),
           ),

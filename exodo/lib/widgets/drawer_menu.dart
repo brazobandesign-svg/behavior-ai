@@ -1,4 +1,3 @@
-import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -9,13 +8,6 @@ import '../services/supabase_service.dart';
 import '../theme/exodo_theme.dart';
 import '../l10n/app_i18n.dart';
 import '../l10n/app_translations.dart';
-
-bool _isDrawerEn(BuildContext context) {
-  try {
-    if (ui.PlatformDispatcher.instance.locale.languageCode == 'en') return true;
-  } catch (_) {}
-  return Localizations.localeOf(context).languageCode == 'en';
-}
 
 /// Item de menú reutilizable con padding responsive.
 class _DrawerItem extends StatelessWidget {
@@ -165,7 +157,7 @@ class _DrawerMenuState extends State<DrawerMenu> {
                     height: s(20),
                     color: state.isIncognito ? ExodoColors.amber : textCol,
                   ),
-                  title: Text(_isDrawerEn(context) ? 'Incognito mode' : 'Modo Incógnito', style: GoogleFonts.jetBrainsMono(fontSize: s(14), color: state.isIncognito ? ExodoColors.amber : textCol, fontWeight: FontWeight.w600, letterSpacing: -0.2)),
+                  title: Text(AppI18n.of(context).t('drawer.incognito'), style: GoogleFonts.jetBrainsMono(fontSize: s(14), color: state.isIncognito ? ExodoColors.amber : textCol, fontWeight: FontWeight.w600, letterSpacing: -0.2)),
                   onTap: () {
                     HapticFeedback.vibrate();
                     state.toggleIncognito();
@@ -195,7 +187,7 @@ class _DrawerMenuState extends State<DrawerMenu> {
                                   cursorColor: textCol,
                                   style: TextStyle(fontSize: s(13), color: textCol),
                                   decoration: InputDecoration(
-                                    hintText: _isDrawerEn(context) ? 'Search chats...' : 'Buscar chat...',
+                                    hintText: AppI18n.of(context).t('drawer.search_chats'),
                                     hintStyle: TextStyle(fontSize: s(13), color: subTextCol),
                                     filled: false,
                                     border: InputBorder.none,
@@ -236,7 +228,7 @@ class _DrawerMenuState extends State<DrawerMenu> {
                       : _DrawerItem(
                           horizontalPad: hPad - s(8),
                           icon: Icon(Icons.search_rounded, size: s(20), color: textCol),
-                          title: Text(_isDrawerEn(context) ? 'Search chats' : 'Buscar conversación', style: GoogleFonts.jetBrainsMono(fontSize: s(14), color: textCol, fontWeight: FontWeight.w600, letterSpacing: -0.2)),
+                          title: Text(AppI18n.of(context).t('drawer.search_chats'), style: GoogleFonts.jetBrainsMono(fontSize: s(14), color: textCol, fontWeight: FontWeight.w600, letterSpacing: -0.2)),
                           onTap: () => setState(() => _isSearching = true),
                         ),
                 ),
@@ -250,13 +242,60 @@ class _DrawerMenuState extends State<DrawerMenu> {
                   child: filtered.isEmpty
                       ? Center(
                           child: Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 16),
-                            child: Text(
-                              state.conversations.isEmpty
-                                  ? (_isDrawerEn(context) ? 'No chat history' : 'Sin historial de chats')
-                                  : (_isDrawerEn(context) ? 'No chats found' : 'No se encontraron chats'),
-                              style: GoogleFonts.jetBrainsMono(fontSize: s(12.5), color: subTextCol, letterSpacing: -0.1),
-                              textAlign: TextAlign.center,
+                            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                // Ícono suave amber con glow sutil.
+                                Container(
+                                  width: 56,
+                                  height: 56,
+                                  decoration: BoxDecoration(
+                                    color: ExodoColors.amber.withValues(alpha: 0.08),
+                                    shape: BoxShape.circle,
+                                    border: Border.all(
+                                      color: ExodoColors.amber.withValues(alpha: 0.25),
+                                      width: 1,
+                                    ),
+                                  ),
+                                  child: Icon(
+                                    state.conversations.isEmpty
+                                        ? Icons.chat_bubble_outline_rounded
+                                        : Icons.search_off_rounded,
+                                    size: 26,
+                                    color: ExodoColors.amber.withValues(alpha: 0.7),
+                                  ),
+                                ),
+                                const SizedBox(height: 16),
+                                Text(
+                                  state.conversations.isEmpty
+                                      ? (AppI18n.of(context).localeCode == 'en' ? 'No chat history' : 'Sin historial de chats')
+                                      : (AppI18n.of(context).localeCode == 'en' ? 'No chats found' : 'No se encontraron chats'),
+                                  style: GoogleFonts.jetBrainsMono(
+                                    fontSize: s(13),
+                                    color: subTextCol,
+                                    fontWeight: FontWeight.w600,
+                                    letterSpacing: -0.1,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                                const SizedBox(height: 6),
+                                Text(
+                                  state.conversations.isEmpty
+                                      ? (AppI18n.of(context).localeCode == 'en'
+                                          ? 'Start a new conversation\nand it will appear here.'
+                                          : 'Inicia una nueva conversación\ny aparecerá aquí.')
+                                      : (AppI18n.of(context).localeCode == 'en'
+                                          ? 'Try a different search term.'
+                                          : 'Prueba con otro término de búsqueda.'),
+                                  style: GoogleFonts.inter(
+                                    fontSize: s(12),
+                                    color: subTextCol.withValues(alpha: 0.7),
+                                    height: 1.4,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                              ],
                             ),
                           ),
                         )
@@ -322,8 +361,8 @@ class _DrawerMenuState extends State<DrawerMenu> {
                                   radius: avatarR,
                                   backgroundColor: ExodoColors.amber,
                                   child: Text(
-                                    state.profile?.fullName?.isNotEmpty == true
-                                        ? state.profile!.fullName!.substring(0, 1).toUpperCase()
+                                    (state.profile?.fullName?.trim().isNotEmpty == true)
+                                        ? state.profile!.fullName!.trim().substring(0, 1).toUpperCase()
                                         : 'U',
                                     style: GoogleFonts.syne(fontSize: s(19), fontWeight: FontWeight.bold, color: Colors.black),
                                   ),
@@ -331,7 +370,7 @@ class _DrawerMenuState extends State<DrawerMenu> {
                                 SizedBox(width: s(12)),
                                 Flexible(
                                   child: Text(
-                                    state.profile?.fullName ?? (_isDrawerEn(context) ? 'Exodo User' : 'Usuario Éxodo'),
+                                    state.profile?.fullName ?? (AppI18n.of(context).localeCode == 'en' ? 'Exodo User' : 'Usuario Éxodo'),
                                     style: GoogleFonts.jetBrainsMono(fontSize: s(14), fontWeight: FontWeight.w600, color: textCol, letterSpacing: -0.2),
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
@@ -401,7 +440,7 @@ class _DrawerMenuState extends State<DrawerMenu> {
 
   void _showChatContextMenu(BuildContext context, Conversation conv, AppState state, bool isStarred) {
     final isLight = Theme.of(context).brightness == Brightness.light;
-    final isEn = _isDrawerEn(context);
+    final isEn = AppI18n.of(context).localeCode == 'en';
     showModalBottomSheet(
       context: context,
       backgroundColor: isLight ? Colors.white : const Color(0xFF1E1C19),
@@ -450,7 +489,7 @@ class _DrawerMenuState extends State<DrawerMenu> {
   void _showRenameDialog(BuildContext context, Conversation conv, AppState state) {
     final ctrl = TextEditingController(text: conv.title);
     final isLight = Theme.of(context).brightness == Brightness.light;
-    final isEn = _isDrawerEn(context);
+    final isEn = AppI18n.of(context).localeCode == 'en';
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -490,7 +529,7 @@ class _DrawerMenuState extends State<DrawerMenu> {
 
   void _showDeleteConfirmationDialog(BuildContext context, Conversation conv, AppState state) {
     final isLight = Theme.of(context).brightness == Brightness.light;
-    final isEn = _isDrawerEn(context);
+    final isEn = AppI18n.of(context).localeCode == 'en';
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -600,7 +639,7 @@ class _ClaudeAccountModal {
                 ),
               ),
               Center(
-                child: Text('Settings', style: GoogleFonts.syne(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
+                child: Text(AppI18n.of(context).t('settings.title'), style: GoogleFonts.syne(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
               ),
               const SizedBox(height: 20),
 
@@ -617,7 +656,7 @@ class _ClaudeAccountModal {
                   children: [
                     Expanded(
                       child: Text(
-                        state.userEmail.isNotEmpty ? state.userEmail : (_isDrawerEn(context) ? 'Session without email' : 'Sesión sin email'),
+                        state.userEmail.isNotEmpty ? state.userEmail : AppI18n.of(context).t('settings.no_email'),
                         style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w600, color: state.userEmail.isNotEmpty ? Colors.white : Colors.white54),
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -642,7 +681,7 @@ class _ClaudeAccountModal {
               if (!state.isGuestUser) ...[
                 _buildSettingTile(
                   icon: Icons.person_outline_rounded,
-                  title: 'Profile',
+                  title: AppI18n.of(context).t('settings.profile'),
                   onTap: () {
                     Navigator.pop(ctx);
                     _showProfileEditDialog(context, state);
@@ -663,7 +702,7 @@ class _ClaudeAccountModal {
               if (!state.isGuestUser) ...[
                 _buildSettingTile(
                   icon: Icons.monetization_on_outlined,
-                  title: 'Billing',
+                  title: AppI18n.of(context).t('settings.billing'),
                   onTap: () {
                     Navigator.pop(ctx);
                     _showBillingModal(context, state);
@@ -673,10 +712,10 @@ class _ClaudeAccountModal {
               ],
               _buildSettingTile(
                 icon: Icons.privacy_tip_outlined,
-                title: _isDrawerEn(context) ? 'Terms & Privacy' : 'Términos y Privacidad',
+                title: AppI18n.of(context).t('settings.terms'),
                 onTap: () {
                   Navigator.pop(ctx);
-                  final isEn = _isDrawerEn(context);
+                  final isEn = AppI18n.of(context).localeCode == 'en';
                   showDialog(
                     context: context,
                     builder: (_) => AlertDialog(
@@ -696,7 +735,7 @@ class _ClaudeAccountModal {
               ListTile(
                 contentPadding: const EdgeInsets.symmetric(horizontal: 8),
                 leading: const Icon(Icons.logout_rounded, color: Color(0xFFE57373), size: 22),
-                title: Text('Log out', style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.w500, color: const Color(0xFFE57373))),
+                title: Text(AppI18n.of(context).t('settings.logout'), style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.w500, color: const Color(0xFFE57373))),
                 onTap: () async {
                   Navigator.pop(ctx);
                   state.selectModelOption(exodoModels[0]);
@@ -750,19 +789,12 @@ class _ClaudeAccountModal {
   // Idioma: helper y sheet movidos aquí (estaban en _DrawerMenuState).
   // ============================================================
 
-  /// Devuelve "🇪🇸 Español" o el locale seleccionado. Si no hay override
-  /// del usuario, autodetecta el locale del sistema.
+  /// Devuelve "🇪🇸 Español" o el locale seleccionado en la app.
+  /// Antes leía el locale del sistema operativo (PlatformDispatcher); ahora
+  /// usa AppI18n.of(context).localeCode que respeta el override del usuario
+  /// y cae al sistema si no hay override (lógica encapsulada en app_i18n.dart).
   static String _currentLocaleFlag(BuildContext context) {
-    final code = context.currentLocaleCode;
-    if (code == null) {
-      try {
-        final sys = ui.PlatformDispatcher.instance.locale.languageCode;
-        final match = kAppLocales.firstWhere((l) => l.code == sys, orElse: () => kAppLocales.first);
-        return '${match.nativeName} ${match.flag}';
-      } catch (_) {
-        return '${kAppLocales.first.nativeName} ${kAppLocales.first.flag}';
-      }
-    }
+    final code = AppI18n.of(context).localeCode;
     final match = kAppLocales.firstWhere((l) => l.code == code, orElse: () => kAppLocales.first);
     return '${match.nativeName} ${match.flag}';
   }
@@ -782,12 +814,15 @@ class _ClaudeAccountModal {
 
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
       backgroundColor: bg,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
-      builder: (sheetCtx) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 12),
-          child: Column(
+      builder: (sheetCtx) => ConstrainedBox(
+        constraints: BoxConstraints(maxHeight: MediaQuery.of(sheetCtx).size.height * 0.75),
+        child: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               Container(width: 36, height: 4, margin: const EdgeInsets.only(bottom: 12), decoration: BoxDecoration(color: subTextCol.withValues(alpha: 0.3), borderRadius: BorderRadius.circular(2))),
@@ -826,33 +861,43 @@ class _ClaudeAccountModal {
                 },
               ),
               Divider(color: subTextCol.withValues(alpha: 0.2), height: 1, indent: 20, endIndent: 20),
-              const SizedBox(height: 4),
-              // Lista de idiomas disponibles
-              for (final loc in kAppLocales)
-                _LangTile(
-                  flag: loc.flag,
-                  title: loc.nativeName,
-                  subtitle: '(${loc.code.toUpperCase()})',
-                  selected: currentCode == loc.code,
-                  textCol: textCol,
-                  subTextCol: subTextCol,
-                  onTap: () async {
-                    Navigator.pop(sheetCtx);
-                    HapticFeedback.selectionClick();
-                    await sheetCtx.setLocale(loc.code);
+              // Lista de idiomas disponibles - envuelta en Flexible + ListView.builder
+              // para que scrollee sin RenderFlex overflow cuando hay muchos
+              // idiomas o el modal se abre en pantallas pequenas.
+              Flexible(
+                child: ListView.builder(
+                  shrinkWrap: true,
+                  padding: const EdgeInsets.only(bottom: 8),
+                  itemCount: kAppLocales.length,
+                  itemBuilder: (_, i) {
+                    final loc = kAppLocales[i];
+                    return _LangTile(
+                      flag: loc.flag,
+                      title: loc.nativeName,
+                      subtitle: loc.code.toUpperCase(),
+                      selected: currentCode == loc.code,
+                      textCol: textCol,
+                      subTextCol: subTextCol,
+                      onTap: () async {
+                        Navigator.pop(sheetCtx);
+                        HapticFeedback.selectionClick();
+                        await sheetCtx.setLocale(loc.code);
+                      },
+                    );
                   },
                 ),
-              const SizedBox(height: 8),
+              ),
             ],
           ),
         ),
       ),
+    ),
     );
   }
 
   static void _showProfileEditDialog(BuildContext context, AppState state) {
     final nameCtrl = TextEditingController(text: state.profile?.fullName ?? '');
-    final isEn = _isDrawerEn(context);
+    final isEn = AppI18n.of(context).localeCode == 'en';
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -896,7 +941,7 @@ class _ClaudeAccountModal {
 
   static void _showBillingModal(BuildContext context, AppState state) {
     final isPro = state.profile?.plan == 'hazak';
-    final isEn = _isDrawerEn(context);
+    final isEn = AppI18n.of(context).localeCode == 'en';
     showModalBottomSheet(
       context: context,
       backgroundColor: const Color(0xFF1C1A17),

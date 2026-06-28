@@ -39,12 +39,20 @@ class AppLocale {
 }
 
 const List<AppLocale> kAppLocales = <AppLocale>[
-  AppLocale(code: 'es', nativeName: 'Español',  flag: '🇪🇸'),
-  AppLocale(code: 'en', nativeName: 'English',  flag: '🇺🇸'),
-  AppLocale(code: 'fr', nativeName: 'Français', flag: '🇫🇷'),
-  AppLocale(code: 'pt', nativeName: 'Português', flag: '🇵🇹'),
-  AppLocale(code: 'it', nativeName: 'Italiano', flag: '🇮🇹'),
-  AppLocale(code: 'de', nativeName: 'Deutsch',  flag: '🇩🇪'),
+  AppLocale(code: 'es', nativeName: 'Español',     flag: '🇪🇸'),
+  AppLocale(code: 'en', nativeName: 'English',     flag: '🇺🇸'),
+  AppLocale(code: 'fr', nativeName: 'Français',    flag: '🇫🇷'),
+  AppLocale(code: 'pt', nativeName: 'Português',   flag: '🇵🇹'),
+  AppLocale(code: 'it', nativeName: 'Italiano',    flag: '🇮🇹'),
+  AppLocale(code: 'de', nativeName: 'Deutsch',     flag: '🇩🇪'),
+  // v1.1 — Expansión global (6 idiomas nuevos). Textos en español como
+  // stub temporal; pendiente traducir contenido real en v1.1.
+  AppLocale(code: 'ru', nativeName: 'Русский',     flag: '🇷🇺'),
+  AppLocale(code: 'zh', nativeName: '中文',         flag: '🇨🇳'),
+  AppLocale(code: 'ja', nativeName: '日本語',       flag: '🇯🇵'),
+  AppLocale(code: 'ar', nativeName: 'العربية',     flag: '🇸🇦'),
+  AppLocale(code: 'ko', nativeName: '한국어',       flag: '🇰🇷'),
+  AppLocale(code: 'hi', nativeName: 'हिन्दी',       flag: '🇮🇳'),
 ];
 
 /// Punto de entrada principal: devuelve el mapa de traducciones para un código.
@@ -56,6 +64,13 @@ Map<String, String> translationsFor(String code) {
     case 'pt': return _pt;
     case 'it': return _it;
     case 'de': return _de;
+    // v1.1 — Mapas stub (textos en español como fallback). Pendiente traducir.
+    case 'ru': return _ru;
+    case 'zh': return _zh;
+    case 'ja': return _ja;
+    case 'ar': return _ar;
+    case 'ko': return _ko;
+    case 'hi': return _hi;
     case 'es':
     default:   return _es;
   }
@@ -120,6 +135,11 @@ const Map<String, String> _es = <String, String>{
   'live.coming_soon': 'Chat en vivo próximamente — escribe un mensaje para empezar.',
   'mic.permission_required': '⚠️ Permiso de micrófono requerido para dictado de voz.',
 
+  // TTS (text-to-speech)
+  'tts.playing':    '🔊 Reproduciendo...',
+  'tts.unsupported': '⚠️ Síntesis de voz no disponible en este dispositivo.',
+  'tts.empty':      'No hay texto para reproducir.',
+
   // Sources sheet
   'sources.title': 'Fuentes',
   'sources.title_en': 'Sources',
@@ -144,11 +164,23 @@ const Map<String, String> _es = <String, String>{
   'lang.sheet_subtitle': 'Selecciona tu idioma preferido',
   'lang.system': 'Predeterminado del sistema',
 
+  // Code block (botón copiar en bloques de código del chat)
+  'code.copy':   'Copiar',
+  'code.copied': '¡Copiado!',
+
   // Starters
   'starter.1': 'Resúmeme las noticias de hoy',
   'starter.2': 'Explícame un concepto complejo',
   'starter.3': 'Escríbeme un correo profesional',
   'starter.4': 'Ideas para un proyecto innovador',
+
+  // Settings modal
+  'settings.title':    'Settings',
+  'settings.profile':  'Profile',
+  'settings.billing':  'Billing',
+  'settings.logout':   'Log out',
+  'settings.terms':    'Terms & Privacy',
+  'settings.no_email': 'Session without email',
 };
 
 const Map<String, String> _en = <String, String>{
@@ -203,6 +235,11 @@ const Map<String, String> _en = <String, String>{
   'live.coming_soon': 'Live chat coming soon — type a message to start.',
   'mic.permission_required': '⚠️ Microphone permission required for voice dictation.',
 
+  // TTS (text-to-speech)
+  'tts.playing':    '🔊 Playing...',
+  'tts.unsupported': '⚠️ Voice synthesis not available on this device.',
+  'tts.empty':      'Nothing to read.',
+
   'sources.title':    'Sources',
   'sources.title_en': 'Sources',
 
@@ -222,11 +259,23 @@ const Map<String, String> _en = <String, String>{
   'lang.sheet_subtitle': 'Select your preferred language',
   'lang.system':         'System default',
 
+  // Code block (botón copiar en bloques de código del chat)
+  'code.copy':   'Copy',
+  'code.copied': 'Copied!',
+
   // Starters
   'starter.1': 'Summarize today\'s news',
   'starter.2': 'Explain a complex concept',
   'starter.3': 'Write a professional email',
   'starter.4': 'Ideas for an innovative project',
+
+  // Settings modal
+  'settings.title':    'Settings',
+  'settings.profile':  'Profile',
+  'settings.billing':  'Billing',
+  'settings.logout':   'Log out',
+  'settings.terms':    'Terms & Privacy',
+  'settings.no_email': 'Session without email',
 };
 
 const Map<String, String> _fr = <String, String>{
@@ -281,6 +330,11 @@ const Map<String, String> _fr = <String, String>{
   'live.coming_soon': 'Chat en direct bientôt disponible — tapez un message pour commencer.',
   'mic.permission_required': '⚠️ Autorisation du microphone requise pour la dictée vocale.',
 
+  // TTS (text-to-speech)
+  'tts.playing':    '🔊 Lecture...',
+  'tts.unsupported': '⚠️ Synthèse vocale indisponible sur cet appareil.',
+  'tts.empty':      'Rien à lire.',
+
   'sources.title':    'Sources',
   'sources.title_en': 'Sources',
 
@@ -300,11 +354,23 @@ const Map<String, String> _fr = <String, String>{
   'lang.sheet_subtitle': 'Sélectionnez votre langue préférée',
   'lang.system':         'Par défaut du système',
 
+  // Code block (bouton copier dans les blocs de code du chat)
+  'code.copy':   'Copier',
+  'code.copied': 'Copié !',
+
   // Starters
   'starter.1': 'Résumé les actualités du jour',
   'starter.2': 'Explique un concept complexe',
   'starter.3': 'Écris un e-mail professionnel',
   'starter.4': 'Idées pour un projet innovant',
+
+  // Settings modal
+  'settings.title':    'Settings',
+  'settings.profile':  'Profile',
+  'settings.billing':  'Facturation',
+  'settings.logout':   'Déconnexion',
+  'settings.terms':    'Conditions & Confidentialité',
+  'settings.no_email': 'Session sans e-mail',
 };
 
 const Map<String, String> _pt = <String, String>{
@@ -359,6 +425,11 @@ const Map<String, String> _pt = <String, String>{
   'live.coming_soon': 'Chat ao vivo em breve — digite uma mensagem para começar.',
   'mic.permission_required': '⚠️ Permissão de microfone necessária para ditado por voz.',
 
+  // TTS (text-to-speech)
+  'tts.playing':    '🔊 Reproduzindo...',
+  'tts.unsupported': '⚠️ Síntese de voz indisponível neste dispositivo.',
+  'tts.empty':      'Nada para ler.',
+
   'sources.title':    'Fontes',
   'sources.title_en': 'Sources',
 
@@ -378,11 +449,23 @@ const Map<String, String> _pt = <String, String>{
   'lang.sheet_subtitle': 'Selecione seu idioma preferido',
   'lang.system':         'Padrão do sistema',
 
+  // Code block (botão copiar em blocos de código do chat)
+  'code.copy':   'Copiar',
+  'code.copied': 'Copiado!',
+
   // Starters
   'starter.1': 'Resuma as notícias de hoje',
   'starter.2': 'Explique um conceito complexo',
   'starter.3': 'Escreva um e-mail profissional',
   'starter.4': 'Ideias para um projeto inovador',
+
+  // Settings modal
+  'settings.title':    'Configurações',
+  'settings.profile':  'Perfil',
+  'settings.billing':  'Cobrança',
+  'settings.logout':   'Sair',
+  'settings.terms':    'Termos & Privacidade',
+  'settings.no_email': 'Sessão sem e-mail',
 };
 
 const Map<String, String> _it = <String, String>{
@@ -437,6 +520,11 @@ const Map<String, String> _it = <String, String>{
   'live.coming_soon': 'Chat live in arrivo — scrivi un messaggio per iniziare.',
   'mic.permission_required': '⚠️ Permesso del microfono richiesto per la dettatura vocale.',
 
+  // TTS (text-to-speech)
+  'tts.playing':    '🔊 Riproduzione...',
+  'tts.unsupported': '⚠️ Sintesi vocale non disponibile su questo dispositivo.',
+  'tts.empty':      'Niente da leggere.',
+
   'sources.title':    'Fonti',
   'sources.title_en': 'Sources',
 
@@ -456,11 +544,23 @@ const Map<String, String> _it = <String, String>{
   'lang.sheet_subtitle': 'Seleziona la lingua preferita',
   'lang.system':         'Predefinito di sistema',
 
+  // Code block (pulsante copia nei blocchi di codice della chat)
+  'code.copy':   'Copia',
+  'code.copied': 'Copiato!',
+
   // Starters
   'starter.1': 'Riassumi le notizie di oggi',
   'starter.2': 'Spiega un concetto complesso',
   'starter.3': 'Scrivi un\'email professionale',
   'starter.4': 'Idee per un progetto innovativo',
+
+  // Settings modal
+  'settings.title':    'Impostazioni',
+  'settings.profile':  'Profilo',
+  'settings.billing':  'Fatturazione',
+  'settings.logout':   'Esci',
+  'settings.terms':    'Termini & Privacy',
+  'settings.no_email': 'Sessione senza email',
 };
 
 const Map<String, String> _de = <String, String>{
@@ -515,6 +615,11 @@ const Map<String, String> _de = <String, String>{
   'live.coming_soon': 'Live-Chat bald verfügbar — gib eine Nachricht ein, um zu starten.',
   'mic.permission_required': '⚠️ Mikrofon-Berechtigung für Sprachdiktat erforderlich.',
 
+  // TTS (text-to-speech)
+  'tts.playing':    '🔊 Wiedergabe...',
+  'tts.unsupported': '⚠️ Sprachsynthese auf diesem Gerät nicht verfügbar.',
+  'tts.empty':      'Nichts zu lesen.',
+
   'sources.title':    'Quellen',
   'sources.title_en': 'Sources',
 
@@ -534,9 +639,94 @@ const Map<String, String> _de = <String, String>{
   'lang.sheet_subtitle': 'Wähle deine bevorzugte Sprache',
   'lang.system':         'Systemstandard',
 
+  // Code block (Kopierschaltfläche in Codeblöcken im Chat)
+  'code.copy':   'Kopieren',
+  'code.copied': 'Kopiert!',
+
   // Starters
   'starter.1': 'Fasse die heutigen Nachrichten zusammen',
   'starter.2': 'Erkläre ein komplexes Konzept',
   'starter.3': 'Schreibe eine professionelle E-Mail',
   'starter.4': 'Ideen für ein innovatives Projekt',
+
+  // Settings modal
+  'settings.title':    'Einstellungen',
+  'settings.profile':  'Profil',
+  'settings.billing':  'Abrechnung',
+  'settings.logout':   'Abmelden',
+  'settings.terms':    'AGB & Datenschutz',
+  'settings.no_email': 'Sitzung ohne E-Mail',
+};
+
+
+final Map<String, String> _ru = <String, String>{
+  ..._en,
+  'app.title': 'Éxodo by Behavior',
+  'chat.placeholder': 'Говорить с Exodo...',
+  'chat.thinking': 'Exodo думает...',
+  'drawer.new_chat': 'Новый чат',
+  'drawer.search_chats': 'Поиск диалогов',
+  'drawer.starred': 'Избранное',
+  'drawer.recents': 'Недавние',
+  'drawer.language': 'Язык',
+};
+
+final Map<String, String> _zh = <String, String>{
+  ..._en,
+  'app.title': 'Éxodo by Behavior',
+  'chat.placeholder': '与 Exodo 对话...',
+  'chat.thinking': 'Exodo 思考中...',
+  'drawer.new_chat': '新聊天',
+  'drawer.search_chats': '搜索聊天',
+  'drawer.starred': '已收藏',
+  'drawer.recents': '最近',
+  'drawer.language': '语言',
+};
+
+final Map<String, String> _ja = <String, String>{
+  ..._en,
+  'app.title': 'Éxodo by Behavior',
+  'chat.placeholder': 'Exodoと話す...',
+  'chat.thinking': 'Exodoが思考中...',
+  'drawer.new_chat': '新しいチャット',
+  'drawer.search_chats': 'チャットを検索',
+  'drawer.starred': 'スター付き',
+  'drawer.recents': '最近',
+  'drawer.language': '言語',
+};
+
+final Map<String, String> _ar = <String, String>{
+  ..._en,
+  'app.title': 'Éxodo by Behavior',
+  'chat.placeholder': 'تحدث مع Exodo...',
+  'chat.thinking': 'Exodo يفكر...',
+  'drawer.new_chat': 'محادثة جديدة',
+  'drawer.search_chats': 'ابحث في المحادثات',
+  'drawer.starred': 'المفضلة',
+  'drawer.recents': 'الأخيرة',
+  'drawer.language': 'اللغة',
+};
+
+final Map<String, String> _ko = <String, String>{
+  ..._en,
+  'app.title': 'Éxodo by Behavior',
+  'chat.placeholder': 'Exodo와 대화하기...',
+  'chat.thinking': 'Exodo 생각 중...',
+  'drawer.new_chat': '새 채팅',
+  'drawer.search_chats': '채팅 검색',
+  'drawer.starred': '즐겨찾기',
+  'drawer.recents': '최근',
+  'drawer.language': '언어',
+};
+
+final Map<String, String> _hi = <String, String>{
+  ..._en,
+  'app.title': 'Éxodo by Behavior',
+  'chat.placeholder': 'Exodo से बात करें...',
+  'chat.thinking': 'Exodo सोच रहा है...',
+  'drawer.new_chat': 'नई चैट',
+  'drawer.search_chats': 'चैट खोजें',
+  'drawer.starred': 'तारांकित',
+  'drawer.recents': 'हाल ही के',
+  'drawer.language': 'भाषा',
 };

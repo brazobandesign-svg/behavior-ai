@@ -3,7 +3,7 @@ const router = express.Router();
 const auth = require('../middleware/auth');
 const planGuard = require('../middleware/planGuard');
 const { classifyIntent } = require('../services/intentClassifier');
-const { routeMessage } = require('../services/modelRouter');
+const { routeMessage, routeMessageStream } = require('../services/modelRouter');
 const { getHistory, saveMessage } = require('../services/historyManager');
 const { estimateTokens, updateTokenUsage } = require('../services/tokenCounter');
 
@@ -29,18 +29,46 @@ Reglas:
 /**
  * POST /chat
  * Bible sección 08: flujo completo de un mensaje.
- * Regla #3: Streaming obligatorio en todas las respuestas (SSE).
+ * Regla #3: Streaming REAL (SSE chunk por chunk, no bloques de 15 chars).
  *
  * Body: { message: string, conversationId?: string }
  * Headers: Authorization: Bearer {supabase_jwt}
+ *
+ * Stream format (SSE):
+ *   data: {"type":"chunk","content":"..."}\n\n
+ *   data: {"type":"done","content":"...","sources":[...]}\n\n
+ *   data: {"type":"error","content":"..."}\n\n
  */
 router.post('/', auth, planGuard, async (req, res) => {
-  const { message, conversationId } = req.body;
+  const { message, conversationId, model_override } = req.body;
   const { userId, plan, anonymous } = req.user;
 
   if (!message || typeof message !== 'string' || message.trim().length === 0) {
     return res.status(400).json({ error: 'El campo "message" es requerido' });
   }
+
+  // Flag para detectar si el cliente se desconectó a mitad de la respuesta.
+  // Si se cierra la conexión, abortamos: no enviamos más SSE, no contamos tokens,
+  // no guardamos mensajes. El provider sigue corriendo pero ignoramos su resultado.
+  let clientConnected = true;
+  req.on('close', () => {
+    clientConnected = false;
+  });
+
+  // Preparar SSE ANTES de cualquier await para que el cliente vea los
+  // headers inmediatamente y empiece a esperar chunks.
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.setHeader('X-Accel-Buffering', 'no'); // nginx: desactiva buffering
+  res.flushHeaders();
+
+  // Helper para enviar chunks forzando flush al cliente.
+  const sendSse = (payload) => {
+    res.write(`data: ${JSON.stringify(payload)}\n\n`);
+    // Forzar flush inmediato en cada chunk.
+    if (typeof res.flush === 'function') res.flush();
+  };
 
   try {
     // 1. Recuperar historial (últimos 10 mensajes) — Bible: reduce tokens 50%
@@ -55,53 +83,68 @@ router.post('/', auth, planGuard, async (req, res) => {
       { role: 'user', content: message },
     ];
 
-    // 4. Rutear al modelo correcto según intención + plan
-    const result = await routeMessage(plan, intent, messages, EXODO_SYSTEM_PROMPT);
+    // 4. Streamear respuesta del modelo (cada chunk sale al cliente al instante).
+    let fullText = '';
+    const result = await routeMessageStream(plan, intent, messages, EXODO_SYSTEM_PROMPT, (chunk) => {
+      // Si el cliente se fue, dejamos de acumular texto y de enviar chunks.
+      if (!clientConnected) return;
+      fullText += chunk;
+      sendSse({ type: 'chunk', content: chunk });
+    }, model_override);
 
-    // Si el router devolvió un error (feature no disponible, etc.)
+    // Si el cliente se desconectó antes de terminar, no enviamos done/error ni persistimos.
+    if (!clientConnected) {
+      res.end();
+      return;
+    }
+
+    // Si el router devolvió un error (feature no disponible, etc.),
+    // mandarlo como SSE para que el frontend lo parsee correctamente.
     if (result.error) {
-      return res.status(403).json(result);
+      sendSse({ type: 'error', content: result.message || 'Error procesando tu mensaje' });
+      res.end();
+      return;
     }
 
-    // 5. Contar tokens y actualizar uso
+    // 5. Cerrar el stream con evento "done".
+    const sources = result.sources || [];
+    sendSse({ type: 'done', content: fullText, sources });
+    res.end();
+
+    // 6. Background: contar tokens, guardar en DB. NO bloqueamos el cliente.
     const totalTokens = (result.tokensInput || 0) + (result.tokensOutput || 0);
-    if (req.usage && !anonymous) {
-      await updateTokenUsage(req.usage.id, req.usage.tokens_used, totalTokens);
-    }
+    const userIdSafe = req.usage?.id;
+    const tokensUsedSoFar = req.usage?.tokens_used || 0;
 
-    // 6. Guardar mensajes en DB (si no es anónimo y hay conversationId)
+    if (userIdSafe && !anonymous) {
+      updateTokenUsage(userIdSafe, tokensUsedSoFar, totalTokens).catch((e) =>
+        console.error('[chat] updateTokenUsage falló:', e.message)
+      );
+    }
     if (conversationId && !anonymous) {
-      await saveMessage(conversationId, 'user', message, { intent });
-      await saveMessage(conversationId, 'assistant', result.text, {
+      saveMessage(conversationId, 'user', message, { intent }).catch((e) =>
+        console.error('[chat] saveMessage(user) falló:', e.message)
+      );
+      saveMessage(conversationId, 'assistant', fullText, {
         intent,
         model: result.model,
         tokensInput: result.tokensInput,
         tokensOutput: result.tokensOutput,
-      });
+      }).catch((e) =>
+        console.error('[chat] saveMessage(assistant) falló:', e.message)
+      );
     }
-
-    // 7. Responder
-    // TODO: Implementar SSE streaming real cuando los providers lo soporten.
-    // Por ahora, respuesta completa en JSON.
-    res.json({
-      response: result.text,
-      intent,
-      image_url: result.image_url || null,
-      tokens: {
-        used: (req.usage?.tokens_used || 0) + totalTokens,
-        limit: req.usage?.tokens_limit || 15000,
-        remaining: Math.max(0, (req.usage?.tokens_limit || 15000) - (req.usage?.tokens_used || 0) - totalTokens),
-        input: result.tokensInput || 0,
-        output: result.tokensOutput || 0,
-      },
-    });
-
   } catch (error) {
     console.error('[chat] Error procesando mensaje:', error);
-    res.status(500).json({
-      error: 'Error procesando tu mensaje',
-      details: process.env.NODE_ENV !== 'production' ? error.message : undefined,
-    });
+    if (res.headersSent) {
+      sendSse({ type: 'error', content: error.message || 'Error procesando tu mensaje' });
+      res.end();
+    } else {
+      res.status(500).json({
+        error: 'Error procesando tu mensaje',
+        details: process.env.NODE_ENV !== 'production' ? error.message : undefined,
+      });
+    }
   }
 });
 

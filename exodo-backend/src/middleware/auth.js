@@ -9,6 +9,9 @@ async function auth(req, res, next) {
   const token = req.headers.authorization?.split('Bearer ')[1];
 
   if (!token) {
+    if (process.env.NODE_ENV === 'production') {
+      return res.status(401).json({ error: 'Token de autenticación requerido' });
+    }
     // Modo desarrollo: usuario anónimo con plan genesis
     req.user = { userId: null, plan: 'genesis', anonymous: true };
     return next();
