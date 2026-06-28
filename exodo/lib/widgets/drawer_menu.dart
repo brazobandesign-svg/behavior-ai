@@ -359,7 +359,6 @@ class _DrawerMenuState extends State<DrawerMenu> {
 
   Widget _buildConvItem(Conversation conv, AppState state, bool isLight, bool isStarred, double hPad, double Function(double) s) {
     final active = state.activeConversation?.id == conv.id;
-    final textCol = isLight ? const Color(0xFF171615) : ExodoColors.textPrimary;
 
     return Container(
       margin: EdgeInsets.symmetric(horizontal: (hPad - s(10)).clamp(0.0, 10.0), vertical: 1),

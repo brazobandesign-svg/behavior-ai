@@ -54,6 +54,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         await context.read<AppState>().loadUserData();
       }
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
     } finally {
       if (mounted) setState(() => isSaving = false);
@@ -91,7 +92,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               Expanded(
                 child: ListView.separated(
                   itemCount: roles.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 16),
+                  separatorBuilder: (context, index) => const SizedBox(height: 16),
                   itemBuilder: (context, index) {
                     final role = roles[index];
                     final isSelected = selectedRole == role['id'];

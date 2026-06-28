@@ -6,7 +6,6 @@ import 'services/supabase_service.dart';
 import 'services/app_state.dart';
 import 'theme/exodo_theme.dart';
 import 'screens/auth_screen.dart';
-import 'screens/onboarding_screen.dart';
 import 'screens/chat_screen.dart';
 
 void main() async {
@@ -89,7 +88,7 @@ class _RootSwitcherState extends State<_RootSwitcher> {
 
   @override
   Widget build(BuildContext context) {
-    final state = context.watch<AppState>();
+    context.watch<AppState>();
     final user = SupabaseService.currentUser;
 
     // 1. Si no ha iniciado sesión -> Pantalla de Autenticación
