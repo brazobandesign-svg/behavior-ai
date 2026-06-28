@@ -171,10 +171,23 @@ class ChatService {
       });
 
       const systemPrompt = "Eres Éxodo by Behavior, un asistente de IA avanzado con contexto dominicano. Sé útil, claro, directo y preciso.";
+      final cleanHistory = <Map<String, dynamic>>[];
+      if (history != null) {
+        for (final h in history) {
+          final r = h['role']?.toString() ?? 'user';
+          final c = h['content']?.toString() ?? '';
+          if (c.trim().isEmpty) continue;
+          if (cleanHistory.isNotEmpty && cleanHistory.last['role'] == r && cleanHistory.last['content'] == c) continue;
+          cleanHistory.add({'role': r, 'content': c});
+        }
+        if (cleanHistory.isNotEmpty && cleanHistory.last['role'] == 'user' && cleanHistory.last['content'] == message) {
+          cleanHistory.removeLast();
+        }
+      }
+
       final messages = [
         {'role': 'system', 'content': systemPrompt},
-        if (history != null)
-          ...history.map((m) => {'role': m['role']?.toString() ?? 'user', 'content': m['content']?.toString() ?? ''}),
+        ...cleanHistory,
         {'role': 'user', 'content': message},
       ];
 
@@ -188,7 +201,8 @@ class ChatService {
 
       final response = await reqClient.send(request).timeout(const Duration(seconds: 45));
       if (response.statusCode != 200) {
-        if (!_isCancelled) onError('Error de API directa (${response.statusCode})');
+        final errBody = await response.stream.bytesToString();
+        if (!_isCancelled) onError('Error de API directa (${response.statusCode}): $errBody');
         reqClient.close();
         return;
       }
