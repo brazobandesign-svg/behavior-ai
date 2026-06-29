@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
+import '../services/app_state.dart';
 import '../theme/exodo_theme.dart';
 
 /// Botón flotante "scroll to bottom" que aparece cuando el usuario
@@ -88,10 +90,9 @@ class ScrollToBottomButtonState extends State<ScrollToBottomButton> {
 
   @override
   Widget build(BuildContext context) {
-    // Aparece solo si:
-    //   1. Hay más de `thresholdMessages` mensajes.
-    //   2. El usuario NO está al final.
-    if (widget.messagesCount < widget.thresholdMessages) {
+    final isGenerating = context.watch<AppState>().isGenerating;
+
+    if (widget.messagesCount < widget.thresholdMessages && !isGenerating) {
       return const SizedBox.shrink();
     }
     if (_isAtBottom) return const SizedBox.shrink();
@@ -105,36 +106,50 @@ class ScrollToBottomButtonState extends State<ScrollToBottomButton> {
       scale: 1.0,
       duration: const Duration(milliseconds: 180),
       curve: Curves.easeOutBack,
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: () {
-            HapticFeedback.selectionClick();
-            _scrollToBottom();
-          },
-          customBorder: const CircleBorder(),
-          child: Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              color: bgColor,
-              shape: BoxShape.circle,
-              border: Border.all(color: borderColor, width: 1),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: isLight ? 0.10 : 0.45),
-                  blurRadius: 8,
-                  offset: const Offset(0, 2),
-                ),
-              ],
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          if (isGenerating)
+            const SizedBox(
+              width: 48,
+              height: 48,
+              child: CircularProgressIndicator(
+                strokeWidth: 2.5,
+                valueColor: AlwaysStoppedAnimation<Color>(ExodoColors.amber),
+              ),
             ),
-            child: Icon(
-              Icons.keyboard_arrow_down_rounded,
-              color: fgColor,
-              size: 22,
+          Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: () {
+                HapticFeedback.selectionClick();
+                _scrollToBottom();
+              },
+              customBorder: const CircleBorder(),
+              child: Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: bgColor,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: borderColor, width: 1),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: isLight ? 0.10 : 0.45),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Icon(
+                  Icons.keyboard_arrow_down_rounded,
+                  color: fgColor,
+                  size: 22,
+                ),
+              ),
             ),
           ),
-        ),
+        ],
       ),
     );
   }
