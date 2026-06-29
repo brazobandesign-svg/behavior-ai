@@ -23,7 +23,7 @@ class AppState extends ChangeNotifier {
   double? currentTempC;
   
   int tokensUsed = 0;
-  int get tokensLimit => isPro ? 300 : 100;
+  int get tokensLimit => 15000; // Temporal para pruebas (antes isPro ? 300 : 100)
   DateTime? tokensResetTime;
   bool get isPro => profile?.plan == 'hazak';
   bool isThinking = false;

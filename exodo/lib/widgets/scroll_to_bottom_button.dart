@@ -65,8 +65,8 @@ class ScrollToBottomButtonState extends State<ScrollToBottomButton> {
     if (!widget.controller.hasClients) return true;
     final pos = widget.controller.position;
     if (!pos.hasContentDimensions) return true;
-    // Tolerancia de 32 píxeles para no parpadear con el teclado.
-    return pos.pixels >= pos.maxScrollExtent - 32;
+    // Tolerancia pequeña para detectar scroll hacia arriba
+    return pos.pixels >= pos.maxScrollExtent - 15;
   }
 
   void _onScroll() {
@@ -92,7 +92,7 @@ class ScrollToBottomButtonState extends State<ScrollToBottomButton> {
   Widget build(BuildContext context) {
     final isGenerating = context.watch<AppState>().isGenerating;
 
-    if (widget.messagesCount < widget.thresholdMessages && !isGenerating) {
+    if (widget.messagesCount == 0) {
       return const SizedBox.shrink();
     }
     if (_isAtBottom) return const SizedBox.shrink();
