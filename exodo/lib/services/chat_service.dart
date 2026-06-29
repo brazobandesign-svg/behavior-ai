@@ -120,7 +120,9 @@ class ChatService {
               if (rawSources is List) {
                 sources = rawSources.whereType<Map<String, dynamic>>().map((s) => Source.fromJson(s)).toList();
               }
-              onComplete(fullText, sources);
+              _enrichSources(message, fullText, sources).then((enriched) {
+                onComplete(fullText, enriched);
+              });
             } else if (type == 'error') {
               onError(data['content'] as String? ?? 'Error en streaming');
             }
@@ -219,7 +221,9 @@ class ChatService {
           if (dataStr == '[DONE]') {
             if (!isCompleted) {
               isCompleted = true;
-              onComplete(fullText, []);
+              _enrichSources(message, fullText, []).then((enriched) {
+                onComplete(fullText, enriched);
+              });
             }
             return;
           }
@@ -242,14 +246,18 @@ class ChatService {
         reqClient.close();
         if (fullText.isNotEmpty && !isCompleted) {
           isCompleted = true;
-          onComplete(fullText, []);
+          _enrichSources(message, fullText, []).then((enriched) {
+            onComplete(fullText, enriched);
+          });
         }
       }, onError: (e) {
         if (_activeClient == reqClient) _activeClient = null;
         reqClient.close();
         if (fullText.isNotEmpty && !isCompleted) {
           isCompleted = true;
-          onComplete(fullText, []);
+          _enrichSources(message, fullText, []).then((enriched) {
+            onComplete(fullText, enriched);
+          });
         } else if (!_isCancelled) {
           onError(e.toString());
         }
@@ -257,5 +265,66 @@ class ChatService {
     } catch (e) {
       if (!_isCancelled) onError('Error de conexión: ${e.toString().replaceAll('Exception: ', '')}');
     }
+  }
+
+  static Future<List<Source>> _enrichSources(String userPrompt, String responseText, List<Source> existingSources) async {
+    if (existingSources.isNotEmpty) return existingSources;
+    
+    final List<Source> found = [];
+    final Set<String> seenUrls = {};
+
+    // 1. Extraer enlaces markdown [Título](URL)
+    final mdRegex = RegExp(r'\[([^\]]+)\]\((https?://[^\s)]+)\)');
+    for (final match in mdRegex.allMatches(responseText)) {
+      final title = match.group(1)?.trim() ?? '';
+      final url = match.group(2)?.trim() ?? '';
+      if (url.isNotEmpty && !url.contains('localhost') && seenUrls.add(url)) {
+        found.add(Source(title: title.isNotEmpty ? title : Uri.parse(url).host, url: url));
+      }
+    }
+
+    // 2. Extraer URLs en texto plano https://...
+    final urlRegex = RegExp(r'(https?://[a-zA-Z0-9\-\.]+\.[a-zA-Z]{2,}(?:/[^\s\)\]\>"]*)?)');
+    for (final match in urlRegex.allMatches(responseText)) {
+      final url = match.group(1)?.trim() ?? '';
+      if (url.isNotEmpty && !url.contains('localhost') && seenUrls.add(url)) {
+        final host = Uri.tryParse(url)?.host ?? url;
+        found.add(Source(title: host.replaceFirst('www.', ''), url: url));
+      }
+    }
+
+    // 3. Si sigue vacío y no es un saludo básico, buscar en Wikipedia para ofrecer fuentes reales
+    final cleanQuery = userPrompt.trim();
+    final lower = cleanQuery.toLowerCase();
+    final isGreeting = ['hola', 'hey', 'buenos dias', 'buenas', 'gracias', 'que tal', 'hi', 'hello', 'ok', 'vale'].contains(lower);
+
+    if (found.isEmpty && cleanQuery.length >= 4 && !isGreeting) {
+      try {
+        // Limpiamos palabras comunes de búsqueda para encontrar los artículos precisos
+        String searchQuery = cleanQuery.replaceAll(RegExp(r'(?i)(busca en internet|buscar en la web|según la web|segun la web|busca en la web|dime sobre|háblame de|hablame de|qué sabes sobre|que sabes sobre|quién fue|quien fue|historia de|información sobre|informacion sobre)'), '').trim();
+        if (searchQuery.isEmpty || searchQuery.length < 3) searchQuery = cleanQuery;
+
+        final lang = cleanQuery.contains(RegExp(r'[áéíóúñ¿¡]', caseSensitive: false)) ? 'es' : 'es';
+        final searchUri = Uri.parse('https://$lang.wikipedia.org/w/api.php?action=query&list=search&srsearch=${Uri.encodeComponent(searchQuery)}&format=json');
+        final resp = await http.get(searchUri).timeout(const Duration(seconds: 3));
+        if (resp.statusCode == 200) {
+          final data = jsonDecode(resp.body);
+          final searchResults = data['query']?['search'] as List?;
+          if (searchResults != null) {
+            for (final item in searchResults.take(4)) {
+              final title = item['title']?.toString() ?? '';
+              if (title.isNotEmpty) {
+                final url = 'https://$lang.wikipedia.org/wiki/${Uri.encodeComponent(title.replaceAll(' ', '_'))}';
+                if (seenUrls.add(url)) {
+                  found.add(Source(title: title, url: url));
+                }
+              }
+            }
+          }
+        }
+      } catch (_) {}
+    }
+
+    return found;
   }
 }
