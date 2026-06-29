@@ -1407,7 +1407,7 @@ class _MessageBubble extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 _ActionButton(
-                  icon: Icons.copy_rounded,
+                  assetPath: 'assets/images/copy-2-svgrepo-com.png',
                   tooltip: _isDeviceEnglish(context) ? 'Copy' : 'Copiar',
                   color: isLight ? Colors.black38 : Colors.white38,
                   onTap: () {
@@ -1675,28 +1675,46 @@ class _MessageActionBar extends StatelessWidget {
       runSpacing: 4,
       crossAxisAlignment: WrapCrossAlignment.center,
       children: [
-        _ActionButton(icon: Icons.copy_outlined, tooltip: _isDeviceEnglish(context) ? 'Copy' : 'Copiar', color: subText, onTap: copy),
-        _ActionButton(icon: Icons.thumb_up_outlined, tooltip: _isDeviceEnglish(context) ? 'Like' : 'Me gusta', color: subText, onTap: like),
-        _ActionButton(icon: Icons.thumb_down_outlined, tooltip: _isDeviceEnglish(context) ? 'Dislike' : 'No me gusta', color: subText, onTap: dislike),
-        _ActionButton(icon: Icons.reply_outlined, flipHorizontally: true, tooltip: _isDeviceEnglish(context) ? 'Share' : 'Compartir', color: subText, onTap: share),
+        _ActionButton(assetPath: 'assets/images/copy-2-svgrepo-com.png', tooltip: _isDeviceEnglish(context) ? 'Copy' : 'Copiar', color: subText, onTap: copy),
+        _ActionButton(assetPath: 'assets/images/like-1-svgrepo-com.png', tooltip: _isDeviceEnglish(context) ? 'Like' : 'Me gusta', color: subText, onTap: like),
+        _ActionButton(assetPath: 'assets/images/like-1-svgrepo-com.png', flipVertically: true, tooltip: _isDeviceEnglish(context) ? 'Dislike' : 'No me gusta', color: subText, onTap: dislike),
+        _ActionButton(assetPath: 'assets/images/share-svgrepo-com.png', tooltip: _isDeviceEnglish(context) ? 'Share' : 'Compartir', color: subText, onTap: share),
       ],
     );
   }
 }
 
 class _ActionButton extends StatelessWidget {
-  final IconData icon;
+  final IconData? icon;
+  final String? assetPath;
   final String tooltip;
   final Color color;
   final VoidCallback onTap;
-  final bool flipHorizontally;
-  const _ActionButton({required this.icon, required this.tooltip, required this.color, required this.onTap, this.flipHorizontally = false});
+  final bool flipVertically;
+  const _ActionButton({
+    this.icon,
+    this.assetPath,
+    required this.tooltip,
+    required this.color,
+    required this.onTap,
+    this.flipVertically = false,
+  });
 
   @override
   Widget build(BuildContext context) {
-    Widget iconWidget = Icon(icon, size: 18, color: color);
-    if (flipHorizontally) {
-      iconWidget = Transform.scale(scaleX: -1, child: iconWidget);
+    Widget childWidget;
+    if (assetPath != null) {
+      childWidget = Image.asset(
+        assetPath!,
+        width: 18,
+        height: 18,
+        color: color,
+      );
+    } else {
+      childWidget = Icon(icon ?? Icons.circle, size: 18, color: color);
+    }
+    if (flipVertically) {
+      childWidget = Transform.flip(flipY: true, child: childWidget);
     }
     return Tooltip(
       message: tooltip,
@@ -1705,7 +1723,7 @@ class _ActionButton extends StatelessWidget {
         radius: 18,
         child: Padding(
           padding: const EdgeInsets.all(4),
-          child: iconWidget,
+          child: childWidget,
         ),
       ),
     );
