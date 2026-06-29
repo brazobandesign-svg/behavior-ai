@@ -1675,10 +1675,10 @@ class _MessageActionBar extends StatelessWidget {
       runSpacing: 4,
       crossAxisAlignment: WrapCrossAlignment.center,
       children: [
-        _ActionButton(icon: Icons.copy_rounded, tooltip: _isDeviceEnglish(context) ? 'Copy' : 'Copiar', color: subText, onTap: copy),
-        _ActionButton(icon: Icons.ios_share_rounded, tooltip: _isDeviceEnglish(context) ? 'Share' : 'Compartir', color: subText, onTap: share),
-        _ActionButton(icon: Icons.thumb_up_off_alt_rounded, tooltip: _isDeviceEnglish(context) ? 'Like' : 'Me gusta', color: subText, onTap: like),
-        _ActionButton(icon: Icons.thumb_down_off_alt_rounded, tooltip: _isDeviceEnglish(context) ? 'Dislike' : 'No me gusta', color: subText, onTap: dislike),
+        _ActionButton(icon: Icons.copy_outlined, tooltip: _isDeviceEnglish(context) ? 'Copy' : 'Copiar', color: subText, onTap: copy),
+        _ActionButton(icon: Icons.thumb_up_outlined, tooltip: _isDeviceEnglish(context) ? 'Like' : 'Me gusta', color: subText, onTap: like),
+        _ActionButton(icon: Icons.thumb_down_outlined, tooltip: _isDeviceEnglish(context) ? 'Dislike' : 'No me gusta', color: subText, onTap: dislike),
+        _ActionButton(icon: Icons.reply_outlined, flipHorizontally: true, tooltip: _isDeviceEnglish(context) ? 'Share' : 'Compartir', color: subText, onTap: share),
       ],
     );
   }
@@ -1689,10 +1689,15 @@ class _ActionButton extends StatelessWidget {
   final String tooltip;
   final Color color;
   final VoidCallback onTap;
-  const _ActionButton({required this.icon, required this.tooltip, required this.color, required this.onTap});
+  final bool flipHorizontally;
+  const _ActionButton({required this.icon, required this.tooltip, required this.color, required this.onTap, this.flipHorizontally = false});
 
   @override
   Widget build(BuildContext context) {
+    Widget iconWidget = Icon(icon, size: 18, color: color);
+    if (flipHorizontally) {
+      iconWidget = Transform.scale(scaleX: -1, child: iconWidget);
+    }
     return Tooltip(
       message: tooltip,
       child: InkResponse(
@@ -1700,7 +1705,7 @@ class _ActionButton extends StatelessWidget {
         radius: 18,
         child: Padding(
           padding: const EdgeInsets.all(4),
-          child: Icon(icon, size: 18, color: color),
+          child: iconWidget,
         ),
       ),
     );
