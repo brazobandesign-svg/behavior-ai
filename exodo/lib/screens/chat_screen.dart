@@ -1379,13 +1379,14 @@ class _MessageBubble extends StatelessWidget {
               margin: const EdgeInsets.symmetric(vertical: 4),
               padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
               decoration: BoxDecoration(
-                color: const Color(0xFF131313),
+                color: isLight ? const Color(0xFFE5DECF) : const Color(0xFF131313),
                 borderRadius: BorderRadius.circular(20),
+                border: isLight ? Border.all(color: const Color(0xFFD4CEBF), width: 1.0) : null,
               ),
               child: MarkdownBody(
                 data: message.content,
                 styleSheet: MarkdownStyleSheet.fromTheme(Theme.of(context)).copyWith(
-                  p: GoogleFonts.inter(fontSize: 15, color: Colors.white),
+                  p: GoogleFonts.inter(fontSize: 15, color: isLight ? const Color(0xFF171615) : Colors.white),
                 ),
               ),
             ),
