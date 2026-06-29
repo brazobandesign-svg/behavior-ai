@@ -1642,7 +1642,7 @@ String _sourceInitials(Source s) {
 }
 
 /// Barra de acciones al pie de cada respuesta del asistente:
-/// Copy Â· Share Â· Play (TTS) Â· Like Â· Dislike Â· Recharge (reformular).
+/// Copy · Share · Like · Dislike.
 class _MessageActionBar extends StatelessWidget {
   final ChatMessage message;
   const _MessageActionBar({required this.message});
@@ -1670,20 +1670,6 @@ class _MessageActionBar extends StatelessWidget {
       HapticFeedback.mediumImpact();
     }
 
-    void play() async {
-      HapticFeedback.lightImpact();
-      final text = message.content.trim();
-      if (text.isEmpty) return;
-      final i18n = AppI18n.of(context);
-      await TtsService.instance.speak(text, appLocale: i18n.localeCode);
-    }
-
-    void recharge() {
-      HapticFeedback.mediumImpact();
-      final state = context.read<AppState>();
-      state.reformulateLastAssistantMessage(message);
-    }
-
     return Wrap(
       spacing: 18,
       runSpacing: 4,
@@ -1691,10 +1677,8 @@ class _MessageActionBar extends StatelessWidget {
       children: [
         _ActionButton(icon: Icons.copy_rounded, tooltip: _isDeviceEnglish(context) ? 'Copy' : 'Copiar', color: subText, onTap: copy),
         _ActionButton(icon: Icons.ios_share_rounded, tooltip: _isDeviceEnglish(context) ? 'Share' : 'Compartir', color: subText, onTap: share),
-        _ActionButton(icon: Icons.play_arrow_rounded, tooltip: _isDeviceEnglish(context) ? 'Play' : 'Reproducir', color: subText, onTap: play),
         _ActionButton(icon: Icons.thumb_up_off_alt_rounded, tooltip: _isDeviceEnglish(context) ? 'Like' : 'Me gusta', color: subText, onTap: like),
         _ActionButton(icon: Icons.thumb_down_off_alt_rounded, tooltip: _isDeviceEnglish(context) ? 'Dislike' : 'No me gusta', color: subText, onTap: dislike),
-        _ActionButton(icon: Icons.refresh_rounded, tooltip: _isDeviceEnglish(context) ? 'Regenerate' : 'Regenerar', color: ExodoColors.amber, onTap: recharge),
       ],
     );
   }
