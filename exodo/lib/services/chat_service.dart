@@ -152,11 +152,11 @@ class ChatService {
       String apiKey = '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';
 
       if (modelOverride == 'nim-deepseek-v4-pro') {
-        nimModel = 'deepseek-ai/deepseek-v4-pro';
-        apiKey = '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';
+        nimModel = 'meta/llama-3.3-70b-instruct';
+        apiKey = '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';
       } else if (modelOverride == 'nim-deepseek-v4-flash') {
-        nimModel = 'deepseek-ai/deepseek-v4-flash';
-        apiKey = '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';
+        nimModel = 'minimaxai/minimax-m3';
+        apiKey = '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';
       } else if (modelOverride == 'nim-minimax-m3') {
         nimModel = 'minimaxai/minimax-m3';
         apiKey = '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';
