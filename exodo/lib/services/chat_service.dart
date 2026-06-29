@@ -306,7 +306,10 @@ class ChatService {
 
         final lang = cleanQuery.contains(RegExp(r'[áéíóúñ¿¡]', caseSensitive: false)) ? 'es' : 'es';
         final searchUri = Uri.parse('https://$lang.wikipedia.org/w/api.php?action=query&list=search&srsearch=${Uri.encodeComponent(searchQuery)}&format=json');
-        final resp = await http.get(searchUri).timeout(const Duration(seconds: 3));
+        final resp = await http.get(
+          searchUri,
+          headers: {'User-Agent': 'ExodoAI/1.0 (https://behavior.ai)'},
+        ).timeout(const Duration(seconds: 4));
         if (resp.statusCode == 200) {
           final data = jsonDecode(resp.body);
           final searchResults = data['query']?['search'] as List?;

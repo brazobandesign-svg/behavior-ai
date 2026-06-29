@@ -524,7 +524,6 @@ class AppState extends ChangeNotifier {
           notifyListeners();
         },
         onComplete: (fullText, sources) async {
-          if (!isGenerating) return;
           isGenerating = false;
           tokensUsed += (fullText.length ~/ 3) + 35;
           final idx = currentMessages.indexWhere((m) => m.id == msgId);
