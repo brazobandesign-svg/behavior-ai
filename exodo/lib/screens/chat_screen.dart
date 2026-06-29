@@ -8,6 +8,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
+import 'package:url_launcher/url_launcher.dart';
 import '../models/models.dart';
 import '../services/app_state.dart';
 import '../services/supabase_service.dart';
@@ -1550,10 +1551,17 @@ class _SourcesSheet extends StatelessWidget {
                           ),
                           title: Text(s.title.isNotEmpty ? s.title : s.url, style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w600, color: isLight ? Colors.black87 : Colors.white)),
                           subtitle: s.url.isNotEmpty ? Text(s.url, maxLines: 1, overflow: TextOverflow.ellipsis, style: GoogleFonts.inter(fontSize: 12, color: ExodoColors.amber)) : null,
-                          onTap: s.url.isNotEmpty ? () {
+                          trailing: s.url.isNotEmpty
+                              ? Icon(Icons.open_in_new_rounded, size: 18, color: ExodoColors.amber)
+                              : null,
+                          onTap: s.url.isNotEmpty ? () async {
                             HapticFeedback.lightImpact();
-                            Clipboard.setData(ClipboardData(text: s.url));
-                            Navigator.pop(ctx);
+                            final uri = Uri.tryParse(s.url);
+                            if (uri != null && await canLaunchUrl(uri)) {
+                              await launchUrl(uri, mode: LaunchMode.externalApplication);
+                            } else {
+                              Clipboard.setData(ClipboardData(text: s.url));
+                            }
                           } : null,
                         );
                       },
