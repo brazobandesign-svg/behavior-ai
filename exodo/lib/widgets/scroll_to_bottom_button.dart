@@ -109,15 +109,6 @@ class ScrollToBottomButtonState extends State<ScrollToBottomButton> {
       child: Stack(
         alignment: Alignment.center,
         children: [
-          if (isGenerating)
-            const SizedBox(
-              width: 48,
-              height: 48,
-              child: CircularProgressIndicator(
-                strokeWidth: 2.5,
-                valueColor: AlwaysStoppedAnimation<Color>(ExodoColors.amber),
-              ),
-            ),
           Material(
             color: Colors.transparent,
             child: InkWell(
@@ -132,7 +123,10 @@ class ScrollToBottomButtonState extends State<ScrollToBottomButton> {
                 decoration: BoxDecoration(
                   color: bgColor,
                   shape: BoxShape.circle,
-                  border: Border.all(color: borderColor, width: 1),
+                  border: Border.all(
+                    color: isGenerating ? Colors.transparent : borderColor,
+                    width: 1,
+                  ),
                   boxShadow: [
                     BoxShadow(
                       color: Colors.black.withValues(alpha: isLight ? 0.10 : 0.45),
@@ -149,6 +143,17 @@ class ScrollToBottomButtonState extends State<ScrollToBottomButton> {
               ),
             ),
           ),
+          if (isGenerating)
+            const IgnorePointer(
+              child: SizedBox(
+                width: 40,
+                height: 40,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2.0,
+                  valueColor: AlwaysStoppedAnimation<Color>(ExodoColors.amber),
+                ),
+              ),
+            ),
         ],
       ),
     );
