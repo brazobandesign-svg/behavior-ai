@@ -240,6 +240,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
                 onSend: () {
                     final text = _inputCtrl.text;
                     if (text.trim().isEmpty) return;
+                    FocusScope.of(context).unfocus();
                     if (!state.isGuestUser && (state.tokensUsed >= state.tokensLimit || state.tokensUsed + (text.length ~/ 3) + 15 > state.tokensLimit)) {
                       HapticFeedback.vibrate();
                       if (!state.isPro) {
@@ -802,6 +803,7 @@ class _InterlockingComposerAreaState extends State<_InterlockingComposerArea> wi
                         controller: widget.controller,
                         maxLines: 4,
                         minLines: 1,
+                        onSubmitted: (_) => widget.onSend(),
                         style: TextStyle(fontSize: 16, color: isLight ? const Color(0xFF171615) : Colors.white),
                         decoration: InputDecoration(
                           hintText: _getPlaceholder(context),
