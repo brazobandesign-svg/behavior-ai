@@ -68,14 +68,14 @@ class _AppI18nState {
 
   Future<void> setLocale(String? code) async {
     currentLocale = code;
+    AppI18n.setInstance(code);
+    onChange?.call();
     final prefs = await SharedPreferences.getInstance();
     if (code == null) {
       await prefs.remove('exodo_locale');
     } else {
       await prefs.setString('exodo_locale', code);
     }
-    AppI18n.setInstance(code);
-    onChange?.call();
   }
 }
 

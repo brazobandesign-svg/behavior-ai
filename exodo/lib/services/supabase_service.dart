@@ -70,6 +70,7 @@ class SupabaseService {
     if (user == null) return null;
 
     final defaultFullName = user.userMetadata?['full_name']?.toString() ?? user.email?.split('@')[0] ?? 'Usuario Éxodo';
+    final metaAvatar = user.userMetadata?['avatar_url']?.toString() ?? user.userMetadata?['picture']?.toString() ?? user.userMetadata?['photo_url']?.toString();
 
     try {
       final res = await client.from('profiles').select().eq('id', user.id).maybeSingle();
@@ -78,17 +79,30 @@ class SupabaseService {
           'id': user.id,
           'full_name': defaultFullName,
           'plan': 'genesis',
+          'avatar_url': ?metaAvatar,
         };
         await client.from('profiles').upsert(newProfile);
         return UserProfile.fromJson(newProfile);
       }
-      return UserProfile.fromJson(res);
+      final profile = UserProfile.fromJson(res);
+      if ((profile.avatarUrl == null || profile.avatarUrl!.isEmpty) && metaAvatar != null && metaAvatar.isNotEmpty) {
+        await client.from('profiles').update({'avatar_url': metaAvatar}).eq('id', user.id);
+        return UserProfile(
+          id: profile.id,
+          fullName: profile.fullName,
+          plan: profile.plan,
+          avatarUrl: metaAvatar,
+          onboarding: profile.onboarding,
+        );
+      }
+      return profile;
     } catch (e) {
       // Fallback si RLS o red falla temporalmente
       return UserProfile(
         id: user.id,
         fullName: defaultFullName,
         plan: 'genesis',
+        avatarUrl: metaAvatar,
       );
     }
   }

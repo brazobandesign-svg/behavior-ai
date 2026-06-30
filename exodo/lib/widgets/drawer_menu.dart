@@ -9,6 +9,7 @@ import '../services/widget_service.dart';
 import '../theme/exodo_theme.dart';
 import '../l10n/app_i18n.dart';
 import '../l10n/app_translations.dart';
+import '../screens/profile_screen.dart';
 
 /// Item de menú reutilizable con padding responsive.
 class _DrawerItem extends StatelessWidget {
@@ -47,6 +48,7 @@ class _DrawerMenuState extends State<DrawerMenu> {
   Set<String> _matchingIds = {};
   String _searchQuery = '';
   bool _isSearching = false;
+  bool _showVersion = false;
   final TextEditingController _searchCtrl = TextEditingController();
 
   @override
@@ -99,37 +101,68 @@ class _DrawerMenuState extends State<DrawerMenu> {
               children: [
                 // 1. Header fijo: Logo_behavior + exodo_text (izquierda) + botón cerrar (derecha)
                 Padding(
-                  padding: EdgeInsets.fromLTRB(hPad, s(28), s(12), s(18)),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    crossAxisAlignment: CrossAxisAlignment.center,
+                  padding: EdgeInsets.fromLTRB(hPad, s(28), s(12), _showVersion ? 8 : s(18)),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      Flexible(
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          crossAxisAlignment: CrossAxisAlignment.center,
-                          children: [
-                            Image.asset(
-                              'assets/images/Logo_behavior.png',
-                              height: logoH,
-                              color: ExodoColors.amber,
-                            ),
-                            SizedBox(width: s(10)),
-                            Flexible(
-                              child: Image.asset(
-                                'assets/images/exodo_text.png',
-                                height: exodoTextH,
-                                color: textCol,
-                                fit: BoxFit.scaleDown,
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          Flexible(
+                            child: GestureDetector(
+                              onTap: () {
+                                HapticFeedback.lightImpact();
+                                setState(() => _showVersion = !_showVersion);
+                              },
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                crossAxisAlignment: CrossAxisAlignment.center,
+                                children: [
+                                  Image.asset(
+                                    'assets/images/Logo_behavior.png',
+                                    height: logoH,
+                                    color: ExodoColors.amber,
+                                  ),
+                                  SizedBox(width: s(10)),
+                                  Flexible(
+                                    child: Image.asset(
+                                      'assets/images/exodo_text.png',
+                                      height: exodoTextH,
+                                      color: textCol,
+                                      fit: BoxFit.scaleDown,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
-                          ],
+                          ),
+                          IconButton(
+                            icon: Icon(Icons.close_rounded, color: subTextCol, size: s(20)),
+                            onPressed: () => Navigator.pop(context),
+                          ),
+                        ],
+                      ),
+                      if (_showVersion) ...[
+                        const SizedBox(height: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: isLight ? const Color(0xFFF5F2EB) : const Color(0xFF131313),
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(color: ExodoColors.amber.withValues(alpha: 0.3), width: 0.8),
+                          ),
+                          child: Text(
+                            'AVI 1.1.86-release.01',
+                            style: GoogleFonts.jetBrainsMono(
+                              fontSize: 10.5,
+                              color: ExodoColors.amber,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
                         ),
-                      ),
-                      IconButton(
-                        icon: Icon(Icons.close_rounded, color: subTextCol, size: s(20)),
-                        onPressed: () => Navigator.pop(context),
-                      ),
+                      ],
                     ],
                   ),
                 ),
@@ -138,7 +171,7 @@ class _DrawerMenuState extends State<DrawerMenu> {
                 _DrawerItem(
                   horizontalPad: hPad,
                   icon: Icon(Icons.chat_bubble_outline_rounded, size: s(20), color: textCol),
-                  title: Text('New chat', style: GoogleFonts.jetBrainsMono(fontSize: s(14), color: textCol, fontWeight: FontWeight.w600, letterSpacing: -0.2)),
+                  title: Text(AppI18n.of(context).t('drawer.new_chat'), style: GoogleFonts.jetBrainsMono(fontSize: s(14), color: textCol, fontWeight: FontWeight.w600, letterSpacing: -0.2)),
                   onTap: () {
                     state.startNewChat();
                     Navigator.pop(context);
@@ -147,7 +180,7 @@ class _DrawerMenuState extends State<DrawerMenu> {
                 _DrawerItem(
                   horizontalPad: hPad,
                   icon: Icon(state.isDarkMode ? Icons.light_mode_outlined : Icons.dark_mode_outlined, size: s(20), color: textCol),
-                  title: Text(state.isDarkMode ? 'Light mode' : 'Dark mode', style: GoogleFonts.jetBrainsMono(fontSize: s(14), color: textCol, fontWeight: FontWeight.w600, letterSpacing: -0.2)),
+                  title: Text(state.isDarkMode ? AppI18n.of(context).t('drawer.light_mode') : AppI18n.of(context).t('drawer.dark_mode'), style: GoogleFonts.jetBrainsMono(fontSize: s(14), color: textCol, fontWeight: FontWeight.w600, letterSpacing: -0.2)),
                   onTap: () => state.toggleTheme(),
                 ),
                 _DrawerItem(
@@ -165,17 +198,6 @@ class _DrawerMenuState extends State<DrawerMenu> {
                   },
                 ),
 
-                // [v1.1] Mosaico "Añadir Gadget a Pantalla de Inicio" — integración
-                // con WidgetService (Android 12+ App Widgets pinning API).
-                _DrawerItem(
-                  horizontalPad: hPad,
-                  icon: Icon(Icons.widgets_outlined, size: s(20), color: ExodoColors.amber),
-                  title: Text(
-                    '✨ ${AppI18n.of(context).t('drawer.add_widget')}',
-                    style: GoogleFonts.jetBrainsMono(fontSize: s(14), color: ExodoColors.amber, fontWeight: FontWeight.w600, letterSpacing: -0.2),
-                  ),
-                  onTap: () => _showAddWidgetSheet(context),
-                ),
 
                 // 3. Buscar conversación
                 Padding(
@@ -282,8 +304,8 @@ class _DrawerMenuState extends State<DrawerMenu> {
                                 const SizedBox(height: 16),
                                 Text(
                                   state.conversations.isEmpty
-                                      ? (AppI18n.of(context).localeCode == 'en' ? 'No chat history' : 'Sin historial de chats')
-                                      : (AppI18n.of(context).localeCode == 'en' ? 'No chats found' : 'No se encontraron chats'),
+                                      ? AppI18n.of(context).t('drawer.no_history')
+                                      : AppI18n.of(context).t('drawer.no_found'),
                                   style: GoogleFonts.jetBrainsMono(
                                     fontSize: s(13),
                                     color: subTextCol,
@@ -295,12 +317,8 @@ class _DrawerMenuState extends State<DrawerMenu> {
                                 const SizedBox(height: 6),
                                 Text(
                                   state.conversations.isEmpty
-                                      ? (AppI18n.of(context).localeCode == 'en'
-                                          ? 'Start a new conversation\nand it will appear here.'
-                                          : 'Inicia una nueva conversación\ny aparecerá aquí.')
-                                      : (AppI18n.of(context).localeCode == 'en'
-                                          ? 'Try a different search term.'
-                                          : 'Prueba con otro término de búsqueda.'),
+                                      ? AppI18n.of(context).t('drawer.start_conv')
+                                      : AppI18n.of(context).t('drawer.try_search'),
                                   style: GoogleFonts.inter(
                                     fontSize: s(12),
                                     color: subTextCol.withValues(alpha: 0.7),
@@ -318,7 +336,7 @@ class _DrawerMenuState extends State<DrawerMenu> {
                               SliverPadding(
                                 padding: EdgeInsets.fromLTRB(hPad, 6, hPad, 4),
                                 sliver: SliverToBoxAdapter(
-                                  child: Text('Starred', style: GoogleFonts.jetBrainsMono(fontSize: s(11.5), fontWeight: FontWeight.bold, color: subTextCol, letterSpacing: -0.1)),
+                                  child: Text(AppI18n.of(context).t('drawer.starred'), style: GoogleFonts.jetBrainsMono(fontSize: s(11.5), fontWeight: FontWeight.bold, color: subTextCol, letterSpacing: -0.1)),
                                 ),
                               ),
                               SliverList(
@@ -333,7 +351,7 @@ class _DrawerMenuState extends State<DrawerMenu> {
                             SliverPadding(
                               padding: EdgeInsets.fromLTRB(hPad, 6, hPad, 4),
                               sliver: SliverToBoxAdapter(
-                                child: Text('Recents', style: GoogleFonts.jetBrainsMono(fontSize: s(11.5), fontWeight: FontWeight.bold, color: subTextCol, letterSpacing: -0.1)),
+                                child: Text(AppI18n.of(context).t('drawer.recents'), style: GoogleFonts.jetBrainsMono(fontSize: s(11.5), fontWeight: FontWeight.bold, color: subTextCol, letterSpacing: -0.1)),
                               ),
                             ),
                             SliverList(
@@ -373,17 +391,22 @@ class _DrawerMenuState extends State<DrawerMenu> {
                                 CircleAvatar(
                                   radius: avatarR,
                                   backgroundColor: ExodoColors.amber,
-                                  child: Text(
-                                    (state.profile?.fullName?.trim().isNotEmpty == true)
-                                        ? state.profile!.fullName!.trim().substring(0, 1).toUpperCase()
-                                        : 'U',
-                                    style: GoogleFonts.syne(fontSize: s(19), fontWeight: FontWeight.bold, color: Colors.black),
-                                  ),
+                                  backgroundImage: (state.userAvatarUrl != null)
+                                      ? NetworkImage(state.userAvatarUrl!)
+                                      : null,
+                                  child: (state.userAvatarUrl != null)
+                                      ? null
+                                      : Text(
+                                          (state.profile?.fullName?.trim().isNotEmpty == true)
+                                              ? state.profile!.fullName!.trim().substring(0, 1).toUpperCase()
+                                              : 'U',
+                                          style: GoogleFonts.syne(fontSize: s(19), fontWeight: FontWeight.bold, color: Colors.black),
+                                        ),
                                 ),
                                 SizedBox(width: s(12)),
                                 Flexible(
                                   child: Text(
-                                    state.profile?.fullName ?? (AppI18n.of(context).localeCode == 'en' ? 'Exodo User' : 'Usuario Éxodo'),
+                                    state.profile?.fullName ?? AppI18n.of(context).t('drawer.user_default'),
                                     style: GoogleFonts.jetBrainsMono(fontSize: s(14), fontWeight: FontWeight.w600, color: textCol, letterSpacing: -0.2),
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
@@ -415,162 +438,162 @@ class _DrawerMenuState extends State<DrawerMenu> {
 // [v1.1] Sheet para anclar un Gadget (App Widget) a la pantalla
 // de inicio via WidgetService. Estilo Éxodo (dark, amber, mono).
 // ============================================================
+// ignore: unused_element
 void _showAddWidgetSheet(BuildContext context) {
-  HapticFeedback.selectionClick();
-  showModalBottomSheet(
-    context: context,
-    backgroundColor: const Color(0xFF1C1A17),
-    shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-    ),
-    builder: (sheetCtx) {
-      final isEn = AppI18n.of(sheetCtx).localeCode == 'en';
-      return SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Center(
-                child: Container(
-                  width: 36,
-                  height: 4,
-                  margin: const EdgeInsets.only(bottom: 16),
-                  decoration: BoxDecoration(
-                    color: Colors.white24,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-              ),
-              Row(
-                children: [
-                  const Icon(Icons.widgets_outlined, color: ExodoColors.amber, size: 22),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      AppI18n.of(sheetCtx).t('drawer.add_widget'),
-                      style: GoogleFonts.syne(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
+    HapticFeedback.selectionClick();
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: ExodoColors.background,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (sheetCtx) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 36,
+                    height: 4,
+                    margin: const EdgeInsets.only(bottom: 16),
+                    decoration: BoxDecoration(
+                      color: Colors.white24,
+                      borderRadius: BorderRadius.circular(2),
                     ),
                   ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              Text(
-                isEn
-                    ? 'Pick the format you want on your home screen:'
-                    : 'Elige el formato que quieres en tu pantalla de inicio:',
-                style: GoogleFonts.inter(fontSize: 13, color: Colors.white60, height: 1.4),
-              ),
-              const SizedBox(height: 18),
-              InkWell(
-                onTap: () async {
-                  Navigator.pop(sheetCtx);
-                  HapticFeedback.selectionClick();
-                  await WidgetService.instance.requestPinWidget(type: 'square');
-                },
-                borderRadius: BorderRadius.circular(14),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF221F1C),
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: Colors.white12),
-                  ),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 40,
-                        height: 40,
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF635BFF).withValues(alpha: 0.18),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: const Icon(Icons.crop_square_rounded, color: Color(0xFF635BFF), size: 22),
-                      ),
-                      const SizedBox(width: 14),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              isEn ? 'Square Gadget' : 'Gadget Cuadrado',
-                              style: GoogleFonts.inter(fontSize: 15, color: Colors.white, fontWeight: FontWeight.w600),
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              isEn ? 'Voice quick access' : 'Acceso rapido por voz',
-                              style: GoogleFonts.inter(fontSize: 12, color: Colors.white60),
-                            ),
-                          ],
+                ),
+                Row(
+                  children: [
+                    const Icon(Icons.widgets_outlined, color: ExodoColors.amber, size: 22),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        AppI18n.of(sheetCtx).t('drawer.add_widget'),
+                        style: GoogleFonts.syne(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: ExodoColors.textPrimary,
                         ),
                       ),
-                      const Icon(Icons.chevron_right_rounded, color: Colors.white38, size: 20),
-                    ],
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  "Elige el estilo de widget flotante inteligente que mejor combine con tu fondo de pantalla:",
+                  style: GoogleFonts.inter(fontSize: 13, color: ExodoColors.textSecondary, height: 1.4),
+                ),
+                const SizedBox(height: 18),
+                InkWell(
+                  onTap: () async {
+                    Navigator.pop(sheetCtx);
+                    HapticFeedback.selectionClick();
+                    await WidgetService.instance.requestPinWidget(type: 'grok');
+                  },
+                  borderRadius: BorderRadius.circular(14),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                    decoration: BoxDecoration(
+                      color: ExodoColors.surface,
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: ExodoColors.border),
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 40,
+                          height: 40,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF0E0C0A),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: ExodoColors.amber.withValues(alpha: 0.4)),
+                          ),
+                          child: const Icon(Icons.dark_mode_outlined, color: ExodoColors.amber, size: 22),
+                        ),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                "Widget Éxodo Oscuro",
+                                style: GoogleFonts.inter(fontSize: 15, color: ExodoColors.textPrimary, fontWeight: FontWeight.w600),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                "Estilo Negro Cálido minimalista",
+                                style: GoogleFonts.inter(fontSize: 12, color: ExodoColors.textSecondary),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const Icon(Icons.chevron_right_rounded, color: ExodoColors.textSecondary, size: 20),
+                      ],
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(height: 10),
-              InkWell(
-                onTap: () async {
-                  Navigator.pop(sheetCtx);
-                  HapticFeedback.selectionClick();
-                  await WidgetService.instance.requestPinWidget(type: 'horizontal');
-                },
-                borderRadius: BorderRadius.circular(14),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF221F1C),
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: Colors.white12),
-                  ),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 40,
-                        height: 40,
-                        decoration: BoxDecoration(
-                          color: ExodoColors.amber.withValues(alpha: 0.18),
-                          borderRadius: BorderRadius.circular(10),
+                const SizedBox(height: 12),
+                InkWell(
+                  onTap: () async {
+                    Navigator.pop(sheetCtx);
+                    HapticFeedback.selectionClick();
+                    await WidgetService.instance.requestPinWidget(type: 'grok_light');
+                  },
+                  borderRadius: BorderRadius.circular(14),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF5F2EB),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: const Color(0xFFE0DDD6)),
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 40,
+                          height: 40,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFEBE7DE),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: ExodoColors.amber),
+                          ),
+                          child: const Icon(Icons.light_mode_outlined, color: ExodoColors.amber, size: 22),
                         ),
-                        child: const Icon(Icons.crop_landscape_rounded, color: ExodoColors.amber, size: 22),
-                      ),
-                      const SizedBox(width: 14),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              isEn ? 'Horizontal Bar' : 'Barra Horizontal',
-                              style: GoogleFonts.inter(fontSize: 15, color: Colors.white, fontWeight: FontWeight.w600),
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              isEn ? 'Quick search bar' : 'Buscador rapido',
-                              style: GoogleFonts.inter(fontSize: 12, color: Colors.white60),
-                            ),
-                          ],
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                "Widget Éxodo Claro",
+                                style: GoogleFonts.inter(fontSize: 15, color: const Color(0xFF0E0C0A), fontWeight: FontWeight.w600),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                "Estilo Yeso / Hueso luminoso",
+                                style: GoogleFonts.inter(fontSize: 12, color: const Color(0xFF6B655B)),
+                              ),
+                            ],
+                          ),
                         ),
-                      ),
-                      const Icon(Icons.chevron_right_rounded, color: Colors.white38, size: 20),
-                    ],
+                        const Icon(Icons.chevron_right_rounded, color: const Color(0xFF0E0C0A), size: 20),
+                      ],
+                    ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
-        ),
-      );
-    },
-  );
-}
+        );
+      },
+    );
+  }
 
 // ============================================================
   // ============================================================
@@ -594,7 +617,7 @@ void _showAddWidgetSheet(BuildContext context) {
           _showChatContextMenu(context, conv, state, isStarred);
         },
         title: Text(
-          conv.title,
+          (conv.title == 'New chat' || conv.title == 'Nuevo chat' || conv.title == 'Nueva conversación' || conv.title == 'Nova conversa' || conv.title == 'Nouvelle conversation' || conv.title == 'Nuova chat' || conv.title == 'Neuer Chat' || conv.title == 'New conversation' || conv.title == 'Sin título') ? AppI18n.of(context).t('drawer.new_chat') : conv.title,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
           style: GoogleFonts.jetBrainsMono(
@@ -613,7 +636,7 @@ void _showAddWidgetSheet(BuildContext context) {
 
   void _showChatContextMenu(BuildContext context, Conversation conv, AppState state, bool isStarred) {
     final isLight = Theme.of(context).brightness == Brightness.light;
-    final isEn = AppI18n.of(context).localeCode == 'en';
+
     showModalBottomSheet(
       context: context,
       backgroundColor: isLight ? Colors.white : const Color(0xFF1E1C19),
@@ -627,7 +650,7 @@ void _showAddWidgetSheet(BuildContext context) {
             const SizedBox(height: 16),
             ListTile(
               leading: Icon(Icons.edit_outlined, color: isLight ? Colors.black87 : Colors.white),
-              title: Text(isEn ? 'Rename' : 'Renombrar', style: GoogleFonts.inter(fontSize: 15, color: isLight ? Colors.black : Colors.white, fontWeight: FontWeight.w500)),
+              title: Text(AppI18n.of(context).t('ctx.rename'), style: GoogleFonts.inter(fontSize: 15, color: isLight ? Colors.black : Colors.white, fontWeight: FontWeight.w500)),
               onTap: () {
                 Navigator.pop(ctx);
                 _showRenameDialog(context, conv, state);
@@ -635,7 +658,7 @@ void _showAddWidgetSheet(BuildContext context) {
             ),
             ListTile(
               leading: Icon(isStarred ? Icons.push_pin : Icons.push_pin_outlined, color: isLight ? Colors.black87 : Colors.white),
-              title: Text(isEn ? (isStarred ? 'Unpin' : 'Pin') : (isStarred ? 'Desfijar' : 'Fijar'), style: GoogleFonts.inter(fontSize: 15, color: isLight ? Colors.black : Colors.white, fontWeight: FontWeight.w500)),
+              title: Text(isStarred ? AppI18n.of(context).t('ctx.unpin') : AppI18n.of(context).t('ctx.pin'), style: GoogleFonts.inter(fontSize: 15, color: isLight ? Colors.black : Colors.white, fontWeight: FontWeight.w500)),
               onTap: () {
                 Navigator.pop(ctx);
                 // Fase 2: la DB se actualiza vía AppState.toggleStarConversation.
@@ -646,7 +669,7 @@ void _showAddWidgetSheet(BuildContext context) {
             ),
             ListTile(
               leading: const Icon(Icons.delete_outline, color: Colors.redAccent),
-              title: Text(isEn ? 'Delete' : 'Borrar', style: GoogleFonts.inter(fontSize: 15, color: Colors.redAccent, fontWeight: FontWeight.w500)),
+              title: Text(AppI18n.of(context).t('ctx.delete'), style: GoogleFonts.inter(fontSize: 15, color: Colors.redAccent, fontWeight: FontWeight.w500)),
               onTap: () {
                 Navigator.pop(ctx);
                 _showDeleteConfirmationDialog(context, conv, state);
@@ -662,19 +685,19 @@ void _showAddWidgetSheet(BuildContext context) {
   void _showRenameDialog(BuildContext context, Conversation conv, AppState state) {
     final ctrl = TextEditingController(text: conv.title);
     final isLight = Theme.of(context).brightness == Brightness.light;
-    final isEn = AppI18n.of(context).localeCode == 'en';
+
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: isLight ? Colors.white : const Color(0xFF1E1C19),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text(isEn ? 'Rename chat' : 'Renombrar chat', style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.bold, color: isLight ? Colors.black : Colors.white)),
+        title: Text(AppI18n.of(context).t('dialog.rename_chat'), style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.bold, color: isLight ? Colors.black : Colors.white)),
         content: TextField(
           controller: ctrl,
           autofocus: true,
           style: TextStyle(color: isLight ? Colors.black : Colors.white),
           decoration: InputDecoration(
-            hintText: isEn ? 'Conversation title' : 'Título de la conversación',
+            hintText: AppI18n.of(context).t('dialog.conv_title'),
             hintStyle: TextStyle(color: isLight ? Colors.black38 : Colors.white38),
             enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: isLight ? Colors.black26 : Colors.white24)),
             focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: isLight ? Colors.black : Colors.white)),
@@ -683,7 +706,7 @@ void _showAddWidgetSheet(BuildContext context) {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: Text(isEn ? 'Cancel' : 'Cancelar', style: TextStyle(color: isLight ? Colors.black54 : Colors.white54)),
+            child: Text(AppI18n.of(context).t('ctx.cancel'), style: TextStyle(color: isLight ? Colors.black54 : Colors.white54)),
           ),
           TextButton(
             onPressed: () {
@@ -693,7 +716,7 @@ void _showAddWidgetSheet(BuildContext context) {
               }
               Navigator.pop(ctx);
             },
-            child: Text(isEn ? 'Save' : 'Guardar', style: TextStyle(color: isLight ? Colors.black : Colors.white, fontWeight: FontWeight.bold)),
+            child: Text(AppI18n.of(context).t('action.save'), style: TextStyle(color: isLight ? Colors.black : Colors.white, fontWeight: FontWeight.bold)),
           ),
         ],
       ),
@@ -702,7 +725,7 @@ void _showAddWidgetSheet(BuildContext context) {
 
   void _showDeleteConfirmationDialog(BuildContext context, Conversation conv, AppState state) {
     final isLight = Theme.of(context).brightness == Brightness.light;
-    final isEn = AppI18n.of(context).localeCode == 'en';
+
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -713,21 +736,19 @@ void _showAddWidgetSheet(BuildContext context) {
             const Icon(Icons.warning_amber_rounded, color: Colors.redAccent, size: 24),
             const SizedBox(width: 10),
             Text(
-              isEn ? 'Delete chat?' : '¿Eliminar chat?',
+              AppI18n.of(context).t('dialog.delete_chat'),
               style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.bold, color: isLight ? Colors.black : Colors.white),
             ),
           ],
         ),
         content: Text(
-          isEn
-              ? 'Are you sure you want to delete "${conv.title}"? This action cannot be undone.'
-              : '¿Estás seguro de que deseas eliminar "${conv.title}"? Esta acción no se puede deshacer.',
+          '${AppI18n.of(context).t('dialog.delete_chat_body')} "${conv.title}"?',
           style: GoogleFonts.inter(fontSize: 14, color: isLight ? Colors.black87 : Colors.white70, height: 1.4),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: Text(isEn ? 'Cancel' : 'Cancelar', style: TextStyle(color: isLight ? Colors.black54 : Colors.white54)),
+            child: Text(AppI18n.of(context).t('ctx.cancel'), style: TextStyle(color: isLight ? Colors.black54 : Colors.white54)),
           ),
           ElevatedButton(
             onPressed: () async {
@@ -740,7 +761,7 @@ void _showAddWidgetSheet(BuildContext context) {
               elevation: 0,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
             ),
-            child: Text(isEn ? 'Delete' : 'Eliminar', style: const TextStyle(fontWeight: FontWeight.bold)),
+            child: Text(AppI18n.of(context).t('ctx.delete'), style: const TextStyle(fontWeight: FontWeight.bold)),
           ),
         ],
       ),
@@ -790,10 +811,19 @@ class _LangTile extends StatelessWidget {
 
 class _ClaudeAccountModal {
   static void show(BuildContext context, AppState state) {
+    final isLight = !state.isDarkMode;
+    final bg = isLight ? const Color(0xFFF7F5F0) : const Color(0xFF131313);
+    final textCol = isLight ? const Color(0xFF171615) : Colors.white;
+    final subTextCol = isLight ? Colors.black54 : Colors.white54;
+    final cardBg = isLight ? const Color(0xFFEBE7DE) : const Color(0xFF1E1E1E);
+    final borderColor = isLight ? const Color(0xFFD4CEBF) : Colors.white12;
+    final handleColor = isLight ? Colors.black26 : Colors.white24;
+    final dividerColor = isLight ? const Color(0xFFE2DDD2) : Colors.white12;
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: const Color(0xFF1C1A17),
+      backgroundColor: bg,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(28))),
       builder: (ctx) => SafeArea(
         child: Padding(
@@ -808,11 +838,11 @@ class _ClaudeAccountModal {
                   width: 36,
                   height: 4,
                   margin: const EdgeInsets.only(bottom: 16),
-                  decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(2)),
+                  decoration: BoxDecoration(color: handleColor, borderRadius: BorderRadius.circular(2)),
                 ),
               ),
               Center(
-                child: Text(AppI18n.of(context).t('settings.title'), style: GoogleFonts.syne(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
+                child: Text(AppI18n.of(context).t('settings.title'), style: GoogleFonts.syne(fontSize: 18, fontWeight: FontWeight.bold, color: textCol)),
               ),
               const SizedBox(height: 20),
 
@@ -820,9 +850,9 @@ class _ClaudeAccountModal {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF282521),
+                  color: cardBg,
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: Colors.white12),
+                  border: Border.all(color: borderColor),
                 ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -830,17 +860,17 @@ class _ClaudeAccountModal {
                     Expanded(
                       child: Text(
                         state.userEmail.isNotEmpty ? state.userEmail : AppI18n.of(context).t('settings.no_email'),
-                        style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w600, color: state.userEmail.isNotEmpty ? Colors.white : Colors.white54),
+                        style: GoogleFonts.jetBrainsMono(fontSize: 14, fontWeight: FontWeight.w600, color: state.userEmail.isNotEmpty ? textCol : subTextCol, letterSpacing: -0.2),
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
                     const SizedBox(width: 12),
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20)),
+                      decoration: BoxDecoration(color: isLight ? const Color(0xFF171615) : Colors.white, borderRadius: BorderRadius.circular(20)),
                       child: Text(
                         state.profile?.plan == 'hazak' ? 'Pro' : 'Free',
-                        style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.black),
+                        style: GoogleFonts.jetBrainsMono(fontSize: 12, fontWeight: FontWeight.bold, color: isLight ? Colors.white : Colors.black, letterSpacing: -0.2),
                       ),
                     ),
                   ],
@@ -855,9 +885,10 @@ class _ClaudeAccountModal {
                 _buildSettingTile(
                   icon: Icons.person_outline_rounded,
                   title: AppI18n.of(context).t('settings.profile'),
+                  isLight: isLight,
                   onTap: () {
                     Navigator.pop(ctx);
-                    _showProfileEditDialog(context, state);
+                    Navigator.push(context, MaterialPageRoute(builder: (_) => const ProfileScreen()));
                   },
                 ),
                 const SizedBox(height: 8),
@@ -866,6 +897,7 @@ class _ClaudeAccountModal {
                 icon: Icons.language_rounded,
                 title: AppI18n.of(context).t('drawer.language'),
                 subtitle: _currentLocaleFlag(context),
+                isLight: isLight,
                 onTap: () {
                   Navigator.pop(ctx);
                   _showLanguageSheet(context);
@@ -876,6 +908,7 @@ class _ClaudeAccountModal {
                 _buildSettingTile(
                   icon: Icons.monetization_on_outlined,
                   title: AppI18n.of(context).t('settings.billing'),
+                  isLight: isLight,
                   onTap: () {
                     Navigator.pop(ctx);
                     _showBillingModal(context, state);
@@ -884,36 +917,64 @@ class _ClaudeAccountModal {
                 const SizedBox(height: 8),
               ],
               _buildSettingTile(
+                assetIcon: 'assets/images/laptop-alt-2-svgrepo-com.png',
+                title: AppI18n.of(context).t('drawer.web'),
+                isLight: isLight,
+                onTap: () {},
+              ),
+              const SizedBox(height: 8),
+              _buildSettingTile(
                 icon: Icons.privacy_tip_outlined,
                 title: AppI18n.of(context).t('settings.terms'),
+                isLight: isLight,
                 onTap: () {
                   Navigator.pop(ctx);
-                  final isEn = AppI18n.of(context).localeCode == 'en';
                   showDialog(
                     context: context,
                     builder: (_) => AlertDialog(
-                      backgroundColor: const Color(0xFF282521),
-                      title: Text(isEn ? 'Legal & Privacy' : 'Legal y Privacidad', style: GoogleFonts.syne(color: Colors.white)),
-                      content: Text(isEn ? 'Exodo AI operates under strict data privacy and generative AI compliance.' : 'Éxodo AI opera bajo estricto cumplimiento de privacidad de datos e IA generativa.', style: GoogleFonts.inter(color: Colors.white70)),
-                      actions: [TextButton(onPressed: () => Navigator.pop(context), child: Text(isEn ? 'Close' : 'Cerrar', style: const TextStyle(color: ExodoColors.amber)))],
+                      backgroundColor: cardBg,
+                      title: Text(AppI18n.of(context).t('settings.terms'), style: GoogleFonts.syne(color: textCol)),
+                      content: Text(AppI18n.of(context).t('settings.legal_body'), style: GoogleFonts.inter(color: subTextCol)),
+                      actions: [TextButton(onPressed: () => Navigator.pop(context), child: Text(AppI18n.of(context).t('action.close'), style: const TextStyle(color: ExodoColors.amber)))],
                     ),
                   );
                 },
               ),
               const SizedBox(height: 16),
-              const Divider(color: Colors.white12),
+              Divider(color: dividerColor),
               const SizedBox(height: 8),
 
               // Botón de Log out abajo en tono rojizo
               ListTile(
                 contentPadding: const EdgeInsets.symmetric(horizontal: 8),
                 leading: const Icon(Icons.logout_rounded, color: Color(0xFFE57373), size: 22),
-                title: Text(AppI18n.of(context).t('settings.logout'), style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.w500, color: const Color(0xFFE57373))),
+                title: Text(AppI18n.of(context).t('settings.logout'), style: GoogleFonts.jetBrainsMono(fontSize: 15, fontWeight: FontWeight.w600, color: const Color(0xFFE57373), letterSpacing: -0.2)),
                 onTap: () async {
                   Navigator.pop(ctx);
-                  state.selectModelOption(exodoModels[0]);
+                  await Future.delayed(const Duration(milliseconds: 300));
                   await SupabaseService.signOut();
                 },
+              ),
+              const SizedBox(height: 24),
+              Center(
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Image.asset(
+                      'assets/images/Logo_behavior.png',
+                      height: 16,
+                      color: (isLight ? Colors.black : Colors.white).withValues(alpha: 0.5),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      'AVI 1.1.86-release.01',
+                      style: GoogleFonts.jetBrainsMono(
+                        fontSize: 12,
+                        color: (isLight ? Colors.black : Colors.white).withValues(alpha: 0.5),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ],
           ),
@@ -923,35 +984,46 @@ class _ClaudeAccountModal {
   }
 
   static Widget _buildSettingTile({
-    required IconData icon,
+    IconData? icon,
+    String? assetIcon,
     required String title,
     required VoidCallback onTap,
     String? subtitle,
+    required bool isLight,
   }) {
+    final tileBg = isLight ? Colors.white : const Color(0xFF1E1E1E);
+    final textCol = isLight ? const Color(0xFF171615) : Colors.white;
+    final subCol = isLight ? Colors.black54 : Colors.white60;
+    final iconCol = isLight ? Colors.black87 : Colors.white70;
+    final chevronCol = isLight ? Colors.black38 : Colors.white38;
+
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(14),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
-        decoration: BoxDecoration(color: const Color(0xFF221F1C), borderRadius: BorderRadius.circular(14)),
+        decoration: BoxDecoration(color: tileBg, borderRadius: BorderRadius.circular(14)),
         child: Row(
           children: [
-            Icon(icon, color: Colors.white70, size: 22),
+            if (assetIcon != null)
+              Image.asset(assetIcon, width: 22, height: 22, color: iconCol)
+            else if (icon != null)
+              Icon(icon, color: iconCol, size: 22),
             const SizedBox(width: 14),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(title, style: GoogleFonts.inter(fontSize: 15, color: Colors.white, fontWeight: FontWeight.w500)),
+                  Text(title, style: GoogleFonts.jetBrainsMono(fontSize: 15, color: textCol, fontWeight: FontWeight.w600, letterSpacing: -0.2)),
                   if (subtitle != null && subtitle.isNotEmpty) ...[
                     const SizedBox(height: 2),
-                    Text(subtitle, style: GoogleFonts.inter(fontSize: 12, color: Colors.white60)),
+                    Text(subtitle, style: GoogleFonts.jetBrainsMono(fontSize: 12, color: subCol, letterSpacing: -0.2)),
                   ],
                 ],
               ),
             ),
-            const Icon(Icons.chevron_right_rounded, color: Colors.white38, size: 20),
+            Icon(Icons.chevron_right_rounded, color: chevronCol, size: 20),
           ],
         ),
       ),
@@ -1068,56 +1140,12 @@ class _ClaudeAccountModal {
     );
   }
 
-  static void _showProfileEditDialog(BuildContext context, AppState state) {
-    final nameCtrl = TextEditingController(text: state.profile?.fullName ?? '');
-    final isEn = AppI18n.of(context).localeCode == 'en';
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF221F1C),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Text(isEn ? 'Edit Profile' : 'Editar Perfil', style: GoogleFonts.syne(color: Colors.white, fontWeight: FontWeight.bold)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(isEn ? 'What should AI call you?' : '¿Cómo quieres que te llame la IA?', style: GoogleFonts.inter(fontSize: 13, color: Colors.white70)),
-            const SizedBox(height: 10),
-            TextField(
-              controller: nameCtrl,
-              style: const TextStyle(color: Colors.white),
-              decoration: InputDecoration(
-                filled: true,
-                fillColor: const Color(0xFF131313),
-                hintText: isEn ? 'Your name or nickname...' : 'Tu nombre o apodo...',
-                hintStyle: const TextStyle(color: Colors.white38),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: Text(isEn ? 'Cancel' : 'Cancelar', style: const TextStyle(color: Colors.white54))),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: ExodoColors.amber, foregroundColor: Colors.black),
-            onPressed: () {
-              state.updateProfileName(nameCtrl.text.trim());
-              Navigator.pop(ctx);
-              ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(isEn ? '✅ Name updated' : '✅ Nombre actualizado')));
-            },
-            child: Text(isEn ? 'Save' : 'Guardar'),
-          ),
-        ],
-      ),
-    );
-  }
-
   static void _showBillingModal(BuildContext context, AppState state) {
     final isPro = state.profile?.plan == 'hazak';
-    final isEn = AppI18n.of(context).localeCode == 'en';
+
     showModalBottomSheet(
       context: context,
-      backgroundColor: const Color(0xFF1C1A17),
+      backgroundColor: ExodoColors.background,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
       builder: (ctx) => SafeArea(
         child: Padding(
@@ -1126,27 +1154,27 @@ class _ClaudeAccountModal {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Billing & Plan', style: GoogleFonts.syne(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white)),
+              Text(AppI18n.of(context).t('settings.billing'), style: GoogleFonts.syne(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white)),
               const SizedBox(height: 16),
               Container(
                 padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(color: const Color(0xFF282521), borderRadius: BorderRadius.circular(16)),
+                decoration: BoxDecoration(color: ExodoColors.surface, borderRadius: BorderRadius.circular(16)),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text(isEn ? 'Current plan' : 'Plan actual', style: GoogleFonts.inter(color: Colors.white60, fontSize: 13)),
-                        Text(isPro ? (isEn ? '🌟 XPi PRO (\$4.99/mo)' : '🌟 XPi PRO (\$4.99/mes)') : (isEn ? '⚡ Genesis Free' : '⚡ Génesis Gratis'), style: GoogleFonts.inter(color: ExodoColors.amber, fontWeight: FontWeight.bold)),
+                        Text(AppI18n.of(context).t('billing.current_plan'), style: GoogleFonts.inter(color: Colors.white60, fontSize: 13)),
+                        Text(isPro ? AppI18n.of(context).t('billing.plan_pro') : AppI18n.of(context).t('billing.plan_free'), style: GoogleFonts.inter(color: ExodoColors.amber, fontWeight: FontWeight.bold)),
                       ],
                     ),
                     const SizedBox(height: 10),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text(isEn ? 'Payment gateway' : 'Pasarela de pago', style: GoogleFonts.inter(color: Colors.white60, fontSize: 13)),
-                        Text(isPro ? 'Stripe / Mobile Pay' : (isEn ? 'Free' : 'Gratuito'), style: GoogleFonts.inter(color: Colors.white)),
+                        Text(AppI18n.of(context).t('billing.gateway'), style: GoogleFonts.inter(color: Colors.white60, fontSize: 13)),
+                        Text(isPro ? 'Stripe / Mobile Pay' : AppI18n.of(context).t('billing.gateway_free'), style: GoogleFonts.inter(color: Colors.white)),
                       ],
                     ),
                   ],
@@ -1161,9 +1189,8 @@ class _ClaudeAccountModal {
                     onPressed: () {
                       state.cancelProPlan();
                       Navigator.pop(ctx);
-                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(isEn ? 'ℹ️ Reverted to Genesis Free plan' : 'ℹ️ Has regresado al plan Génesis Gratis')));
                     },
-                    child: Text(isEn ? 'Cancel subscription' : 'Cancelar suscripción', style: GoogleFonts.inter(color: const Color(0xFFE57373), fontWeight: FontWeight.bold)),
+                    child: Text(AppI18n.of(context).t('billing.cancel_btn'), style: GoogleFonts.inter(color: const Color(0xFFE57373), fontWeight: FontWeight.bold)),
                   ),
                 )
               else
@@ -1172,7 +1199,7 @@ class _ClaudeAccountModal {
                   child: ElevatedButton(
                     style: ElevatedButton.styleFrom(backgroundColor: ExodoColors.amber, foregroundColor: Colors.black, padding: const EdgeInsets.symmetric(vertical: 14)),
                     onPressed: () => Navigator.pop(ctx),
-                    child: Text(isEn ? 'Upgrade to XPi Ehyeh Pro' : 'Mejorar a XPi Ehyeh Pro', style: GoogleFonts.inter(fontWeight: FontWeight.bold)),
+                    child: Text(AppI18n.of(context).t('billing.upgrade_btn'), style: GoogleFonts.inter(fontWeight: FontWeight.bold)),
                   ),
                 ),
             ],

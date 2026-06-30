@@ -10,11 +10,11 @@ import 'services/app_state.dart';
 import 'theme/exodo_theme.dart';
 import 'screens/auth_screen.dart';
 import 'screens/chat_screen.dart';
-import 'screens/splash_screen.dart';
 
-void main() async {
+void main() {
   WidgetsFlutterBinding.ensureInitialized();
-  await SupabaseService.initialize();
+  // ignore: discarded_futures
+  SupabaseService.initialize();
 
   runApp(
     MultiProvider(
@@ -37,25 +37,29 @@ class ExodoApp extends StatelessWidget {
     return MaterialApp(
       title: AppI18n.of(context).t('app.title'),
       debugShowCheckedModeBanner: false,
-      // Sin flash: ambos temas preconstruidos + themeMode reactivo.
       theme: ExodoTheme.lightTheme,
       darkTheme: ExodoTheme.darkTheme,
       themeMode: (state.isDarkMode || state.isIncognito) ? ThemeMode.dark : ThemeMode.light,
-      // Transición instantánea entre temas (sin animación) para evitar el flash blanco/negro.
       themeAnimationDuration: Duration.zero,
       themeAnimationCurve: Curves.linear,
-      // [v1.2.2 fix pantalla roja] DrawerController requiere
-      // MaterialLocalizations ancestor. Sin estos delegates, la app crashea.
       localizationsDelegates: const [
         GlobalMaterialLocalizations.delegate,
         GlobalWidgetsLocalizations.delegate,
         GlobalCupertinoLocalizations.delegate,
       ],
-      supportedLocales:
-          kAppLocales.map((l) => Locale(l.code, '')).toList(growable: false),
-      locale: _resolveLocale(userLocale), // null → cae a localeResolutionCallback
+      supportedLocales: kAppLocales.map((l) {
+        final parts = l.code.split('_');
+        return parts.length > 1 ? Locale(parts[0], parts[1]) : Locale(parts[0], '');
+      }).toList(growable: false),
+      locale: _resolveLocale(userLocale),
       localeResolutionCallback: (deviceLocale, supportedLocales) {
         if (deviceLocale != null) {
+          for (final supported in supportedLocales) {
+            if (supported.languageCode == deviceLocale.languageCode &&
+                (supported.countryCode == deviceLocale.countryCode || supported.countryCode == null || supported.countryCode!.isEmpty)) {
+              return supported;
+            }
+          }
           for (final supported in supportedLocales) {
             if (supported.languageCode == deviceLocale.languageCode) {
               return supported;
@@ -64,85 +68,78 @@ class ExodoApp extends StatelessWidget {
         }
         return const Locale('es', '');
       },
-      home: const _RootSwitcher(),
-      // Necesario para que supabase_flutter maneje el deep link OAuth (?code=...)
-      // sin que el Navigator crashee al no encontrar la ruta
+      home: _RootSwitcher(key: ValueKey(userLocale ?? 'es')),
       onUnknownRoute: (settings) => MaterialPageRoute(
-        builder: (_) => const _RootSwitcher(),
+        builder: (_) => _RootSwitcher(key: ValueKey(userLocale ?? 'es')),
       ),
     );
   }
 }
 
-/// Resuelve el locale de la app para `MaterialApp.locale`.
-/// - Si el usuario eligió uno en el picker (vía AppI18nProvider) Y está en
-///   la lista de locales soportados → devuelve ese Locale.
-/// - En cualquier otro caso (sin override, o override inválido) → null,
-///   para que MaterialApp.useInheritedMediaQuery + localeResolutionCallback
-///   caigan al locale del sistema (con fallback a 'es').
 Locale? _resolveLocale(String? appLocale) {
   if (appLocale == null) return null;
   if (!kAppLocales.any((l) => l.code == appLocale)) return null;
-  return Locale(appLocale, '');
+  final parts = appLocale.split('_');
+  return parts.length > 1 ? Locale(parts[0], parts[1]) : Locale(parts[0], '');
 }
 
 class _RootSwitcher extends StatefulWidget {
-  const _RootSwitcher();
+  const _RootSwitcher({super.key});
 
   @override
   State<_RootSwitcher> createState() => _RootSwitcherState();
 }
 
 class _RootSwitcherState extends State<_RootSwitcher> {
-  late final StreamSubscription<AuthState> _authSub;
-  static bool _hasShownSplash = false;
-  late bool _showSplash;
+  StreamSubscription<AuthState>? _authSub;
+  bool _ready = false;
 
   @override
   void initState() {
     super.initState();
-    _showSplash = !_hasShownSplash;
-    _hasShownSplash = true;
-    // Escuchar cambios de autenticación para forzar rebuild del widget tree
-    // (AppState._init() ya maneja loadUserData/clear internamente)
+    _initAuth();
+  }
+
+  Future<void> _initAuth() async {
+    while (true) {
+      try {
+        SupabaseService.client;
+        break;
+      } catch (_) {
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+      }
+      if (!mounted) return;
+    }
+    if (!mounted) return;
     _authSub = SupabaseService.client.auth.onAuthStateChange.listen((data) {
-      debugPrint('[RootSwitcher] Auth event: ${data.event}');
       if (mounted) setState(() {});
+    });
+    setState(() {
+      _ready = true;
     });
   }
 
   @override
   void dispose() {
-    _authSub.cancel();
+    _authSub?.cancel();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     context.watch<AppState>();
-    
-    // 1. Si está activo el splash screen -> Mostrar splash
-    if (_showSplash) {
-      return SplashScreen(
-        onFinished: () {
-          if (mounted) {
-            setState(() {
-              _showSplash = false;
-            });
-          }
-        },
+
+    if (!_ready) {
+      return const Scaffold(
+        backgroundColor: ExodoColors.background,
+        body: SizedBox.shrink(),
       );
     }
 
     final user = SupabaseService.currentUser;
-
-    // 2. Si no ha iniciado sesión -> Pantalla de Autenticación
     if (user == null) {
       return const AuthScreen();
     }
-
-    // 3. Todo listo -> Chat Principal directo (las preguntas de enfoque saldrán como modal dentro del chat)
     return const ChatScreen();
   }
 }
-

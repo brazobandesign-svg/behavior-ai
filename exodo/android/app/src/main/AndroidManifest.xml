@@ -42,27 +42,46 @@
             android:name="flutterEmbedding"
             android:value="2" />
     
-        <!-- Receivers para Widgets de Escritorio Exodo -->
+        <!-- Actividad transparente para la entrada rápida de teclado desde el widget -->
+        <activity
+            android:name=".WidgetChatActivity"
+            android:exported="false"
+            android:theme="@style/TransparentTheme"
+            android:windowSoftInputMode="stateVisible|adjustResize"
+            android:excludeFromRecents="true"
+            android:taskAffinity="" />
+
+        <!-- Receiver único para Widget redimensionable estilo Grok -->
         <receiver
-            android:name=".ExodoSquareWidgetProvider"
+            android:name=".ExodoWidgetProvider"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
             </intent-filter>
             <meta-data
                 android:name="android.appwidget.provider"
-                android:resource="@xml/widget_exodo_square_info" />
+                android:resource="@xml/widget_exodo_grok_info" />
         </receiver>
 
+        <!-- Actividad transparente para la entrada rápida de teclado desde el widget claro -->
+        <activity
+            android:name=".WidgetChatLightActivity"
+            android:exported="false"
+            android:theme="@style/TransparentTheme"
+            android:windowSoftInputMode="stateVisible|adjustResize"
+            android:excludeFromRecents="true"
+            android:taskAffinity="" />
+
+        <!-- Receiver para Widget redimensionable Claro -->
         <receiver
-            android:name=".ExodoHorizontalWidgetProvider"
+            android:name=".ExodoLightWidgetProvider"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
             </intent-filter>
             <meta-data
                 android:name="android.appwidget.provider"
-                android:resource="@xml/widget_exodo_horizontal_info" />
+                android:resource="@xml/widget_exodo_grok_light_info" />
         </receiver>
     </application>
     <!-- Required to query activities that can process text, see:

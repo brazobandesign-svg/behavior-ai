@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../services/supabase_service.dart';
 import '../theme/exodo_theme.dart';
@@ -106,7 +107,7 @@ class _AuthScreenState extends State<AuthScreen> {
                         Image.asset('assets/images/google_logo.png', width: 26, height: 26),
                         const SizedBox(width: 14),
                         Text(
-                          AppI18n.of(context).localeCode == 'en' ? 'Continue with Google' : 'Continuar con Google',
+                          AppI18n.of(context).t('auth.continue_google'),
                           style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.bold, letterSpacing: 0.2),
                         ),
                       ],
@@ -122,15 +123,7 @@ class _AuthScreenState extends State<AuthScreen> {
                   height: 54,
                   child: ElevatedButton(
                     onPressed: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(
-                            AppI18n.of(context).localeCode == 'en' ? 'Sign in with Apple coming soon' : 'Próximamente: Inicio de sesión con Apple',
-                            style: GoogleFonts.inter(),
-                          ),
-                          backgroundColor: ExodoColors.amber,
-                        ),
-                      );
+                      HapticFeedback.selectionClick();
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF131313),
@@ -146,7 +139,7 @@ class _AuthScreenState extends State<AuthScreen> {
                         const Icon(Icons.apple, size: 28, color: Colors.white38),
                         const SizedBox(width: 14),
                         Text(
-                          AppI18n.of(context).localeCode == 'en' ? 'Continue with Apple' : 'Continuar con Apple',
+                          AppI18n.of(context).t('auth.continue_apple'),
                           style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.bold, letterSpacing: 0.2),
                         ),
                       ],
@@ -163,15 +156,7 @@ class _AuthScreenState extends State<AuthScreen> {
                     // Botón circular X / Twitter
                     InkWell(
                       onTap: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(
-                              AppI18n.of(context).localeCode == 'en' ? 'X / Twitter login coming soon' : 'Próximamente: Inicio de sesión con X / Twitter',
-                              style: GoogleFonts.inter(),
-                            ),
-                            backgroundColor: ExodoColors.amber,
-                          ),
-                        );
+                        HapticFeedback.selectionClick();
                       },
                       borderRadius: BorderRadius.circular(25),
                       child: Container(
@@ -194,15 +179,7 @@ class _AuthScreenState extends State<AuthScreen> {
                     // Botón circular GitHub
                     InkWell(
                       onTap: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(
-                              AppI18n.of(context).localeCode == 'en' ? 'GitHub login coming soon' : 'Próximamente: Inicio de sesión con GitHub',
-                              style: GoogleFonts.inter(),
-                            ),
-                            backgroundColor: ExodoColors.amber,
-                          ),
-                        );
+                        HapticFeedback.selectionClick();
                       },
                       borderRadius: BorderRadius.circular(25),
                       child: Container(
@@ -213,11 +190,12 @@ class _AuthScreenState extends State<AuthScreen> {
                           color: const Color(0xFF131313),
                           border: Border.all(color: ExodoColors.border),
                         ),
-                        child: const Center(
-                          child: Icon(
-                            Icons.code,
+                        child: Center(
+                          child: Image.asset(
+                            'assets/images/github_logo.png',
+                            width: 26,
+                            height: 26,
                             color: Colors.white,
-                            size: 24,
                           ),
                         ),
                       ),
@@ -239,7 +217,7 @@ class _AuthScreenState extends State<AuthScreen> {
                         const Icon(Icons.privacy_tip_outlined, size: 16),
                         const SizedBox(width: 8),
                         Text(
-                          AppI18n.of(context).localeCode == 'en' ? 'Continue as Guest' : 'Entrar como Invitado',
+                          AppI18n.of(context).t('auth.continue_guest'),
                           style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w500, decoration: TextDecoration.underline),
                         ),
                       ],

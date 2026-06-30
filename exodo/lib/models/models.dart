@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 class UserProfile {
   final String id;
   final String? fullName;
@@ -15,7 +17,7 @@ class UserProfile {
 
   factory UserProfile.fromJson(Map<String, dynamic> json) {
     return UserProfile(
-      id: json['id'] as String,
+      id: json['id'] as String? ?? '',
       fullName: json['full_name'] as String?,
       plan: json['plan'] as String? ?? 'genesis',
       avatarUrl: json['avatar_url'] as String?,
@@ -55,13 +57,13 @@ class Conversation {
 
   factory Conversation.fromJson(Map<String, dynamic> json) {
     return Conversation(
-      id: json['id'] as String,
-      userId: json['user_id'] as String,
-      title: json['title'] as String? ?? 'Nueva conversación',
+      id: json['id'] as String? ?? '',
+      userId: json['user_id'] as String? ?? '',
+      title: json['title'] as String? ?? 'Nueva Conversación',
       modelPlan: json['model_plan'] as String? ?? 'genesis',
       isIncognito: json['is_incognito'] as bool? ?? false,
       isStarred: json['is_starred'] as bool? ?? false,
-      createdAt: DateTime.parse(json['created_at'] as String),
+      createdAt: json['created_at'] != null ? DateTime.parse(json['created_at'] as String) : DateTime.now(),
       updatedAt: json['updated_at'] != null ? DateTime.tryParse(json['updated_at'] as String) : null,
     );
   }
@@ -91,18 +93,39 @@ class ChatMessage {
   });
 
   factory ChatMessage.fromJson(Map<String, dynamic> json) {
+    String contentStr = json['content'] as String? ?? '';
+    List<Source> sourcesList = [];
     final rawSources = json['sources'];
-    final sourcesList = (rawSources is List)
-        ? rawSources
-            .whereType<Map<String, dynamic>>()
-            .map((s) => Source.fromJson(s))
-            .toList()
-        : <Source>[];
+    if (rawSources is List && rawSources.isNotEmpty) {
+      sourcesList = rawSources
+          .where((s) => s is Map)
+          .map((s) => Source.fromJson(Map<String, dynamic>.from(s as Map)))
+          .toList();
+    } else {
+      const marker = '<!-- SOURCES: ';
+      final idx = contentStr.indexOf(marker);
+      if (idx != -1) {
+        final endIdx = contentStr.indexOf(' -->', idx);
+        if (endIdx != -1) {
+          final jsonStr = contentStr.substring(idx + marker.length, endIdx);
+          try {
+            final decoded = jsonDecode(jsonStr);
+            if (decoded is List) {
+              sourcesList = decoded
+                  .where((s) => s is Map)
+                  .map((s) => Source.fromJson(Map<String, dynamic>.from(s as Map)))
+                  .toList();
+            }
+          } catch (_) {}
+          contentStr = contentStr.substring(0, idx).trimRight();
+        }
+      }
+    }
     return ChatMessage(
       id: json['id'] as String? ?? '',
       conversationId: json['conversation_id'] as String? ?? '',
       role: json['role'] as String? ?? 'user',
-      content: json['content'] as String? ?? '',
+      content: contentStr,
       intentDetected: json['intent_detected'] as String?,
       modelCalled: json['model_called'] as String?,
       sources: sourcesList,
@@ -130,6 +153,12 @@ class Source {
       favicon: json['favicon'] as String?,
     );
   }
+
+  Map<String, dynamic> toJson() => {
+        'title': title,
+        'url': url,
+        if (favicon != null) 'favicon': favicon,
+      };
 }
 
 class ExodoModelOption {

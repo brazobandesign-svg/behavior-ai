@@ -12,19 +12,19 @@ import io.flutter.plugin.common.MethodChannel
 
 class MainActivity : FlutterActivity() {
     private val CHANNEL = "com.behavior.exodo/widgets"
-    private var initialAction: String? = null
+    private var initialPrompt: String? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        initialAction = intent.action
+        initialPrompt = intent.getStringExtra("widget_prompt")
     }
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
-        val action = intent.action
-        if (action == "ACTION_VOICE_CHAT" || action == "ACTION_TEXT_CHAT") {
+        val prompt = intent.getStringExtra("widget_prompt")
+        if (!prompt.isNullOrBlank()) {
             flutterEngine?.dartExecutor?.binaryMessenger?.let { messenger ->
-                MethodChannel(messenger, CHANNEL).invokeMethod("onWidgetAction", action)
+                MethodChannel(messenger, CHANNEL).invokeMethod("onWidgetPrompt", prompt)
             }
         }
     }
@@ -33,19 +33,19 @@ class MainActivity : FlutterActivity() {
         super.configureFlutterEngine(flutterEngine)
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL).setMethodCallHandler { call, result ->
             when (call.method) {
-                "getInitialAction" -> {
-                    result.success(initialAction)
-                    initialAction = null
+                "getInitialPrompt" -> {
+                    result.success(initialPrompt)
+                    initialPrompt = null
                 }
                 "pinWidget" -> {
-                    val type = call.argument<String>("type") ?: "square"
-                    val providerClass = if (type == "horizontal") {
-                        ExodoHorizontalWidgetProvider::class.java
-                    } else {
-                        ExodoSquareWidgetProvider::class.java
-                    }
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                        val type = call.argument<String>("type") ?: "grok"
                         val appWidgetManager = AppWidgetManager.getInstance(this)
+                        val providerClass = if (type == "grok_light") {
+                            ExodoLightWidgetProvider::class.java
+                        } else {
+                            ExodoWidgetProvider::class.java
+                        }
                         val provider = ComponentName(this, providerClass)
                         if (appWidgetManager.isRequestPinAppWidgetSupported) {
                             appWidgetManager.requestPinAppWidget(provider, null, null)

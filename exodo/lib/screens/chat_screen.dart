@@ -9,10 +9,12 @@ import 'package:image_picker/image_picker.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 import 'package:url_launcher/url_launcher.dart';
+import 'package:share_plus/share_plus.dart';
 import '../models/models.dart';
 import '../services/app_state.dart';
 import '../services/supabase_service.dart';
 import '../services/tts_service.dart';
+import '../services/widget_service.dart';
 import '../widgets/drawer_menu.dart';
 import '../widgets/scroll_to_bottom_button.dart';
 import '../theme/exodo_theme.dart';
@@ -63,6 +65,17 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
     // Regla 5 & 9: Pulso continuo para cambio de tamaño de puntos aleatorio
     _pulseCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 2200))..repeat(reverse: true);
 
+    // Trigger reload
+    WidgetService.instance.getInitialPrompt().then((prompt) {
+      if (prompt != null && prompt.trim().isNotEmpty && mounted) {
+        context.read<AppState>().sendUserMessage(prompt.trim());
+      }
+    });
+    WidgetService.instance.setPromptListener((prompt) {
+      if (mounted && prompt.trim().isNotEmpty) {
+        context.read<AppState>().sendUserMessage(prompt.trim());
+      }
+    });
   }
 
   @override
@@ -106,6 +119,13 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
 
     return Scaffold(
       drawer: const DrawerMenu(),
+      onDrawerChanged: (isOpened) {
+        if (isOpened && state.isIncognito) {
+          state.currentMessages.clear();
+          state.isIncognito = false;
+          state.notifyListeners();
+        }
+      },
       body: _AnimatedAmbientBackground(
         animation: _ambientBgCtrl,
         child: SafeArea(
@@ -176,7 +196,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
                           color: state.isIncognito ? Colors.white : (isLight ? Colors.black87 : ExodoColors.textSecondary),
                         ),
                       ),
-                      tooltip: _isDeviceEnglish(context) ? 'Incognito mode' : 'Modo incógnito',
+                      tooltip: AppI18n.of(context).t('drawer.incognito'),
                       onPressed: () {
                         state.toggleIncognito();
                       },
@@ -194,14 +214,14 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
                   isPro: state.isPro,
                 ),
 
-              // Stage principal o lista de mensajes (Regla 8)
-              // Stage principal o lista de mensajes (SIEMPRE VISIBLE)
+              // Stage principal o lista de mensajes (SIEMPRE VISIBLE y fluye tras el composer)
               Expanded(
                 child: Stack(
                   children: [
                     if (state.currentMessages.isEmpty)
                       Center(
                         child: SingleChildScrollView(
+                          padding: const EdgeInsets.only(bottom: 120),
                           physics: const ClampingScrollPhysics(),
                           child: _OriginalDesignStage(
                             pulseAnim: _pulseCtrl,
@@ -212,7 +232,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
                     else
                       ListView.builder(
                         controller: _scrollCtrl,
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        padding: const EdgeInsets.only(left: 16, right: 16, top: 8, bottom: 160),
                         itemCount: state.currentMessages.length,
                         itemBuilder: (context, index) {
                           final msg = state.currentMessages[index];
@@ -222,39 +242,66 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
                           return _MessageBubble(message: msg);
                         },
                       ),
+                    // Degradado inferior (borrado suave para que el texto fluya sin corte brusco)
+                    Positioned(
+                      left: 0,
+                      right: 0,
+                      bottom: 0,
+                      child: IgnorePointer(
+                        child: Container(
+                          height: 125,
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
+                              stops: const [0.0, 0.45, 1.0],
+                              colors: [
+                                (isLight ? const Color(0xFFFBF9F5) : const Color(0xFF20201F)).withValues(alpha: 0.0),
+                                (isLight ? const Color(0xFFFBF9F5) : const Color(0xFF20201F)).withValues(alpha: 0.85),
+                                (isLight ? const Color(0xFFFBF9F5) : const Color(0xFF20201F)),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
                     // Botón flotante "scroll to bottom" (esquina inferior derecha).
                     Positioned(
                       right: 16,
-                      bottom: 12,
+                      bottom: 240,
                       child: _ScrollToBottomHost(
                         controller: _scrollCtrl,
                         messagesCount: state.currentMessages.length,
                       ),
                     ),
+                    // Barra inferior entrelazada del Tab 1 (SIEMPRE en su sitio exacto flotando)
+                    Positioned(
+                      left: 0,
+                      right: 0,
+                      bottom: 0,
+                      child: _InterlockingComposerArea(
+                        controller: _inputCtrl,
+                        onSend: () {
+                          final text = _inputCtrl.text;
+                          if (text.trim().isEmpty) return;
+                          FocusScope.of(context).unfocus();
+                          if (!state.isGuestUser && (state.tokensUsed >= state.tokensLimit || state.tokensUsed + (text.length ~/ 3) + 15 > state.tokensLimit)) {
+                            HapticFeedback.vibrate();
+                            if (!state.isPro) {
+                              _UpgradeModal.show(context);
+                            }
+                            state.sendUserMessage(text);
+                            return;
+                          }
+                          _inputCtrl.clear();
+                          state.sendUserMessage(text);
+                        },
+                        onModelTap: _showModelSheet,
+                      ),
+                    ),
                   ],
                 ),
               ),
-
-              // Barra inferior entrelazada del Tab 1 (SIEMPRE en su sitio exacto)
-              _InterlockingComposerArea(
-                controller: _inputCtrl,
-                onSend: () {
-                    final text = _inputCtrl.text;
-                    if (text.trim().isEmpty) return;
-                    FocusScope.of(context).unfocus();
-                    if (!state.isGuestUser && (state.tokensUsed >= state.tokensLimit || state.tokensUsed + (text.length ~/ 3) + 15 > state.tokensLimit)) {
-                      HapticFeedback.vibrate();
-                      if (!state.isPro) {
-                        _UpgradeModal.show(context);
-                      }
-                      state.sendUserMessage(text);
-                      return;
-                    }
-                    _inputCtrl.clear();
-                    state.sendUserMessage(text);
-                  },
-                  onModelTap: _showModelSheet,
-                ),
             ],
           ),
         ),
@@ -343,36 +390,29 @@ class _OriginalDesignStage extends StatelessWidget {
   const _OriginalDesignStage({required this.pulseAnim, required this.fullName});
 
   String _getGreeting(BuildContext context, AppState state) {
-    final isEn = _isDeviceEnglish(context);
     final temp = state.currentTempC;
+    final i18n = AppI18n.of(context);
 
     if (temp != null) {
       if (temp <= 21.0) {
-        return isEn ? 'Cold outside, better than coffee' : 'Frío afuera, mejor que un café';
+        return i18n.t('greeting.cold');
       } else if (temp >= 31.0) {
-        return isEn ? 'Grab something cold, really hot' : 'Toma algo frío, hace mucho calor';
+        return i18n.t('greeting.hot');
       }
     }
 
     final hour = DateTime.now().hour;
-    if (isEn) {
-      if (hour >= 0 && hour < 6) return 'Late night hustle';
-      if (hour < 12) return 'Morning';
-      if (hour < 18) return 'Afternoon';
-      return 'Evening';
-    } else {
-      if (hour >= 0 && hour < 6) return 'Ni la madrugada te detiene';
-      if (hour < 12) return 'Cafecito con Exodo';
-      if (hour < 18) return 'Tarde productiva';
-      return 'La noche es joven';
-    }
+    if (hour >= 0 && hour < 6) return i18n.t('greeting.late');
+    if (hour < 12) return i18n.t('greeting.morning');
+    if (hour < 18) return i18n.t('greeting.afternoon');
+    return i18n.t('greeting.evening');
   }
 
   @override
   Widget build(BuildContext context) {
     final state = context.watch<AppState>();
     final isLight = Theme.of(context).brightness == Brightness.light && !state.isIncognito;
-    final isEn = _isDeviceEnglish(context);
+
 
     final isDarkBg = state.isDarkMode || state.isIncognito;
     final watermarkAsset = isDarkBg ? 'assets/images/watermark2.png' : 'assets/images/watermark1.png';
@@ -400,7 +440,7 @@ class _OriginalDesignStage extends StatelessWidget {
             // Saludo (original, máximo 2 líneas)
             Text(
               state.isIncognito
-                  ? (isEn ? 'Incognito' : 'Incógnito')
+                  ? AppI18n.of(context).t('chat.incognito_title')
                   : _getGreeting(context, state),
               textAlign: TextAlign.center,
               maxLines: 2,
@@ -428,9 +468,7 @@ class _OriginalDesignStage extends StatelessWidget {
             if (state.isIncognito) ...[
               const SizedBox(height: 18),
               Text(
-                isEn
-                    ? 'Incognito chats are not saved to history.'
-                    : 'Los chats de incógnito no se guardan en el historial.',
+                AppI18n.of(context).t('chat.incognito_desc'),
                 textAlign: TextAlign.center,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
@@ -487,10 +525,10 @@ class _InterlockingComposerAreaState extends State<_InterlockingComposerArea> wi
   void _showAttachmentMenu() {
     HapticFeedback.vibrate();
     final isLight = Theme.of(context).brightness == Brightness.light;
-    final isEn = _isDeviceEnglish(context);
+
     showModalBottomSheet(
       context: context,
-      backgroundColor: isLight ? const Color(0xFFFAF8F5) : const Color(0xFF1A1612),
+      backgroundColor: isLight ? const Color(0xFFF5F2EB) : const Color(0xFF131313),
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
       builder: (ctx) => SafeArea(
         child: Padding(
@@ -501,7 +539,7 @@ class _InterlockingComposerAreaState extends State<_InterlockingComposerArea> wi
               Container(width: 36, height: 4, margin: const EdgeInsets.only(bottom: 16), decoration: BoxDecoration(color: Colors.grey.withValues(alpha: 0.3), borderRadius: BorderRadius.circular(2))),
               ListTile(
                 leading: const Icon(Icons.camera_alt_rounded, color: ExodoColors.amber),
-                title: Text(isEn ? 'Camera' : 'Cámara', style: GoogleFonts.inter(fontWeight: FontWeight.w600, color: isLight ? Colors.black87 : Colors.white)),
+                title: Text(AppI18n.of(context).t('attach.camera'), style: GoogleFonts.inter(fontWeight: FontWeight.w600, color: isLight ? Colors.black87 : Colors.white)),
                 onTap: () async {
                   Navigator.pop(ctx);
                   final picker = ImagePicker();
@@ -514,7 +552,7 @@ class _InterlockingComposerAreaState extends State<_InterlockingComposerArea> wi
               ),
               ListTile(
                 leading: const Icon(Icons.photo_library_rounded, color: ExodoColors.amber),
-                title: Text(isEn ? 'Gallery' : 'Galería', style: GoogleFonts.inter(fontWeight: FontWeight.w600, color: isLight ? Colors.black87 : Colors.white)),
+                title: Text(AppI18n.of(context).t('attach.gallery'), style: GoogleFonts.inter(fontWeight: FontWeight.w600, color: isLight ? Colors.black87 : Colors.white)),
                 onTap: () async {
                   Navigator.pop(ctx);
                   final picker = ImagePicker();
@@ -527,7 +565,7 @@ class _InterlockingComposerAreaState extends State<_InterlockingComposerArea> wi
               ),
               ListTile(
                 leading: const Icon(Icons.folder_open_rounded, color: ExodoColors.amber),
-                title: Text(isEn ? 'Files' : 'Archivos', style: GoogleFonts.inter(fontWeight: FontWeight.w600, color: isLight ? Colors.black87 : Colors.white)),
+                title: Text(AppI18n.of(context).t('attach.files'), style: GoogleFonts.inter(fontWeight: FontWeight.w600, color: isLight ? Colors.black87 : Colors.white)),
                 onTap: () async {
                   Navigator.pop(ctx);
                   final res = await FilePicker.platform.pickFiles(allowMultiple: true);
@@ -574,11 +612,10 @@ class _InterlockingComposerAreaState extends State<_InterlockingComposerArea> wi
   }
 
   String _getPlaceholder(BuildContext context) {
-    if (_isDeviceEnglish(context)) return 'Reply to Exodo...';
-    return 'Hablar con Exodo...';
+    return AppI18n.of(context).t('chat.placeholder');
   }
 
-  Widget _buildOfflineInsideCapsule(BuildContext context, AppState state, bool isEn, bool isLight) {
+  Widget _buildOfflineInsideCapsule(BuildContext context, AppState state, bool isLight) {
     final softBlack = const Color(0xFF2A2622); // negro suave para textos en light mode
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 12),
@@ -591,123 +628,61 @@ class _InterlockingComposerAreaState extends State<_InterlockingComposerArea> wi
               const Icon(Icons.cloud_off_rounded, size: 20, color: ExodoColors.amber),
               const SizedBox(width: 8),
               Text(
-                isEn ? "You're offline" : "Estás desconectado",
+                AppI18n.of(context).t('offline.title'),
                 style: GoogleFonts.syne(fontSize: 16, fontWeight: FontWeight.bold, color: isLight ? softBlack : ExodoColors.textPrimary),
               ),
             ],
           ),
           const SizedBox(height: 6),
-          if (isEn)
-            RichText(
-              textAlign: TextAlign.center,
-              text: TextSpan(
-                style: GoogleFonts.inter(fontSize: 13, color: isLight ? softBlack : ExodoColors.textSecondary, height: 1.4),
-                children: [
-                  const TextSpan(text: "To continue sending messages, "),
-                  WidgetSpan(
-                    alignment: PlaceholderAlignment.baseline,
-                    baseline: TextBaseline.alphabetic,
-                    child: GestureDetector(
-                      onTap: () async {
-                        HapticFeedback.vibrate();
-                        // [D2] Try/catch + mounted guard: si está OFFLINE, signOut
-                        // puede tirar timeout o excepción. Aseguramos que aunque
-                        // falle, el _RootSwitcher detecte currentUser == null y
-                        // muestre AuthScreen. Sin esto, el usuario se queda
-                        // "atascado" en el estado bloqueado.
-                        try {
-                          await SupabaseService.signOut().timeout(
-                            const Duration(seconds: 3),
-                            onTimeout: () {},
-                          );
-                        } catch (_) {
-                          // offline o error de red: ignorar y dejar que el
-                          // _RootSwitcher redibuje con currentUser == null
-                        }
-                      },
-                      child: Text(
-                        "upgrade",
-                        style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.bold, color: ExodoColors.amber, decoration: TextDecoration.underline, decorationColor: ExodoColors.amber),
-                      ),
+          RichText(
+            textAlign: TextAlign.center,
+            text: TextSpan(
+              style: GoogleFonts.inter(fontSize: 13, color: isLight ? softBlack : ExodoColors.textSecondary, height: 1.4),
+              children: [
+                TextSpan(text: AppI18n.of(context).t('offline.p1')),
+                WidgetSpan(
+                  alignment: PlaceholderAlignment.baseline,
+                  baseline: TextBaseline.alphabetic,
+                  child: GestureDetector(
+                    onTap: () async {
+                      HapticFeedback.vibrate();
+                      try {
+                        await SupabaseService.signOut().timeout(
+                          const Duration(seconds: 3),
+                          onTimeout: () {},
+                        );
+                      } catch (_) {}
+                    },
+                    child: Text(
+                      AppI18n.of(context).t('offline.upgrade'),
+                      style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.bold, color: ExodoColors.amber, decoration: TextDecoration.underline, decorationColor: ExodoColors.amber),
                     ),
                   ),
-                  const TextSpan(text: " your plan to Pro or "),
-                  WidgetSpan(
-                    alignment: PlaceholderAlignment.baseline,
-                    baseline: TextBaseline.alphabetic,
-                    child: GestureDetector(
-                      onTap: () async {
-                        HapticFeedback.vibrate();
-                        // [D2] Idem: signOut con timeout corto + try/catch.
-                        try {
-                          await SupabaseService.signOut().timeout(
-                            const Duration(seconds: 3),
-                            onTimeout: () {},
-                          );
-                        } catch (_) {}
-                      },
-                      child: Text(
-                        "sign in",
-                        style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.bold, color: ExodoColors.amber, decoration: TextDecoration.underline, decorationColor: ExodoColors.amber),
-                      ),
+                ),
+                TextSpan(text: AppI18n.of(context).t('offline.p2')),
+                WidgetSpan(
+                  alignment: PlaceholderAlignment.baseline,
+                  baseline: TextBaseline.alphabetic,
+                  child: GestureDetector(
+                    onTap: () async {
+                      HapticFeedback.vibrate();
+                      try {
+                        await SupabaseService.signOut().timeout(
+                          const Duration(seconds: 3),
+                          onTimeout: () {},
+                        );
+                      } catch (_) {}
+                    },
+                    child: Text(
+                      AppI18n.of(context).t('offline.signin'),
+                      style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.bold, color: ExodoColors.amber, decoration: TextDecoration.underline, decorationColor: ExodoColors.amber),
                     ),
                   ),
-                  const TextSpan(text: "."),
-                ],
-              ),
-            )
-          else
-            RichText(
-              textAlign: TextAlign.center,
-              text: TextSpan(
-                style: GoogleFonts.inter(fontSize: 13, color: isLight ? softBlack : ExodoColors.textSecondary, height: 1.4),
-                children: [
-                  const TextSpan(text: "Para seguir enviando mensajes, "),
-                  WidgetSpan(
-                    alignment: PlaceholderAlignment.baseline,
-                    baseline: TextBaseline.alphabetic,
-                    child: GestureDetector(
-                      onTap: () async {
-                        HapticFeedback.vibrate();
-                        // [D2] signOut resiliente offline-safe.
-                        try {
-                          await SupabaseService.signOut().timeout(
-                            const Duration(seconds: 3),
-                            onTimeout: () {},
-                          );
-                        } catch (_) {}
-                      },
-                      child: Text(
-                        "actualice",
-                        style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.bold, color: ExodoColors.amber, decoration: TextDecoration.underline, decorationColor: ExodoColors.amber),
-                      ),
-                    ),
-                  ),
-                  const TextSpan(text: " su plan a Pro o "),
-                  WidgetSpan(
-                    alignment: PlaceholderAlignment.baseline,
-                    baseline: TextBaseline.alphabetic,
-                    child: GestureDetector(
-                      onTap: () async {
-                        HapticFeedback.vibrate();
-                        // [D2] signOut resiliente offline-safe.
-                        try {
-                          await SupabaseService.signOut().timeout(
-                            const Duration(seconds: 3),
-                            onTimeout: () {},
-                          );
-                        } catch (_) {}
-                      },
-                      child: Text(
-                        "inicie sesión",
-                        style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.bold, color: ExodoColors.amber, decoration: TextDecoration.underline, decorationColor: ExodoColors.amber),
-                      ),
-                    ),
-                  ),
-                  const TextSpan(text: "."),
-                ],
-              ),
+                ),
+                const TextSpan(text: "."),
+              ],
             ),
+          ),
         ],
       ),
     );
@@ -717,7 +692,7 @@ class _InterlockingComposerAreaState extends State<_InterlockingComposerArea> wi
   Widget build(BuildContext context) {
     final state = context.watch<AppState>();
     final isLight = !state.isDarkMode && !state.isIncognito;
-    final isEn = _isDeviceEnglish(context);
+
 
     return Padding(
       padding: const EdgeInsets.only(left: 14, right: 14, bottom: 12),
@@ -734,9 +709,9 @@ class _InterlockingComposerAreaState extends State<_InterlockingComposerArea> wi
               width: MediaQuery.of(context).size.width * 0.86,
               padding: const EdgeInsets.fromLTRB(16, 8, 14, 22),
               decoration: BoxDecoration(
-                color: isLight ? const Color(0xFF131313) : const Color(0xFFEFECE4),
+                color: isLight ? const Color(0xFF2C2C2A) : const Color(0xFFEFECE4),
                 borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-                border: isLight ? Border.all(color: const Color(0xFF131313), width: 1.0) : Border.all(color: Colors.transparent, width: 1.0),
+                border: isLight ? Border.all(color: const Color(0xFF2C2C2A), width: 1.0) : Border.all(color: Colors.transparent, width: 1.0),
               ),
               child: FittedBox(
                 fit: BoxFit.scaleDown,
@@ -744,7 +719,7 @@ class _InterlockingComposerAreaState extends State<_InterlockingComposerArea> wi
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Text(
-                      _isDeviceEnglish(context) ? 'More capacity with XPi PRO' : 'Mas capacidad con XPi PRO',
+                      AppI18n.of(context).t('tokens.more_cap'),
                       style: GoogleFonts.jetBrainsMono(
                         color: isLight ? const Color(0xFFF5F2EB) : const Color(0xFF55514C),
                         fontSize: 12.0,
@@ -758,7 +733,7 @@ class _InterlockingComposerAreaState extends State<_InterlockingComposerArea> wi
                       child: Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
                         child: Text(
-                          _isDeviceEnglish(context) ? 'Upgrade' : 'Actualizar',
+                          AppI18n.of(context).t('tokens.upgrade_btn'),
                           style: GoogleFonts.jetBrainsMono(
                             color: ExodoColors.amber,
                             fontWeight: FontWeight.bold,
@@ -795,7 +770,7 @@ class _InterlockingComposerAreaState extends State<_InterlockingComposerArea> wi
                 ? const EdgeInsets.symmetric(horizontal: 16, vertical: 6)
                 : const EdgeInsets.fromLTRB(20, 8, 18, 8),
             child: state.guestIsBlocked
-                ? _buildOfflineInsideCapsule(context, state, isEn, isLight)
+                ? _buildOfflineInsideCapsule(context, state, isLight)
                 : Column(
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -885,29 +860,9 @@ class _InterlockingComposerAreaState extends State<_InterlockingComposerArea> wi
                                                   style: GoogleFonts.jetBrainsMono(
                                                     fontSize: 13,
                                                     fontWeight: FontWeight.bold,
-                                                    color: isLight ? const Color(0xFF171615) : Colors.white,
                                                   ),
                                                 ),
                                               ),
-                                              if (state.selectedModel.plan == 'hazak') ...[
-                                                const SizedBox(width: 4),
-                                                Container(
-                                                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-                                                  decoration: BoxDecoration(
-                                                    color: isLight ? const Color(0xFFE5DECF) : const Color(0xFF3A352F),
-                                                    borderRadius: BorderRadius.circular(4),
-                                                    border: Border.all(color: isLight ? Colors.black12 : Colors.white24),
-                                                  ),
-                                                  child: Text(
-                                                    'PRO',
-                                                    style: GoogleFonts.jetBrainsMono(
-                                                      fontSize: 9.0,
-                                                      fontWeight: FontWeight.bold,
-                                                      color: isLight ? const Color(0xFF171615) : Colors.white,
-                                                    ),
-                                                  ),
-                                                ),
-                                              ],
                                               const SizedBox(width: 4),
                                               Icon(Icons.keyboard_arrow_down, size: 16, color: isLight ? const Color(0xFF171615) : Colors.white70),
                                             ],
@@ -921,7 +876,7 @@ class _InterlockingComposerAreaState extends State<_InterlockingComposerArea> wi
                             ),
                           ),
 
-                          // Botón Mic y Botón Dinámico (Live Chat / Send)
+                          // Botón Mic y Botón Dinámico (Send / Stop)
                           AnimatedBuilder(
                             animation: widget.controller,
                             builder: (context, _) {
@@ -931,7 +886,7 @@ class _InterlockingComposerAreaState extends State<_InterlockingComposerArea> wi
                               return Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  // Micrófono absolutamente fijo sin animación ni desplazamiento
+                                  // Micrófono: En reposo ocupa el lugar principal a la derecha. Cuando aparece Enviar/Detener, se desplaza a la izquierda.
                                   IconButton(
                                     icon: Icon(
                                       _isRecording ? Icons.mic : Icons.mic_none,
@@ -976,64 +931,36 @@ class _InterlockingComposerAreaState extends State<_InterlockingComposerArea> wi
                                     },
                                   ),
 
-                                  // Botón dinámico: Chat en Vivo fijo <-> Botón de enviar / detener
-                                  GestureDetector(
-                                    onTap: () {
-                                      if (state.isGenerating) {
-                                        HapticFeedback.mediumImpact();
-                                        state.stopGeneration();
-                                      } else if (shouldShowSend) {
-                                        setState(() {
-                                          _hasAttachment = false;
-                                          _isRecording = false;
-                                        });
-                                        widget.onSend();
-                                      } else {
-                                        // [D1] Live chat no implementado todavía: feedback visual
-                                        // honesto para que el usuario sepa que NO es un botón roto.
-                                        HapticFeedback.lightImpact();
-                                        ScaffoldMessenger.of(context).hideCurrentSnackBar();
-                                        ScaffoldMessenger.of(context).showSnackBar(
-                                          SnackBar(
-                                            duration: const Duration(seconds: 2),
-                                            content: Row(
-                                              children: [
-                                                const Icon(Icons.bolt_outlined, color: ExodoColors.amber, size: 18),
-                                                const SizedBox(width: 10),
-                                                Expanded(
-                                                  child: Text(
-                                                    AppI18n.of(context).t('live.coming_soon'),
-                                                    style: const TextStyle(color: Colors.white),
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                          ),
-                                        );
-                                      }
-                                    },
-                                    child: Container(
-                                      width: 38,
-                                      height: 38,
-                                      margin: const EdgeInsets.only(left: 2, right: 2),
-                                      decoration: BoxDecoration(
-                                        color: (state.isGenerating || shouldShowSend)
-                                            ? (isLight ? const Color(0xFF131313) : const Color(0xFFFBF9F5))
-                                            : const Color(0xFF131313),
-                                        shape: BoxShape.circle,
-                                        border: (state.isGenerating || shouldShowSend) ? null : Border.all(color: ExodoColors.amber.withValues(alpha: 0.5), width: 1.2),
-                                      ),
-                                      child: Icon(
-                                        state.isGenerating
-                                            ? Icons.stop_rounded
-                                            : (shouldShowSend ? Icons.arrow_upward : Icons.graphic_eq_rounded),
-                                        size: state.isGenerating ? 22 : 19,
-                                        color: (state.isGenerating || shouldShowSend)
-                                            ? (isLight ? Colors.white : const Color(0xFF141210))
-                                            : ExodoColors.amber,
+                                  // Botón de Enviar / Detener (sólo aparece cuando hay entrada de teclado/archivos/grabación o generando)
+                                  if (shouldShowSend || state.isGenerating)
+                                    GestureDetector(
+                                      onTap: () {
+                                        if (state.isGenerating) {
+                                          HapticFeedback.mediumImpact();
+                                          state.stopGeneration();
+                                        } else if (shouldShowSend) {
+                                          setState(() {
+                                            _hasAttachment = false;
+                                            _isRecording = false;
+                                          });
+                                          widget.onSend();
+                                        }
+                                      },
+                                      child: Container(
+                                        width: 38,
+                                        height: 38,
+                                        margin: const EdgeInsets.only(left: 2, right: 2),
+                                        decoration: BoxDecoration(
+                                          color: isLight ? const Color(0xFF131313) : const Color(0xFFFBF9F5),
+                                          shape: BoxShape.circle,
+                                        ),
+                                        child: Icon(
+                                          state.isGenerating ? Icons.stop_rounded : Icons.arrow_upward,
+                                          size: state.isGenerating ? 22 : 19,
+                                          color: isLight ? Colors.white : const Color(0xFF141210),
+                                        ),
                                       ),
                                     ),
-                                  ),
                                 ],
                               );
                             },
@@ -1183,13 +1110,13 @@ class _TokenProgressBarState extends State<_TokenProgressBar> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  _statItem('CONSUMIDO', '${widget.used} ($pct%)', textColor),
+                  _statItem(AppI18n.of(context).t('tokens.used'), '${widget.used} ($pct%)', textColor),
                   
                   // En PRO acomodamos simétricamente DISPONIBLE en el centro
                   if (widget.isPro)
-                    _statItem('DISPONIBLE', '$remaining', textColor),
+                    _statItem(AppI18n.of(context).t('tokens.available'), '$remaining', textColor),
 
-                  _statItem('REINICIO EN', _getCountdown(), ExodoColors.amber),
+                  _statItem(AppI18n.of(context).t('tokens.reset_in'), _getCountdown(), ExodoColors.amber),
 
                   // En FREE colocamos MÁS CAPACIDAD a la derecha
                   if (!widget.isPro)
@@ -1211,7 +1138,7 @@ class _TokenProgressBarState extends State<_TokenProgressBar> {
                             const Icon(Icons.bolt_rounded, size: 12, color: ExodoColors.amber),
                             const SizedBox(width: 3),
                             Text(
-                              'MÁS CAPACIDAD',
+                              AppI18n.of(context).t('tokens.more'),
                               style: GoogleFonts.jetBrainsMono(
                                 fontSize: 9,
                                 color: ExodoColors.amber,
@@ -1261,6 +1188,9 @@ class _TokenProgressBarState extends State<_TokenProgressBar> {
 // FIX v1.2.3: Se quita el Container con padding/decoration porque se
 // renderizaba como una caja visible. Ahora es un Row directo sin
 // envoltorio decorado, alineado a la izquierda como texto plano.
+// [Punto 30 aviso]: junto al logo flecha, texto localizado vía
+// `chat.thinking_label` (palabra suelta, sin puntos suspensivos).
+// Opacidad fluctuante 25% ↔ 50% sincronizada con el pulseAnim del logo.
 class _ThinkingBubble extends StatelessWidget {
   final Animation<double> pulseAnim;
   const _ThinkingBubble({required this.pulseAnim});
@@ -1270,6 +1200,8 @@ class _ThinkingBubble extends StatelessWidget {
     final state = context.watch<AppState>();
     final isLight = !state.isDarkMode && !state.isIncognito;
     final logoColor = isLight ? ExodoColors.background : ExodoColors.amber;
+    // Localización reactiva: cambia de idioma sin necesidad de reiniciar.
+    final thinkingLabel = AppI18n.of(context).t('chat.thinking_label');
     return Align(
       alignment: Alignment.centerLeft,
       child: Padding(
@@ -1278,14 +1210,36 @@ class _ThinkingBubble extends StatelessWidget {
           animation: pulseAnim,
           builder: (context, _) {
             final v = pulseAnim.value;
-            return Opacity(
-              opacity: 0.4 + (v * 0.6).clamp(0.0, 0.6),
-              child: Image.asset(
-                'assets/images/exodo_arrow_logo.png',
-                width: 28,
-                height: 28,
-                color: logoColor,
-              ),
+            return Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Logo flecha: opacidad 40% ↔ 100% (igual que antes).
+                Opacity(
+                  opacity: 0.4 + (v * 0.6).clamp(0.0, 0.6),
+                  child: Image.asset(
+                    'assets/images/exodo_arrow_logo.png',
+                    width: 28,
+                    height: 28,
+                    color: logoColor,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                // Texto localizado con fluctuación de opacidad 25% ↔ 50%
+                // usando la misma curva del pulseAnim (2200ms, repeat reverse).
+                Opacity(
+                  opacity: 0.25 + (v * 0.25), // 0.25 (v=0) → 0.50 (v=1)
+                  child: Text(
+                    thinkingLabel,
+                    style: TextStyle(
+                      color: logoColor,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                      fontFamily: 'Inter',
+                      letterSpacing: 0.2,
+                    ),
+                  ),
+                ),
+              ],
             );
           },
         ),
@@ -1299,72 +1253,6 @@ class _MessageBubble extends StatelessWidget {
   final ChatMessage message;
   const _MessageBubble({required this.message});
 
-  void _showEditDialog(BuildContext context) {
-    final ctrl = TextEditingController(text: message.content);
-    final isLight = Theme.of(context).brightness == Brightness.light;
-
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: isLight ? const Color(0xFFF5F2EB) : const Color(0xFF1E1C19),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text(
-          _isDeviceEnglish(context) ? 'Edit message' : 'Editar mensaje',
-          style: GoogleFonts.inter(
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
-            color: isLight ? const Color(0xFF171615) : ExodoColors.textPrimary,
-          ),
-        ),
-        content: TextField(
-          controller: ctrl,
-          maxLines: 5,
-          minLines: 2,
-          style: GoogleFonts.inter(
-            fontSize: 14,
-            color: isLight ? const Color(0xFF171615) : ExodoColors.textPrimary,
-          ),
-          decoration: InputDecoration(
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10),
-              borderSide: BorderSide(color: ExodoColors.border),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10),
-              borderSide: const BorderSide(color: ExodoColors.amber),
-            ),
-            filled: true,
-            fillColor: isLight ? Colors.white : const Color(0xFF131313),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: Text(
-              _isDeviceEnglish(context) ? 'Cancel' : 'Cancelar',
-              style: GoogleFonts.inter(color: ExodoColors.textSecondary),
-            ),
-          ),
-          TextButton(
-            onPressed: () {
-              final newText = ctrl.text.trim();
-              if (newText.isNotEmpty) {
-                context.read<AppState>().updateUserMessage(message.id, newText);
-              }
-              Navigator.pop(ctx);
-            },
-            child: Text(
-              _isDeviceEnglish(context) ? 'Save' : 'Guardar',
-              style: GoogleFonts.inter(
-                color: ExodoColors.amber,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -1409,27 +1297,12 @@ class _MessageBubble extends StatelessWidget {
               children: [
                 _ActionButton(
                   assetPath: 'assets/images/copy-2-svgrepo-com.png',
-                  tooltip: _isDeviceEnglish(context) ? 'Copy' : 'Copiar',
+                  tooltip: AppI18n.of(context).t('act.copy'),
                   color: isLight ? Colors.black38 : Colors.white38,
                   onTap: () {
                     HapticFeedback.lightImpact();
                     Clipboard.setData(ClipboardData(text: message.content));
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          _isDeviceEnglish(context) ? 'Copied' : 'Copiado',
-                        ),
-                        duration: const Duration(seconds: 2),
-                      ),
-                    );
                   },
-                ),
-                const SizedBox(width: 8),
-                _ActionButton(
-                  icon: Icons.edit_rounded,
-                  tooltip: _isDeviceEnglish(context) ? 'Edit' : 'Editar',
-                  color: isLight ? Colors.black38 : Colors.white38,
-                  onTap: () => _showEditDialog(context),
                 ),
               ],
             ),
@@ -1467,7 +1340,7 @@ class _MessageBubble extends StatelessWidget {
           ),
           if (message.intentDetected != null) ...[
             const SizedBox(height: 8),
-            Text(_isDeviceEnglish(context) ? 'Intent: ${message.intentDetected}' : 'Intención: ${message.intentDetected}', style: GoogleFonts.jetBrainsMono(fontSize: 10, color: ExodoColors.amber.withValues(alpha: 0.8))),
+            Text('${AppI18n.of(context).t('chat.intent')}: ${message.intentDetected}', style: GoogleFonts.jetBrainsMono(fontSize: 10, color: ExodoColors.amber.withValues(alpha: 0.8))),
           ],
           if (message.sources.isNotEmpty) ...[
             const SizedBox(height: 14),
@@ -1476,6 +1349,16 @@ class _MessageBubble extends StatelessWidget {
           const SizedBox(height: 10),
           _MessageActionBar(message: message),
           const SizedBox(height: 14),
+          Row(
+            children: [
+              Image.asset(
+                'assets/images/Logo_behavior.png',
+                height: 26,
+                fit: BoxFit.contain,
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
           Opacity(
             opacity: 0.5,
             child: Row(
@@ -1483,9 +1366,7 @@ class _MessageBubble extends StatelessWidget {
               children: [
                 Expanded(
                   child: Text(
-                    _isDeviceEnglish(context)
-                        ? 'Exodo is AI and can make mistakes. Please double-check responses.'
-                        : 'Exodo es IA y puede cometer errores. Por favor verifica las respuestas.',
+                    AppI18n.of(context).t('chat.disclaimer'),
                     textAlign: TextAlign.end,
                     style: GoogleFonts.inter(fontSize: 11, height: 1.35, color: isLight ? Colors.black : Colors.white),
                   ),
@@ -1507,7 +1388,7 @@ class _SourcesSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isLight = Theme.of(context).brightness == Brightness.light;
-    final label = _isDeviceEnglish(context) ? 'Sources' : 'Fuentes';
+    final label = AppI18n.of(context).t('sources.title');
 
     final circleColors = [
       const Color(0xFF635BFF),
@@ -1531,7 +1412,7 @@ class _SourcesSheet extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    _isDeviceEnglish(context) ? 'Consulted Sources' : 'Fuentes Consultadas',
+                    AppI18n.of(context).t('sources.consulted'),
                     style: GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.bold, color: isLight ? Colors.black : Colors.white),
                   ),
                   const SizedBox(height: 16),
@@ -1575,11 +1456,11 @@ class _SourcesSheet extends StatelessWidget {
       },
       borderRadius: BorderRadius.circular(30),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
         decoration: BoxDecoration(
-          color: isLight ? const Color(0xFFEFECE4) : const Color(0xFF1E1C19),
+          color: isLight ? const Color(0xFFEAE7DF) : const Color(0xFF222224),
           borderRadius: BorderRadius.circular(30),
-          border: Border.all(color: isLight ? Colors.black12 : Colors.white24, width: 0.8),
+          border: Border.all(color: isLight ? Colors.black12 : const Color(0xFF333336), width: 0.5),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -1588,8 +1469,8 @@ class _SourcesSheet extends StatelessWidget {
               label,
               style: GoogleFonts.inter(
                 fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: isLight ? const Color(0xFF171615) : ExodoColors.textPrimary,
+                fontWeight: FontWeight.w500,
+                color: isLight ? const Color(0xFF4A4A4A) : const Color(0xFFA0A0A5),
               ),
             ),
             const SizedBox(width: 8),
@@ -1597,29 +1478,29 @@ class _SourcesSheet extends StatelessWidget {
               builder: (ctx) {
                 final displaySources = sources.take(4).toList();
                 return SizedBox(
-                  height: 24,
-                  width: (displaySources.length * 16.0) + 8.0,
+                  height: 20,
+                  width: (displaySources.length * 12.0) + 8.0,
                   child: Stack(
                     children: [
                       for (int i = 0; i < displaySources.length; i++)
                         Positioned(
-                          left: i * 16.0,
+                          left: i * 12.0,
                           child: Container(
-                            width: 24,
-                            height: 24,
+                            width: 20,
+                            height: 20,
                             alignment: Alignment.center,
                             decoration: BoxDecoration(
                               color: circleColors[i % circleColors.length],
                               shape: BoxShape.circle,
                               border: Border.all(
-                                color: isLight ? const Color(0xFFEFECE4) : const Color(0xFF1E1C19),
+                                color: isLight ? const Color(0xFFEAE7DF) : const Color(0xFF222224),
                                 width: 1.5,
                               ),
                             ),
                             child: Text(
                               _sourceInitials(displaySources[i]),
                               style: GoogleFonts.jetBrainsMono(
-                                fontSize: 9.5,
+                                fontSize: 8.5,
                                 fontWeight: FontWeight.bold,
                                 color: Colors.white,
                               ),
@@ -1667,15 +1548,106 @@ class _MessageActionBar extends StatelessWidget {
 
     void share() {
       HapticFeedback.lightImpact();
-      Clipboard.setData(ClipboardData(text: message.content));
+      final playStoreUrl = 'https://play.google.com/store/apps/details?id=com.behavior.exodo';
+      final shareText = '${message.content}\n\n${AppI18n.of(context).t('feedback.share_msg')}\n$playStoreUrl';
+      Share.share(shareText, subject: 'Éxodo AI');
+    }
+
+    void showFeedbackModal(bool isLike) {
+      final ctrl = TextEditingController();
+      final title = isLike ? AppI18n.of(context).t('feedback.title_pos') : AppI18n.of(context).t('feedback.title_neg');
+      final hint = AppI18n.of(context).t('feedback.hint');
+
+      showDialog(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          backgroundColor: isLight ? const Color(0xFFF5F2EB) : ExodoColors.background,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Row(
+            children: [
+              Icon(
+                isLike ? Icons.thumb_up_alt_rounded : Icons.thumb_down_alt_rounded,
+                color: ExodoColors.amber,
+                size: 20,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  title,
+                  style: GoogleFonts.inter(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: isLight ? const Color(0xFF171615) : ExodoColors.textPrimary,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          content: TextField(
+            controller: ctrl,
+            maxLines: 4,
+            minLines: 2,
+            style: GoogleFonts.inter(
+              fontSize: 14,
+              color: isLight ? const Color(0xFF171615) : ExodoColors.textPrimary,
+            ),
+            decoration: InputDecoration(
+              hintText: hint,
+              hintStyle: GoogleFonts.inter(color: ExodoColors.textSecondary, fontSize: 13),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+                borderSide: BorderSide(color: ExodoColors.border),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+                borderSide: const BorderSide(color: ExodoColors.amber),
+              ),
+              filled: true,
+              fillColor: isLight ? Colors.white : const Color(0xFF131313),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: Text(
+                AppI18n.of(context).t('ctx.cancel'),
+                style: GoogleFonts.inter(color: ExodoColors.textSecondary),
+              ),
+            ),
+            TextButton(
+              onPressed: () async {
+                final feedbackText = ctrl.text.trim();
+                Navigator.pop(ctx);
+                final subject = Uri.encodeComponent('Feedback Exodo AI (${isLike ? "Like" : "Dislike"})');
+                final body = Uri.encodeComponent('Tipo: ${isLike ? "Like" : "Dislike"}\nComentario:\n$feedbackText\n\n--- Mensaje de la IA ---\n${message.content}');
+                final mailtoUri = Uri.parse('mailto:brazobandesign@gmail.com?subject=$subject&body=$body');
+                try {
+                  if (await canLaunchUrl(mailtoUri)) {
+                    await launchUrl(mailtoUri);
+                  }
+                } catch (_) {}
+              },
+              child: Text(
+                AppI18n.of(context).t('action.send'),
+                style: GoogleFonts.inter(
+                  color: ExodoColors.amber,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
     }
 
     void like() {
       HapticFeedback.mediumImpact();
+      showFeedbackModal(true);
     }
 
     void dislike() {
       HapticFeedback.mediumImpact();
+      showFeedbackModal(false);
     }
 
     return Wrap(
@@ -1683,10 +1655,10 @@ class _MessageActionBar extends StatelessWidget {
       runSpacing: 4,
       crossAxisAlignment: WrapCrossAlignment.center,
       children: [
-        _ActionButton(assetPath: 'assets/images/copy-2-svgrepo-com.png', tooltip: _isDeviceEnglish(context) ? 'Copy' : 'Copiar', color: subText, onTap: copy),
-        _ActionButton(assetPath: 'assets/images/like-1-svgrepo-com.png', tooltip: _isDeviceEnglish(context) ? 'Like' : 'Me gusta', color: subText, onTap: like),
-        _ActionButton(assetPath: 'assets/images/like-1-svgrepo-com.png', flipVertically: true, tooltip: _isDeviceEnglish(context) ? 'Dislike' : 'No me gusta', color: subText, onTap: dislike),
-        _ActionButton(assetPath: 'assets/images/share-svgrepo-com.png', tooltip: _isDeviceEnglish(context) ? 'Share' : 'Compartir', color: subText, onTap: share),
+        _ActionButton(assetPath: 'assets/images/copy-2-svgrepo-com.png', tooltip: AppI18n.of(context).t('act.copy'), color: subText, onTap: copy),
+        _ActionButton(assetPath: 'assets/images/like-1-svgrepo-com.png', tooltip: AppI18n.of(context).t('act.like'), color: subText, onTap: like),
+        _ActionButton(assetPath: 'assets/images/like-1-svgrepo-com.png', flipVertically: true, tooltip: AppI18n.of(context).t('act.dislike'), color: subText, onTap: dislike),
+        _ActionButton(assetPath: 'assets/images/share-svgrepo-com.png', tooltip: AppI18n.of(context).t('act.share'), color: subText, onTap: share),
       ],
     );
   }
@@ -1746,7 +1718,6 @@ class _ModelSelectorSheet extends StatelessWidget {
   Widget build(BuildContext context) {
     final state = context.watch<AppState>();
     final isLight = !state.isDarkMode;
-    final isEn = _isDeviceEnglish(context);
 
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 10, 20, 20),
@@ -1806,7 +1777,7 @@ class _ModelSelectorSheet extends StatelessWidget {
                     ),
                 ],
               ),
-              subtitle: Text(isEn ? m.descriptionEn : m.description, style: GoogleFonts.jetBrainsMono(fontSize: 11.5, color: active ? ExodoColors.amber : (isLight ? Colors.black54 : Colors.white70))),
+              subtitle: Text(AppI18n.of(context).t('models.${m.id}_desc'), style: GoogleFonts.jetBrainsMono(fontSize: 11.5, color: active ? ExodoColors.amber : (isLight ? Colors.black54 : Colors.white70))),
               trailing: active ? const Icon(Icons.check, size: 18, color: ExodoColors.amber) : null,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
               tileColor: Colors.transparent,
@@ -1820,7 +1791,7 @@ class _ModelSelectorSheet extends StatelessWidget {
                 Icon(Icons.psychology_rounded, size: 15, color: ExodoColors.amber.withValues(alpha: 0.8)),
                 const SizedBox(width: 6),
                 Text(
-                  isEn ? 'thinking mode enabled by default' : 'modo thinking activado por defecto',
+                  AppI18n.of(context).t('models.thinking_default'),
                   style: GoogleFonts.jetBrainsMono(fontSize: 11, color: isLight ? Colors.black54 : ExodoColors.textSecondary),
                 ),
               ],
@@ -1878,7 +1849,7 @@ class _UpgradeModal {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: const Color(0xFF141210),
+      backgroundColor: ExodoColors.background,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(28))),
       builder: (ctx) => StatefulBuilder(
         builder: (context, setModalState) => SafeArea(
@@ -1895,9 +1866,9 @@ class _UpgradeModal {
                 Center(
                   child: Column(
                     children: [
-                      Text('Get more Exodo', style: GoogleFonts.syne(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white)),
+                      Text(AppI18n.of(context).t('billing.title'), style: GoogleFonts.syne(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white)),
                       const SizedBox(height: 6),
-                      Text('Choose the plan right for you', style: GoogleFonts.inter(fontSize: 14, color: Colors.white70)),
+                      Text(AppI18n.of(context).t('billing.header_sub'), style: GoogleFonts.inter(fontSize: 14, color: Colors.white70)),
                     ],
                   ),
                 ),
@@ -1905,16 +1876,16 @@ class _UpgradeModal {
                 Container(
                   padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF221F1C),
+                    color: ExodoColors.composerBg,
                     borderRadius: BorderRadius.circular(22),
-                    border: Border.all(color: const Color(0xFF38332E)),
+                    border: Border.all(color: ExodoColors.border),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Pro', style: GoogleFonts.syne(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white)),
+                      Text('XPi PRO', style: GoogleFonts.syne(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white)),
                       const SizedBox(height: 4),
-                      Text('For everyday productivity', style: GoogleFonts.inter(fontSize: 13, color: Colors.white70)),
+                      Text(AppI18n.of(context).t('billing.subtitle'), style: GoogleFonts.inter(fontSize: 13, color: Colors.white70)),
                       const SizedBox(height: 16),
                       Row(
                         children: [
@@ -1924,9 +1895,9 @@ class _UpgradeModal {
                               child: Container(
                                 padding: const EdgeInsets.all(14),
                                 decoration: BoxDecoration(
-                                  color: !isAnnual ? const Color(0xFF2E2A25) : const Color(0xFF1E1C19),
+                                  color: !isAnnual ? ExodoColors.surface : ExodoColors.background,
                                   borderRadius: BorderRadius.circular(14),
-                                  border: Border.all(color: !isAnnual ? ExodoColors.amber : const Color(0xFF332F2A), width: !isAnnual ? 1.5 : 1),
+                                  border: Border.all(color: !isAnnual ? ExodoColors.amber : ExodoColors.border, width: !isAnnual ? 1.5 : 1),
                                 ),
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -1934,7 +1905,7 @@ class _UpgradeModal {
                                     Icon(!isAnnual ? Icons.radio_button_checked : Icons.radio_button_unchecked, size: 18, color: !isAnnual ? ExodoColors.amber : Colors.white38),
                                     const SizedBox(height: 10),
                                     Text('\$4.99', style: GoogleFonts.jetBrainsMono(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
-                                    Text('Billed monthly', style: GoogleFonts.inter(fontSize: 11, color: Colors.white60)),
+                                    Text(AppI18n.of(context).t('billing.billed_monthly'), style: GoogleFonts.inter(fontSize: 11, color: Colors.white60)),
                                   ],
                                 ),
                               ),
@@ -1947,9 +1918,9 @@ class _UpgradeModal {
                               child: Container(
                                 padding: const EdgeInsets.all(14),
                                 decoration: BoxDecoration(
-                                  color: isAnnual ? const Color(0xFF2E2A25) : const Color(0xFF1E1C19),
+                                  color: isAnnual ? ExodoColors.surface : ExodoColors.background,
                                   borderRadius: BorderRadius.circular(14),
-                                  border: Border.all(color: isAnnual ? ExodoColors.amber : const Color(0xFF332F2A), width: isAnnual ? 1.5 : 1),
+                                  border: Border.all(color: isAnnual ? ExodoColors.amber : ExodoColors.border, width: isAnnual ? 1.5 : 1),
                                 ),
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -1961,13 +1932,13 @@ class _UpgradeModal {
                                         Container(
                                           padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                                           decoration: BoxDecoration(color: ExodoColors.amber.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(6)),
-                                          child: Text('Save 16.5%', style: GoogleFonts.inter(fontSize: 9, fontWeight: FontWeight.bold, color: ExodoColors.amber)),
+                                          child: Text(AppI18n.of(context).t('billing.save_pct'), style: GoogleFonts.inter(fontSize: 9, fontWeight: FontWeight.bold, color: ExodoColors.amber)),
                                         ),
                                       ],
                                     ),
                                     const SizedBox(height: 10),
                                     Text('\$49.99', style: GoogleFonts.jetBrainsMono(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
-                                    Text('Billed annually', style: GoogleFonts.inter(fontSize: 11, color: Colors.white60)),
+                                    Text(AppI18n.of(context).t('billing.billed_annually'), style: GoogleFonts.inter(fontSize: 11, color: Colors.white60)),
                                   ],
                                 ),
                               ),
@@ -1989,23 +1960,17 @@ class _UpgradeModal {
                             HapticFeedback.mediumImpact();
                             context.read<AppState>().upgradeToProPlan();
                             Navigator.pop(context);
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text(_isDeviceEnglish(context) ? '🎉 XPi PRO activated for this session!' : '🎉 ¡Plan XPi PRO activado con éxito!'),
-                                backgroundColor: ExodoColors.amber,
-                              ),
-                            );
                           },
-                          child: Text('Get Pro plan', style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.bold)),
+                          child: Text(AppI18n.of(context).t('billing.get_pro'), style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.bold)),
                         ),
                       ),
                       const SizedBox(height: 18),
-                      Text('Everything in Free, plus:', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white)),
+                      Text(AppI18n.of(context).t('billing.pro_features'), style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white)),
                       const SizedBox(height: 8),
-                      _item('Everything in Free'),
-                      _item('Razonamiento avanzado ilimitado XPi'),
-                      _item('Acceso prioritario a Nemotron 3 Ultra'),
-                      _item('Proyectos y memorias ilimitadas'),
+                      _item(AppI18n.of(context).t('billing.feat1')),
+                      _item(AppI18n.of(context).t('billing.feat2')),
+                      _item(AppI18n.of(context).t('billing.feat3')),
+                      _item(AppI18n.of(context).t('billing.feat4')),
                     ],
                   ),
                 ),

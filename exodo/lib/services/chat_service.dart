@@ -118,7 +118,10 @@ class ChatService {
               fullText = content;
               final rawSources = data['sources'];
               if (rawSources is List) {
-                sources = rawSources.whereType<Map<String, dynamic>>().map((s) => Source.fromJson(s)).toList();
+                sources = rawSources
+                    .where((s) => s is Map)
+                    .map((s) => Source.fromJson(Map<String, dynamic>.from(s as Map)))
+                    .toList();
               }
               _enrichSources(message, fullText, sources).then((enriched) {
                 onComplete(fullText, enriched);
@@ -210,6 +213,7 @@ class ChatService {
       }
 
       String fullText = '';
+      List<Source> sources = [];
       bool isCompleted = false;
       response.stream
           .transform(utf8.decoder)
@@ -221,7 +225,7 @@ class ChatService {
           if (dataStr == '[DONE]') {
             if (!isCompleted) {
               isCompleted = true;
-              _enrichSources(message, fullText, []).then((enriched) {
+              _enrichSources(message, fullText, sources).then((enriched) {
                 onComplete(fullText, enriched);
               });
             }
@@ -230,6 +234,10 @@ class ChatService {
           if (dataStr.isEmpty) return;
           try {
             final data = jsonDecode(dataStr);
+            if (data['sources'] is List) {
+              final raw = data['sources'] as List;
+              sources = raw.where((s) => s is Map).map((s) => Source.fromJson(Map<String, dynamic>.from(s as Map))).toList();
+            }
             final choices = data['choices'] as List?;
             if (choices != null && choices.isNotEmpty) {
               final delta = choices[0]['delta'];
@@ -246,7 +254,7 @@ class ChatService {
         reqClient.close();
         if (fullText.isNotEmpty && !isCompleted) {
           isCompleted = true;
-          _enrichSources(message, fullText, []).then((enriched) {
+          _enrichSources(message, fullText, sources).then((enriched) {
             onComplete(fullText, enriched);
           });
         }
@@ -255,7 +263,7 @@ class ChatService {
         reqClient.close();
         if (fullText.isNotEmpty && !isCompleted) {
           isCompleted = true;
-          _enrichSources(message, fullText, []).then((enriched) {
+          _enrichSources(message, fullText, sources).then((enriched) {
             onComplete(fullText, enriched);
           });
         } else if (!_isCancelled) {
@@ -268,7 +276,9 @@ class ChatService {
   }
 
   static Future<List<Source>> _enrichSources(String userPrompt, String responseText, List<Source> existingSources) async {
-    if (existingSources.isNotEmpty) return existingSources;
+    if (existingSources.isNotEmpty) {
+      return existingSources.length > 10 ? existingSources.take(10).toList() : existingSources;
+    }
     
     final List<Source> found = [];
     final Set<String> seenUrls = {};
@@ -298,36 +308,74 @@ class ChatService {
     final lower = cleanQuery.toLowerCase();
     final isGreeting = ['hola', 'hey', 'buenos dias', 'buenas', 'gracias', 'que tal', 'hi', 'hello', 'ok', 'vale'].contains(lower);
 
-    if (found.isEmpty && cleanQuery.length >= 4 && !isGreeting) {
+    if (found.isEmpty && cleanQuery.length >= 3 && !isGreeting) {
       try {
-        // Limpiamos palabras comunes de búsqueda para encontrar los artículos precisos
-        String searchQuery = cleanQuery.replaceAll(RegExp(r'(?i)(busca en internet|buscar en la web|según la web|segun la web|busca en la web|dime sobre|háblame de|hablame de|qué sabes sobre|que sabes sobre|quién fue|quien fue|historia de|información sobre|informacion sobre)'), '').trim();
-        if (searchQuery.isEmpty || searchQuery.length < 3) searchQuery = cleanQuery;
+        String searchQuery = cleanQuery.replaceAll(RegExp(r'(busca en internet|buscar en la web|según la web|segun la web|busca en la web|dime sobre|háblame de|hablame de|qué sabes sobre|que sabes sobre|quién fue|quien fue|historia de|información sobre|informacion sobre)', caseSensitive: false), '').trim();
+        if (searchQuery.isEmpty || searchQuery.length < 2) searchQuery = cleanQuery;
 
-        final lang = cleanQuery.contains(RegExp(r'[áéíóúñ¿¡]', caseSensitive: false)) ? 'es' : 'es';
-        final searchUri = Uri.parse('https://$lang.wikipedia.org/w/api.php?action=query&list=search&srsearch=${Uri.encodeComponent(searchQuery)}&format=json');
-        final resp = await http.get(
-          searchUri,
-          headers: {'User-Agent': 'ExodoAI/1.0 (https://behavior.ai)'},
-        ).timeout(const Duration(seconds: 4));
-        if (resp.statusCode == 200) {
-          final data = jsonDecode(resp.body);
-          final searchResults = data['query']?['search'] as List?;
-          if (searchResults != null) {
-            for (final item in searchResults.take(4)) {
-              final title = item['title']?.toString() ?? '';
-              if (title.isNotEmpty) {
-                final url = 'https://$lang.wikipedia.org/wiki/${Uri.encodeComponent(title.replaceAll(' ', '_'))}';
-                if (seenUrls.add(url)) {
-                  found.add(Source(title: title, url: url));
+        final lang = 'es';
+        final headers = {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          'Accept': 'application/json',
+        };
+
+        // 3a. Intentar Wikipedia OpenSearch (muy rápido y exacto)
+        try {
+          final osUri = Uri.parse('https://$lang.wikipedia.org/w/api.php?action=opensearch&search=${Uri.encodeComponent(searchQuery)}&limit=8&format=json');
+          final respOs = await http.get(osUri, headers: headers).timeout(const Duration(seconds: 4));
+          if (respOs.statusCode == 200) {
+            final data = jsonDecode(respOs.body) as List?;
+            if (data != null && data.length >= 4) {
+              final titles = data[1] as List?;
+              final urls = data[3] as List?;
+              if (titles != null && urls != null) {
+                for (int i = 0; i < titles.length && i < urls.length; i++) {
+                  final t = titles[i]?.toString() ?? '';
+                  final u = urls[i]?.toString() ?? '';
+                  if (t.isNotEmpty && u.isNotEmpty && seenUrls.add(u)) {
+                    found.add(Source(title: t, url: u));
+                  }
                 }
               }
             }
           }
+        } catch (_) {}
+
+        // 3b. Si tiene menos de 5 resultados, complementar con Wikipedia Query Search
+        if (found.length < 5) {
+          try {
+            final searchUri = Uri.parse('https://$lang.wikipedia.org/w/api.php?action=query&list=search&srsearch=${Uri.encodeComponent(searchQuery)}&format=json');
+            final resp = await http.get(searchUri, headers: headers).timeout(const Duration(seconds: 4));
+            if (resp.statusCode == 200) {
+              final data = jsonDecode(resp.body);
+              final searchResults = data['query']?['search'] as List?;
+              if (searchResults != null) {
+                for (final item in searchResults.take(8)) {
+                  final title = item['title']?.toString() ?? '';
+                  if (title.isNotEmpty) {
+                    final url = 'https://$lang.wikipedia.org/wiki/${Uri.encodeComponent(title.replaceAll(' ', '_'))}';
+                    if (seenUrls.add(url)) {
+                      found.add(Source(title: title, url: url));
+                    }
+                  }
+                }
+              }
+            }
+          } catch (_) {}
         }
       } catch (_) {}
+
+      // 3c. Respaldo garantizado siempre fuera del try/catch
+      if (found.isEmpty) {
+        final cleanTitle = cleanQuery;
+        final fallbackUrl = 'https://es.wikipedia.org/wiki/Especial:Buscar?search=${Uri.encodeComponent(cleanTitle)}';
+        found.add(Source(title: 'Wikipedia: $cleanTitle', url: fallbackUrl));
+      }
     }
 
+    if (found.length > 10) {
+      return found.take(10).toList();
+    }
     return found;
   }
 }

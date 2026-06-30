@@ -126,13 +126,19 @@ class AppState extends ChangeNotifier {
   }
 
   Future<void> selectConversation(Conversation conv) async {
+    if (isIncognito) {
+      currentMessages.clear();
+    }
     activeConversation = conv;
-    isIncognito = conv.isIncognito;
+    isIncognito = false;
     currentMessages = await SupabaseService.getMessages(conv.id);
     notifyListeners();
   }
 
-  void startNewChat() {
+  void startNewChat({bool resetIncognito = true}) {
+    if (resetIncognito) {
+      isIncognito = false;
+    }
     activeConversation = null;
     currentMessages = [];
     notifyListeners();
@@ -202,8 +208,7 @@ class AppState extends ChangeNotifier {
 
   void toggleIncognito() {
     isIncognito = !isIncognito;
-    startNewChat();
-    notifyListeners();
+    startNewChat(resetIncognito: false);
   }
 
   void toggleTheme() {
@@ -226,33 +231,66 @@ class AppState extends ChangeNotifier {
 
   String get userEmail => SupabaseService.client.auth.currentUser?.email ?? '';
 
-  void updateProfileName(String newName) {
+  String? get userAvatarUrl {
+    if (profile?.avatarUrl != null && profile!.avatarUrl!.isNotEmpty) {
+      return profile!.avatarUrl;
+    }
+    final user = SupabaseService.currentUser;
+    if (user != null && user.userMetadata != null) {
+      final meta = user.userMetadata!;
+      final url = meta['avatar_url']?.toString() ?? meta['picture']?.toString() ?? meta['photo_url']?.toString();
+      if (url != null && url.isNotEmpty) {
+        return url;
+      }
+    }
+    return null;
+  }
+
+  Future<bool> updateProfileDetails(String newFullName, String newNickname) async {
     if (profile != null) {
+      final updatedOnboarding = Map<String, dynamic>.from(profile!.onboarding ?? {});
+      updatedOnboarding['nickname'] = newNickname;
+
+      final oldProfile = profile;
       profile = UserProfile(
         id: profile!.id,
-        fullName: newName,
+        fullName: newFullName,
         plan: profile!.plan,
         avatarUrl: profile!.avatarUrl,
-        onboarding: profile!.onboarding,
+        onboarding: updatedOnboarding,
       );
-      SupabaseService.client.from('profiles').update({'full_name': newName}).eq('id', profile!.id);
       notifyListeners();
+
+      try {
+        await SupabaseService.client.from('profiles').update({
+          'full_name': newFullName,
+          'onboarding': updatedOnboarding,
+        }).eq('id', profile!.id);
+        return true;
+      } catch (e) {
+        profile = oldProfile;
+        notifyListeners();
+        return false;
+      }
     }
+    return false;
+  }
+
+  Future<void> deleteAccount() async {
+    final userId = SupabaseService.client.auth.currentUser?.id;
+    if (userId != null) {
+      try {
+        await SupabaseService.client.from('profiles').delete().eq('id', userId);
+      } catch (_) {}
+    }
+    profile = null;
+    await SupabaseService.signOut();
+    notifyListeners();
   }
 
   void upgradeToProPlan() {
-    if (profile != null) {
-      profile = UserProfile(
-        id: profile!.id,
-        fullName: profile!.fullName,
-        plan: 'hazak',
-        avatarUrl: profile!.avatarUrl,
-        onboarding: profile!.onboarding,
-      );
-      selectedModel = exodoModels[1];
-      SupabaseService.client.from('profiles').update({'plan': 'hazak'}).eq('id', profile!.id);
-      notifyListeners();
-    }
+    // Desactivado hasta conectar pasarela de pago real (Stripe / Google Play).
+    // Evita que usuarios en cuenta Free obtengan Pro y pasen al modelo XPi sin pagar.
   }
 
   void cancelProPlan() {
@@ -282,10 +320,9 @@ class AppState extends ChangeNotifier {
       }
     } else {
       if (tokensUsed >= tokensLimit) {
-        final isEn = AppI18n.instance.localeCode == 'en';
         final limitMsg = isPro
-            ? (isEn ? '⚠️ XPi PRO daily capacity reached. Tokens reset tomorrow.' : '⚠️ Capacidad diaria de XPi PRO alcanzada. Tus tokens se renovarán mañana.')
-            : (isEn ? '⚠️ Daily limit reached. Activate XPi PRO to continue.' : '⚠️ Alcanzaste tu capacidad diaria. Activa XPi PRO para continuar.');
+            ? AppI18n.instance.t('limit.pro_msg')
+            : AppI18n.instance.t('limit.free_msg');
         currentMessages.add(ChatMessage(
           id: 'limit-${DateTime.now().microsecondsSinceEpoch}',
           conversationId: activeConversation?.id ?? 'free',
@@ -355,10 +392,9 @@ class AppState extends ChangeNotifier {
           final currentEst = tokensUsed + (currentMessages[idx].content.length ~/ 3) + 35;
           if (currentEst >= tokensLimit) {
             tokensUsed = tokensLimit;
-            final isEn = AppI18n.instance.localeCode == 'en';
             final reason = isPro
-                ? (isEn ? 'XPi PRO daily capacity reached. Tokens reset tomorrow.' : 'Capacidad diaria de XPi PRO alcanzada. Tus tokens se renovarán mañana.')
-                : (isEn ? 'Daily token limit reached' : 'Límite diario de tokens alcanzado');
+                ? AppI18n.instance.t('limit.pro_reason')
+                : AppI18n.instance.t('limit.free_reason');
             stopGeneration(reasonText: reason);
             return;
           }
@@ -410,10 +446,9 @@ class AppState extends ChangeNotifier {
     } else {
       final estNew = tokensUsed + (text.length ~/ 3) + 15;
       if (tokensUsed >= tokensLimit || estNew > tokensLimit) {
-        final isEn = AppI18n.instance.localeCode == 'en';
         final limitMsg = isPro
-            ? (isEn ? '⚠️ XPi PRO daily capacity reached. Tokens reset tomorrow.' : '⚠️ Capacidad diaria de XPi PRO alcanzada. Tus tokens se renovarán mañana.')
-            : (isEn ? '⚠️ Daily limit reached. Activate XPi PRO to continue.' : '⚠️ Alcanzaste tu capacidad diaria. Activa XPi PRO para continuar.');
+            ? AppI18n.instance.t('limit.pro_msg')
+            : AppI18n.instance.t('limit.free_msg');
         currentMessages.add(ChatMessage(
           id: 'limit-${DateTime.now().microsecondsSinceEpoch}',
           conversationId: activeConversation?.id ?? 'free',
@@ -512,10 +547,9 @@ class AppState extends ChangeNotifier {
               final currentEst = tokensUsed + (currentMessages[idx].content.length ~/ 3) + 35;
               if (!isGuestUser && currentEst >= tokensLimit) {
                 tokensUsed = tokensLimit;
-                final isEn = AppI18n.instance.localeCode == 'en';
                 final reason = isPro
-                    ? (isEn ? 'XPi PRO daily capacity reached. Tokens reset tomorrow.' : 'Capacidad diaria de XPi PRO alcanzada. Tus tokens se renovarán mañana.')
-                    : (isEn ? 'Daily token limit reached' : 'Límite diario de tokens alcanzado');
+                    ? AppI18n.instance.t('limit.pro_reason')
+                    : AppI18n.instance.t('limit.free_reason');
                 stopGeneration(reasonText: reason);
                 return;
               }
@@ -549,13 +583,24 @@ class AppState extends ChangeNotifier {
             ));
           }
           if (shouldSaveHistory && activeConversation != null) {
+            final sourcesJson = sources.isNotEmpty ? jsonEncode(sources.map((s) => s.toJson()).toList()) : null;
+            final contentToSave = sourcesJson != null ? '$fullText\n<!-- SOURCES: $sourcesJson -->' : fullText;
             try {
               await SupabaseService.client.from('messages').insert({
                 'conversation_id': activeConversation!.id,
                 'role': 'assistant',
-                'content': fullText,
+                'content': contentToSave,
+                if (sources.isNotEmpty) 'sources': sources.map((s) => s.toJson()).toList(),
               });
-            } catch (_) {}
+            } catch (_) {
+              try {
+                await SupabaseService.client.from('messages').insert({
+                  'conversation_id': activeConversation!.id,
+                  'role': 'assistant',
+                  'content': contentToSave,
+                });
+              } catch (_) {}
+            }
           }
           if (isGuest) {
             guestMessagesSessionCount++;
@@ -633,8 +678,7 @@ class AppState extends ChangeNotifier {
     isThinking = false;
     isGenerating = false;
     
-    final isEn = AppI18n.instance.localeCode == 'en';
-    final stopText = reasonText ?? (isEn ? 'You stopped the response' : 'Usted detuvo la respuesta');
+    final stopText = reasonText ?? AppI18n.instance.t('chat.stopped');
 
     if (currentMessages.isEmpty || currentMessages.last.role != 'assistant' || currentMessages.last.content.trim().isEmpty) {
       if (currentMessages.isNotEmpty && currentMessages.last.role == 'assistant') {
