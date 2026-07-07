@@ -1,7 +1,7 @@
 # ============================================================
 # start-dev-tunnel.ps1
 # Expone tu backend local (localhost:3000) a internet vía HTTPS
-# usando Cloudflare Tunnel (gratis, sin cuenta, sin ngrok).
+# usando Cloudflare Tunnel (gratis, sin cuenta).
 #
 # Por qué: la app Éxodo (en Android 9+) SOLO acepta HTTPS para
 # conectarse a un backend. Hablar HTTP a tu IP LAN está bloqueado

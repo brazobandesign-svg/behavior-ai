@@ -167,35 +167,51 @@ class _DrawerMenuState extends State<DrawerMenu> {
                   ),
                 ),
 
-                // 2. Opciones de menú
-                _DrawerItem(
-                  horizontalPad: hPad,
-                  icon: Icon(Icons.chat_bubble_outline_rounded, size: s(20), color: textCol),
-                  title: Text(AppI18n.of(context).t('drawer.new_chat'), style: GoogleFonts.jetBrainsMono(fontSize: s(14), color: textCol, fontWeight: FontWeight.w600, letterSpacing: -0.2)),
-                  onTap: () {
-                    state.startNewChat();
-                    Navigator.pop(context);
-                  },
-                ),
-                _DrawerItem(
-                  horizontalPad: hPad,
-                  icon: Icon(state.isDarkMode ? Icons.light_mode_outlined : Icons.dark_mode_outlined, size: s(20), color: textCol),
-                  title: Text(state.isDarkMode ? AppI18n.of(context).t('drawer.light_mode') : AppI18n.of(context).t('drawer.dark_mode'), style: GoogleFonts.jetBrainsMono(fontSize: s(14), color: textCol, fontWeight: FontWeight.w600, letterSpacing: -0.2)),
-                  onTap: () => state.toggleTheme(),
-                ),
-                _DrawerItem(
-                  horizontalPad: hPad,
-                  icon: Image.asset(
-                    'assets/images/incognito-svgrepo-com.png',
-                    width: s(20),
-                    height: s(20),
-                    color: state.isIncognito ? ExodoColors.amber : textCol,
+                // 2. Opciones de menú.
+                // [Patrón Wrap] Antes: 3 _DrawerItem como children directos de una Column
+                // (cada uno ocupa 100% del ancho y el siguiente se empuja abajo con un
+                // espacio fijo). Después: Wrap con `spacing` y `runSpacing` para que:
+                //  - En vertical: cada item ocupa su línea natural (sin gaps fantasma).
+                //  - En horizontal estrecho (rotación / tablets): si el texto del título
+                //    no cabe, el item hace wrap al item de abajo en lugar de desbordar.
+                //  - `IntrinsicHeight` alinea la altura de cada item con la del más alto,
+                //    útil cuando un título se parte en 2 líneas.
+                IntrinsicHeight(
+                  child: Wrap(
+                    spacing: 0,
+                    runSpacing: 0,
+                    children: [
+                      _DrawerItem(
+                        horizontalPad: hPad,
+                        icon: Icon(Icons.chat_bubble_outline_rounded, size: s(20), color: textCol),
+                        title: Text(AppI18n.of(context).t('drawer.new_chat'), style: GoogleFonts.jetBrainsMono(fontSize: s(14), color: textCol, fontWeight: FontWeight.w600, letterSpacing: -0.2)),
+                        onTap: () {
+                          state.startNewChat();
+                          Navigator.pop(context);
+                        },
+                      ),
+                      _DrawerItem(
+                        horizontalPad: hPad,
+                        icon: Icon(state.isDarkMode ? Icons.light_mode_outlined : Icons.dark_mode_outlined, size: s(20), color: textCol),
+                        title: Text(state.isDarkMode ? AppI18n.of(context).t('drawer.light_mode') : AppI18n.of(context).t('drawer.dark_mode'), style: GoogleFonts.jetBrainsMono(fontSize: s(14), color: textCol, fontWeight: FontWeight.w600, letterSpacing: -0.2)),
+                        onTap: () => state.toggleTheme(),
+                      ),
+                      _DrawerItem(
+                        horizontalPad: hPad,
+                        icon: Image.asset(
+                          'assets/images/incognito-svgrepo-com.png',
+                          width: s(20),
+                          height: s(20),
+                          color: state.isIncognito ? ExodoColors.amber : textCol,
+                        ),
+                        title: Text(AppI18n.of(context).t('drawer.incognito'), style: GoogleFonts.jetBrainsMono(fontSize: s(14), color: state.isIncognito ? ExodoColors.amber : textCol, fontWeight: FontWeight.w600, letterSpacing: -0.2)),
+                        onTap: () {
+                          HapticFeedback.vibrate();
+                          state.toggleIncognito();
+                        },
+                      ),
+                    ],
                   ),
-                  title: Text(AppI18n.of(context).t('drawer.incognito'), style: GoogleFonts.jetBrainsMono(fontSize: s(14), color: state.isIncognito ? ExodoColors.amber : textCol, fontWeight: FontWeight.w600, letterSpacing: -0.2)),
-                  onTap: () {
-                    HapticFeedback.vibrate();
-                    state.toggleIncognito();
-                  },
                 ),
 
 
@@ -826,7 +842,10 @@ class _ClaudeAccountModal {
       backgroundColor: bg,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(28))),
       builder: (ctx) => SafeArea(
-        child: Padding(
+        // [Punto 35 aviso] 254 PIXELS overflow: el Column con muchos tiles
+        // excedía el alto del bottom sheet. SingleChildScrollView permite
+        // scroll cuando el contenido es más grande que la pantalla.
+        child: SingleChildScrollView(
           padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -916,6 +935,7 @@ class _ClaudeAccountModal {
                 ),
                 const SizedBox(height: 8),
               ],
+
               _buildSettingTile(
                 assetIcon: 'assets/images/laptop-alt-2-svgrepo-com.png',
                 title: AppI18n.of(context).t('drawer.web'),
@@ -1100,9 +1120,9 @@ class _ClaudeAccountModal {
                 textCol: textCol,
                 subTextCol: subTextCol,
                 onTap: () async {
-                  Navigator.pop(sheetCtx);
                   HapticFeedback.selectionClick();
                   await sheetCtx.setLocale(null);
+                  if (sheetCtx.mounted) Navigator.pop(sheetCtx);
                 },
               ),
               Divider(color: subTextCol.withValues(alpha: 0.2), height: 1, indent: 20, endIndent: 20),
@@ -1124,9 +1144,9 @@ class _ClaudeAccountModal {
                       textCol: textCol,
                       subTextCol: subTextCol,
                       onTap: () async {
-                        Navigator.pop(sheetCtx);
                         HapticFeedback.selectionClick();
                         await sheetCtx.setLocale(loc.code);
+                        if (sheetCtx.mounted) Navigator.pop(sheetCtx);
                       },
                     );
                   },
@@ -1140,32 +1160,48 @@ class _ClaudeAccountModal {
     );
   }
 
+
+
   static void _showBillingModal(BuildContext context, AppState state) {
     final isPro = state.profile?.plan == 'hazak';
+    // [Punto 35 aviso] Billing debe respetar el tema. Antes siempre era fondo
+    // negro cálido (#0E0C0A) con texto blanco hardcoded → "se ve marrón" en light
+    // y desentonaba con el resto de la UI. Ahora detecta isLight y usa la
+    // paleta coherente con el resto de la app (gris dark / yeso light).
+    // [Punto 35 round 2] El usuario reportó "color marrón" en Billing → era la
+    // card interna (ExodoColors.surface = #1A1612). Ahora la card usa el
+    // mismo `bgColor` del modal + un borde sutil, sin marrón.
+    final isLight = Theme.of(context).brightness == Brightness.light;
+    final bgColor = isLight ? const Color(0xFFFBF9F5) : ExodoColors.chatBg;       // #FBF9F5 / #20201F
+    final cardBg = isLight ? const Color(0xFFF2ECE1) : const Color(0xFF181614);   // #F2ECE1 / gris carbón Éxodo (sin marrón)
+    final borderColor = isLight ? const Color(0xFFD4CEBF) : ExodoColors.border;    // #D4CEBF / #2A241D
+    final textPrimary = isLight ? const Color(0xFF171615) : ExodoColors.textPrimary; // #171615 / #F5F2EB
+    final textSecondary = isLight ? const Color(0xFF7B7872) : ExodoColors.textSecondary; // #7B7872 / #9E9689
 
     showModalBottomSheet(
       context: context,
-      backgroundColor: ExodoColors.background,
+      backgroundColor: bgColor,
+      isScrollControlled: true,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
       builder: (ctx) => SafeArea(
-        child: Padding(
+        child: SingleChildScrollView(
           padding: const EdgeInsets.all(24.0),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(AppI18n.of(context).t('settings.billing'), style: GoogleFonts.syne(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white)),
+              Text(AppI18n.of(context).t('settings.billing'), style: GoogleFonts.syne(fontSize: 20, fontWeight: FontWeight.bold, color: textPrimary)),
               const SizedBox(height: 16),
               Container(
                 padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(color: ExodoColors.surface, borderRadius: BorderRadius.circular(16)),
+                decoration: BoxDecoration(color: cardBg, borderRadius: BorderRadius.circular(16), border: Border.all(color: borderColor)),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text(AppI18n.of(context).t('billing.current_plan'), style: GoogleFonts.inter(color: Colors.white60, fontSize: 13)),
+                        Text(AppI18n.of(context).t('billing.current_plan'), style: GoogleFonts.inter(color: textSecondary, fontSize: 13)),
                         Text(isPro ? AppI18n.of(context).t('billing.plan_pro') : AppI18n.of(context).t('billing.plan_free'), style: GoogleFonts.inter(color: ExodoColors.amber, fontWeight: FontWeight.bold)),
                       ],
                     ),
@@ -1173,8 +1209,8 @@ class _ClaudeAccountModal {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text(AppI18n.of(context).t('billing.gateway'), style: GoogleFonts.inter(color: Colors.white60, fontSize: 13)),
-                        Text(isPro ? 'Stripe / Mobile Pay' : AppI18n.of(context).t('billing.gateway_free'), style: GoogleFonts.inter(color: Colors.white)),
+                        Text(AppI18n.of(context).t('billing.gateway'), style: GoogleFonts.inter(color: textSecondary, fontSize: 13)),
+                        Text(isPro ? 'Stripe / Mobile Pay' : AppI18n.of(context).t('billing.gateway_free'), style: GoogleFonts.inter(color: textPrimary)),
                       ],
                     ),
                   ],

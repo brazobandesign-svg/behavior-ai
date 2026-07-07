@@ -59,9 +59,12 @@ const NIM_CONFIG = {
   }
 };
 
-async function call(modelId, messages, systemPrompt) {
+async function call(modelId, messages, systemPrompt, imageDataUris) {
   const cfg = NIM_CONFIG[modelId] || NIM_CONFIG['nim-nemotron-3-ultra'];
   const apiKey = process.env[cfg.apiKeyEnv] || cfg.defaultKey;
+
+  // [Punto 42] Construir array de mensajes con soporte multimodal.
+  const requestMessages = _buildMessages(systemPrompt, messages, imageDataUris);
 
   const controller = new AbortController();
   // 45s: el cold start de NIM puede tardar 10-30s la primera vez,
@@ -80,10 +83,7 @@ async function call(modelId, messages, systemPrompt) {
       },
       body: JSON.stringify({
         model: cfg.model,
-        messages: [
-          { role: 'system', content: systemPrompt },
-          ...messages,
-        ],
+        messages: requestMessages,
         max_tokens: 4096,
         temperature: 0.7,
       }),
@@ -148,9 +148,12 @@ async function call(modelId, messages, systemPrompt) {
  * @param {(chunk: string) => void} onChunk  llamado por cada delta del modelo
  * @returns {Promise<{text:string, model:string, tokensInput:number, tokensOutput:number}>}
  */
-async function callStream(modelId, messages, systemPrompt, onChunk) {
+async function callStream(modelId, messages, systemPrompt, onChunk, imageDataUris) {
   const cfg = NIM_CONFIG[modelId] || NIM_CONFIG['nim-nemotron-3-ultra'];
   const apiKey = process.env[cfg.apiKeyEnv] || cfg.defaultKey;
+
+  // [Punto 42] Construir array de mensajes con soporte multimodal.
+  const requestMessages = _buildMessages(systemPrompt, messages, imageDataUris);
 
   const controller = new AbortController();
   const timeoutMs = 45000;
@@ -166,10 +169,7 @@ async function callStream(modelId, messages, systemPrompt, onChunk) {
       },
       body: JSON.stringify({
         model: cfg.model,
-        messages: [
-          { role: 'system', content: systemPrompt },
-          ...messages,
-        ],
+        messages: requestMessages,
         max_tokens: 4096,
         temperature: 0.7,
         stream: true, // ← clave: pide chunks en vez de respuesta completa
@@ -260,6 +260,51 @@ async function callStream(modelId, messages, systemPrompt, onChunk) {
     tokensInput,
     tokensOutput,
   };
+}
+
+/**
+ * [Punto 42] Construye el array de mensajes para la API de NVIDIA.
+ * Si hay imágenes (imageDataUris), el último mensaje del usuario se
+ * convierte en multimodal: array de { type: 'text' | 'image_url' }.
+ * Si no hay imágenes, los mensajes usan content como string (normal).
+ *
+ * @param {string} systemPrompt
+ * @param {Array<{role:string, content:string}>} messages
+ * @param {Array<string>|null} imageDataUris - data URIs (ej: "data:image/png;base64,...")
+ * @returns {Array} mensajes formateados para la API
+ */
+function _buildMessages(systemPrompt, messages, imageDataUris) {
+  const hasImages = imageDataUris && Array.isArray(imageDataUris) && imageDataUris.length > 0;
+
+  if (!hasImages) {
+    // Modo texto normal: content es string
+    return [
+      { role: 'system', content: systemPrompt },
+      ...messages,
+    ];
+  }
+
+  // Modo multimodal: el último mensaje (del usuario) usa content como array.
+  // Los mensajes previos y el system prompt siguen con string content.
+  const allButLast = messages.slice(0, -1);
+  const lastMsg = messages[messages.length - 1];
+
+  const contentParts = [
+    { type: 'text', text: typeof lastMsg.content === 'string' ? lastMsg.content : '' },
+  ];
+
+  for (const uri of imageDataUris) {
+    contentParts.push({
+      type: 'image_url',
+      image_url: { url: uri },
+    });
+  }
+
+  return [
+    { role: 'system', content: systemPrompt },
+    ...allButLast,
+    { role: lastMsg.role, content: contentParts },
+  ];
 }
 
 module.exports = { call, callStream };

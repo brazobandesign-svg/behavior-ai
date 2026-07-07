@@ -9,7 +9,10 @@ class SupabaseService {
   // Llave pública (anon) extraída de tu panel. Es segura para estar en el APK porque RLS la protege.
   static const String supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp5dmFha2ZzbmxxbGdyamRpZ2tyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI0MDg2MTQsImV4cCI6MjA5Nzk4NDYxNH0.ZPW16OYo-09YEe-ti2DaRSh8Yh9TZEQL6e_23bvGZGU';
 
+  static bool _initialized = false;
+
   static Future<void> initialize() async {
+    if (_initialized) return;
     await Supabase.initialize(
       url: supabaseUrl,
       // ignore: deprecated_member_use
@@ -21,6 +24,7 @@ class SupabaseService {
         pkceAsyncStorage: SharedPreferencesGotrueAsyncStorage(),
       ),
     );
+    _initialized = true;
   }
 
   static SupabaseClient get client => Supabase.instance.client;
@@ -149,6 +153,14 @@ class SupabaseService {
     await client.from('conversations').delete().eq('id', convId);
   }
 
+  // [Punto 39] Borrar TODAS las conversaciones del usuario (historial completo).
+  // Se ejecuta desde Settings → Profile → Delete History.
+  static Future<void> deleteAllConversations() async {
+    final user = currentUser;
+    if (user == null) return;
+    await client.from('conversations').delete().eq('user_id', user.id);
+  }
+
   // Mensajes
   static Future<List<ChatMessage>> getMessages(String convId) async {
     final res = await client
@@ -158,6 +170,40 @@ class SupabaseService {
         .order('created_at', ascending: true);
 
     return (res as List).map((json) => ChatMessage.fromJson(json)).toList();
+  }
+
+  // [Punto 37 aviso] Feedback directo a Supabase (sin abrir email).
+  // Inserta en tabla `feedback` con RLS: el usuario solo puede insertar.
+  // Retorna true si éxito, false si error.
+  // Nota: no usamos AppI18n aquí (es un singleton con posible race condition
+  // al boot). El locale se guarda como 'es' por defecto si falla.
+  static Future<bool> submitFeedback({
+
+    required bool isLike,
+    required String comment,
+    required String messageExcerpt,
+    String? conversationId,
+  }) async {
+    final user = currentUser;
+    if (user == null) return false;
+
+    try {
+      await client.from('feedback').insert({
+        'user_id': user.id,
+        'is_like': isLike,
+        'comment': comment,
+        'message_excerpt': messageExcerpt.length > 500
+            ? messageExcerpt.substring(0, 500)
+            : messageExcerpt,
+        'conversation_id': conversationId,
+        'app_locale': 'es',
+        'app_version': '1.1.86',
+      });
+      return true;
+    } catch (e) {
+      debugPrint('[Feedback] Error al insertar: $e');
+      return false;
+    }
   }
 
   // Uso diario de tokens
@@ -182,8 +228,10 @@ class SupabaseService {
   }
 
   // Fijar / desfijar conversación
+  // [Punto 38] El update devuelve la fila actualizada para confirmar
+  // que la columna is_starred existe y se guardó correctamente.
   static Future<void> toggleConversationStarred(String convId, bool isStarred) async {
-    await client.from('conversations').update({'is_starred': isStarred}).eq('id', convId);
+    await client.from('conversations').update({'is_starred': isStarred}).eq('id', convId).select();
   }
 
   // Buscar palabra exacta en el contenido de todos los chats

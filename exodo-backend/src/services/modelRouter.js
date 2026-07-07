@@ -19,7 +19,7 @@ const { MODEL_MAP, GENESIS_FALLBACK_CHAIN, XPI_FALLBACK_CHAIN, MODEL_TO_PROVIDER
  * @param {string} systemPrompt - El system prompt de Éxodo
  * @returns {Promise<ReadableStream|Object>} - Stream SSE o respuesta de imagen
  */
-async function routeMessage(plan, intent, messages, systemPrompt, modelOverride) {
+async function routeMessage(plan, intent, messages, systemPrompt, modelOverride, imageDataUris) {
   const modelId = MODEL_MAP[intent]?.[plan];
   const effectiveModelId = modelOverride || modelId;
 
@@ -39,11 +39,11 @@ async function routeMessage(plan, intent, messages, systemPrompt, modelOverride)
     const isXpi = plan === 'hazak' || modelOverride === 'ehyeh' || modelOverride === 'hazak';
     const fallbackList = isXpi ? XPI_FALLBACK_CHAIN : GENESIS_FALLBACK_CHAIN;
     const chain = [effectiveModelId, ...fallbackList.filter((m) => m !== effectiveModelId)];
-    return await callWithFallback(chain, messages, systemPrompt);
+    return await callWithFallback(chain, messages, systemPrompt, imageDataUris);
   }
 
   // Para Hazak IMAGEN, llamar directo al modelo asignado
-  return await callProvider(effectiveModelId, messages, systemPrompt);
+  return await callProvider(effectiveModelId, messages, systemPrompt, imageDataUris);
 }
 
 /**
@@ -58,7 +58,7 @@ async function routeMessage(plan, intent, messages, systemPrompt, modelOverride)
  * @param {(chunk: string) => void} onChunk
  * @returns {Promise<{text:string, model:string, tokensInput:number, tokensOutput:number, error?:string, message?:string, attempts?:Array}>}
  */
-async function routeMessageStream(plan, intent, messages, systemPrompt, onChunk, modelOverride) {
+async function routeMessageStream(plan, intent, messages, systemPrompt, onChunk, modelOverride, imageDataUris) {
   const modelId = MODEL_MAP[intent]?.[plan];
 
   const effectiveModelId = modelOverride || modelId;
@@ -80,23 +80,23 @@ async function routeMessageStream(plan, intent, messages, systemPrompt, onChunk,
     const isXpi = plan === 'hazak' || modelOverride === 'ehyeh' || modelOverride === 'hazak';
     const fallbackList = isXpi ? XPI_FALLBACK_CHAIN : GENESIS_FALLBACK_CHAIN;
     const chain = [effectiveModelId, ...fallbackList.filter((m) => m !== effectiveModelId)];
-    return await callStreamWithFallback(chain, messages, systemPrompt, onChunk);
+    return await callStreamWithFallback(chain, messages, systemPrompt, onChunk, imageDataUris);
   }
 
-  return await callProviderStream(effectiveModelId, messages, systemPrompt, onChunk);
+  return await callProviderStream(effectiveModelId, messages, systemPrompt, onChunk, imageDataUris);
 }
 
 /**
  * Intenta llamar proveedores en cascada hasta que uno responda.
  * Loggea cada intento con su código de error para diagnóstico rápido.
  */
-async function callWithFallback(fallbackChain, messages, systemPrompt) {
+async function callWithFallback(fallbackChain, messages, systemPrompt, imageDataUris) {
   const attempts = [];
 
   for (const modelId of fallbackChain) {
     const t0 = Date.now();
     try {
-      const result = await callProvider(modelId, messages, systemPrompt);
+      const result = await callProvider(modelId, messages, systemPrompt, imageDataUris);
       if (result && !result.error) {
         const elapsed = Date.now() - t0;
         console.log(`[modelRouter] ✅ ${modelId} OK en ${elapsed}ms`);
@@ -123,7 +123,7 @@ async function callWithFallback(fallbackChain, messages, systemPrompt) {
 /**
  * Llama al provider correcto basado en el modelId.
  */
-async function callProvider(modelId, messages, systemPrompt) {
+async function callProvider(modelId, messages, systemPrompt, imageDataUris) {
   const providerName = MODEL_TO_PROVIDER[modelId];
 
   if (!providerName) {
@@ -131,7 +131,7 @@ async function callProvider(modelId, messages, systemPrompt) {
   }
 
   const provider = require(`./providers/${providerName}`);
-  return await provider.call(modelId, messages, systemPrompt);
+  return await provider.call(modelId, messages, systemPrompt, imageDataUris);
 }
 
 /**
@@ -139,7 +139,7 @@ async function callProvider(modelId, messages, systemPrompt) {
  * Si el provider expone callStream(), lo usa. Si no, hace fallback al
  * modo bloqueante y emite el texto completo como un solo chunk.
  */
-async function callProviderStream(modelId, messages, systemPrompt, onChunk) {
+async function callProviderStream(modelId, messages, systemPrompt, onChunk, imageDataUris) {
   const providerName = MODEL_TO_PROVIDER[modelId];
 
   if (!providerName) {
@@ -149,11 +149,11 @@ async function callProviderStream(modelId, messages, systemPrompt, onChunk) {
   const provider = require(`./providers/${providerName}`);
 
   if (typeof provider.callStream === 'function') {
-    return await provider.callStream(modelId, messages, systemPrompt, onChunk);
+    return await provider.callStream(modelId, messages, systemPrompt, onChunk, imageDataUris);
   }
 
   // Fallback: bloqueante → emite todo de golpe (mejor que nada).
-  const result = await provider.call(modelId, messages, systemPrompt);
+  const result = await provider.call(modelId, messages, systemPrompt, imageDataUris);
   if (result && result.text) onChunk(result.text);
   return result;
 }
@@ -163,13 +163,13 @@ async function callProviderStream(modelId, messages, systemPrompt, onChunk) {
  * Si el provider soporta callStream, streamea real.
  * Si no, emite de golpe (vía callProviderStream).
  */
-async function callStreamWithFallback(fallbackChain, messages, systemPrompt, onChunk) {
+async function callStreamWithFallback(fallbackChain, messages, systemPrompt, onChunk, imageDataUris) {
   const attempts = [];
 
   for (const modelId of fallbackChain) {
     const t0 = Date.now();
     try {
-      const result = await callProviderStream(modelId, messages, systemPrompt, onChunk);
+      const result = await callProviderStream(modelId, messages, systemPrompt, onChunk, imageDataUris);
       if (result && !result.error) {
         const elapsed = Date.now() - t0;
         console.log(`[modelRouter] ✅ ${modelId} stream OK en ${elapsed}ms (${result.tokensOutput} tok out)`);

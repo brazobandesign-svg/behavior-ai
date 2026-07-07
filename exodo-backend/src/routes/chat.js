@@ -6,6 +6,7 @@ const { classifyIntent } = require('../services/intentClassifier');
 const { routeMessage, routeMessageStream } = require('../services/modelRouter');
 const { getHistory, saveMessage } = require('../services/historyManager');
 const { estimateTokens, updateTokenUsage } = require('../services/tokenCounter');
+const pdfParse = require('pdf-parse'); // [Punto 40+42] Extracción de texto de PDF
 
 /**
  * System prompt de Éxodo — Bible sección 11, Regla #7:
@@ -27,6 +28,52 @@ Reglas:
 - Formatea tus respuestas con markdown cuando sea apropiado.`;
 
 /**
+ * Extrae enlaces markdown [Título](URL) y URLs en texto plano del contenido.
+ * Garantiza que las fuentes citadas se persistan en Supabase desde el backend.
+ */
+function extractSourcesFromText(text, existingSources = []) {
+  if (existingSources && existingSources.length > 0) {
+    return existingSources.slice(0, 10);
+  }
+  const found = [];
+  const seenUrls = new Set();
+  
+  // 1. Extraer enlaces markdown [Título](URL)
+  const mdRegex = /\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g;
+  let match;
+  while ((match = mdRegex.exec(text)) !== null) {
+    const title = (match[1] || '').trim();
+    const url = (match[2] || '').trim();
+    if (url && !url.includes('localhost') && !seenUrls.has(url)) {
+      seenUrls.add(url);
+      let host = url;
+      try { host = new URL(url).host; } catch (_) {}
+      found.push({
+        title: title || host,
+        url: url
+      });
+    }
+  }
+
+  // 2. Extraer URLs en texto plano https://...
+  const urlRegex = /(https?:\/\/[a-zA-Z0-9\-\.]+\.[a-zA-Z]{2,}(?:\/[^\s\)\]\>"]*)?)/g;
+  while ((match = urlRegex.exec(text)) !== null) {
+    const url = (match[1] || '').trim();
+    if (url && !url.includes('localhost') && !seenUrls.has(url)) {
+      seenUrls.add(url);
+      let host = url;
+      try { host = new URL(url).host.replace(/^www\./, ''); } catch (_) {}
+      found.push({
+        title: host,
+        url: url
+      });
+    }
+  }
+
+  return found.slice(0, 10);
+}
+
+/**
  * POST /chat
  * Bible sección 08: flujo completo de un mensaje.
  * Regla #3: Streaming REAL (SSE chunk por chunk, no bloques de 15 chars).
@@ -40,11 +87,61 @@ Reglas:
  *   data: {"type":"error","content":"..."}\n\n
  */
 router.post('/', auth, planGuard, async (req, res) => {
-  const { message, conversationId, model_override } = req.body;
+  const { message, conversationId, model_override, attachments } = req.body;
   const { userId, plan, anonymous } = req.user;
 
   if (!message || typeof message !== 'string' || message.trim().length === 0) {
     return res.status(400).json({ error: 'El campo "message" es requerido' });
+  }
+
+  // [Punto 40+42] Construir mensaje enriquecido con adjuntos.
+  // PDFs: extraer texto real con pdf-parse.
+  // Imágenes: etiquetar para clasificación + guardar data URI para visión.
+  // Archivos de texto: decodificar y prepender al mensaje.
+  let enhancedMessage = message;
+  const imageDataUris = []; // [Punto 42] data URIs para modelos con visión
+
+  if (attachments && Array.isArray(attachments) && attachments.length > 0) {
+    const parts = [];
+    for (const att of attachments) {
+      const mime = (att.mime_type || '').toLowerCase();
+      const name = att.file_name || 'archivo';
+      const b64 = att.base64 || '';
+
+      if (mime.startsWith('image/')) {
+        // [Punto 42] Etiquetar para el clasificador + guardar para visión
+        parts.push(`[Imagen: ${name}]`);
+        if (b64) {
+          imageDataUris.push(`data:${mime};base64,${b64}`);
+        }
+      } else if (mime === 'application/pdf') {
+        // [Punto 40] Extraer texto real del PDF con pdf-parse
+        try {
+          const pdfBuffer = Buffer.from(b64, 'base64');
+          const pdfData = await pdfParse(pdfBuffer);
+          const pdfText = pdfData.text || '';
+          parts.push(`[PDF: ${name}]\n${pdfText}`);
+        } catch (_) {
+          parts.push(`[PDF: ${name} - no se pudo extraer texto]`);
+        }
+      } else if (
+        mime.startsWith('text/') ||
+        name.endsWith('.md') || name.endsWith('.json') ||
+        name.endsWith('.xml') || name.endsWith('.csv')
+      ) {
+        try {
+          const text = Buffer.from(b64, 'base64').toString('utf-8');
+          parts.push(`[Archivo: ${name}]\n${text}`);
+        } catch (_) {
+          parts.push(`[Archivo: ${name}]`);
+        }
+      } else {
+        parts.push(`[Archivo: ${name}]`);
+      }
+    }
+    if (parts.length > 0) {
+      enhancedMessage = parts.join('\n\n') + '\n\n' + message;
+    }
   }
 
   // Flag para detectar si el cliente se desconectó a mitad de la respuesta.
@@ -71,26 +168,36 @@ router.post('/', auth, planGuard, async (req, res) => {
   };
 
   try {
-    // 1. Recuperar historial (últimos 10 mensajes) — Bible: reduce tokens 50%
-    const history = await getHistory(conversationId, 10);
-
-    // 2. Clasificar intención (~$0.000015 en Gemini Flash)
-    const intent = await classifyIntent(message);
+    // 1 & 2. Paralelizar historial e intención para reducir latencia en servidor
+    const [history, intent] = await Promise.all([
+      getHistory(conversationId, 10),
+      classifyIntent(enhancedMessage),
+    ]);
 
     // 3. Construir mensajes con contexto
     const messages = [
       ...history,
-      { role: 'user', content: message },
+      { role: 'user', content: enhancedMessage },
     ];
 
     // 4. Streamear respuesta del modelo (cada chunk sale al cliente al instante).
+    // [Punto 42] Heartbeat: durante operaciones largas (visión, PDF),
+    // enviamos un SSE cada 15s para que el cliente no cierre la conexión por timeout.
+    const heartbeatInterval = setInterval(() => {
+      if (clientConnected) {
+        sendSse({ type: 'heartbeat' });
+      }
+    }, 15000);
+
     let fullText = '';
     const result = await routeMessageStream(plan, intent, messages, EXODO_SYSTEM_PROMPT, (chunk) => {
       // Si el cliente se fue, dejamos de acumular texto y de enviar chunks.
       if (!clientConnected) return;
       fullText += chunk;
       sendSse({ type: 'chunk', content: chunk });
-    }, model_override);
+    }, model_override, imageDataUris); // [Punto 42] imageDataUris
+
+    clearInterval(heartbeatInterval);
 
     // Si el cliente se desconectó antes de terminar, no enviamos done/error ni persistimos.
     if (!clientConnected) {
@@ -107,7 +214,7 @@ router.post('/', auth, planGuard, async (req, res) => {
     }
 
     // 5. Cerrar el stream con evento "done".
-    const sources = result.sources || [];
+    const sources = extractSourcesFromText(fullText, result.sources);
     sendSse({ type: 'done', content: fullText, sources });
     res.end();
 
@@ -125,11 +232,13 @@ router.post('/', auth, planGuard, async (req, res) => {
       saveMessage(conversationId, 'user', message, { intent }).catch((e) =>
         console.error('[chat] saveMessage(user) falló:', e.message)
       );
+      // [Punto 00] Persistir sources para que sobrevivan al cierre de la app.
       saveMessage(conversationId, 'assistant', fullText, {
         intent,
         model: result.model,
         tokensInput: result.tokensInput,
         tokensOutput: result.tokensOutput,
+        sources: sources,
       }).catch((e) =>
         console.error('[chat] saveMessage(assistant) falló:', e.message)
       );

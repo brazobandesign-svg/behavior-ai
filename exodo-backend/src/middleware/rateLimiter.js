@@ -27,6 +27,9 @@ const chatRateLimiter = rateLimit({
   },
   standardHeaders: true, // devuelve RateLimit-* headers
   legacyHeaders: false,
+  // Desactivar TODAS las validaciones de express-rate-limit v8+
+  // (keyGeneratorIpFallback crashea en localhost con IPv6)
+  validate: false,
   handler: (req, res, _next) => {
     const retryAfter = Math.ceil(60 / 1000); // 60 segundos
     res.set('Retry-After', String(retryAfter));

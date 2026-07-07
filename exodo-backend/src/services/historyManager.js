@@ -62,6 +62,8 @@ async function saveMessage(conversationId, role, content, metadata = {}) {
         model_called: metadata.model || null,
         tokens_input: metadata.tokensInput || null,
         tokens_output: metadata.tokensOutput || null,
+        // [Punto 00] Sources como JSONB para que persistan entre sesiones.
+        sources: metadata.sources && metadata.sources.length > 0 ? metadata.sources : null,
       })
       .select()
       .single();

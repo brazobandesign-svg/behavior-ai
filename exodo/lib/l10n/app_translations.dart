@@ -16,9 +16,9 @@ import 'package:flutter/material.dart';
 
 /// Idiomas disponibles en la app. El primero es el default.
 class AppLocale {
-  final String code;        // 'en', 'es', ...
-  final String nativeName;  // 'English', 'Español', ...
-  final String flag;        // emoji bandera
+  final String code; // 'en', 'es', ...
+  final String nativeName; // 'English', 'Español', ...
+  final String flag; // emoji bandera
   final bool rtl;
 
   const AppLocale({
@@ -31,8 +31,7 @@ class AppLocale {
   Locale toLocale() => Locale(code);
 
   @override
-  bool operator ==(Object other) =>
-      other is AppLocale && other.code == code;
+  bool operator ==(Object other) => other is AppLocale && other.code == code;
 
   @override
   int get hashCode => code.hashCode;
@@ -61,21 +60,35 @@ const List<AppLocale> kAppLocales = <AppLocale>[
 Map<String, String> translationsFor(String code) {
   switch (code) {
     case 'en':
-    case 'en_GB': return _en;
-    case 'fr': return _fr;
-    case 'ht': return _ht;
-    case 'pt': return _pt;
-    case 'pt_BR': return _ptBR;
-    case 'it': return _it;
-    case 'de': return _de;
-    case 'ru': return _ru;
-    case 'zh': return _zh;
-    case 'ja': return _ja;
-    case 'ar': return _ar;
-    case 'ko': return _ko;
-    case 'hi': return _hi;
+    case 'en_GB':
+      return _en;
+    case 'fr':
+      return _fr;
+    case 'ht':
+      return _ht;
+    case 'pt':
+      return _pt;
+    case 'pt_BR':
+      return _ptBR;
+    case 'it':
+      return _it;
+    case 'de':
+      return _de;
+    case 'ru':
+      return _ru;
+    case 'zh':
+      return _zh;
+    case 'ja':
+      return _ja;
+    case 'ar':
+      return _ar;
+    case 'ko':
+      return _ko;
+    case 'hi':
+      return _hi;
     case 'es':
-    default:   return _es;
+    default:
+      return _es;
   }
 }
 
@@ -85,81 +98,83 @@ const Map<String, String> _es = <String, String>{
 
   // Auth
   'auth.continue_google': 'Continuar con Google',
-  'auth.continue_apple':  'Continuar con Apple',
-  'auth.continue_guest':  'Entrar como Invitado',
+  'auth.continue_apple': 'Continuar con Apple',
+  'auth.continue_guest': 'Entrar como Invitado',
   'auth.coming_soon_apple': 'Próximamente: Inicio de sesión con Apple',
   'auth.coming_soon_x': 'Próximamente: Inicio de sesión con X / Twitter',
   'auth.coming_soon_github': 'Próximamente: Inicio de sesión con GitHub',
 
   // Chat
-  'chat.placeholder':    'Hablar con Exodo...',
+  'chat.placeholder': 'Hablar con Exodo...',
   'chat.placeholder_en': 'Reply to Exodo...',
-  'chat.thinking':       'Exodo razonando...',
-  'chat.thinking_en':    'Exodo reasoning...',
+  'chat.thinking': 'Exodo razonando...',
+  'chat.thinking_en': 'Exodo reasoning...',
   // Indicador en burbuja del chat (palabra suelta, sin puntos suspensivos).
   // Localizado a 13 idiomas; clave aparte de 'chat.thinking' para no
   // romper el texto largo usado en toasts / banners.
   'chat.thinking_label': 'Pensando',
 
   // Greetings (time-of-day)
-  'greeting.morning':   'Cafecito con Exodo',
+  'greeting.morning': 'Cafecito con Exodo',
   'greeting.afternoon': 'Tarde productiva',
-  'greeting.evening':   'La noche es joven',
-  'greeting.late':      'Ni la madrugada te detiene',
-  'greeting.morning_en':'Morning',
-  'greeting.afternoon_en':'Afternoon',
-  'greeting.evening_en':'Evening',
-  'greeting.late_en':   'Late night hustle',
-  'greeting.cold':      'Frío afuera, mejor que un café',
-  'greeting.hot':       'Toma algo frío, hace mucho calor',
-  'greeting.cold_en':   'Cold outside, better than coffee',
-  'greeting.hot_en':    'Grab something cold, really hot',
+  'greeting.evening': 'La noche es joven',
+  'greeting.late': 'Ni la madrugada te detiene',
+  'greeting.morning_en': 'Morning',
+  'greeting.afternoon_en': 'Afternoon',
+  'greeting.evening_en': 'Evening',
+  'greeting.late_en': 'Late night hustle',
+  'greeting.cold': 'Frío afuera, mejor que un café',
+  'greeting.hot': 'Toma algo frío, hace mucho calor',
+  'greeting.cold_en': 'Cold outside, better than coffee',
+  'greeting.hot_en': 'Grab something cold, really hot',
 
   // Drawer / menu
-  'drawer.new_chat':      'Nuevo chat',
-  'drawer.search_chats':  'Buscar conversación',
-  'drawer.starred':       'Fijados',
-  'drawer.recents':       'Recientes',
-  'drawer.incognito':     'Modo Incógnito',
-  'drawer.light_mode':    'Modo claro',
-  'drawer.dark_mode':     'Modo oscuro',
-  'drawer.sign_in':       'Iniciar sesión',
-  'drawer.sign_out':      'Cerrar sesión',
-  'drawer.upgrade':       'Actualizar a Pro',
-  'drawer.language':      'Idioma',
-  'drawer.add_widget':    'Añadir Gadget a Pantalla de Inicio',
+  'drawer.new_chat': 'Nuevo chat',
+  'drawer.search_chats': 'Buscar conversación',
+  'drawer.starred': 'Fijados',
+  'drawer.recents': 'Recientes',
+  'drawer.incognito': 'Modo Incógnito',
+  'drawer.light_mode': 'Modo claro',
+  'drawer.dark_mode': 'Modo oscuro',
+  'drawer.sign_in': 'Iniciar sesión',
+  'drawer.sign_out': 'Cerrar sesión',
+  'drawer.upgrade': 'Actualizar a Pro',
+  'drawer.language': 'Idioma',
+  'drawer.add_widget': 'Añadir Gadget a Pantalla de Inicio',
 
   // Chat context menu
-  'ctx.rename':   'Renombrar',
-  'ctx.pin':      'Fijar',
-  'ctx.unpin':    'Desfijar',
-  'ctx.delete':   'Borrar',
-  'ctx.cancel':   'Cancelar',
+  'ctx.rename': 'Renombrar',
+  'ctx.pin': 'Fijar',
+  'ctx.unpin': 'Desfijar',
+  'ctx.delete': 'Borrar',
+  'ctx.cancel': 'Cancelar',
 
   // Action bar
-  'act.copy':     'Copiar',
-  'act.share':    'Compartir',
-  'act.play':     'Reproducir',
-  'act.like':     'Me gusta',
-  'act.dislike':  'No me gusta',
+  'act.copy': 'Copiar',
+  'act.share': 'Compartir',
+  'act.play': 'Reproducir',
+  'act.like': 'Me gusta',
+  'act.dislike': 'No me gusta',
   'act.recharge': 'Reformular',
-  'live.coming_soon': 'Chat en vivo próximamente — escribe un mensaje para empezar.',
-  'mic.permission_required': '⚠️ Permiso de micrófono requerido para dictado de voz.',
+  'live.coming_soon':
+      'Chat en vivo próximamente — escribe un mensaje para empezar.',
+  'mic.permission_required':
+      '⚠️ Permiso de micrófono requerido para dictado de voz.',
 
   // TTS (text-to-speech)
-  'tts.playing':    '🔊 Reproduciendo...',
+  'tts.playing': '🔊 Reproduciendo...',
   'tts.unsupported': '⚠️ Síntesis de voz no disponible en este dispositivo.',
-  'tts.empty':      'No hay texto para reproducir.',
+  'tts.empty': 'No hay texto para reproducir.',
 
   // Sources sheet
   'sources.title': 'Fuentes',
   'sources.title_en': 'Sources',
 
   // Token bar
-  'tokens.used':       'CONSUMIDO',
-  'tokens.available':  'DISPONIBLE',
-  'tokens.reset_in':   'REINICIO EN',
-  'tokens.more':       'MÁS CAPACIDAD',
+  'tokens.used': 'CONSUMIDO',
+  'tokens.available': 'DISPONIBLE',
+  'tokens.reset_in': 'REINICIO EN',
+  'tokens.more': 'MÁS CAPACIDAD',
 
   // Errors
   'error.network': 'No pudimos conectar. Reintentar.',
@@ -168,7 +183,7 @@ const Map<String, String> _es = <String, String>{
   // Misc
   'common.search_hint': 'Buscar...',
   'common.yes': 'Sí',
-  'common.no':  'No',
+  'common.no': 'No',
 
   // Settings → language picker
   'lang.sheet_title': 'Idioma de la app',
@@ -176,7 +191,7 @@ const Map<String, String> _es = <String, String>{
   'lang.system': 'Predeterminado del sistema',
 
   // Code block (botón copiar en bloques de código del chat)
-  'code.copy':   'Copiar',
+  'code.copy': 'Copiar',
   'code.copied': '¡Copiado!',
 
   // Starters
@@ -186,11 +201,11 @@ const Map<String, String> _es = <String, String>{
   'starter.4': 'Ideas para un proyecto innovador',
 
   // Settings modal
-  'settings.title':    'Configuración',
-  'settings.profile':  'Perfil',
-  'settings.billing':  'Suscripción',
-  'settings.logout':   'Cerrar sesión',
-  'settings.terms':    'Legal y Privacidad',
+  'settings.title': 'Configuración',
+  'settings.profile': 'Perfil',
+  'settings.billing': 'Suscripción',
+  'settings.logout': 'Cerrar sesión',
+  'settings.terms': 'Legal y Privacidad',
   'settings.no_email': 'Sesión sin correo',
 
   // Nuevas claves unificadas Paso 21
@@ -198,7 +213,8 @@ const Map<String, String> _es = <String, String>{
   'widget.voice_action': 'Acceso rápido por voz',
   'widget.horiz_genesis': 'Barra Horizontal',
   'widget.quick_search': 'Buscador rápido',
-  'widget.pick_format': 'Elige el formato que quieres en tu pantalla de inicio:',
+  'widget.pick_format':
+      'Elige el formato que quieres en tu pantalla de inicio:',
   'action.save': 'Guardar',
   'action.close': 'Cerrar',
   'action.send': 'Enviar',
@@ -206,7 +222,8 @@ const Map<String, String> _es = <String, String>{
   'dialog.conv_title': 'Título de la conversación',
   'dialog.delete_chat': '¿Eliminar conversación?',
   'dialog.delete_chat_body': '¿Estás seguro de que deseas eliminar',
-  'settings.legal_body': 'Éxodo AI opera bajo estricto cumplimiento de privacidad de datos e IA generativa.',
+  'settings.legal_body':
+      'Éxodo AI opera bajo estricto cumplimiento de privacidad de datos e IA generativa.',
   'billing.current_plan': 'Plan actual',
   'billing.plan_pro': '🌟 XPi PRO (\$4.99/mes)',
   'billing.plan_free': '⚡ Génesis Gratis',
@@ -216,8 +233,14 @@ const Map<String, String> _es = <String, String>{
   'billing.cancel_btn': 'Cancelar suscripción',
   'billing.upgrade_btn': 'Mejorar a XPi Ehyeh Pro',
   'profile.delete_title': '¿Borrar Cuenta?',
-  'profile.delete_body': 'Advertencia: Si borras tu cuenta, esta acción es definitiva e irreversible. Todos tus datos, perfil e historial se perderán para siempre.',
+  'profile.delete_body':
+      'Advertencia: Si borras tu cuenta, esta acción es definitiva e irreversible. Todos tus datos, perfil e historial se perderán para siempre.',
   'profile.delete_confirm': 'Borrar Definitivamente',
+  'profile.clear_history_btn': 'Borrar historial',
+  'profile.clear_history_title': '¿Borrar historial?',
+  'profile.clear_history_body':
+      'Se eliminarán todas tus conversaciones. Esta acción no se puede deshacer.',
+  'profile.clear_history_confirm': 'Borrar todo',
   'profile.fullname': 'Nombre completo',
   'profile.fullname_hint': 'Ingresa tu nombre completo',
   'profile.nickname': '¿Cómo deberíamos llamarte?',
@@ -225,7 +248,8 @@ const Map<String, String> _es = <String, String>{
   'profile.update_btn': 'Actualizar perfil',
   'profile.delete_btn': 'Borrar Cuenta',
   'profile.save_error': '❌ Error al guardar en el servidor. Intenta de nuevo.',
-  'chat.incognito_desc': 'Los chats de incógnito no se guardan en el historial.',
+  'chat.incognito_desc':
+      'Los chats de incógnito no se guardan en el historial.',
   'attach.camera': 'Cámara',
   'attach.gallery': 'Galería',
   'attach.files': 'Archivos',
@@ -234,17 +258,26 @@ const Map<String, String> _es = <String, String>{
   'offline.upgrade': 'actualice',
   'offline.p2': ' su plan a Pro o ',
   'offline.signin': 'inicie sesión',
+  // [Punto 43] Offline real (sin internet) — distinto al bloqueo de invitados.
+  'network.offline_title': 'Sin conexión',
+  'network.offline_body': 'Conéctate a internet para usar Éxodo.',
   'tokens.more_cap': 'Más capacidad con XPi PRO',
   'tokens.upgrade_btn': 'Actualizar',
   'chat.intent': 'Intención',
-  'chat.disclaimer': 'Exodo es IA y puede cometer errores.\nPor favor verifica las respuestas.',
-  'chat.disclaimer_original': 'Exodo es IA y puede cometer errores. Por favor verifica las respuestas.',
+  'chat.disclaimer':
+      'Exodo es IA y puede cometer errores.\nPor favor verifica las respuestas.',
+  'chat.disclaimer_original':
+      'Exodo es IA y puede cometer errores. Por favor verifica las respuestas.',
   'sources.consulted': 'Fuentes Consultadas',
   'feedback.share_msg': 'Descarga Éxodo AI en Google Play:',
   'feedback.title_pos': 'Comentarios positivos',
   'feedback.title_neg': 'Comentarios de mejora',
   'feedback.hint': 'Cuéntanos qué te gustó o cómo podemos mejorar...',
+  'feedback.thanks': '¡Gracias por tu feedback!',
+  'feedback.error': 'No se pudo enviar el feedback. Intenta de nuevo.',
   'billing.activated': '🎉 ¡Plan XPi PRO activado con éxito!',
+  'billing.not_available_yet':
+      'Los pagos llegan pronto. Por ahora puedes seguir explorando Génesis.',
   'billing.get_pro': 'Obtener plan Pro',
   'billing.pro_features': 'Todo lo de Gratis, más:',
   'billing.feat1': 'Todo lo incluido en Gratis',
@@ -252,9 +285,12 @@ const Map<String, String> _es = <String, String>{
   'billing.feat3': 'Acceso prioritario a Nemotron 3 Ultra',
   'chat.incognito_title': 'Incógnito',
   'models.thinking_default': 'modo thinking activado por defecto',
-  'limit.pro_msg': '⚠️ Capacidad diaria de XPi PRO alcanzada. Tus tokens se renovarán mañana.',
-  'limit.free_msg': '⚠️ Alcanzaste tu capacidad diaria. Activa XPi PRO para continuar.',
-  'limit.pro_reason': 'Capacidad diaria de XPi PRO alcanzada. Tus tokens se renovarán mañana.',
+  'limit.pro_msg':
+      '⚠️ Capacidad diaria de XPi PRO alcanzada. Tus tokens se renovarán mañana.',
+  'limit.free_msg':
+      '⚠️ Alcanzaste tu capacidad diaria. Activa XPi PRO para continuar.',
+  'limit.pro_reason':
+      'Capacidad diaria de XPi PRO alcanzada. Tus tokens se renovarán mañana.',
   'limit.free_reason': 'Límite diario de tokens alcanzado',
   'chat.stopped': 'Usted detuvo la respuesta',
   'drawer.no_history': 'Sin historial de chats',
@@ -279,85 +315,86 @@ const Map<String, String> _en = <String, String>{
   'app.title': 'Exodo by Behavior',
 
   'auth.continue_google': 'Continue with Google',
-  'auth.continue_apple':  'Continue with Apple',
-  'auth.continue_guest':  'Continue as Guest',
+  'auth.continue_apple': 'Continue with Apple',
+  'auth.continue_guest': 'Continue as Guest',
   'auth.coming_soon_apple': 'Sign in with Apple coming soon',
   'auth.coming_soon_x': 'X / Twitter login coming soon',
   'auth.coming_soon_github': 'GitHub login coming soon',
 
-  'chat.placeholder':    'Reply to Exodo...',
+  'chat.placeholder': 'Reply to Exodo...',
   'chat.placeholder_en': 'Reply to Exodo...',
-  'chat.thinking':       'Exodo reasoning...',
-  'chat.thinking_en':    'Exodo reasoning...',
+  'chat.thinking': 'Exodo reasoning...',
+  'chat.thinking_en': 'Exodo reasoning...',
   'chat.thinking_label': 'Thinking',
 
-  'greeting.morning':    'Morning',
-  'greeting.afternoon':  'Afternoon',
-  'greeting.evening':    'Evening',
-  'greeting.late':       'Late night hustle',
+  'greeting.morning': 'Morning',
+  'greeting.afternoon': 'Afternoon',
+  'greeting.evening': 'Evening',
+  'greeting.late': 'Late night hustle',
   'greeting.morning_en': 'Morning',
   'greeting.afternoon_en': 'Afternoon',
   'greeting.evening_en': 'Evening',
-  'greeting.late_en':    'Late night hustle',
-  'greeting.cold':       'Cold outside, better than coffee',
-  'greeting.hot':        'Grab something cold, really hot',
-  'greeting.cold_en':    'Cold outside, better than coffee',
-  'greeting.hot_en':     'Grab something cold, really hot',
+  'greeting.late_en': 'Late night hustle',
+  'greeting.cold': 'Cold outside, better than coffee',
+  'greeting.hot': 'Grab something cold, really hot',
+  'greeting.cold_en': 'Cold outside, better than coffee',
+  'greeting.hot_en': 'Grab something cold, really hot',
 
-  'drawer.new_chat':     'New chat',
+  'drawer.new_chat': 'New chat',
   'drawer.search_chats': 'Search chats',
-  'drawer.starred':      'Starred',
-  'drawer.recents':      'Recents',
-  'drawer.incognito':    'Incognito mode',
-  'drawer.light_mode':   'Light mode',
-  'drawer.dark_mode':    'Dark mode',
-  'drawer.sign_in':      'Sign in',
-  'drawer.sign_out':     'Sign out',
-  'drawer.upgrade':      'Upgrade to Pro',
-  'drawer.language':     'Language',
-  'drawer.add_widget':   'Add Gadget to Home Screen',
+  'drawer.starred': 'Starred',
+  'drawer.recents': 'Recents',
+  'drawer.incognito': 'Incognito mode',
+  'drawer.light_mode': 'Light mode',
+  'drawer.dark_mode': 'Dark mode',
+  'drawer.sign_in': 'Sign in',
+  'drawer.sign_out': 'Sign out',
+  'drawer.upgrade': 'Upgrade to Pro',
+  'drawer.language': 'Language',
+  'drawer.add_widget': 'Add Gadget to Home Screen',
 
-  'ctx.rename':   'Rename',
-  'ctx.pin':      'Pin',
-  'ctx.unpin':    'Unpin',
-  'ctx.delete':   'Delete',
-  'ctx.cancel':   'Cancel',
+  'ctx.rename': 'Rename',
+  'ctx.pin': 'Pin',
+  'ctx.unpin': 'Unpin',
+  'ctx.delete': 'Delete',
+  'ctx.cancel': 'Cancel',
 
-  'act.copy':     'Copy',
-  'act.share':    'Share',
-  'act.play':     'Play',
-  'act.like':     'Like',
-  'act.dislike':  'Dislike',
+  'act.copy': 'Copy',
+  'act.share': 'Share',
+  'act.play': 'Play',
+  'act.like': 'Like',
+  'act.dislike': 'Dislike',
   'act.recharge': 'Recharge',
   'live.coming_soon': 'Live chat coming soon — type a message to start.',
-  'mic.permission_required': '⚠️ Microphone permission required for voice dictation.',
+  'mic.permission_required':
+      '⚠️ Microphone permission required for voice dictation.',
 
   // TTS (text-to-speech)
-  'tts.playing':    '🔊 Playing...',
+  'tts.playing': '🔊 Playing...',
   'tts.unsupported': '⚠️ Voice synthesis not available on this device.',
-  'tts.empty':      'Nothing to read.',
+  'tts.empty': 'Nothing to read.',
 
-  'sources.title':    'Sources',
+  'sources.title': 'Sources',
   'sources.title_en': 'Sources',
 
-  'tokens.used':       'CONSUMED',
-  'tokens.available':  'AVAILABLE',
-  'tokens.reset_in':   'RESETS IN',
-  'tokens.more':       'MORE CAPACITY',
+  'tokens.used': 'CONSUMED',
+  'tokens.available': 'AVAILABLE',
+  'tokens.reset_in': 'RESETS IN',
+  'tokens.more': 'MORE CAPACITY',
 
-  'error.network':  'We could not connect. Try again.',
-  'error.generic':  'Something went wrong.',
+  'error.network': 'We could not connect. Try again.',
+  'error.generic': 'Something went wrong.',
 
   'common.search_hint': 'Search...',
   'common.yes': 'Yes',
-  'common.no':  'No',
+  'common.no': 'No',
 
-  'lang.sheet_title':    'App language',
+  'lang.sheet_title': 'App language',
   'lang.sheet_subtitle': 'Select your preferred language',
-  'lang.system':         'System default',
+  'lang.system': 'System default',
 
   // Code block (botón copiar en bloques de código del chat)
-  'code.copy':   'Copy',
+  'code.copy': 'Copy',
   'code.copied': 'Copied!',
 
   // Starters
@@ -367,11 +404,11 @@ const Map<String, String> _en = <String, String>{
   'starter.4': 'Ideas for an innovative project',
 
   // Settings modal
-  'settings.title':    'Settings',
-  'settings.profile':  'Profile',
-  'settings.billing':  'Billing',
-  'settings.logout':   'Log out',
-  'settings.terms':    'Terms & Privacy',
+  'settings.title': 'Settings',
+  'settings.profile': 'Profile',
+  'settings.billing': 'Billing',
+  'settings.logout': 'Log out',
+  'settings.terms': 'Terms & Privacy',
   'settings.no_email': 'Session without email',
 
   // New unified keys Step 21
@@ -387,7 +424,8 @@ const Map<String, String> _en = <String, String>{
   'dialog.conv_title': 'Conversation title',
   'dialog.delete_chat': 'Delete conversation?',
   'dialog.delete_chat_body': 'Are you sure you want to delete',
-  'settings.legal_body': 'Exodo AI operates under strict compliance with data privacy and generative AI.',
+  'settings.legal_body':
+      'Exodo AI operates under strict compliance with data privacy and generative AI.',
   'billing.current_plan': 'Current plan',
   'billing.plan_pro': '🌟 XPi PRO (\$4.99/mo)',
   'billing.plan_free': '⚡ Genesis Free',
@@ -397,8 +435,14 @@ const Map<String, String> _en = <String, String>{
   'billing.cancel_btn': 'Cancel subscription',
   'billing.upgrade_btn': 'Upgrade to XPi Ehyeh Pro',
   'profile.delete_title': 'Delete Account?',
-  'profile.delete_body': 'Warning: Deleting your account is permanent and irreversible. All your data, profile, and history will be lost forever.',
+  'profile.delete_body':
+      'Warning: Deleting your account is permanent and irreversible. All your data, profile, and history will be lost forever.',
   'profile.delete_confirm': 'Delete Permanently',
+  'profile.clear_history_btn': 'Clear history',
+  'profile.clear_history_title': 'Clear history?',
+  'profile.clear_history_body':
+      'All your conversations will be deleted. This action cannot be undone.',
+  'profile.clear_history_confirm': 'Delete all',
   'profile.fullname': 'Full Name',
   'profile.fullname_hint': 'Enter your full name',
   'profile.nickname': 'What should we call you?',
@@ -415,16 +459,24 @@ const Map<String, String> _en = <String, String>{
   'offline.upgrade': 'upgrade',
   'offline.p2': ' your plan to Pro or ',
   'offline.signin': 'sign in',
+  // [Punto 43] Real offline (no internet) — different from guest block.
+  'network.offline_title': 'No connection',
+  'network.offline_body': 'Connect to the internet to use Éxodo.',
   'tokens.more_cap': 'More capacity with XPi PRO',
   'tokens.upgrade_btn': 'Upgrade',
   'chat.intent': 'Intent',
-  'chat.disclaimer': 'Exodo is AI and can make mistakes.\nPlease double-check responses.',
+  'chat.disclaimer':
+      'Exodo is AI and can make mistakes.\nPlease double-check responses.',
   'sources.consulted': 'Consulted Sources',
   'feedback.share_msg': 'Download Exodo AI on Google Play:',
   'feedback.title_pos': 'Provide positive feedback',
   'feedback.title_neg': 'Provide feedback',
   'feedback.hint': 'Tell us what you liked or how we can improve...',
+  'feedback.thanks': 'Thanks for your feedback!',
+  'feedback.error': 'Could not send feedback. Please try again.',
   'billing.activated': '🎉 XPi PRO activated for this session!',
+  'billing.not_available_yet':
+      'Payments are coming soon. For now you can keep exploring Genesis.',
   'billing.get_pro': 'Get Pro plan',
   'billing.pro_features': 'Everything in Free, plus:',
   'billing.feat1': 'Everything in Free',
@@ -459,82 +511,84 @@ const Map<String, String> _fr = <String, String>{
   'app.title': 'Exodo by Behavior',
 
   'auth.continue_google': 'Continuer avec Google',
-  'auth.continue_apple':  'Continuer avec Apple',
-  'auth.continue_guest':  'Continuer en invité',
+  'auth.continue_apple': 'Continuer avec Apple',
+  'auth.continue_guest': 'Continuer en invité',
 
-  'chat.placeholder':    'Parler à Exodo...',
+  'chat.placeholder': 'Parler à Exodo...',
   'chat.placeholder_en': 'Reply to Exodo...',
-  'chat.thinking':       'Exodo réfléchit...',
-  'chat.thinking_en':    'Exodo reasoning...',
+  'chat.thinking': 'Exodo réfléchit...',
+  'chat.thinking_en': 'Exodo reasoning...',
   'chat.thinking_label': 'Réflexion',
 
-  'greeting.morning':    'Bonjour',
-  'greeting.afternoon':  'Bon après-midi',
-  'greeting.evening':    'Bonsoir',
-  'greeting.late':       'Veille tardive',
+  'greeting.morning': 'Bonjour',
+  'greeting.afternoon': 'Bon après-midi',
+  'greeting.evening': 'Bonsoir',
+  'greeting.late': 'Veille tardive',
   'greeting.morning_en': 'Morning',
   'greeting.afternoon_en': 'Afternoon',
   'greeting.evening_en': 'Evening',
-  'greeting.late_en':    'Late night hustle',
-  'greeting.cold':       'Froid dehors, mieux qu\'un café',
-  'greeting.hot':        'Prends quelque chose de frais',
-  'greeting.cold_en':    'Cold outside, better than coffee',
-  'greeting.hot_en':     'Grab something cold, really hot',
+  'greeting.late_en': 'Late night hustle',
+  'greeting.cold': 'Froid dehors, mieux qu\'un café',
+  'greeting.hot': 'Prends quelque chose de frais',
+  'greeting.cold_en': 'Cold outside, better than coffee',
+  'greeting.hot_en': 'Grab something cold, really hot',
 
-  'drawer.new_chat':     'Nouvelle conversation',
+  'drawer.new_chat': 'Nouvelle conversation',
   'drawer.search_chats': 'Rechercher',
-  'drawer.starred':      'Épinglés',
-  'drawer.recents':      'Récents',
-  'drawer.incognito':    'Mode Incognito',
-  'drawer.light_mode':   'Mode clair',
-  'drawer.dark_mode':    'Mode sombre',
-  'drawer.sign_in':      'Se connecter',
-  'drawer.sign_out':     'Se déconnecter',
-  'drawer.upgrade':      'Passer à Pro',
-  'drawer.language':     'Langue',
-  'drawer.add_widget':   'Ajouter un gadget à lécran accueil',
+  'drawer.starred': 'Épinglés',
+  'drawer.recents': 'Récents',
+  'drawer.incognito': 'Mode Incognito',
+  'drawer.light_mode': 'Mode clair',
+  'drawer.dark_mode': 'Mode sombre',
+  'drawer.sign_in': 'Se connecter',
+  'drawer.sign_out': 'Se déconnecter',
+  'drawer.upgrade': 'Passer à Pro',
+  'drawer.language': 'Langue',
+  'drawer.add_widget': 'Ajouter un gadget à lécran accueil',
 
-  'ctx.rename':   'Renommer',
-  'ctx.pin':      'Épingler',
-  'ctx.unpin':    'Détacher',
-  'ctx.delete':   'Supprimer',
-  'ctx.cancel':   'Annuler',
+  'ctx.rename': 'Renommer',
+  'ctx.pin': 'Épingler',
+  'ctx.unpin': 'Détacher',
+  'ctx.delete': 'Supprimer',
+  'ctx.cancel': 'Annuler',
 
-  'act.copy':     'Copier',
-  'act.share':    'Partager',
-  'act.play':     'Lire',
-  'act.like':     'J\'aime',
-  'act.dislike':  'Je n\'aime pas',
+  'act.copy': 'Copier',
+  'act.share': 'Partager',
+  'act.play': 'Lire',
+  'act.like': 'J\'aime',
+  'act.dislike': 'Je n\'aime pas',
   'act.recharge': 'Reformuler',
-  'live.coming_soon': 'Chat en direct bientôt disponible — tapez un message pour commencer.',
-  'mic.permission_required': '⚠️ Autorisation du microphone requise pour la dictée vocale.',
+  'live.coming_soon':
+      'Chat en direct bientôt disponible — tapez un message pour commencer.',
+  'mic.permission_required':
+      '⚠️ Autorisation du microphone requise pour la dictée vocale.',
 
   // TTS (text-to-speech)
-  'tts.playing':    '🔊 Lecture...',
+  'tts.playing': '🔊 Lecture...',
   'tts.unsupported': '⚠️ Synthèse vocale indisponible sur cet appareil.',
-  'tts.empty':      'Rien à lire.',
+  'tts.empty': 'Rien à lire.',
 
-  'sources.title':    'Sources',
+  'sources.title': 'Sources',
   'sources.title_en': 'Sources',
 
-  'tokens.used':       'CONSOMMÉ',
-  'tokens.available':  'DISPONIBLE',
-  'tokens.reset_in':   'REINIT. DANS',
-  'tokens.more':       'PLUS DE CAPACITÉ',
+  'tokens.used': 'CONSOMMÉ',
+  'tokens.available': 'DISPONIBLE',
+  'tokens.reset_in': 'REINIT. DANS',
+  'tokens.more': 'PLUS DE CAPACITÉ',
 
-  'error.network':  'Connexion impossible. Réessayer.',
-  'error.generic':  'Une erreur est survenue.',
+  'error.network': 'Connexion impossible. Réessayer.',
+  'error.generic': 'Une erreur est survenue.',
 
   'common.search_hint': 'Rechercher...',
   'common.yes': 'Oui',
-  'common.no':  'Non',
+  'common.no': 'Non',
 
-  'lang.sheet_title':    'Langue de l\'application',
+  'lang.sheet_title': 'Langue de l\'application',
   'lang.sheet_subtitle': 'Sélectionnez votre langue préférée',
-  'lang.system':         'Par défaut du système',
+  'lang.system': 'Par défaut du système',
 
   // Code block (bouton copier dans les blocs de code du chat)
-  'code.copy':   'Copier',
+  'code.copy': 'Copier',
   'code.copied': 'Copié !',
 
   // Starters
@@ -544,11 +598,11 @@ const Map<String, String> _fr = <String, String>{
   'starter.4': 'Idées pour un projet innovant',
 
   // Settings modal
-  'settings.title':    'Settings',
-  'settings.profile':  'Profile',
-  'settings.billing':  'Facturation',
-  'settings.logout':   'Déconnexion',
-  'settings.terms':    'Conditions & Confidentialité',
+  'settings.title': 'Settings',
+  'settings.profile': 'Profile',
+  'settings.billing': 'Facturation',
+  'settings.logout': 'Déconnexion',
+  'settings.terms': 'Conditions & Confidentialité',
   'settings.no_email': 'Session sans e-mail',
   'action.close': 'Fermer',
   'action.save': 'Enregistrer',
@@ -561,20 +615,25 @@ const Map<String, String> _fr = <String, String>{
   'auth.coming_soon_x': 'Bientôt : Connexion avec X / Twitter',
   'billing.activated': '🎉 Forfait XPi PRO activé avec succès !',
   'billing.cancel_btn': 'Annuler l\'abonnement',
-  'billing.cancel_snack': 'Abonnement annulé. Vous conservez le forfait Pro jusqu\'à la fin de la période.',
+  'billing.cancel_snack':
+      'Abonnement annulé. Vous conservez le forfait Pro jusqu\'à la fin de la période.',
   'billing.current_plan': 'Forfait actuel',
   'billing.feat1': 'Tout ce qui est inclus dans Gratuit',
   'billing.feat2': 'Raisonnement avancé illimité XPi',
   'billing.feat3': 'Accès prioritaire à Nemotron 3 Ultra',
   'billing.gateway': 'Portail d\'abonnement Exodo (Mode simulation)',
   'billing.gateway_free': 'Votre abonnement est actif.',
+  'billing.not_available_yet':
+      'Les paiements arrivent bientôt. Pour l\'instant, continuez à explorer Genesis.',
   'billing.get_pro': 'Obtenir le forfait Pro',
   'billing.plan_free': 'Gratuit',
   'billing.plan_pro': 'XPi PRO',
   'billing.pro_features': 'Tout du Gratuit, plus :',
   'billing.upgrade_btn': 'Passer à XPi PRO',
-  'chat.disclaimer': 'Exodo peut commettre des erreurs.\nVérifiez les informations importantes.',
-  'chat.incognito_desc': 'Le mode navigation privée n\'enregistre pas les conversations et n\'utilise pas vos données.',
+  'chat.disclaimer':
+      'Exodo peut commettre des erreurs.\nVérifiez les informations importantes.',
+  'chat.incognito_desc':
+      'Le mode navigation privée n\'enregistre pas les conversations et n\'utilise pas vos données.',
   'chat.incognito_title': 'Navigation privée',
   'chat.intent': 'Intention détectée :',
   'chat.stopped': 'Vous avez arrêté la réponse',
@@ -584,25 +643,34 @@ const Map<String, String> _fr = <String, String>{
   'dialog.rename_chat': 'Renommer la conversation',
   'drawer.no_found': 'Aucune conversation trouvée',
   'drawer.no_history': 'Aucun historique de discussion',
-  'drawer.start_conv': 'Démarrez une nouvelle conversation\net elle apparaîtra ici.',
+  'drawer.start_conv':
+      'Démarrez une nouvelle conversation\net elle apparaîtra ici.',
   'drawer.try_search': 'Essayez un autre terme de recherche.',
   'drawer.user_default': 'Utilisateur Exodo',
   'drawer.web': 'Exodo Web',
-  'feedback.hint': 'Dites-nous ce que vous avez aimé ou comment nous pouvons nous améliorer...',
+  'feedback.hint':
+      'Dites-nous ce que vous avez aimé ou comment nous pouvons nous améliorer...',
   'feedback.share_msg': 'Partager la réponse Exodo :',
   'feedback.title_neg': 'Envoyer des commentaires',
   'feedback.title_pos': 'Envoyer des commentaires positifs',
-  'limit.free_msg': '⚠️ Limite quotidienne atteinte. Activez XPi PRO pour continuer.',
+  'feedback.thanks': 'Merci pour votre retour !',
+  'feedback.error': 'Impossible d\'envoyer le feedback. Réessayez.',
+  'limit.free_msg':
+      '⚠️ Limite quotidienne atteinte. Activez XPi PRO pour continuer.',
   'limit.free_reason': 'Limite quotidienne de jetons atteinte',
-  'limit.pro_msg': '⚠️ Capacité quotidienne XPi PRO atteinte. Vos jetons seront renouvelés demain.',
-  'limit.pro_reason': 'Capacité quotidienne XPi PRO atteinte. Vos jetons seront renouvelés demain.',
+  'limit.pro_msg':
+      '⚠️ Capacité quotidienne XPi PRO atteinte. Vos jetons seront renouvelés demain.',
+  'limit.pro_reason':
+      'Capacité quotidienne XPi PRO atteinte. Vos jetons seront renouvelés demain.',
   'models.thinking_default': 'mode thinking activé par défaut',
-  'offline.p1': 'Exodo nécessite une connexion pour traiter les requêtes d\'IA avec des modèles avancés en temps réel.',
+  'offline.p1':
+      'Exodo nécessite une connexion pour traiter les requêtes d\'IA avec des modèles avancés en temps réel.',
   'offline.p2': 'Vérifiez que les données mobiles ou le Wi-Fi sont actifs.',
   'offline.signin': 'Se connecter',
   'offline.title': 'Vous êtes hors ligne',
   'offline.upgrade': 'Découvrir les avantages XPi PRO',
-  'profile.delete_body': 'En supprimant votre compte, tout votre historique de discussion et vos préférences seront définitivement effacés.',
+  'profile.delete_body':
+      'En supprimant votre compte, tout votre historique de discussion et vos préférences seront définitivement effacés.',
   'profile.delete_btn': 'Supprimer le compte définitivement',
   'profile.delete_confirm': 'Supprimer définitivement',
   'profile.delete_title': 'Supprimer le compte',
@@ -612,7 +680,8 @@ const Map<String, String> _fr = <String, String>{
   'profile.nickname_hint': 'Ex : Jean',
   'profile.save_error': 'Erreur lors de l\'enregistrement :',
   'profile.update_btn': 'Mettre à jour le profil',
-  'settings.legal_body': 'Tous droits réservés. L\'utilisation d\'Exodo est soumise à nos conditions d\'utilisation et à notre politique de confidentialité.',
+  'settings.legal_body':
+      'Tous droits réservés. L\'utilisation d\'Exodo est soumise à nos conditions d\'utilisation et à notre politique de confidentialité.',
   'sources.consulted': 'Sources consultées sur le web',
   'tokens.more_cap': 'PLUS DE CAPACITÉ',
   'tokens.upgrade_btn': 'Passer à XPi PRO',
@@ -637,82 +706,84 @@ const Map<String, String> _pt = <String, String>{
   'app.title': 'Exodo by Behavior',
 
   'auth.continue_google': 'Continuar com Google',
-  'auth.continue_apple':  'Continuar com Apple',
-  'auth.continue_guest':  'Entrar como convidado',
+  'auth.continue_apple': 'Continuar com Apple',
+  'auth.continue_guest': 'Entrar como convidado',
 
-  'chat.placeholder':    'Falar com Exodo...',
+  'chat.placeholder': 'Falar com Exodo...',
   'chat.placeholder_en': 'Reply to Exodo...',
-  'chat.thinking':       'Exodo pensando...',
+  'chat.thinking': 'Exodo pensando...',
   'chat.thinking_label': 'Pensando',
-  'chat.thinking_en':    'Exodo reasoning...',
+  'chat.thinking_en': 'Exodo reasoning...',
 
-  'greeting.morning':    'Bom dia',
-  'greeting.afternoon':  'Boa tarde',
-  'greeting.evening':    'Boa noite',
-  'greeting.late':       'Noite adentro',
+  'greeting.morning': 'Bom dia',
+  'greeting.afternoon': 'Boa tarde',
+  'greeting.evening': 'Boa noite',
+  'greeting.late': 'Noite adentro',
   'greeting.morning_en': 'Morning',
   'greeting.afternoon_en': 'Afternoon',
   'greeting.evening_en': 'Evening',
-  'greeting.late_en':    'Late night hustle',
-  'greeting.cold':       'Frio lá fora, melhor que café',
-  'greeting.hot':        'Toma algo gelado',
-  'greeting.cold_en':    'Cold outside, better than coffee',
-  'greeting.hot_en':     'Grab something cold, really hot',
+  'greeting.late_en': 'Late night hustle',
+  'greeting.cold': 'Frio lá fora, melhor que café',
+  'greeting.hot': 'Toma algo gelado',
+  'greeting.cold_en': 'Cold outside, better than coffee',
+  'greeting.hot_en': 'Grab something cold, really hot',
 
-  'drawer.new_chat':     'Nova conversa',
+  'drawer.new_chat': 'Nova conversa',
   'drawer.search_chats': 'Buscar',
-  'drawer.starred':      'Fixados',
-  'drawer.recents':      'Recentes',
-  'drawer.incognito':    'Modo Incógnito',
-  'drawer.light_mode':   'Modo claro',
-  'drawer.dark_mode':    'Modo escuro',
-  'drawer.sign_in':      'Entrar',
-  'drawer.sign_out':     'Sair',
-  'drawer.upgrade':      'Atualizar para Pro',
-  'drawer.language':     'Idioma',
-  'drawer.add_widget':   'Adicionar Gadget à tela inicial',
+  'drawer.starred': 'Fixados',
+  'drawer.recents': 'Recentes',
+  'drawer.incognito': 'Modo Incógnito',
+  'drawer.light_mode': 'Modo claro',
+  'drawer.dark_mode': 'Modo escuro',
+  'drawer.sign_in': 'Entrar',
+  'drawer.sign_out': 'Sair',
+  'drawer.upgrade': 'Atualizar para Pro',
+  'drawer.language': 'Idioma',
+  'drawer.add_widget': 'Adicionar Gadget à tela inicial',
 
-  'ctx.rename':   'Renomear',
-  'ctx.pin':      'Fixar',
-  'ctx.unpin':    'Desafixar',
-  'ctx.delete':   'Excluir',
-  'ctx.cancel':   'Cancelar',
+  'ctx.rename': 'Renomear',
+  'ctx.pin': 'Fixar',
+  'ctx.unpin': 'Desafixar',
+  'ctx.delete': 'Excluir',
+  'ctx.cancel': 'Cancelar',
 
-  'act.copy':     'Copiar',
-  'act.share':    'Compartilhar',
-  'act.play':     'Reproduzir',
-  'act.like':     'Curtir',
-  'act.dislike':  'Não curtir',
+  'act.copy': 'Copiar',
+  'act.share': 'Compartilhar',
+  'act.play': 'Reproduzir',
+  'act.like': 'Curtir',
+  'act.dislike': 'Não curtir',
   'act.recharge': 'Reformular',
-  'live.coming_soon': 'Chat ao vivo em breve — digite uma mensagem para começar.',
-  'mic.permission_required': '⚠️ Permissão de microfone necessária para ditado por voz.',
+  'live.coming_soon':
+      'Chat ao vivo em breve — digite uma mensagem para começar.',
+  'mic.permission_required':
+      '⚠️ Permissão de microfone necessária para ditado por voz.',
 
   // TTS (text-to-speech)
-  'tts.playing':    '🔊 Reproduzindo...',
+  'tts.playing': '🔊 Reproduzindo...',
   'tts.unsupported': '⚠️ Síntese de voz indisponível neste dispositivo.',
-  'tts.empty':      'Nada para ler.',
+  'tts.empty': 'Nada para ler.',
 
-  'sources.title':    'Fontes',
+  'sources.title': 'Fontes',
   'sources.title_en': 'Sources',
 
-  'tokens.used':       'CONSUMIDO',
-  'tokens.available':  'DISPONÍVEL',
-  'tokens.reset_in':   'RESET EM',
-  'tokens.more':       'MAIS CAPACIDADE',
+  'tokens.used': 'CONSUMIDO',
+  'tokens.available': 'DISPONÍVEL',
+  'tokens.reset_in': 'RESET EM',
+  'tokens.more': 'MAIS CAPACIDADE',
 
-  'error.network':  'Não foi possível conectar. Tente de novo.',
-  'error.generic':  'Algo deu errado.',
+  'error.network': 'Não foi possível conectar. Tente de novo.',
+  'error.generic': 'Algo deu errado.',
 
   'common.search_hint': 'Buscar...',
   'common.yes': 'Sim',
-  'common.no':  'Não',
+  'common.no': 'Não',
 
-  'lang.sheet_title':    'Idioma do app',
+  'lang.sheet_title': 'Idioma do app',
   'lang.sheet_subtitle': 'Selecione seu idioma preferido',
-  'lang.system':         'Padrão do sistema',
+  'lang.system': 'Padrão do sistema',
 
   // Code block (botão copiar em blocos de código do chat)
-  'code.copy':   'Copiar',
+  'code.copy': 'Copiar',
   'code.copied': 'Copiado!',
 
   // Starters
@@ -722,11 +793,11 @@ const Map<String, String> _pt = <String, String>{
   'starter.4': 'Ideias para um projeto inovador',
 
   // Settings modal
-  'settings.title':    'Configurações',
-  'settings.profile':  'Perfil',
-  'settings.billing':  'Cobrança',
-  'settings.logout':   'Sair',
-  'settings.terms':    'Termos & Privacidade',
+  'settings.title': 'Configurações',
+  'settings.profile': 'Perfil',
+  'settings.billing': 'Cobrança',
+  'settings.logout': 'Sair',
+  'settings.terms': 'Termos & Privacidade',
   'settings.no_email': 'Sessão sem e-mail',
   'action.close': 'Fechar',
   'action.save': 'Salvar',
@@ -739,20 +810,25 @@ const Map<String, String> _pt = <String, String>{
   'auth.coming_soon_x': 'Em breve: Login com X / Twitter',
   'billing.activated': '🎉 Plano XPi PRO ativado com sucesso!',
   'billing.cancel_btn': 'Cancelar assinatura',
-  'billing.cancel_snack': 'Assinatura cancelada. Você manterá o plano Pro até o final do período.',
+  'billing.cancel_snack':
+      'Assinatura cancelada. Você manterá o plano Pro até o final do período.',
   'billing.current_plan': 'Plano atual',
   'billing.feat1': 'Tudo incluído no Grátis',
   'billing.feat2': 'Raciocínio avançado ilimitado XPi',
   'billing.feat3': 'Acesso prioritário ao Nemotron 3 Ultra',
   'billing.gateway': 'Portal de Assinatura Exodo (Modo Simulação)',
   'billing.gateway_free': 'Sua assinatura está ativa.',
+  'billing.not_available_yet':
+      'Os pagamentos chegam em breve. Por enquanto, continue explorando o Genesis.',
   'billing.get_pro': 'Obter plano Pro',
   'billing.plan_free': 'Grátis',
   'billing.plan_pro': 'XPi PRO',
   'billing.pro_features': 'Tudo do Grátis, mais:',
   'billing.upgrade_btn': 'Atualizar para XPi PRO',
-  'chat.disclaimer': 'Exodo pode cometer erros.\nVerifique informações importantes.',
-  'chat.incognito_desc': 'O modo anônimo não salva conversas no histórico nem usa seus dados para treinamento.',
+  'chat.disclaimer':
+      'Exodo pode cometer erros.\nVerifique informações importantes.',
+  'chat.incognito_desc':
+      'O modo anônimo não salva conversas no histórico nem usa seus dados para treinamento.',
   'chat.incognito_title': 'Anônimo',
   'chat.intent': 'Intenção detectada:',
   'chat.stopped': 'Você interrompeu a resposta',
@@ -770,17 +846,24 @@ const Map<String, String> _pt = <String, String>{
   'feedback.share_msg': 'Compartilhar resposta Exodo:',
   'feedback.title_neg': 'Enviar feedback',
   'feedback.title_pos': 'Enviar feedback positivo',
-  'limit.free_msg': '⚠️ Limite diário atingido. Ative o XPi PRO para continuar.',
+  'feedback.thanks': 'Obrigado pelo seu feedback!',
+  'feedback.error': 'Não foi possível enviar o feedback. Tente novamente.',
+  'limit.free_msg':
+      '⚠️ Limite diário atingido. Ative o XPi PRO para continuar.',
   'limit.free_reason': 'Limite diário de tokens atingido',
-  'limit.pro_msg': '⚠️ Capacidade diária do XPi PRO atingida. Seus tokens serão renovados amanhã.',
-  'limit.pro_reason': 'Capacidade diária do XPi PRO atingida. Seus tokens serão renovados amanhã.',
+  'limit.pro_msg':
+      '⚠️ Capacidade diária do XPi PRO atingida. Seus tokens serão renovados amanhã.',
+  'limit.pro_reason':
+      'Capacidade diária do XPi PRO atingida. Seus tokens serão renovados amanhã.',
   'models.thinking_default': 'modo thinking ativado por padrão',
-  'offline.p1': 'O Exodo precisa de conexão para processar consultas de inteligência artificial com modelos avançados em tempo real.',
+  'offline.p1':
+      'O Exodo precisa de conexão para processar consultas de inteligência artificial com modelos avançados em tempo real.',
   'offline.p2': 'Verifique se os dados móveis ou Wi-Fi estão ativos.',
   'offline.signin': 'Entrar na conta',
   'offline.title': 'Você está sem internet',
   'offline.upgrade': 'Conhecer benefícios XPi PRO',
-  'profile.delete_body': 'Ao excluir sua conta, todo o seu histórico de conversas, preferências e dados serão apagados permanentemente.',
+  'profile.delete_body':
+      'Ao excluir sua conta, todo o seu histórico de conversas, preferências e dados serão apagados permanentemente.',
   'profile.delete_btn': 'Excluir conta permanentemente',
   'profile.delete_confirm': 'Excluir permanentemente',
   'profile.delete_title': 'Excluir conta',
@@ -790,7 +873,8 @@ const Map<String, String> _pt = <String, String>{
   'profile.nickname_hint': 'Ex: João',
   'profile.save_error': 'Erro ao salvar perfil:',
   'profile.update_btn': 'Atualizar Perfil',
-  'settings.legal_body': 'Todos os direitos reservados. O uso do Exodo está sujeito aos nossos termos de serviço e políticas de privacidade.',
+  'settings.legal_body':
+      'Todos os direitos reservados. O uso do Exodo está sujeito aos nossos termos de serviço e políticas de privacidade.',
   'sources.consulted': 'Fontes consultadas na web',
   'tokens.more_cap': 'MAIS CAPACIDADE',
   'tokens.upgrade_btn': 'Upgrade para XPi PRO',
@@ -815,82 +899,83 @@ const Map<String, String> _it = <String, String>{
   'app.title': 'Exodo by Behavior',
 
   'auth.continue_google': 'Continua con Google',
-  'auth.continue_apple':  'Continua con Apple',
-  'auth.continue_guest':  'Entra come ospite',
+  'auth.continue_apple': 'Continua con Apple',
+  'auth.continue_guest': 'Entra come ospite',
 
-  'chat.placeholder':    'Parla con Exodo...',
+  'chat.placeholder': 'Parla con Exodo...',
   'chat.placeholder_en': 'Reply to Exodo...',
-  'chat.thinking':       'Exodo sta ragionando...',
+  'chat.thinking': 'Exodo sta ragionando...',
   'chat.thinking_label': 'Pensando',
-  'chat.thinking_en':    'Exodo reasoning...',
+  'chat.thinking_en': 'Exodo reasoning...',
 
-  'greeting.morning':    'Buongiorno',
-  'greeting.afternoon':  'Buon pomeriggio',
-  'greeting.evening':    'Buonasera',
-  'greeting.late':       'Notte fonda',
+  'greeting.morning': 'Buongiorno',
+  'greeting.afternoon': 'Buon pomeriggio',
+  'greeting.evening': 'Buonasera',
+  'greeting.late': 'Notte fonda',
   'greeting.morning_en': 'Morning',
   'greeting.afternoon_en': 'Afternoon',
   'greeting.evening_en': 'Evening',
-  'greeting.late_en':    'Late night hustle',
-  'greeting.cold':       'Freddo fuori, meglio del caffè',
-  'greeting.hot':        'Prendi qualcosa di freddo',
-  'greeting.cold_en':    'Cold outside, better than coffee',
-  'greeting.hot_en':     'Grab something cold, really hot',
+  'greeting.late_en': 'Late night hustle',
+  'greeting.cold': 'Freddo fuori, meglio del caffè',
+  'greeting.hot': 'Prendi qualcosa di freddo',
+  'greeting.cold_en': 'Cold outside, better than coffee',
+  'greeting.hot_en': 'Grab something cold, really hot',
 
-  'drawer.new_chat':     'Nuova chat',
+  'drawer.new_chat': 'Nuova chat',
   'drawer.search_chats': 'Cerca',
-  'drawer.starred':      'Fissati',
-  'drawer.recents':      'Recenti',
-  'drawer.incognito':    'Modalità Incognito',
-  'drawer.light_mode':   'Modo chiaro',
-  'drawer.dark_mode':    'Modo scuro',
-  'drawer.sign_in':      'Accedi',
-  'drawer.sign_out':     'Esci',
-  'drawer.upgrade':      'Passa a Pro',
-  'drawer.language':     'Lingua',
-  'drawer.add_widget':   'Aggiungi gadget alla schermata iniziale',
+  'drawer.starred': 'Fissati',
+  'drawer.recents': 'Recenti',
+  'drawer.incognito': 'Modalità Incognito',
+  'drawer.light_mode': 'Modo chiaro',
+  'drawer.dark_mode': 'Modo scuro',
+  'drawer.sign_in': 'Accedi',
+  'drawer.sign_out': 'Esci',
+  'drawer.upgrade': 'Passa a Pro',
+  'drawer.language': 'Lingua',
+  'drawer.add_widget': 'Aggiungi gadget alla schermata iniziale',
 
-  'ctx.rename':   'Rinomina',
-  'ctx.pin':      'Fissa',
-  'ctx.unpin':    'Togli',
-  'ctx.delete':   'Elimina',
-  'ctx.cancel':   'Annulla',
+  'ctx.rename': 'Rinomina',
+  'ctx.pin': 'Fissa',
+  'ctx.unpin': 'Togli',
+  'ctx.delete': 'Elimina',
+  'ctx.cancel': 'Annulla',
 
-  'act.copy':     'Copia',
-  'act.share':    'Condividi',
-  'act.play':     'Riproduci',
-  'act.like':     'Mi piace',
-  'act.dislike':  'Non mi piace',
+  'act.copy': 'Copia',
+  'act.share': 'Condividi',
+  'act.play': 'Riproduci',
+  'act.like': 'Mi piace',
+  'act.dislike': 'Non mi piace',
   'act.recharge': 'Riformula',
   'live.coming_soon': 'Chat live in arrivo — scrivi un messaggio per iniziare.',
-  'mic.permission_required': '⚠️ Permesso del microfono richiesto per la dettatura vocale.',
+  'mic.permission_required':
+      '⚠️ Permesso del microfono richiesto per la dettatura vocale.',
 
   // TTS (text-to-speech)
-  'tts.playing':    '🔊 Riproduzione...',
+  'tts.playing': '🔊 Riproduzione...',
   'tts.unsupported': '⚠️ Sintesi vocale non disponibile su questo dispositivo.',
-  'tts.empty':      'Niente da leggere.',
+  'tts.empty': 'Niente da leggere.',
 
-  'sources.title':    'Fonti',
+  'sources.title': 'Fonti',
   'sources.title_en': 'Sources',
 
-  'tokens.used':       'CONSUMATO',
-  'tokens.available':  'DISPONIBILE',
-  'tokens.reset_in':   'RESET TRA',
-  'tokens.more':       'PIÙ CAPACITÀ',
+  'tokens.used': 'CONSUMATO',
+  'tokens.available': 'DISPONIBILE',
+  'tokens.reset_in': 'RESET TRA',
+  'tokens.more': 'PIÙ CAPACITÀ',
 
-  'error.network':  'Impossibile connettersi. Riprova.',
-  'error.generic':  'Qualcosa è andato storto.',
+  'error.network': 'Impossibile connettersi. Riprova.',
+  'error.generic': 'Qualcosa è andato storto.',
 
   'common.search_hint': 'Cerca...',
   'common.yes': 'Sì',
-  'common.no':  'No',
+  'common.no': 'No',
 
-  'lang.sheet_title':    'Lingua dell\'app',
+  'lang.sheet_title': 'Lingua dell\'app',
   'lang.sheet_subtitle': 'Seleziona la lingua preferita',
-  'lang.system':         'Predefinito di sistema',
+  'lang.system': 'Predefinito di sistema',
 
   // Code block (pulsante copia nei blocchi di codice della chat)
-  'code.copy':   'Copia',
+  'code.copy': 'Copia',
   'code.copied': 'Copiato!',
 
   // Starters
@@ -900,11 +985,11 @@ const Map<String, String> _it = <String, String>{
   'starter.4': 'Idee per un progetto innovativo',
 
   // Settings modal
-  'settings.title':    'Impostazioni',
-  'settings.profile':  'Profilo',
-  'settings.billing':  'Fatturazione',
-  'settings.logout':   'Esci',
-  'settings.terms':    'Termini & Privacy',
+  'settings.title': 'Impostazioni',
+  'settings.profile': 'Profilo',
+  'settings.billing': 'Fatturazione',
+  'settings.logout': 'Esci',
+  'settings.terms': 'Termini & Privacy',
   'settings.no_email': 'Sessione senza email',
   'action.close': 'Chiudi',
   'action.save': 'Salva',
@@ -917,20 +1002,25 @@ const Map<String, String> _it = <String, String>{
   'auth.coming_soon_x': 'Presto disponibile: Accedi con X / Twitter',
   'billing.activated': '🎉 Piano XPi PRO attivato con successo!',
   'billing.cancel_btn': 'Annulla abbonamento',
-  'billing.cancel_snack': 'Abbonamento annullato. Mantieni il piano Pro fino alla fine del periodo.',
+  'billing.cancel_snack':
+      'Abbonamento annullato. Mantieni il piano Pro fino alla fine del periodo.',
   'billing.current_plan': 'Piano attuale',
   'billing.feat1': 'Tutto ciò che è incluso in Gratis',
   'billing.feat2': 'Ragionamento avanzato illimité XPi',
   'billing.feat3': 'Accesso prioritario a Nemotron 3 Ultra',
   'billing.gateway': 'Portale abbonamento Exodo (Modalità simulazione)',
   'billing.gateway_free': 'Il tuo abbonamento è attivo.',
+  'billing.not_available_yet':
+      'I pagamenti arriveranno presto. Per ora puoi continuare a esplorare Genesis.',
   'billing.get_pro': 'Ottieni piano Pro',
   'billing.plan_free': 'Gratis',
   'billing.plan_pro': 'XPi PRO',
   'billing.pro_features': 'Tutto di Gratis, più:',
   'billing.upgrade_btn': 'Passa a XPi PRO',
-  'chat.disclaimer': 'Exodo può commettere errori.\nVerifica le informazioni importanti.',
-  'chat.incognito_desc': 'La modalità in incognito non salva la cronologia né usa i dati per l\'addestramento.',
+  'chat.disclaimer':
+      'Exodo può commettere errori.\nVerifica le informazioni importanti.',
+  'chat.incognito_desc':
+      'La modalità in incognito non salva la cronologia né usa i dati per l\'addestramento.',
   'chat.incognito_title': 'Incognito',
   'chat.intent': 'Intenzione rilevata:',
   'chat.stopped': 'Hai interrotto la risposta',
@@ -948,17 +1038,24 @@ const Map<String, String> _it = <String, String>{
   'feedback.share_msg': 'Condividi la risposta di Exodo:',
   'feedback.title_neg': 'Invia feedback',
   'feedback.title_pos': 'Invia feedback positivo',
-  'limit.free_msg': '⚠️ Limite giornaliero raggiunto. Attiva XPi PRO per continuare.',
+  'feedback.thanks': 'Grazie per il tuo feedback!',
+  'feedback.error': 'Impossibile inviare il feedback. Riprova.',
+  'limit.free_msg':
+      '⚠️ Limite giornaliero raggiunto. Attiva XPi PRO per continuare.',
   'limit.free_reason': 'Limite giornaliero di token raggiunto',
-  'limit.pro_msg': '⚠️ Capacità giornaliera XPi PRO raggiunta. I tuoi token verranno rinnovati domani.',
-  'limit.pro_reason': 'Capacità giornaliera XPi PRO raggiunta. I tuoi token verranno rinnovati domani.',
+  'limit.pro_msg':
+      '⚠️ Capacità giornaliera XPi PRO raggiunta. I tuoi token verranno rinnovati domani.',
+  'limit.pro_reason':
+      'Capacità giornaliera XPi PRO raggiunta. I tuoi token verranno rinnovati domani.',
   'models.thinking_default': 'modalità thinking attivata predefinita',
-  'offline.p1': 'Exodo richiede una connessione per elaborare query AI con modelli avanzati in tempo reale.',
+  'offline.p1':
+      'Exodo richiede una connessione per elaborare query AI con modelli avanzati in tempo reale.',
   'offline.p2': 'Verifica che i dati mobili o il Wi-Fi siano attivi.',
   'offline.signin': 'Accedi',
   'offline.title': 'Sei offline',
   'offline.upgrade': 'Scopri i vantaggi di XPi PRO',
-  'profile.delete_body': 'Eliminando il tuo account, tutta la cronologia e le preferenze verranno cancellate permanentemente.',
+  'profile.delete_body':
+      'Eliminando il tuo account, tutta la cronologia e le preferenze verranno cancellate permanentemente.',
   'profile.delete_btn': 'Elimina account permanentemente',
   'profile.delete_confirm': 'Elimina permanentemente',
   'profile.delete_title': 'Elimina account',
@@ -968,7 +1065,8 @@ const Map<String, String> _it = <String, String>{
   'profile.nickname_hint': 'Es: Mario',
   'profile.save_error': 'Errore durante il salvataggio:',
   'profile.update_btn': 'Aggiorna profilo',
-  'settings.legal_body': 'Tutti i diritti riservati. L\'uso di Exodo è soggetto ai nostri termini di servizio e all\'informativa sulla privacy.',
+  'settings.legal_body':
+      'Tutti i diritti riservati. L\'uso di Exodo è soggetto ai nostri termini di servizio e all\'informativa sulla privacy.',
   'sources.consulted': 'Fonti consultate sul web',
   'tokens.more_cap': 'PIÙ CAPACITÀ',
   'tokens.upgrade_btn': 'Passa a XPi PRO',
@@ -993,82 +1091,84 @@ const Map<String, String> _de = <String, String>{
   'app.title': 'Exodo by Behavior',
 
   'auth.continue_google': 'Mit Google fortfahren',
-  'auth.continue_apple':  'Mit Apple fortfahren',
-  'auth.continue_guest':  'Als Gast fortfahren',
+  'auth.continue_apple': 'Mit Apple fortfahren',
+  'auth.continue_guest': 'Als Gast fortfahren',
 
-  'chat.placeholder':    'Mit Exodo sprechen...',
+  'chat.placeholder': 'Mit Exodo sprechen...',
   'chat.placeholder_en': 'Reply to Exodo...',
   'chat.thinking_label': 'Denke nach',
-  'chat.thinking':       'Exodo denkt nach...',
-  'chat.thinking_en':    'Exodo reasoning...',
+  'chat.thinking': 'Exodo denkt nach...',
+  'chat.thinking_en': 'Exodo reasoning...',
 
-  'greeting.morning':    'Guten Morgen',
-  'greeting.afternoon':  'Guten Tag',
-  'greeting.evening':    'Guten Abend',
-  'greeting.late':       'Späte Nacht',
+  'greeting.morning': 'Guten Morgen',
+  'greeting.afternoon': 'Guten Tag',
+  'greeting.evening': 'Guten Abend',
+  'greeting.late': 'Späte Nacht',
   'greeting.morning_en': 'Morning',
   'greeting.afternoon_en': 'Afternoon',
   'greeting.evening_en': 'Evening',
-  'greeting.late_en':    'Late night hustle',
-  'greeting.cold':       'Kalt draußen, besser als Kaffee',
-  'greeting.hot':        'Nimm etwas Kaltes',
-  'greeting.cold_en':    'Cold outside, better than coffee',
-  'greeting.hot_en':     'Grab something cold, really hot',
+  'greeting.late_en': 'Late night hustle',
+  'greeting.cold': 'Kalt draußen, besser als Kaffee',
+  'greeting.hot': 'Nimm etwas Kaltes',
+  'greeting.cold_en': 'Cold outside, better than coffee',
+  'greeting.hot_en': 'Grab something cold, really hot',
 
-  'drawer.new_chat':     'Neuer Chat',
+  'drawer.new_chat': 'Neuer Chat',
   'drawer.search_chats': 'Suchen',
-  'drawer.starred':      'Angeheftet',
-  'drawer.recents':      'Zuletzt',
-  'drawer.incognito':    'Inkognito-Modus',
-  'drawer.light_mode':   'Heller Modus',
-  'drawer.dark_mode':    'Dunkler Modus',
-  'drawer.sign_in':      'Anmelden',
-  'drawer.sign_out':     'Abmelden',
-  'drawer.upgrade':      'Auf Pro upgraden',
-  'drawer.language':     'Sprache',
-  'drawer.add_widget':   'Widget zum Startbildschirm hinzufügen',
+  'drawer.starred': 'Angeheftet',
+  'drawer.recents': 'Zuletzt',
+  'drawer.incognito': 'Inkognito-Modus',
+  'drawer.light_mode': 'Heller Modus',
+  'drawer.dark_mode': 'Dunkler Modus',
+  'drawer.sign_in': 'Anmelden',
+  'drawer.sign_out': 'Abmelden',
+  'drawer.upgrade': 'Auf Pro upgraden',
+  'drawer.language': 'Sprache',
+  'drawer.add_widget': 'Widget zum Startbildschirm hinzufügen',
 
-  'ctx.rename':   'Umbenennen',
-  'ctx.pin':      'Anheften',
-  'ctx.unpin':    'Lösen',
-  'ctx.delete':   'Löschen',
-  'ctx.cancel':   'Abbrechen',
+  'ctx.rename': 'Umbenennen',
+  'ctx.pin': 'Anheften',
+  'ctx.unpin': 'Lösen',
+  'ctx.delete': 'Löschen',
+  'ctx.cancel': 'Abbrechen',
 
-  'act.copy':     'Kopieren',
-  'act.share':    'Teilen',
-  'act.play':     'Abspielen',
-  'act.like':     'Mag ich',
-  'act.dislike':  'Mag ich nicht',
+  'act.copy': 'Kopieren',
+  'act.share': 'Teilen',
+  'act.play': 'Abspielen',
+  'act.like': 'Mag ich',
+  'act.dislike': 'Mag ich nicht',
   'act.recharge': 'Neu formulieren',
-  'live.coming_soon': 'Live-Chat bald verfügbar — gib eine Nachricht ein, um zu starten.',
-  'mic.permission_required': '⚠️ Mikrofon-Berechtigung für Sprachdiktat erforderlich.',
+  'live.coming_soon':
+      'Live-Chat bald verfügbar — gib eine Nachricht ein, um zu starten.',
+  'mic.permission_required':
+      '⚠️ Mikrofon-Berechtigung für Sprachdiktat erforderlich.',
 
   // TTS (text-to-speech)
-  'tts.playing':    '🔊 Wiedergabe...',
+  'tts.playing': '🔊 Wiedergabe...',
   'tts.unsupported': '⚠️ Sprachsynthese auf diesem Gerät nicht verfügbar.',
-  'tts.empty':      'Nichts zu lesen.',
+  'tts.empty': 'Nichts zu lesen.',
 
-  'sources.title':    'Quellen',
+  'sources.title': 'Quellen',
   'sources.title_en': 'Sources',
 
-  'tokens.used':       'VERBRAUCHT',
-  'tokens.available':  'VERFÜGBAR',
-  'tokens.reset_in':   'RESET IN',
-  'tokens.more':       'MEHR KAPAZITÄT',
+  'tokens.used': 'VERBRAUCHT',
+  'tokens.available': 'VERFÜGBAR',
+  'tokens.reset_in': 'RESET IN',
+  'tokens.more': 'MEHR KAPAZITÄT',
 
-  'error.network':  'Verbindung fehlgeschlagen. Erneut versuchen.',
-  'error.generic':  'Etwas ist schiefgelaufen.',
+  'error.network': 'Verbindung fehlgeschlagen. Erneut versuchen.',
+  'error.generic': 'Etwas ist schiefgelaufen.',
 
   'common.search_hint': 'Suchen...',
   'common.yes': 'Ja',
-  'common.no':  'Nein',
+  'common.no': 'Nein',
 
-  'lang.sheet_title':    'App-Sprache',
+  'lang.sheet_title': 'App-Sprache',
   'lang.sheet_subtitle': 'Wähle deine bevorzugte Sprache',
-  'lang.system':         'Systemstandard',
+  'lang.system': 'Systemstandard',
 
   // Code block (Kopierschaltfläche in Codeblöcken im Chat)
-  'code.copy':   'Kopieren',
+  'code.copy': 'Kopieren',
   'code.copied': 'Kopiert!',
 
   // Starters
@@ -1078,11 +1178,11 @@ const Map<String, String> _de = <String, String>{
   'starter.4': 'Ideen für ein innovatives Projekt',
 
   // Settings modal
-  'settings.title':    'Einstellungen',
-  'settings.profile':  'Profil',
-  'settings.billing':  'Abrechnung',
-  'settings.logout':   'Abmelden',
-  'settings.terms':    'AGB & Datenschutz',
+  'settings.title': 'Einstellungen',
+  'settings.profile': 'Profil',
+  'settings.billing': 'Abrechnung',
+  'settings.logout': 'Abmelden',
+  'settings.terms': 'AGB & Datenschutz',
   'settings.no_email': 'Sitzung ohne E-Mail',
   'action.close': 'Schließen',
   'action.save': 'Speichern',
@@ -1095,20 +1195,25 @@ const Map<String, String> _de = <String, String>{
   'auth.coming_soon_x': 'Demnächst: Mit X / Twitter anmelden',
   'billing.activated': '🎉 XPi PRO-Plan erfolgreich aktiviert!',
   'billing.cancel_btn': 'Abonnement kündigen',
-  'billing.cancel_snack': 'Abonnement gekündigt. Sie behalten den Pro-Plan bis zum Ende des Zeitraums.',
+  'billing.cancel_snack':
+      'Abonnement gekündigt. Sie behalten den Pro-Plan bis zum Ende des Zeitraums.',
   'billing.current_plan': 'Aktueller Plan',
   'billing.feat1': 'Alles im Gratis-Plan enthaltene',
   'billing.feat2': 'Unbegrenztes erweitertes XPi-Schlussfolgern',
   'billing.feat3': 'Bevorzugter Zugriff auf Nemotron 3 Ultra',
   'billing.gateway': 'Exodo-Abonnement-Portal (Simulationsmodus)',
   'billing.gateway_free': 'Ihr Abonnement ist aktiv.',
+  'billing.not_available_yet':
+      'Zahlungen kommen bald. Vorerst kannst du Genesis weiter erkunden.',
   'billing.get_pro': 'Pro-Plan holen',
   'billing.plan_free': 'Gratis',
   'billing.plan_pro': 'XPi PRO',
   'billing.pro_features': 'Alles von Gratis, plus:',
   'billing.upgrade_btn': 'Auf XPi PRO upgraden',
-  'chat.disclaimer': 'Exodo kann Fehler machen.\nÜberprüfen Sie wichtige Informationen.',
-  'chat.incognito_desc': 'Der Inkognito-Modus speichert keinen Verlauf und nutzt Daten nicht zum Training.',
+  'chat.disclaimer':
+      'Exodo kann Fehler machen.\nÜberprüfen Sie wichtige Informationen.',
+  'chat.incognito_desc':
+      'Der Inkognito-Modus speichert keinen Verlauf und nutzt Daten nicht zum Training.',
   'chat.incognito_title': 'Inkognito',
   'chat.intent': 'Erkannte Absicht:',
   'chat.stopped': 'Sie haben die Antwort gestoppt',
@@ -1118,25 +1223,35 @@ const Map<String, String> _de = <String, String>{
   'dialog.rename_chat': 'Unterhaltung umbenennen',
   'drawer.no_found': 'Keine Unterhaltungen gefunden',
   'drawer.no_history': 'Kein Chatverlauf',
-  'drawer.start_conv': 'Beginnen Sie eine neue Unterhaltung\nund sie wird hier angezeigt.',
+  'drawer.start_conv':
+      'Beginnen Sie eine neue Unterhaltung\nund sie wird hier angezeigt.',
   'drawer.try_search': 'Versuchen Sie einen anderen Suchbegriff.',
   'drawer.user_default': 'Exodo-Benutzer',
   'drawer.web': 'Exodo Web',
-  'feedback.hint': 'Sagen Sie uns, was Ihnen gefallen hat oder wie wir uns verbessern können...',
+  'feedback.hint':
+      'Sagen Sie uns, was Ihnen gefallen hat oder wie wir uns verbessern können...',
   'feedback.share_msg': 'Exodo-Antwort teilen:',
   'feedback.title_neg': 'Feedback senden',
   'feedback.title_pos': 'Positives Feedback senden',
-  'limit.free_msg': '⚠️ Tageslimit erreicht. Aktivieren Sie XPi PRO, um fortzufahren.',
+  'feedback.thanks': 'Danke für Ihr Feedback!',
+  'feedback.error':
+      'Feedback konnte nicht gesendet werden. Bitte versuchen Sie es erneut.',
+  'limit.free_msg':
+      '⚠️ Tageslimit erreicht. Aktivieren Sie XPi PRO, um fortzufahren.',
   'limit.free_reason': 'Tägliches Token-Limit erreicht',
-  'limit.pro_msg': '⚠️ Tägliche XPi PRO-Kapazität erreicht. Token werden morgen erneuert.',
-  'limit.pro_reason': 'Tägliche XPi PRO-Kapazität erreicht. Token werden morgen erneuert.',
+  'limit.pro_msg':
+      '⚠️ Tägliche XPi PRO-Kapazität erreicht. Token werden morgen erneuert.',
+  'limit.pro_reason':
+      'Tägliche XPi PRO-Kapazität erreicht. Token werden morgen erneuert.',
   'models.thinking_default': 'Thinking-Modus standardmäßig aktiviert',
-  'offline.p1': 'Exodo benötigt eine Verbindung, um KI-Anfragen mit erweiterten Modellen in Echtzeit zu verarbeiten.',
+  'offline.p1':
+      'Exodo benötigt eine Verbindung, um KI-Anfragen mit erweiterten Modellen in Echtzeit zu verarbeiten.',
   'offline.p2': 'Überprüfen Sie, ob Mobile Daten oder WLAN aktiv sind.',
   'offline.signin': 'Anmelden',
   'offline.title': 'Sie sind offline',
   'offline.upgrade': 'XPi PRO-Vorteile entdecken',
-  'profile.delete_body': 'Wenn Sie Ihr Konto löschen, werden Ihr gesamter Verlauf und Ihre Einstellungen dauerhaft gelöscht.',
+  'profile.delete_body':
+      'Wenn Sie Ihr Konto löschen, werden Ihr gesamter Verlauf und Ihre Einstellungen dauerhaft gelöscht.',
   'profile.delete_btn': 'Konto dauerhaft löschen',
   'profile.delete_confirm': 'Endgültig löschen',
   'profile.delete_title': 'Konto löschen',
@@ -1146,7 +1261,8 @@ const Map<String, String> _de = <String, String>{
   'profile.nickname_hint': 'z.B. Max',
   'profile.save_error': 'Fehler beim Speichern:',
   'profile.update_btn': 'Profil aktualisieren',
-  'settings.legal_body': 'Alle Rechte vorbehalten. Die Nutzung von Exodo unterliegt unseren Nutzungsbedingungen und Datenschutzrichtlinien.',
+  'settings.legal_body':
+      'Alle Rechte vorbehalten. Die Nutzung von Exodo unterliegt unseren Nutzungsbedingungen und Datenschutzrichtlinien.',
   'sources.consulted': 'Im Web konsultierte Quellen',
   'tokens.more_cap': 'MEHR KAPAZITÄT',
   'tokens.upgrade_btn': 'Upgrade auf XPi PRO',
@@ -1160,13 +1276,13 @@ const Map<String, String> _de = <String, String>{
   'billing.feat4': 'Priorisierter Support & Vorabzugriff',
   'billing.save_pct': '16.5% sparen',
   'billing.subtitle': 'Für die tägliche Produktivität',
-  'models.ehyeh_desc': 'Erweitertes Schlussfolgern für anspruchsvolle Aufgaben.',
+  'models.ehyeh_desc':
+      'Erweitertes Schlussfolgern für anspruchsvolle Aufgaben.',
   'models.origo_desc': 'Leistungsstarkes Modell für tägliche Aufgaben.',
 
   'billing.header_sub': 'Wählen Sie den passenden Plan für sich',
   'billing.title': 'Mehr Kapazität bei Exodo',
 };
-
 
 final Map<String, String> _ru = <String, String>{
   'app.title': 'Éxodo by Behavior',
@@ -1213,8 +1329,10 @@ final Map<String, String> _ru = <String, String>{
   'act.like': 'Нравится',
   'act.dislike': 'Не нравится',
   'act.recharge': 'Перефразировать',
-  'live.coming_soon': 'Живой чат скоро появится — напишите сообщение, чтобы начать.',
-  'mic.permission_required': '⚠️ Требуется разрешение на использование микрофона для голосового ввода.',
+  'live.coming_soon':
+      'Живой чат скоро появится — напишите сообщение, чтобы начать.',
+  'mic.permission_required':
+      '⚠️ Требуется разрешение на использование микрофона для голосового ввода.',
   'tts.playing': '🔊 Воспроизведение...',
   'tts.unsupported': '⚠️ Синтез речи недоступен на этом устройстве.',
   'tts.empty': 'Нет текста для чтения.',
@@ -1255,20 +1373,25 @@ final Map<String, String> _ru = <String, String>{
   'auth.coming_soon_x': 'Скоро: Вход через X / Twitter',
   'billing.activated': '🎉 План XPi PRO успешно активирован!',
   'billing.cancel_btn': 'Отменить подписку',
-  'billing.cancel_snack': 'Подписка отменена. Вы сохраните план Pro до конца периода.',
+  'billing.cancel_snack':
+      'Подписка отменена. Вы сохраните план Pro до конца периода.',
   'billing.current_plan': 'Текущий план',
   'billing.feat1': 'Всё, что включено в Бесплатный',
   'billing.feat2': 'Неограниченное продвинутое рассуждение XPi',
   'billing.feat3': 'Приоритетный доступ к Nemotron 3 Ultra',
   'billing.gateway': 'Портал подписки Exodo (Режим симуляции)',
   'billing.gateway_free': 'Ваша подписка активна.',
+  'billing.not_available_yet':
+      'Платежи скоро появятся. Пока вы можете продолжать изучать Genesis.',
   'billing.get_pro': 'Получить план Pro',
   'billing.plan_free': 'Бесплатно',
   'billing.plan_pro': 'XPi PRO',
   'billing.pro_features': 'Всё из Бесплатного, плюс:',
   'billing.upgrade_btn': 'Обновить до XPi PRO',
-  'chat.disclaimer': 'Exodo может допускать ошибки.\nПроверяйте важную информацию.',
-  'chat.incognito_desc': 'Режим инкогнито не сохраняет историю и не использует данные для обучения.',
+  'chat.disclaimer':
+      'Exodo может допускать ошибки.\nПроверяйте важную информацию.',
+  'chat.incognito_desc':
+      'Режим инкогнито не сохраняет историю и не использует данные для обучения.',
   'chat.incognito_title': 'Инкогнито',
   'chat.intent': 'Обнаруженное намерение:',
   'chat.stopped': 'Вы остановили ответ',
@@ -1282,21 +1405,29 @@ final Map<String, String> _ru = <String, String>{
   'drawer.try_search': 'Попробуйте другой поисковый запрос.',
   'drawer.user_default': 'Пользователь Exodo',
   'drawer.web': 'Exodo Web',
-  'feedback.hint': 'Расскажите, что вам понравилось или как мы можем улучшить...',
+  'feedback.hint':
+      'Расскажите, что вам понравилось или как мы можем улучшить...',
   'feedback.share_msg': 'Поделиться ответом Exodo:',
   'feedback.title_neg': 'Отправить отзыв',
   'feedback.title_pos': 'Отправить положительный отзыв',
-  'limit.free_msg': '⚠️ Дневной лимит исчерпан. Активируйте XPi PRO для продолжения.',
+  'feedback.thanks': 'Спасибо за ваш отзыв!',
+  'feedback.error': 'Не удалось отправить отзыв. Попробуйте снова.',
+  'limit.free_msg':
+      '⚠️ Дневной лимит исчерпан. Активируйте XPi PRO для продолжения.',
   'limit.free_reason': 'Достигнут дневной лимит токенов',
-  'limit.pro_msg': '⚠️ Дневная емкость XPi PRO исчерпана. Токены обновятся завтра.',
-  'limit.pro_reason': 'Дневная емкость XPi PRO исчерпана. Токены обновятся завтра.',
+  'limit.pro_msg':
+      '⚠️ Дневная емкость XPi PRO исчерпана. Токены обновятся завтра.',
+  'limit.pro_reason':
+      'Дневная емкость XPi PRO исчерпана. Токены обновятся завтра.',
   'models.thinking_default': 'режим thinking включен по умолчанию',
-  'offline.p1': 'Exodo требует подключения для обработки запросов ИИ с помощью передовых моделей в реальном времени.',
+  'offline.p1':
+      'Exodo требует подключения для обработки запросов ИИ с помощью передовых моделей в реальном времени.',
   'offline.p2': 'Убедитесь, что мобильные данные или Wi-Fi включены.',
   'offline.signin': 'Войти',
   'offline.title': 'Вы не в сети',
   'offline.upgrade': 'Узнать о преимуществах XPi PRO',
-  'profile.delete_body': 'При удалении аккаунта вся история чатов и настройки будут удалены безвозвратно.',
+  'profile.delete_body':
+      'При удалении аккаунта вся история чатов и настройки будут удалены безвозвратно.',
   'profile.delete_btn': 'Удалить аккаунт навсегда',
   'profile.delete_confirm': 'Удалить навсегда',
   'profile.delete_title': 'Удалить аккаунт',
@@ -1306,7 +1437,8 @@ final Map<String, String> _ru = <String, String>{
   'profile.nickname_hint': 'Например: Иван',
   'profile.save_error': 'Ошибка сохранения профиля:',
   'profile.update_btn': 'Обновить профиль',
-  'settings.legal_body': 'Все права защищены. Использование Exodo регулируется нашими условиями обслуживания и политикой конфиденциальности.',
+  'settings.legal_body':
+      'Все права защищены. Использование Exodo регулируется нашими условиями обслуживания и политикой конфиденциальности.',
   'sources.consulted': 'Источники, изученные в сети',
   'tokens.more_cap': 'БОЛЬШЕ ЕМКОСТИ',
   'tokens.upgrade_btn': 'Обновить до XPi PRO',
@@ -1445,6 +1577,8 @@ final Map<String, String> _zh = <String, String>{
   'feedback.share_msg': '分享 Exodo 回答：',
   'feedback.title_neg': '发送反馈',
   'feedback.title_pos': '发送正面反馈',
+  'feedback.thanks': '感谢您的反馈！',
+  'feedback.error': '无法发送反馈。请稍后重试。',
   'limit.free_msg': '⚠️ 已达到每日限制。激活 XPi PRO 以继续。',
   'limit.free_reason': '已达到每日 Token 限制',
   'limit.pro_msg': '⚠️ 已达到 XPi PRO 每日容量。Token 将于明日重置。',
@@ -1604,6 +1738,8 @@ final Map<String, String> _ja = <String, String>{
   'feedback.share_msg': 'Exodoの回答を共有：',
   'feedback.title_neg': 'フィードバックを送信',
   'feedback.title_pos': 'ポジティブなフィードバックを送信',
+  'feedback.thanks': 'フィードバックをありがとうございます！',
+  'feedback.error': 'フィードバックの送信に失敗しました。もう一度お試しください。',
   'limit.free_msg': '⚠️ 1日の制限に達しました。続行するにはXPi PROを有効にしてください。',
   'limit.free_reason': '1日のトークン制限に達しました',
   'limit.pro_msg': '⚠️ XPi PROの1日の容量に達しました。トークンは明日リセットされます。',
@@ -1732,7 +1868,8 @@ final Map<String, String> _ar = <String, String>{
   'auth.coming_soon_x': 'قريباً: تسجيل الدخول باستخدام X / Twitter',
   'billing.activated': '🎉 تم تنشيط خطة XPi PRO بنجاح!',
   'billing.cancel_btn': 'إلغاء الاشتراك',
-  'billing.cancel_snack': 'تم إلغاء الاشتراك. ستحتفظ بخطة Pro حتى نهاية الفترة.',
+  'billing.cancel_snack':
+      'تم إلغاء الاشتراك. ستحتفظ بخطة Pro حتى نهاية الفترة.',
   'billing.current_plan': 'الخطة الحالية',
   'billing.feat1': 'كل ما هو مشمول في المجاني',
   'billing.feat2': 'تفكير متقدم غير محدود من XPi',
@@ -1745,7 +1882,8 @@ final Map<String, String> _ar = <String, String>{
   'billing.pro_features': 'كل شيء في المجاني، بالإضافة إلى:',
   'billing.upgrade_btn': 'الترقية إلى XPi PRO',
   'chat.disclaimer': 'قد يخطئ Exodo.\nتحقق من المعلومات المهمة.',
-  'chat.incognito_desc': 'وضع التصفح المتخفي لا يحفظ السجل ولا يستخدم بياناتك للتدريب.',
+  'chat.incognito_desc':
+      'وضع التصفح المتخفي لا يحفظ السجل ولا يستخدم بياناتك للتدريب.',
   'chat.incognito_title': 'متخفي',
   'chat.intent': 'النية المكتشفة:',
   'chat.stopped': 'لقد قمت بإيقاف الرد',
@@ -1763,17 +1901,23 @@ final Map<String, String> _ar = <String, String>{
   'feedback.share_msg': 'مشاركة إجابة Exodo:',
   'feedback.title_neg': 'إرسال تعليقات',
   'feedback.title_pos': 'إرسال تعليقات إيجابية',
+  'feedback.thanks': 'شكراً لملاحظاتك!',
+  'feedback.error': 'فشل إرسال الملاحظات. حاول مرة أخرى.',
   'limit.free_msg': '⚠️ تم الوصول إلى الحد اليومي. قم بتنشيط XPi PRO للمتابعة.',
   'limit.free_reason': 'تم الوصول إلى الحد اليومي للرموز',
-  'limit.pro_msg': '⚠️ تم الوصول إلى السعة اليومية لـ XPi PRO. ستتجدد الرموز غداً.',
-  'limit.pro_reason': 'تم الوصول إلى السعة اليومية لـ XPi PRO. ستتجدد الرموز غداً.',
+  'limit.pro_msg':
+      '⚠️ تم الوصول إلى السعة اليومية لـ XPi PRO. ستتجدد الرموز غداً.',
+  'limit.pro_reason':
+      'تم الوصول إلى السعة اليومية لـ XPi PRO. ستتجدد الرموز غداً.',
   'models.thinking_default': 'وضع thinking مفعل افتراضياً',
-  'offline.p1': 'يحتاج Exodo إلى اتصال لمعالجة استعلامات الذكاء الاصطناعي مع نماذج متقدمة في الوقت الفعلي.',
+  'offline.p1':
+      'يحتاج Exodo إلى اتصال لمعالجة استعلامات الذكاء الاصطناعي مع نماذج متقدمة في الوقت الفعلي.',
   'offline.p2': 'تحقق من تشغيل بيانات الجوال أو شبكة Wi-Fi.',
   'offline.signin': 'تسجيل الدخول',
   'offline.title': 'أنت غير متصل بالإنترنت',
   'offline.upgrade': 'اكتشف مزايا XPi PRO',
-  'profile.delete_body': 'عند حذف حسابك، سيتم مسح جميع سجلات الدردشة والتفضيلات نهائياً.',
+  'profile.delete_body':
+      'عند حذف حسابك، سيتم مسح جميع سجلات الدردشة والتفضيلات نهائياً.',
   'profile.delete_btn': 'حذف الحساب نهائياً',
   'profile.delete_confirm': 'حذف نهائي',
   'profile.delete_title': 'حذف الحساب',
@@ -1783,7 +1927,8 @@ final Map<String, String> _ar = <String, String>{
   'profile.nickname_hint': 'مثال: محمد',
   'profile.save_error': 'خطأ في حفظ الملف الشخصي:',
   'profile.update_btn': 'تحديث الملف الشخصي',
-  'settings.legal_body': 'جميع الحقوق محفوظة. يخضع استخدام Exodo لشروط الخدمة وسياسات الخصوصية الخاصة بنا.',
+  'settings.legal_body':
+      'جميع الحقوق محفوظة. يخضع استخدام Exodo لشروط الخدمة وسياسات الخصوصية الخاصة بنا.',
   'sources.consulted': 'المصادر المستشار بها على الويب',
   'tokens.more_cap': 'المزيد من السعة',
   'tokens.upgrade_btn': 'الترقية إلى XPi PRO',
@@ -2009,7 +2154,8 @@ final Map<String, String> _hi = <String, String>{
   'act.dislike': 'नापसंद',
   'act.recharge': 'फिर से बनाएं',
   'live.coming_soon': 'लाइव चैट जल्द आ रही है — शुरू करने के लिए संदेश लिखें।',
-  'mic.permission_required': '⚠️ वॉयस टाइपिंग के लिए माइक्रोफ़ोन अनुमति आवश्यक है।',
+  'mic.permission_required':
+      '⚠️ वॉयस टाइपिंग के लिए माइक्रोफ़ोन अनुमति आवश्यक है।',
   'tts.playing': '🔊 चल रहा है...',
   'tts.unsupported': '⚠️ इस डिवाइस पर वॉयस सिंथेसिस उपलब्ध नहीं है।',
   'tts.empty': 'पढ़ने के लिए कोई टेक्स्ट नहीं है।',
@@ -2050,7 +2196,8 @@ final Map<String, String> _hi = <String, String>{
   'auth.coming_soon_x': 'जल्द आ रहा है: X / Twitter के साथ साइन इन करें',
   'billing.activated': '🎉 XPi PRO योजना सफलतापूर्वक सक्रिय की गई!',
   'billing.cancel_btn': 'सदस्यता रद्द करें',
-  'billing.cancel_snack': 'सदस्यता रद्द कर दी गई है। आप अवधि के अंत तक Pro योजना बनाए रखेंगे।',
+  'billing.cancel_snack':
+      'सदस्यता रद्द कर दी गई है। आप अवधि के अंत तक Pro योजना बनाए रखेंगे।',
   'billing.current_plan': 'वर्तमान योजना',
   'billing.feat1': 'नि:शुल्क में शामिल सभी चीज़ें',
   'billing.feat2': 'असीमित XPi उन्नत तर्क',
@@ -2062,8 +2209,10 @@ final Map<String, String> _hi = <String, String>{
   'billing.plan_pro': 'XPi PRO',
   'billing.pro_features': 'नि:शुल्क में सब कुछ, साथ ही:',
   'billing.upgrade_btn': 'XPi PRO में अपग्रेड करें',
-  'chat.disclaimer': 'Exodo गलतियाँ कर सकता है।\nमहत्वपूर्ण जानकारी की पुष्टि करें।',
-  'chat.incognito_desc': 'गुप्त मोड इतिहास सहेजता नहीं है और न ही आपके डेटा का उपयोग प्रशिक्षण के लिए करता है।',
+  'chat.disclaimer':
+      'Exodo गलतियाँ कर सकता है।\nमहत्वपूर्ण जानकारी की पुष्टि करें।',
+  'chat.incognito_desc':
+      'गुप्त मोड इतिहास सहेजता नहीं है और न ही आपके डेटा का उपयोग प्रशिक्षण के लिए करता है।',
   'chat.incognito_title': 'गुप्त',
   'chat.intent': 'पता लगाया गया इरादा:',
   'chat.stopped': 'आपने प्रतिक्रिया रोक दी',
@@ -2077,21 +2226,25 @@ final Map<String, String> _hi = <String, String>{
   'drawer.try_search': 'कोई अन्य खोज शब्द आज़माएँ।',
   'drawer.user_default': 'Exodo उपयोगकर्ता',
   'drawer.web': 'Exodo Web',
-  'feedback.hint': 'हमें बताएं कि आपको क्या पसंद आया या हम कैसे सुधार कर सकते हैं...',
+  'feedback.hint':
+      'हमें बताएं कि आपको क्या पसंद आया या हम कैसे सुधार कर सकते हैं...',
   'feedback.share_msg': 'Exodo प्रतिक्रिया साझा करें:',
   'feedback.title_neg': 'प्रतिक्रिया भेजें',
   'feedback.title_pos': 'सकारात्मक प्रतिक्रिया भेजें',
-  'limit.free_msg': '⚠️ दैनिक सीमा तक पहुंच गए। जारी रखने के लिए XPi PRO सक्रिय करें।',
+  'limit.free_msg':
+      '⚠️ दैनिक सीमा तक पहुंच गए। जारी रखने के लिए XPi PRO सक्रिय करें।',
   'limit.free_reason': 'दैनिक टोकन सीमा तक पहुँच गए',
   'limit.pro_msg': '⚠️ XPi PRO दैनिक क्षमता तक पहुंच गई। टोकन कल रीसेट होंगे।',
   'limit.pro_reason': 'XPi PRO दैनिक क्षमता तक पहुंच गई। टोकन कल रीसेट होंगे।',
   'models.thinking_default': 'डिफ़ॉल्ट रूप से thinking मोड सक्षम',
-  'offline.p1': 'Exodo को वास्तविक समय में उन्नत मॉडल के साथ AI प्रश्नों को संसाधित करने के लिए कनेक्शन की आवश्यकता है।',
+  'offline.p1':
+      'Exodo को वास्तविक समय में उन्नत मॉडल के साथ AI प्रश्नों को संसाधित करने के लिए कनेक्शन की आवश्यकता है।',
   'offline.p2': 'जांचें कि मोबाइल डेटा या वाई-फ़ाई चालू है।',
   'offline.signin': 'साइन इन करें',
   'offline.title': 'आप ऑफ़लाइन हैं',
   'offline.upgrade': 'XPi PRO के लाभ जानें',
-  'profile.delete_body': 'आपका खाता हटाने पर, आपका सारा चैट इतिहास और प्राथमिकताएं स्थायी रूप से मिटा दी जाएंगी।',
+  'profile.delete_body':
+      'आपका खाता हटाने पर, आपका सारा चैट इतिहास और प्राथमिकताएं स्थायी रूप से मिटा दी जाएंगी।',
   'profile.delete_btn': 'खाता स्थायी रूप से हटाएं',
   'profile.delete_confirm': 'स्थायी रूप से हटाएं',
   'profile.delete_title': 'खाता हटाएं',
@@ -2101,7 +2254,8 @@ final Map<String, String> _hi = <String, String>{
   'profile.nickname_hint': 'उदाहरण: राहुल',
   'profile.save_error': 'प्रोफ़ाइल सहेजने में त्रुटि:',
   'profile.update_btn': 'प्रोफ़ाइल अपडेट करें',
-  'settings.legal_body': 'सर्वाधिकार सुरक्षित। Exodo का उपयोग हमारी सेवा की शर्तों और गोपनीयता नीति के अधीन है।',
+  'settings.legal_body':
+      'सर्वाधिकार सुरक्षित। Exodo का उपयोग हमारी सेवा की शर्तों और गोपनीयता नीति के अधीन है।',
   'sources.consulted': 'वेब पर परामर्श किए गए स्रोत',
   'tokens.more_cap': 'अधिक क्षमता',
   'tokens.upgrade_btn': 'XPi PRO में अपग्रेड करें',
@@ -2167,8 +2321,10 @@ final Map<String, String> _ht = <String, String>{
   'act.like': 'J\'aime',
   'act.dislike': 'Je n\'aime pas',
   'act.recharge': 'Reformuler',
-  'live.coming_soon': 'Chat en direct bientôt disponible — tapez un message pour commencer.',
-  'mic.permission_required': '⚠️ Autorisation du microphone requise pour la dictée vocale.',
+  'live.coming_soon':
+      'Chat en direct bientôt disponible — tapez un message pour commencer.',
+  'mic.permission_required':
+      '⚠️ Autorisation du microphone requise pour la dictée vocale.',
   'tts.playing': '🔊 Lecture...',
   'tts.unsupported': '⚠️ Synthèse vocale indisponible sur cet appareil.',
   'tts.empty': 'Rien à lire.',
@@ -2209,7 +2365,8 @@ final Map<String, String> _ht = <String, String>{
   'auth.coming_soon_x': 'Bientôt : Connexion avec X / Twitter',
   'billing.activated': '🎉 Forfait XPi PRO activé avec succès !',
   'billing.cancel_btn': 'Annuler l\'abonnement',
-  'billing.cancel_snack': 'Abonnement annulé. Vous conservez le forfait Pro jusqu\'à la fin de la période.',
+  'billing.cancel_snack':
+      'Abonnement annulé. Vous conservez le forfait Pro jusqu\'à la fin de la période.',
   'billing.current_plan': 'Forfait actuel',
   'billing.feat1': 'Tout sa ki nan plan Gratis la',
   'billing.feat2': 'Rezònman avanse san limit XPi',
@@ -2222,7 +2379,8 @@ final Map<String, String> _ht = <String, String>{
   'billing.pro_features': 'Tout sa ki nan Gratis, plis :',
   'billing.upgrade_btn': 'Amelyore nan XPi PRO',
   'chat.disclaimer': 'Exodo ka fè erè.\nTcheke enfòmasyon enpòtan yo.',
-  'chat.incognito_desc': 'Mòd enkonito pa anrejistre konvèsasyon epi li pa itilize done ou yo.',
+  'chat.incognito_desc':
+      'Mòd enkonito pa anrejistre konvèsasyon epi li pa itilize done ou yo.',
   'chat.incognito_title': 'Navigasyon enkonito',
   'chat.intent': 'Entansyon detekte :',
   'chat.stopped': 'Ou sispann repons la',
@@ -2242,15 +2400,19 @@ final Map<String, String> _ht = <String, String>{
   'feedback.title_pos': 'Voye remak pozitif',
   'limit.free_msg': '⚠️ Limid chak jou rive. Aktive XPi PRO pou kontinye.',
   'limit.free_reason': 'Limid chak jou jeton rive',
-  'limit.pro_msg': '⚠️ Kapasite chak jou XPi PRO rive. Jeton w yo ap renouvle demen.',
-  'limit.pro_reason': 'Kapasite chak jou XPi PRO rive. Jeton w yo ap renouvle demen.',
+  'limit.pro_msg':
+      '⚠️ Kapasite chak jou XPi PRO rive. Jeton w yo ap renouvle demen.',
+  'limit.pro_reason':
+      'Kapasite chak jou XPi PRO rive. Jeton w yo ap renouvle demen.',
   'models.thinking_default': 'mòd reflechi aktive pa defo',
-  'offline.p1': 'Exodo bezwen yon konnesyon pou trete demann AI ak modèl avanse an tan reyèl.',
+  'offline.p1':
+      'Exodo bezwen yon konnesyon pou trete demann AI ak modèl avanse an tan reyèl.',
   'offline.p2': 'Tcheke si done mobil oswa Wi-Fi aktive.',
   'offline.signin': 'Konekte',
   'offline.title': 'Ou pa sou entènèt',
   'offline.upgrade': 'Dekouvri avantaj XPi PRO yo',
-  'profile.delete_body': 'Lè w efase kont ou a, tout istwa konvèsasyon ak preferans ou yo ap efase nèt.',
+  'profile.delete_body':
+      'Lè w efase kont ou a, tout istwa konvèsasyon ak preferans ou yo ap efase nèt.',
   'profile.delete_btn': 'Efase kont la nèt',
   'profile.delete_confirm': 'Efase nèt',
   'profile.delete_title': 'Efase kont',
@@ -2260,7 +2422,8 @@ final Map<String, String> _ht = <String, String>{
   'profile.nickname_hint': 'Egzanp : Jean',
   'profile.save_error': 'Erè nan anrejistreman :',
   'profile.update_btn': 'Mete pwofil la aktyalize',
-  'settings.legal_body': 'Tout dwa rezève. Itilizasyon Exodo sijè ak kondisyon ak règleman konfidansyalite nou yo.',
+  'settings.legal_body':
+      'Tout dwa rezève. Itilizasyon Exodo sijè ak kondisyon ak règleman konfidansyalite nou yo.',
   'sources.consulted': 'Sous ki te konsilte sou entènèt',
   'tokens.more_cap': 'Plis kapasite ak XPi PRO',
   'tokens.upgrade_btn': 'Amelyore nan XPi PRO',

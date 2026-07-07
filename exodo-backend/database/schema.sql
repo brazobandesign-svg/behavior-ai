@@ -43,6 +43,7 @@ create table conversations (
   title         text,                      -- auto-generado del primer mensaje
   model_plan    text,                      -- 'genesis' | 'hazak'
   is_incognito  boolean default false,     -- si true, no guardar mensajes
+  is_starred    boolean default false,     -- [Punto 38] fijar conversación
   created_at    timestamp default now(),
   updated_at    timestamp default now()
 );
@@ -57,6 +58,7 @@ create table messages (
   model_called      text,                   -- modelo real que respondió (interno, no mostrar al user)
   tokens_input      int,
   tokens_output     int,
+  sources           jsonb,                  -- [Punto 00] fuentes consultadas [{title, url, favicon}]
   created_at        timestamp default now()
 );
 
@@ -191,6 +193,32 @@ create policy "guest_ip_limits_insert_public" on guest_ip_limits
   for insert with check (true);
 create policy "guest_ip_limits_update_public" on guest_ip_limits
   for update using (true);
+
+-- ─── FEEDBACK ──────────────────────────────────────────────
+-- [Punto 37 aviso] Feedback de los usuarios (like/dislike en respuestas de IA).
+-- Se guarda en Supabase para que el admin lo lea desde el dashboard.
+-- El usuario NO envía email — el modal hace INSERT directo a esta tabla.
+create table feedback (
+  id                uuid default gen_random_uuid() primary key,
+  user_id           uuid references profiles(id) on delete set null,
+  is_like           boolean not null,        -- true = me gusta, false = no me gusta
+  comment           text,                    -- comentario opcional del usuario
+  message_excerpt   text,                    -- primeros 500 chars de la respuesta de IA (para contexto)
+  conversation_id   uuid references conversations(id) on delete set null,
+  app_locale        text,                    -- idioma de la app al momento del feedback
+  app_version       text,                    -- versión de la app
+  created_at        timestamp default now()
+);
+create index feedback_user_idx on feedback (user_id);
+create index feedback_created_at_idx on feedback (created_at desc);
+alter table feedback enable row level security;
+
+-- Usuario solo puede insertar feedback (no puede ver el de otros).
+drop policy if exists "feedback_insert_own"   on feedback;
+drop policy if exists "feedback_select_own"  on feedback;
+create policy "feedback_insert_own" on feedback
+  for insert with check (auth.uid() = user_id);
+-- Solo el admin (service_role del backend) puede leer todo el feedback.
 
 -- ═══════════════════════════════════════════════════════════
 -- NOTA OPERATIVA

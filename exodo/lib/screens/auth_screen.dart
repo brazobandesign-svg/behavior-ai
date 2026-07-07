@@ -21,9 +21,7 @@ class _AuthScreenState extends State<AuthScreen> {
     try {
       await SupabaseService.signInAnonymously();
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error Guest: ${e.toString()}')));
-      }
+      // Error silencioso — sin SnackBar
     } finally {
       if (mounted) setState(() => isLoading = false);
     }
@@ -90,7 +88,7 @@ class _AuthScreenState extends State<AuthScreen> {
                             try {
                               await SupabaseService.signInWithGoogle();
                             } catch (e) {
-                              if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error Google: $e')));
+                              // Error silencioso — sin SnackBar
                             } finally {
                               if (context.mounted) setState(() => isLoading = false);
                             }

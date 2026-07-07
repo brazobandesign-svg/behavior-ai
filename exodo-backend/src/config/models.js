@@ -38,7 +38,7 @@ const MODEL_MAP = {
   },
   IMAGEN: {
     genesis: null,
-    hazak:   'flux-local',
+    hazak:   null,
   },
 };
 
@@ -70,7 +70,6 @@ const MODEL_TO_PROVIDER = {
   'nim-minimax-m2-7': 'nim',
   'nim-llama-4':        'nim',
   'qwen2.5:7b':         'ollama',
-  'flux-local':         'flux',
 };
 
 module.exports = {

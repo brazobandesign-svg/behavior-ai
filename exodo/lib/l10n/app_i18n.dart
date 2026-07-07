@@ -119,12 +119,12 @@ class _AppI18nProviderState extends State<AppI18nProvider> {
 /// Acceso al estado para setear locale desde cualquier sitio (e.g. drawer).
 extension AppI18nContext on BuildContext {
   Future<void> setLocale(String? code) async {
-    final inherited = dependOnInheritedWidgetOfExactType<_I18nScope>();
+    final inherited = getInheritedWidgetOfExactType<_I18nScope>();
     await inherited?.state.setLocale(code);
   }
 
   String? get currentLocaleCode {
-    final inherited = dependOnInheritedWidgetOfExactType<_I18nScope>();
+    final inherited = getInheritedWidgetOfExactType<_I18nScope>();
     return inherited?.state.currentLocale;
   }
 }

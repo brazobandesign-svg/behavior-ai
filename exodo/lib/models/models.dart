@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:typed_data';
 
 class UserProfile {
   final String id;
@@ -201,3 +202,33 @@ const List<ExodoModelOption> exodoModels = [
     descriptionEn: 'Advanced reasoning for demanding tasks.',
   ),
 ];
+
+/// [Punto 40] Datos de un archivo adjunto listo para enviar a la API.
+/// Guarda la ruta real, los bytes leídos y el MIME type para construir
+/// payloads multimodales (imágenes base64) o texto (PDF/txt).
+class Attachment {
+  final String filePath;
+  final String fileName;
+  final Uint8List bytes;
+  final String mimeType;
+
+  const Attachment({
+    required this.filePath,
+    required this.fileName,
+    required this.bytes,
+    required this.mimeType,
+  });
+
+  bool get isImage =>
+      mimeType.startsWith('image/') && mimeType != 'image/svg+xml';
+
+  bool get isPdf => mimeType == 'application/pdf';
+
+  bool get isText => mimeType.startsWith('text/') ||
+      fileName.endsWith('.md') ||
+      fileName.endsWith('.json') ||
+      fileName.endsWith('.xml') ||
+      fileName.endsWith('.csv');
+
+  String get base64 => base64Encode(bytes);
+}

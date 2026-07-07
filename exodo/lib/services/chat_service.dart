@@ -16,12 +16,24 @@ class ChatService {
     //   3. 10.0.2.2 (loopback del emulador Android).
     const env = String.fromEnvironment('BACKEND_URL');
     final list = <String>[];
-    if (env.isNotEmpty) list.add(env);
-    if (!kIsWeb && (defaultTargetPlatform == TargetPlatform.android || defaultTargetPlatform == TargetPlatform.iOS)) {
-      list.add('http://localhost:3000/api/chat');  // funciona con `adb reverse tcp:3000 tcp:3000`
-      list.add('http://10.0.2.2:3000/api/chat');   // emulador Android Studio
+    if (env.isNotEmpty) {
+      // [Punto 41] BACKEND_URL debe incluir /api/chat. Si el usuario pasó solo
+      // la raíz (ej: --dart-define=BACKEND_URL=https://xxx.trycloudflare.com),
+      // se lo agregamos para que el POST aterrice en el endpoint correcto.
+      final url = env.endsWith('/api/chat') ? env : '$env/api/chat';
+      list.add(url);
     }
-    list.add('http://localhost:3000/api/chat');
+    if (kDebugMode) {
+      if (!kIsWeb &&
+          (defaultTargetPlatform == TargetPlatform.android ||
+              defaultTargetPlatform == TargetPlatform.iOS)) {
+        list.add(
+          'http://localhost:3000/api/chat',
+        ); // funciona con `adb reverse tcp:3000 tcp:3000`
+        list.add('http://10.0.2.2:3000/api/chat'); // emulador Android Studio
+      }
+      list.add('http://localhost:3000/api/chat');
+    }
     return list;
   }
 
@@ -41,6 +53,7 @@ class ChatService {
     String? conversationId,
     List<Map<String, dynamic>>? history,
     String? modelOverride,
+    List<Attachment>? attachments, // [Punto 40] archivos para multimodal
     required void Function(String chunk) onChunk,
     required void Function(String fullText, List<Source> sources) onComplete,
     required void Function(String error) onError,
@@ -52,8 +65,24 @@ class ChatService {
       _isCancelled = false;
       _activeClient?.close();
 
+      // [Punto 40+42] NO saltamos el backend cuando hay adjuntos.
+      // Los adjuntos se codifican en base64 y se mandan al backend,
+      // que los usa para enriquecer el mensaje antes de clasificar
+      // la intención y rutear al especialista correcto.
+
       http.StreamedResponse? response;
       http.Client? client;
+
+      // [Punto 40+42] Codificar adjuntos como base64 para el backend.
+      final attachmentsJson = attachments
+          ?.map(
+            (a) => {
+              'file_name': a.fileName,
+              'mime_type': a.mimeType,
+              'base64': a.base64,
+            },
+          )
+          .toList();
 
       for (final url in _candidateUrls) {
         if (_isCancelled) return;
@@ -69,8 +98,12 @@ class ChatService {
             'conversationId': conversationId,
             'history': history,
             'model_override': modelOverride,
+            if (attachmentsJson != null && attachmentsJson.isNotEmpty)
+              'attachments': attachmentsJson, // [Punto 40+42]
           });
-          final resp = await reqClient.send(request).timeout(const Duration(milliseconds: 1800));
+          final resp = await reqClient
+              .send(request)
+              .timeout(const Duration(seconds: 12));
           client = reqClient;
           _activeClient = client;
           response = resp;
@@ -83,13 +116,8 @@ class ChatService {
         if (_activeClient == client) _activeClient = null;
         client?.close();
         if (!_isCancelled) {
-          await _sendDirectNimStream(
-            message: message,
-            history: history,
-            modelOverride: modelOverride,
-            onChunk: onChunk,
-            onComplete: onComplete,
-            onError: onError,
+          onError(
+            'Sin conexión con el servidor. Verifica tu red e inténtalo de nuevo.',
           );
         }
         return;
@@ -101,185 +129,85 @@ class ChatService {
       response.stream
           .transform(utf8.decoder)
           .transform(const LineSplitter())
-          .listen((line) {
-        if (_isCancelled) return;
-        if (line.startsWith('data: ')) {
-          final dataStr = line.substring(6).trim();
-          if (dataStr.isEmpty) return;
-          try {
-            final data = jsonDecode(dataStr);
-            final type = data['type'];
-            if (type == 'chunk') {
-              final content = data['content'] as String? ?? '';
-              fullText += content;
-              onChunk(content);
-            } else if (type == 'done') {
-              final content = data['content'] as String? ?? fullText;
-              fullText = content;
-              final rawSources = data['sources'];
-              if (rawSources is List) {
-                sources = rawSources
-                    .where((s) => s is Map)
-                    .map((s) => Source.fromJson(Map<String, dynamic>.from(s as Map)))
-                    .toList();
+          .listen(
+            (line) {
+              if (_isCancelled) return;
+              if (line.startsWith('data: ')) {
+                final dataStr = line.substring(6).trim();
+                if (dataStr.isEmpty) return;
+                try {
+                  final data = jsonDecode(dataStr);
+                  final type = data['type'];
+                  if (type == 'heartbeat') {
+                    // [Punto 41+42] Heartbeat del backend para mantener viva la conexión SSE.
+                    // No hacemos nada, solo evitamos que el canal se cierre por idle timeout.
+                  } else if (type == 'chunk') {
+                    final content = data['content'] as String? ?? '';
+                    fullText += content;
+                    onChunk(content);
+                  } else if (type == 'done') {
+                    final content = data['content'] as String? ?? fullText;
+                    fullText = content;
+                    final rawSources = data['sources'];
+                    if (rawSources is List) {
+                      sources = rawSources
+                          .where((s) => s is Map)
+                          .map(
+                            (s) => Source.fromJson(
+                              Map<String, dynamic>.from(s as Map),
+                            ),
+                          )
+                          .toList();
+                    }
+                    _enrichSources(message, fullText, sources)
+                        .then((enriched) {
+                          onComplete(fullText, enriched);
+                        })
+                        .catchError((_) {
+                          // Si enriquecer fuentes falla (red, timeout), entregamos
+                          // la respuesta SIN fuentes en lugar de dejar la UI zombie.
+                          onComplete(fullText, sources);
+                        });
+                  } else if (type == 'error') {
+                    onError(data['content'] as String? ?? 'Error en streaming');
+                  }
+                } catch (_) {}
               }
-              _enrichSources(message, fullText, sources).then((enriched) {
-                onComplete(fullText, enriched);
-              });
-            } else if (type == 'error') {
-              onError(data['content'] as String? ?? 'Error en streaming');
-            }
-          } catch (_) {}
-        }
-      }, onDone: () {
-        if (_activeClient == client) _activeClient = null;
-        client?.close();
-      }, onError: (e) {
-        if (_activeClient == client) _activeClient = null;
-        client?.close();
-        if (!_isCancelled) onError(e.toString());
-      });
+            },
+            onDone: () {
+              if (_activeClient == client) _activeClient = null;
+              client?.close();
+              // Si el stream cerró sin enviar 'done', finalizar con lo que hay.
+              if (!_isCancelled && fullText.isNotEmpty) {
+                onComplete(fullText, sources);
+              } else if (!_isCancelled && fullText.isEmpty) {
+                // Stream cerró sin enviar nada — notificar error para
+                // desbloquear isGenerating en AppState.
+                onError('La conexión se cerró inesperadamente.');
+              }
+            },
+            onError: (e) {
+              if (_activeClient == client) _activeClient = null;
+              client?.close();
+              if (!_isCancelled) onError(e.toString());
+            },
+          );
     } catch (e) {
       if (!_isCancelled) onError(e.toString());
     }
   }
 
-  static Future<void> _sendDirectNimStream({
-    required String message,
-    List<Map<String, dynamic>>? history,
-    String? modelOverride,
-    required void Function(String chunk) onChunk,
-    required void Function(String fullText, List<Source> sources) onComplete,
-    required void Function(String error) onError,
-  }) async {
-    try {
-      String nimModel = 'nvidia/nemotron-3-ultra-550b-a55b';
-      String apiKey = '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';
-
-      if (modelOverride == 'nim-deepseek-v4-pro') {
-        nimModel = 'meta/llama-3.3-70b-instruct';
-        apiKey = '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';
-      } else if (modelOverride == 'nim-deepseek-v4-flash') {
-        nimModel = 'minimaxai/minimax-m3';
-        apiKey = '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';
-      } else if (modelOverride == 'nim-minimax-m3') {
-        nimModel = 'minimaxai/minimax-m3';
-        apiKey = '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';
-      }
-
-      final reqClient = http.Client();
-      _activeClient = reqClient;
-      final request = http.Request('POST', Uri.parse('https://integrate.api.nvidia.com/v1/chat/completions'));
-      request.headers.addAll({
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer $apiKey',
-      });
-
-      const systemPrompt = "Eres Éxodo by Behavior, un asistente de IA avanzado con contexto dominicano. Sé útil, claro, directo y preciso.";
-      final cleanHistory = <Map<String, dynamic>>[];
-      if (history != null) {
-        for (final h in history) {
-          final r = h['role']?.toString() ?? 'user';
-          final c = h['content']?.toString() ?? '';
-          if (c.trim().isEmpty) continue;
-          if (cleanHistory.isNotEmpty && cleanHistory.last['role'] == r && cleanHistory.last['content'] == c) continue;
-          cleanHistory.add({'role': r, 'content': c});
-        }
-        if (cleanHistory.isNotEmpty && cleanHistory.last['role'] == 'user' && cleanHistory.last['content'] == message) {
-          cleanHistory.removeLast();
-        }
-      }
-
-      final messages = [
-        {'role': 'system', 'content': systemPrompt},
-        ...cleanHistory,
-        {'role': 'user', 'content': message},
-      ];
-
-      request.body = jsonEncode({
-        'model': nimModel,
-        'messages': messages,
-        'temperature': 0.7,
-        'max_tokens': 4096,
-        'stream': true,
-      });
-
-      final response = await reqClient.send(request).timeout(const Duration(seconds: 45));
-      if (response.statusCode != 200) {
-        final errBody = await response.stream.bytesToString();
-        if (!_isCancelled) onError('Error de API directa (${response.statusCode}): $errBody');
-        reqClient.close();
-        return;
-      }
-
-      String fullText = '';
-      List<Source> sources = [];
-      bool isCompleted = false;
-      response.stream
-          .transform(utf8.decoder)
-          .transform(const LineSplitter())
-          .listen((line) {
-        if (_isCancelled) return;
-        if (line.startsWith('data: ')) {
-          final dataStr = line.substring(6).trim();
-          if (dataStr == '[DONE]') {
-            if (!isCompleted) {
-              isCompleted = true;
-              _enrichSources(message, fullText, sources).then((enriched) {
-                onComplete(fullText, enriched);
-              });
-            }
-            return;
-          }
-          if (dataStr.isEmpty) return;
-          try {
-            final data = jsonDecode(dataStr);
-            if (data['sources'] is List) {
-              final raw = data['sources'] as List;
-              sources = raw.where((s) => s is Map).map((s) => Source.fromJson(Map<String, dynamic>.from(s as Map))).toList();
-            }
-            final choices = data['choices'] as List?;
-            if (choices != null && choices.isNotEmpty) {
-              final delta = choices[0]['delta'];
-              if (delta != null && delta['content'] != null) {
-                final content = delta['content'] as String;
-                fullText += content;
-                onChunk(content);
-              }
-            }
-          } catch (_) {}
-        }
-      }, onDone: () {
-        if (_activeClient == reqClient) _activeClient = null;
-        reqClient.close();
-        if (fullText.isNotEmpty && !isCompleted) {
-          isCompleted = true;
-          _enrichSources(message, fullText, sources).then((enriched) {
-            onComplete(fullText, enriched);
-          });
-        }
-      }, onError: (e) {
-        if (_activeClient == reqClient) _activeClient = null;
-        reqClient.close();
-        if (fullText.isNotEmpty && !isCompleted) {
-          isCompleted = true;
-          _enrichSources(message, fullText, sources).then((enriched) {
-            onComplete(fullText, enriched);
-          });
-        } else if (!_isCancelled) {
-          onError(e.toString());
-        }
-      });
-    } catch (e) {
-      if (!_isCancelled) onError('Error de conexión: ${e.toString().replaceAll('Exception: ', '')}');
-    }
-  }
-
-  static Future<List<Source>> _enrichSources(String userPrompt, String responseText, List<Source> existingSources) async {
+  static Future<List<Source>> _enrichSources(
+    String userPrompt,
+    String responseText,
+    List<Source> existingSources,
+  ) async {
     if (existingSources.isNotEmpty) {
-      return existingSources.length > 10 ? existingSources.take(10).toList() : existingSources;
+      return existingSources.length > 10
+          ? existingSources.take(10).toList()
+          : existingSources;
     }
-    
+
     final List<Source> found = [];
     final Set<String> seenUrls = {};
 
@@ -289,12 +217,19 @@ class ChatService {
       final title = match.group(1)?.trim() ?? '';
       final url = match.group(2)?.trim() ?? '';
       if (url.isNotEmpty && !url.contains('localhost') && seenUrls.add(url)) {
-        found.add(Source(title: title.isNotEmpty ? title : Uri.parse(url).host, url: url));
+        found.add(
+          Source(
+            title: title.isNotEmpty ? title : Uri.parse(url).host,
+            url: url,
+          ),
+        );
       }
     }
 
     // 2. Extraer URLs en texto plano https://...
-    final urlRegex = RegExp(r'(https?://[a-zA-Z0-9\-\.]+\.[a-zA-Z]{2,}(?:/[^\s\)\]\>"]*)?)');
+    final urlRegex = RegExp(
+      r'(https?://[a-zA-Z0-9\\-\\.]+\\.[a-zA-Z]{2,}(?:/[^\\s\\)\\]\\>"]*)?)',
+    );
     for (final match in urlRegex.allMatches(responseText)) {
       final url = match.group(1)?.trim() ?? '';
       if (url.isNotEmpty && !url.contains('localhost') && seenUrls.add(url)) {
@@ -303,75 +238,12 @@ class ChatService {
       }
     }
 
-    // 3. Si sigue vacío y no es un saludo básico, buscar en Wikipedia para ofrecer fuentes reales
-    final cleanQuery = userPrompt.trim();
-    final lower = cleanQuery.toLowerCase();
-    final isGreeting = ['hola', 'hey', 'buenos dias', 'buenas', 'gracias', 'que tal', 'hi', 'hello', 'ok', 'vale'].contains(lower);
-
-    if (found.isEmpty && cleanQuery.length >= 3 && !isGreeting) {
-      try {
-        String searchQuery = cleanQuery.replaceAll(RegExp(r'(busca en internet|buscar en la web|según la web|segun la web|busca en la web|dime sobre|háblame de|hablame de|qué sabes sobre|que sabes sobre|quién fue|quien fue|historia de|información sobre|informacion sobre)', caseSensitive: false), '').trim();
-        if (searchQuery.isEmpty || searchQuery.length < 2) searchQuery = cleanQuery;
-
-        final lang = 'es';
-        final headers = {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-          'Accept': 'application/json',
-        };
-
-        // 3a. Intentar Wikipedia OpenSearch (muy rápido y exacto)
-        try {
-          final osUri = Uri.parse('https://$lang.wikipedia.org/w/api.php?action=opensearch&search=${Uri.encodeComponent(searchQuery)}&limit=8&format=json');
-          final respOs = await http.get(osUri, headers: headers).timeout(const Duration(seconds: 4));
-          if (respOs.statusCode == 200) {
-            final data = jsonDecode(respOs.body) as List?;
-            if (data != null && data.length >= 4) {
-              final titles = data[1] as List?;
-              final urls = data[3] as List?;
-              if (titles != null && urls != null) {
-                for (int i = 0; i < titles.length && i < urls.length; i++) {
-                  final t = titles[i]?.toString() ?? '';
-                  final u = urls[i]?.toString() ?? '';
-                  if (t.isNotEmpty && u.isNotEmpty && seenUrls.add(u)) {
-                    found.add(Source(title: t, url: u));
-                  }
-                }
-              }
-            }
-          }
-        } catch (_) {}
-
-        // 3b. Si tiene menos de 5 resultados, complementar con Wikipedia Query Search
-        if (found.length < 5) {
-          try {
-            final searchUri = Uri.parse('https://$lang.wikipedia.org/w/api.php?action=query&list=search&srsearch=${Uri.encodeComponent(searchQuery)}&format=json');
-            final resp = await http.get(searchUri, headers: headers).timeout(const Duration(seconds: 4));
-            if (resp.statusCode == 200) {
-              final data = jsonDecode(resp.body);
-              final searchResults = data['query']?['search'] as List?;
-              if (searchResults != null) {
-                for (final item in searchResults.take(8)) {
-                  final title = item['title']?.toString() ?? '';
-                  if (title.isNotEmpty) {
-                    final url = 'https://$lang.wikipedia.org/wiki/${Uri.encodeComponent(title.replaceAll(' ', '_'))}';
-                    if (seenUrls.add(url)) {
-                      found.add(Source(title: title, url: url));
-                    }
-                  }
-                }
-              }
-            }
-          } catch (_) {}
-        }
-      } catch (_) {}
-
-      // 3c. Respaldo garantizado siempre fuera del try/catch
-      if (found.isEmpty) {
-        final cleanTitle = cleanQuery;
-        final fallbackUrl = 'https://es.wikipedia.org/wiki/Especial:Buscar?search=${Uri.encodeComponent(cleanTitle)}';
-        found.add(Source(title: 'Wikipedia: $cleanTitle', url: fallbackUrl));
-      }
-    }
+    // [Punto 45] NO fabricamos fuentes. Solo mostramos las que el modelo
+    // realmente citó en su respuesta. Fabricar links de Wikipedia o de
+    // cualquier API de búsqueda a posteriori es deshonesto: el modelo
+    // no consultó esas páginas. Si no hay fuentes reales, no las hay.
+    // Esto elimina el bug donde todas las respuestas mostraban los mismos
+    // links de Wikipedia sin importar el tema preguntado.
 
     if (found.length > 10) {
       return found.take(10).toList();

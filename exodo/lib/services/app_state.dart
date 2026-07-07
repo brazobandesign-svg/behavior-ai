@@ -1,4 +1,6 @@
 import 'dart:convert';
+import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
@@ -7,6 +9,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/models.dart';
 import 'supabase_service.dart';
 import 'chat_service.dart';
+import 'connectivity_service.dart';
 import '../l10n/app_i18n.dart';
 
 class AppState extends ChangeNotifier {
@@ -14,16 +17,19 @@ class AppState extends ChangeNotifier {
   List<Conversation> conversations = [];
   Conversation? activeConversation;
   List<ChatMessage> currentMessages = [];
-  
+
   bool isIncognito = false;
   bool showTab2Banner = true;
   bool isDarkMode = true;
   bool guestIsBlocked = false;
   ExodoModelOption selectedModel = exodoModels[0]; // Origo (G1.1)
   double? currentTempC;
-  
+
+
+
   int tokensUsed = 0;
-  int get tokensLimit => 15000; // Temporal para pruebas (antes isPro ? 300 : 100)
+  int get tokensLimit =>
+      15000; // Temporal para pruebas (antes isPro ? 300 : 100)
   DateTime? tokensResetTime;
   bool get isPro => profile?.plan == 'hazak';
   bool isThinking = false;
@@ -31,10 +37,17 @@ class AppState extends ChangeNotifier {
   String? errorMessage;
   int guestMessagesSessionCount = 0;
 
+  // [Punto 43] Conectividad: la app detecta si hay internet en tiempo real.
+  bool _isOnline = true;
+  bool get isOnline => _isOnline;
+  StreamSubscription<bool>? _connectivitySub;
+  StreamSubscription<AuthState>? _authSub;
+
   bool get isGuestUser {
     final u = SupabaseService.currentUser;
     if (u == null) return false;
-    return u.isAnonymous == true || (u.email == null || u.email!.trim().isEmpty);
+    return u.isAnonymous == true ||
+        (u.email == null || u.email!.trim().isEmpty);
   }
 
   AppState() {
@@ -44,7 +57,11 @@ class AppState extends ChangeNotifier {
 
   Future<void> _fetchWeather() async {
     try {
-      final res = await http.get(Uri.parse('https://api.open-meteo.com/v1/forecast?latitude=18.4861&longitude=-69.9312&current=temperature_2m'));
+      final res = await http.get(
+        Uri.parse(
+          'https://api.open-meteo.com/v1/forecast?latitude=18.4861&longitude=-69.9312&current=temperature_2m',
+        ),
+      );
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body);
         currentTempC = data['current']['temperature_2m'] as double?;
@@ -54,78 +71,166 @@ class AppState extends ChangeNotifier {
   }
 
   Future<void> _init() async {
-    SupabaseService.client.auth.onAuthStateChange.listen((data) async {
+    // [Punto 43] Inicializar detector de conectividad.
+    final connectivity = ConnectivityService();
+    connectivity.init();
+    _isOnline = connectivity.isOnline;
+    _connectivitySub = connectivity.onConnectivityChanged.listen((online) {
+      _isOnline = online;
+      notifyListeners();
+    });
+
+    _authSub = SupabaseService.client.auth.onAuthStateChange.listen((data) async {
       final event = data.event;
-      if (event == AuthChangeEvent.signedIn || event == AuthChangeEvent.initialSession) {
-        stopGeneration();
+      if (event == AuthChangeEvent.signedIn ||
+          event == AuthChangeEvent.initialSession) {
+        // [Punto 36 aviso] Antes: `stopGeneration()` se llamaba aquí, lo que
+        // añadía un mensaje "You stopped the response" a `currentMessages` y
+        // notificaba listeners ANTES de que `loadUserData` → `startNewChat`
+        // limpiaran el chat. Resultado: el usuario veía un flash del mensaje
+        // "stopped..." al iniciar sesión. Ahora: cancelamos el stream en
+        // background pero NO añadimos ningún mensaje, y limpiamos los
+        // mensajes inmediatamente para garantizar un inicio limpio.
+        ChatService.cancelStream();
+        currentMessages = [];
+        isThinking = false;
+        isGenerating = false;
         await loadUserData();
       } else if (event == AuthChangeEvent.signedOut) {
-        stopGeneration();
+        ChatService.cancelStream();
         profile = null;
         conversations = [];
         activeConversation = null;
         currentMessages = [];
         tokensUsed = 0;
         selectedModel = exodoModels[0];
+        isThinking = false;
+        isGenerating = false;
+        // [Sprint 0 fix] Limpiar modelo persistido al cerrar sesión.
+        SharedPreferences.getInstance().then(
+          (prefs) => prefs.remove('exodo_selected_model'),
+        );
         notifyListeners();
       }
     });
   }
 
-  Future<void> loadUserData() async {
-    profile = await SupabaseService.getProfile();
-    final currentUserEmail = SupabaseService.currentUser?.email;
-    if (currentUserEmail != null && currentUserEmail.toLowerCase() == 'brazobandesign@gmail.com') {
-      if (profile != null && profile!.plan != 'hazak') {
-        SupabaseService.client.from('profiles').update({'plan': 'hazak'}).eq('id', profile!.id);
-        profile = UserProfile(
-          id: profile!.id,
-          fullName: profile!.fullName,
-          plan: 'hazak',
-          avatarUrl: profile!.avatarUrl,
-          onboarding: profile!.onboarding,
-        );
-      }
-    }
-    if (isGuestUser || isIncognito) {
-      conversations = [];
-    } else {
-      conversations = await SupabaseService.getConversations();
-    }
-    
-    if (profile?.plan == 'hazak') {
-      selectedModel = exodoModels[1];
-    } else {
-      selectedModel = exodoModels[0];
-    }
+  @override
+  void dispose() {
+    _connectivitySub?.cancel();
+    _authSub?.cancel();
+    super.dispose();
+  }
 
-    final usage = await SupabaseService.getTodayUsage();
-    if (usage != null) {
-      tokensUsed = usage['tokens_used'] as int? ?? 0;
-      if (tokensUsed > 0) {
-        if (usage['created_at'] != null) {
-          tokensResetTime = DateTime.tryParse(usage['created_at'].toString())?.toLocal().add(const Duration(hours: 24));
-        } else {
-          tokensResetTime = DateTime.now().add(const Duration(hours: 24));
-        }
-      } else {
-        tokensResetTime = null;
+  Future<void> loadUserData() async {
+    // 1. CACHE-FIRST (Optimistic UI): Leer al instante del disco local (0-5ms)
+    // para que la interfaz muestre el chat inmediatamente sin esperar a internet.
+    final prefs = await SharedPreferences.getInstance();
+    final savedModelId = prefs.getString('exodo_selected_model');
+    if (savedModelId != null) {
+      final found = exodoModels.where((m) => m.id == savedModelId);
+      if (found.isNotEmpty) {
+        selectedModel = found.first;
       }
-    } else {
-      tokensUsed = 0;
-      tokensResetTime = null;
+    }
+    final savedProfileJson = prefs.getString('exodo_cached_profile');
+    if (savedProfileJson != null) {
+      try {
+        profile = UserProfile.fromJson(jsonDecode(savedProfileJson));
+        if (savedModelId == null) {
+          selectedModel = profile?.plan == 'hazak' ? exodoModels[1] : exodoModels[0];
+        }
+      } catch (_) {}
     }
 
     startNewChat();
-    if (isGuestUser) {
-      guestIsBlocked = await _checkHardwareBlocked();
-    } else {
-      guestIsBlocked = false;
-    }
-    notifyListeners();
+    notifyListeners(); // ¡Abre el chat en pantalla inmediatamente!
+
+    // 2. BACKGROUND SYNC: Consultar la nube de Supabase en segundo plano sin bloquear.
+    Future.wait([
+      SupabaseService.getProfile().catchError((_) => null),
+      (isGuestUser || isIncognito)
+          ? Future.value(<Conversation>[])
+          : SupabaseService.getConversations().catchError((_) => <Conversation>[]),
+      SupabaseService.getTodayUsage().catchError((_) => null),
+      isGuestUser ? _checkHardwareBlocked().catchError((_) => false) : Future.value(false),
+    ]).then((results) {
+      final fetchedProfile = results[0] as UserProfile?;
+      final fetchedConvs = results[1] as List<Conversation>;
+      final usage = results[2] as Map<String, dynamic>?;
+      guestIsBlocked = results[3] as bool;
+
+      if (fetchedProfile != null) {
+        profile = fetchedProfile;
+        try {
+          prefs.setString('exodo_cached_profile', jsonEncode({
+            'id': profile!.id,
+            'full_name': profile!.fullName,
+            'plan': profile!.plan,
+            'avatar_url': profile!.avatarUrl,
+            'onboarding': profile!.onboarding,
+          }));
+        } catch (_) {}
+      }
+
+      conversations = fetchedConvs;
+
+      final currentUserEmail = SupabaseService.currentUser?.email;
+      if (currentUserEmail != null &&
+          currentUserEmail.toLowerCase() == 'brazobandesign@gmail.com') {
+        if (profile != null && profile!.plan != 'hazak') {
+          SupabaseService.client
+              .from('profiles')
+              .update({'plan': 'hazak'})
+              .eq('id', profile!.id)
+              .then((_) {})
+              .catchError((_) {});
+          profile = UserProfile(
+            id: profile!.id,
+            fullName: profile!.fullName,
+            plan: 'hazak',
+            avatarUrl: profile!.avatarUrl,
+            onboarding: profile!.onboarding,
+          );
+        }
+      }
+
+      if (savedModelId == null) {
+        selectedModel = profile?.plan == 'hazak' ? exodoModels[1] : exodoModels[0];
+      }
+
+      if (usage != null) {
+        tokensUsed = usage['tokens_used'] as int? ?? 0;
+        if (tokensUsed > 0) {
+          if (usage['created_at'] != null) {
+            tokensResetTime = DateTime.tryParse(
+              usage['created_at'].toString(),
+            )?.toLocal().add(const Duration(hours: 24));
+          } else {
+            tokensResetTime = DateTime.now().add(const Duration(hours: 24));
+          }
+        } else {
+          tokensResetTime = null;
+        }
+      } else {
+        tokensUsed = 0;
+        tokensResetTime = null;
+      }
+
+      notifyListeners();
+    }).catchError((_) {});
   }
 
   Future<void> selectConversation(Conversation conv) async {
+    // [Sprint 0] Ownership check: verificar que la conversación pertenece al usuario actual.
+    final currentUserId = SupabaseService.currentUser?.id;
+    if (currentUserId != null && conv.userId != currentUserId) {
+      if (kDebugMode)
+        debugPrint(
+          '[AppState] selectConversation bloqueado: conv.userId=${conv.userId} != currentUserId=$currentUserId',
+        );
+      return;
+    }
     if (isIncognito) {
       currentMessages.clear();
     }
@@ -216,6 +321,14 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Sale de incógnito y limpia mensajes. Llamado desde chat_screen
+  /// al abrir el drawer estando en incógnito.
+  void exitIncognitoAndClear() {
+    currentMessages.clear();
+    isIncognito = false;
+    notifyListeners();
+  }
+
   void dismissTab2Banner() {
     showTab2Banner = false;
     notifyListeners();
@@ -226,6 +339,10 @@ class AppState extends ChangeNotifier {
       return;
     }
     selectedModel = option;
+    // [Sprint 0] Persistir selección de modelo para que sobreviva reinicios.
+    SharedPreferences.getInstance().then((prefs) {
+      prefs.setString('exodo_selected_model', option.id);
+    });
     notifyListeners();
   }
 
@@ -238,7 +355,10 @@ class AppState extends ChangeNotifier {
     final user = SupabaseService.currentUser;
     if (user != null && user.userMetadata != null) {
       final meta = user.userMetadata!;
-      final url = meta['avatar_url']?.toString() ?? meta['picture']?.toString() ?? meta['photo_url']?.toString();
+      final url =
+          meta['avatar_url']?.toString() ??
+          meta['picture']?.toString() ??
+          meta['photo_url']?.toString();
       if (url != null && url.isNotEmpty) {
         return url;
       }
@@ -246,9 +366,14 @@ class AppState extends ChangeNotifier {
     return null;
   }
 
-  Future<bool> updateProfileDetails(String newFullName, String newNickname) async {
+  Future<bool> updateProfileDetails(
+    String newFullName,
+    String newNickname,
+  ) async {
     if (profile != null) {
-      final updatedOnboarding = Map<String, dynamic>.from(profile!.onboarding ?? {});
+      final updatedOnboarding = Map<String, dynamic>.from(
+        profile!.onboarding ?? {},
+      );
       updatedOnboarding['nickname'] = newNickname;
 
       final oldProfile = profile;
@@ -262,10 +387,10 @@ class AppState extends ChangeNotifier {
       notifyListeners();
 
       try {
-        await SupabaseService.client.from('profiles').update({
-          'full_name': newFullName,
-          'onboarding': updatedOnboarding,
-        }).eq('id', profile!.id);
+        await SupabaseService.client
+            .from('profiles')
+            .update({'full_name': newFullName, 'onboarding': updatedOnboarding})
+            .eq('id', profile!.id);
         return true;
       } catch (e) {
         profile = oldProfile;
@@ -293,7 +418,19 @@ class AppState extends ChangeNotifier {
     // Evita que usuarios en cuenta Free obtengan Pro y pasen al modelo XPi sin pagar.
   }
 
-  void cancelProPlan() {
+  // [Punto 39] Borra todo el historial de conversaciones del usuario.
+  // conecta con Supabase: elimina todas las conversations del user_id actual
+  // (los mensajes se borran en cascada ON DELETE CASCADE).
+  // Limpia localmente: conversaciones, conversación activa, mensajes actuales.
+  Future<void> clearHistory() async {
+    await SupabaseService.deleteAllConversations();
+    conversations = [];
+    activeConversation = null;
+    currentMessages = [];
+    notifyListeners();
+  }
+
+  Future<void> cancelProPlan() async {
     if (profile != null) {
       profile = UserProfile(
         id: profile!.id,
@@ -303,12 +440,17 @@ class AppState extends ChangeNotifier {
         onboarding: profile!.onboarding,
       );
       selectedModel = exodoModels[0];
-      SupabaseService.client.from('profiles').update({'plan': 'genesis'}).eq('id', profile!.id);
+      await SupabaseService.client
+          .from('profiles')
+          .update({'plan': 'genesis'})
+          .eq('id', profile!.id);
       notifyListeners();
     }
   }
 
-  Future<void> reformulateLastAssistantMessage(ChatMessage lastAssistant) async {
+  Future<void> reformulateLastAssistantMessage(
+    ChatMessage lastAssistant,
+  ) async {
     if (currentMessages.isEmpty) return;
 
     final isGuest = isGuestUser;
@@ -323,32 +465,38 @@ class AppState extends ChangeNotifier {
         final limitMsg = isPro
             ? AppI18n.instance.t('limit.pro_msg')
             : AppI18n.instance.t('limit.free_msg');
-        currentMessages.add(ChatMessage(
-          id: 'limit-${DateTime.now().microsecondsSinceEpoch}',
-          conversationId: activeConversation?.id ?? 'free',
-          role: 'assistant',
-          content: limitMsg,
-          createdAt: DateTime.now(),
-        ));
+        currentMessages.add(
+          ChatMessage(
+            id: 'limit-${DateTime.now().microsecondsSinceEpoch}',
+            conversationId: activeConversation?.id ?? 'free',
+            role: 'assistant',
+            content: limitMsg,
+            createdAt: DateTime.now(),
+          ),
+        );
         notifyListeners();
         return;
       }
     }
 
-    final idx = currentMessages.lastIndexWhere((m) => m.role == 'assistant' && m.id == lastAssistant.id);
+    final idx = currentMessages.lastIndexWhere(
+      (m) => m.role == 'assistant' && m.id == lastAssistant.id,
+    );
     if (idx == -1) return;
     currentMessages.removeAt(idx);
     notifyListeners();
 
     final thinkingId = 'reformulate-${DateTime.now().microsecondsSinceEpoch}';
-    currentMessages.add(ChatMessage(
-      id: thinkingId,
-      conversationId: activeConversation?.id ?? '',
-      role: 'assistant',
-      content: '',
-      createdAt: DateTime.now(),
-      isThinking: true,
-    ));
+    currentMessages.add(
+      ChatMessage(
+        id: thinkingId,
+        conversationId: activeConversation?.id ?? '',
+        role: 'assistant',
+        content: '',
+        createdAt: DateTime.now(),
+        isThinking: true,
+      ),
+    );
     notifyListeners();
 
     try {
@@ -363,6 +511,12 @@ class AppState extends ChangeNotifier {
     }
   }
 
+  void _revertTokens(int amount) {
+    if (isGuestUser || isIncognito) return;
+    tokensUsed -= amount;
+    if (tokensUsed < 0) tokensUsed = 0;
+  }
+
   Future<void> _reformulateInBackground(String thinkingId) async {
     final lastUserIdx = currentMessages.lastIndexWhere((m) => m.role == 'user');
     if (lastUserIdx == -1) {
@@ -371,12 +525,18 @@ class AppState extends ChangeNotifier {
       return;
     }
     final lastUserText = currentMessages[lastUserIdx].content;
-    tokensUsed += (lastUserText.length ~/ 3) + 15;
+    final userTokensEst = (lastUserText.length ~/ 3) + 15;
+    tokensUsed += userTokensEst;
 
     await ChatService.sendMessageStream(
       conversationId: activeConversation?.id ?? '',
       message: lastUserText,
-      history: (isIncognito || isGuestUser) ? currentMessages.where((m) => !m.isThinking).map((m) => {'role': m.role, 'content': m.content}).toList() : null,
+      history: (isIncognito || isGuestUser)
+          ? currentMessages
+                .where((m) => !m.isThinking)
+                .map((m) => {'role': m.role, 'content': m.content})
+                .toList()
+          : null,
       modelOverride: selectedModel.modelId,
       onChunk: (chunk) {
         final idx = currentMessages.indexWhere((m) => m.id == thinkingId);
@@ -389,13 +549,13 @@ class AppState extends ChangeNotifier {
           createdAt: currentMessages[idx].createdAt,
         );
         if (!isGuestUser) {
-          final currentEst = tokensUsed + (currentMessages[idx].content.length ~/ 3) + 35;
+          final currentEst =
+              tokensUsed + (currentMessages[idx].content.length ~/ 3) + 35;
           if (currentEst >= tokensLimit) {
             tokensUsed = tokensLimit;
-            final reason = isPro
-                ? AppI18n.instance.t('limit.pro_reason')
-                : AppI18n.instance.t('limit.free_reason');
-            stopGeneration(reasonText: reason);
+            // [Punto 36 aviso] Usamos _cancelGeneration() (sin mensaje stopped)
+            // porque esto lo dispara el límite de tokens, no el usuario.
+            _cancelGeneration();
             return;
           }
         }
@@ -427,6 +587,7 @@ class AppState extends ChangeNotifier {
         notifyListeners();
       },
       onError: (e) {
+        _revertTokens(userTokensEst);
         isGenerating = false;
         errorMessage = e.toString();
         notifyListeners();
@@ -434,7 +595,10 @@ class AppState extends ChangeNotifier {
     );
   }
 
-  Future<void> sendUserMessage(String text) async {
+  Future<void> sendUserMessage(
+    String text, {
+    List<Attachment>? attachments,
+  }) async {
     if (text.trim().isEmpty) return;
     final isGuest = isGuestUser;
     if (isGuest) {
@@ -449,13 +613,15 @@ class AppState extends ChangeNotifier {
         final limitMsg = isPro
             ? AppI18n.instance.t('limit.pro_msg')
             : AppI18n.instance.t('limit.free_msg');
-        currentMessages.add(ChatMessage(
-          id: 'limit-${DateTime.now().microsecondsSinceEpoch}',
-          conversationId: activeConversation?.id ?? 'free',
-          role: 'assistant',
-          content: limitMsg,
-          createdAt: DateTime.now(),
-        ));
+        currentMessages.add(
+          ChatMessage(
+            id: 'limit-${DateTime.now().microsecondsSinceEpoch}',
+            conversationId: activeConversation?.id ?? 'free',
+            role: 'assistant',
+            content: limitMsg,
+            createdAt: DateTime.now(),
+          ),
+        );
         notifyListeners();
         return;
       }
@@ -478,7 +644,8 @@ class AppState extends ChangeNotifier {
 
     // 2. Añadir mensaje de usuario a UI
     currentMessages.removeWhere((m) => m.id == 'error');
-    tokensUsed += (text.length ~/ 3) + 15;
+    final userTokensEst = (text.length ~/ 3) + 15;
+    tokensUsed += userTokensEst;
     tokensResetTime ??= DateTime.now().add(const Duration(hours: 24));
     final userMsg = ChatMessage(
       id: 'user-${DateTime.now().microsecondsSinceEpoch}',
@@ -489,13 +656,11 @@ class AppState extends ChangeNotifier {
     );
     currentMessages.add(userMsg);
     if (shouldSaveHistory && activeConversation != null) {
-      try {
-        await SupabaseService.client.from('messages').insert({
-          'conversation_id': activeConversation!.id,
-          'role': 'user',
-          'content': text,
-        });
-      } catch (_) {}
+      SupabaseService.client.from('messages').insert({
+        'conversation_id': activeConversation!.id,
+        'role': 'user',
+        'content': text,
+      }).then((_) {}).catchError((_) {});
     }
 
     // 3. Añadir burbuja temporal de pensamiento con animación personalizada
@@ -519,20 +684,29 @@ class AppState extends ChangeNotifier {
       await ChatService.sendMessageStream(
         message: text,
         conversationId: shouldSaveHistory ? activeConversation?.id : null,
-        history: (isIncognito || isGuestUser) ? currentMessages.where((m) => !m.isThinking).map((m) => {'role': m.role, 'content': m.content}).toList() : null,
+        history: (isIncognito || isGuestUser)
+            ? currentMessages
+                  .where((m) => !m.isThinking)
+                  .map((m) => {'role': m.role, 'content': m.content})
+                  .toList()
+            : null,
         modelOverride: selectedModel.modelId,
+        attachments:
+            attachments, // [Punto 40] adjuntos con bytes para multimodal
         onChunk: (chunk) {
           if (firstChunk) {
             firstChunk = false;
             currentMessages.removeWhere((m) => m.isThinking);
             isThinking = false;
-            currentMessages.add(ChatMessage(
-              id: msgId,
-              conversationId: activeConversation?.id ?? 'incognito',
-              role: 'assistant',
-              content: chunk,
-              createdAt: DateTime.now(),
-            ));
+            currentMessages.add(
+              ChatMessage(
+                id: msgId,
+                conversationId: activeConversation?.id ?? 'incognito',
+                role: 'assistant',
+                content: chunk,
+                createdAt: DateTime.now(),
+              ),
+            );
           } else {
             final idx = currentMessages.indexWhere((m) => m.id == msgId);
             if (idx != -1) {
@@ -544,13 +718,12 @@ class AppState extends ChangeNotifier {
                 sources: currentMessages[idx].sources,
                 createdAt: currentMessages[idx].createdAt,
               );
-              final currentEst = tokensUsed + (currentMessages[idx].content.length ~/ 3) + 35;
+              final currentEst =
+                  tokensUsed + (currentMessages[idx].content.length ~/ 3) + 35;
               if (!isGuestUser && currentEst >= tokensLimit) {
                 tokensUsed = tokensLimit;
-                final reason = isPro
-                    ? AppI18n.instance.t('limit.pro_reason')
-                    : AppI18n.instance.t('limit.free_reason');
-                stopGeneration(reasonText: reason);
+                // [Punto 36 aviso] _cancelGeneration sin mensaje stopped.
+                _cancelGeneration();
                 return;
               }
             }
@@ -573,24 +746,31 @@ class AppState extends ChangeNotifier {
           } else if (firstChunk) {
             currentMessages.removeWhere((m) => m.isThinking);
             isThinking = false;
-            currentMessages.add(ChatMessage(
-              id: msgId,
-              conversationId: activeConversation?.id ?? 'incognito',
-              role: 'assistant',
-              content: fullText,
-              sources: sources,
-              createdAt: DateTime.now(),
-            ));
+            currentMessages.add(
+              ChatMessage(
+                id: msgId,
+                conversationId: activeConversation?.id ?? 'incognito',
+                role: 'assistant',
+                content: fullText,
+                sources: sources,
+                createdAt: DateTime.now(),
+              ),
+            );
           }
           if (shouldSaveHistory && activeConversation != null) {
-            final sourcesJson = sources.isNotEmpty ? jsonEncode(sources.map((s) => s.toJson()).toList()) : null;
-            final contentToSave = sourcesJson != null ? '$fullText\n<!-- SOURCES: $sourcesJson -->' : fullText;
+            final sourcesJson = sources.isNotEmpty
+                ? jsonEncode(sources.map((s) => s.toJson()).toList())
+                : null;
+            final contentToSave = sourcesJson != null
+                ? '$fullText\n<!-- SOURCES: $sourcesJson -->'
+                : fullText;
             try {
               await SupabaseService.client.from('messages').insert({
                 'conversation_id': activeConversation!.id,
                 'role': 'assistant',
                 'content': contentToSave,
-                if (sources.isNotEmpty) 'sources': sources.map((s) => s.toJson()).toList(),
+                if (sources.isNotEmpty)
+                  'sources': sources.map((s) => s.toJson()).toList(),
               });
             } catch (_) {
               try {
@@ -614,39 +794,44 @@ class AppState extends ChangeNotifier {
           notifyListeners();
         },
         onError: (err) {
+          _revertTokens(userTokensEst);
           currentMessages.removeWhere((m) => m.isThinking);
           isThinking = false;
           isGenerating = false;
           errorMessage = err.replaceAll('Exception: ', '');
-          currentMessages.add(ChatMessage(
-            id: 'error',
-            conversationId: activeConversation?.id ?? 'incognito',
-            role: 'assistant',
-            content: '⚠️ $errorMessage',
-            createdAt: DateTime.now(),
-          ));
+          currentMessages.add(
+            ChatMessage(
+              id: 'error',
+              conversationId: activeConversation?.id ?? 'incognito',
+              role: 'assistant',
+              content: '⚠️ $errorMessage',
+              createdAt: DateTime.now(),
+            ),
+          );
           notifyListeners();
         },
       );
-
     } catch (e) {
+      _revertTokens(userTokensEst);
       currentMessages.removeWhere((m) => m.isThinking);
       isThinking = false;
       isGenerating = false;
       errorMessage = e.toString().replaceAll('Exception: ', '');
-      currentMessages.add(ChatMessage(
-        id: 'error',
-        conversationId: activeConversation?.id ?? 'incognito',
-        role: 'assistant',
-        content: '⚠️ $errorMessage',
-        createdAt: DateTime.now(),
-      ));
+      currentMessages.add(
+        ChatMessage(
+          id: 'error',
+          conversationId: activeConversation?.id ?? 'incognito',
+          role: 'assistant',
+          content: '⚠️ $errorMessage',
+          createdAt: DateTime.now(),
+        ),
+      );
     }
 
     notifyListeners();
   }
 
-  void updateUserMessage(String id, String newContent) {
+  Future<void> updateUserMessage(String id, String newContent) async {
     final idx = currentMessages.indexWhere((m) => m.id == id);
     if (idx == -1) return;
     final oldContent = currentMessages[idx].content;
@@ -664,7 +849,9 @@ class AppState extends ChangeNotifier {
     notifyListeners();
     if (!isIncognito && !isGuestUser && activeConversation != null) {
       try {
-        SupabaseService.client.from('messages').update({'content': newContent})
+        await SupabaseService.client
+            .from('messages')
+            .update({'content': newContent})
             .eq('conversation_id', activeConversation!.id)
             .eq('role', 'user')
             .eq('content', oldContent);
@@ -672,16 +859,35 @@ class AppState extends ChangeNotifier {
     }
   }
 
-  void stopGeneration({String? reasonText}) {
+  /// Cancela el stream de generación en curso y limpia el estado de UI
+  /// (isThinking, isGenerating, mensajes "thinking").
+  /// **NO** añade ningún mensaje al chat. Use esto siempre que quiera
+  /// parar la generación sin dejar texto residual.
+  void _cancelGeneration() {
     ChatService.cancelStream();
     currentMessages.removeWhere((m) => m.isThinking);
     isThinking = false;
     isGenerating = false;
-    
+    notifyListeners();
+  }
+
+  /// Para la generación y añade un mensaje "stopped" / razón al chat.
+  /// Solo debe llamarse cuando el usuario **explícitamente** detuvo la
+  /// generación (botón Stop) y quiere ver un mensaje de confirmación.
+  /// [Punto 36 aviso] Antes, este método también era llamado internamente
+  /// desde onChunk al exceder tokens, lo que causaba que el mensaje
+  /// "You stopped..." apareciera en TODAS las cuentas al iniciar sesión.
+  /// Ahora esos callers usan `_cancelGeneration()` directamente.
+  void stopGeneration({String? reasonText}) {
+    _cancelGeneration();
+
     final stopText = reasonText ?? AppI18n.instance.t('chat.stopped');
 
-    if (currentMessages.isEmpty || currentMessages.last.role != 'assistant' || currentMessages.last.content.trim().isEmpty) {
-      if (currentMessages.isNotEmpty && currentMessages.last.role == 'assistant') {
+    if (currentMessages.isEmpty ||
+        currentMessages.last.role != 'assistant' ||
+        currentMessages.last.content.trim().isEmpty) {
+      if (currentMessages.isNotEmpty &&
+          currentMessages.last.role == 'assistant') {
         currentMessages[currentMessages.length - 1] = ChatMessage(
           id: currentMessages.last.id,
           conversationId: currentMessages.last.conversationId,
@@ -690,13 +896,15 @@ class AppState extends ChangeNotifier {
           createdAt: currentMessages.last.createdAt,
         );
       } else {
-        currentMessages.add(ChatMessage(
-          id: 'stop-${DateTime.now().microsecondsSinceEpoch}',
-          conversationId: activeConversation?.id ?? 'guest',
-          role: 'assistant',
-          content: stopText,
-          createdAt: DateTime.now(),
-        ));
+        currentMessages.add(
+          ChatMessage(
+            id: 'stop-${DateTime.now().microsecondsSinceEpoch}',
+            conversationId: activeConversation?.id ?? 'guest',
+            role: 'assistant',
+            content: stopText,
+            createdAt: DateTime.now(),
+          ),
+        );
       }
     } else {
       final lastMsg = currentMessages.last;
@@ -720,7 +928,8 @@ class AppState extends ChangeNotifier {
       final firstMsgStr = prefs.getString('exodo_guest_first_msg_time');
       if (firstMsgStr != null) {
         final firstTime = DateTime.tryParse(firstMsgStr);
-        if (firstTime != null && DateTime.now().difference(firstTime).inHours >= 24) {
+        if (firstTime != null &&
+            DateTime.now().difference(firstTime).inHours >= 24) {
           await prefs.remove('exodo_guest_first_msg_time');
           await prefs.remove('exodo_guest_hw_count');
           guestMessagesSessionCount = 0;
@@ -739,8 +948,12 @@ class AppState extends ChangeNotifier {
     try {
       final prefs = await SharedPreferences.getInstance();
       final firstMsgStr = prefs.getString('exodo_guest_first_msg_time');
-      if (firstMsgStr == null || (prefs.getInt('exodo_guest_hw_count') ?? 0) == 0) {
-        await prefs.setString('exodo_guest_first_msg_time', DateTime.now().toIso8601String());
+      if (firstMsgStr == null ||
+          (prefs.getInt('exodo_guest_hw_count') ?? 0) == 0) {
+        await prefs.setString(
+          'exodo_guest_first_msg_time',
+          DateTime.now().toIso8601String(),
+        );
       }
       await prefs.setInt('exodo_guest_hw_count', guestMessagesSessionCount);
     } catch (_) {}
