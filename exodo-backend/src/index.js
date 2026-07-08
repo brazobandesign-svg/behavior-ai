@@ -80,6 +80,12 @@ app.listen(PORT, HOST, () => {
 function runStartupChecks() {
   const checks = [];
 
+  if (!process.env.GROQ_API_KEY) {
+    checks.push('⚠️  GROQ_API_KEY no configurada — Genesis G1.1 y fallbacks de Groq no disponibles.');
+  }
+  if (!process.env.DEEPSEEK_API_KEY) {
+    checks.push('⚠️  DEEPSEEK_API_KEY no configurada — modelos DeepSeek de XPi no disponibles.');
+  }
   if (!process.env.GOOGLE_AI_API_KEY) {
     checks.push('⚠️  GOOGLE_AI_API_KEY no configurada — el clasificador de intención usará fallback local (keyword-based).');
   }
