@@ -309,6 +309,26 @@ class _ChatComposerState extends State<ChatComposer>
     );
   }
 
+  void _triggerSend() {
+    final attachments = <Attachment>[];
+    for (final pa in _pendingAttachments) {
+      attachments.add(
+        Attachment(
+          filePath: '',
+          fileName: pa.name,
+          bytes: pa.bytes,
+          mimeType: pa.mime,
+        ),
+      );
+    }
+    setState(() {
+      _hasAttachment = false;
+      _isRecording = false;
+      _pendingAttachments.clear();
+    });
+    widget.onSend(attachments.isEmpty ? null : attachments);
+  }
+
   @override
   void dispose() {
     _auraController.dispose();
@@ -590,7 +610,7 @@ class _ChatComposerState extends State<ChatComposer>
                                 required isFocused,
                                 maxLength,
                               }) => null,
-                          onSubmitted: (_) => widget.onSend(null),
+                          onSubmitted: (_) => _triggerSend(),
                           style: TextStyle(
                             fontSize: 16,
                             color: isLight
@@ -837,28 +857,7 @@ class _ChatComposerState extends State<ChatComposer>
                                             HapticFeedback.mediumImpact();
                                             state.stopGeneration();
                                           } else if (shouldShowSend) {
-                                            final attachments = <Attachment>[];
-                                            for (final pa
-                                                in _pendingAttachments) {
-                                              attachments.add(
-                                                Attachment(
-                                                  filePath: '',
-                                                  fileName: pa.name,
-                                                  bytes: pa.bytes,
-                                                  mimeType: pa.mime,
-                                                ),
-                                              );
-                                            }
-                                            setState(() {
-                                              _hasAttachment = false;
-                                              _isRecording = false;
-                                              _pendingAttachments.clear();
-                                            });
-                                            widget.onSend(
-                                              attachments.isEmpty
-                                                  ? null
-                                                  : attachments,
-                                            );
+                                            _triggerSend();
                                           }
                                         },
                                         child: Container(

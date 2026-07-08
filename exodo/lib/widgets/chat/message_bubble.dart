@@ -122,21 +122,55 @@ class MessageBubble extends StatelessWidget {
                 if (att.isImage)
                   Padding(
                     padding: const EdgeInsets.only(bottom: 6),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(14),
-                      child: att.bytes.isNotEmpty
-                          ? Image.memory(
-                              att.bytes,
-                              fit: BoxFit.cover,
-                              height: 140,
-                            )
-                          : (att.filePath.isNotEmpty
-                              ? Image.file(
-                                  File(att.filePath),
-                                  fit: BoxFit.cover,
-                                  height: 140,
-                                )
-                              : const SizedBox.shrink()),
+                    child: GestureDetector(
+                      onTap: () {
+                        showDialog(
+                          context: context,
+                          builder: (ctx) => Dialog(
+                            backgroundColor: Colors.transparent,
+                            insetPadding: const EdgeInsets.all(16),
+                            child: Stack(
+                              alignment: Alignment.topRight,
+                              children: [
+                                InteractiveViewer(
+                                  child: ClipRRect(
+                                    borderRadius: BorderRadius.circular(16),
+                                    child: att.bytes.isNotEmpty
+                                        ? Image.memory(att.bytes)
+                                        : (att.filePath.isNotEmpty
+                                            ? Image.file(File(att.filePath))
+                                            : const SizedBox.shrink()),
+                                  ),
+                                ),
+                                IconButton(
+                                  icon: const Icon(
+                                    Icons.close,
+                                    color: Colors.white,
+                                    size: 30,
+                                  ),
+                                  onPressed: () => Navigator.pop(ctx),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(14),
+                        child: att.bytes.isNotEmpty
+                            ? Image.memory(
+                                att.bytes,
+                                fit: BoxFit.cover,
+                                height: 140,
+                              )
+                            : (att.filePath.isNotEmpty
+                                ? Image.file(
+                                    File(att.filePath),
+                                    fit: BoxFit.cover,
+                                    height: 140,
+                                  )
+                                : const SizedBox.shrink()),
+                      ),
                     ),
                   )
                 else
