@@ -78,6 +78,7 @@ class ChatMessage {
   final String? intentDetected;
   final String? modelCalled;
   final List<Source> sources;
+  final List<Attachment> attachments;
   final DateTime createdAt;
   final bool isThinking;
 
@@ -89,6 +90,7 @@ class ChatMessage {
     this.intentDetected,
     this.modelCalled,
     this.sources = const [],
+    this.attachments = const [],
     required this.createdAt,
     this.isThinking = false,
   });
@@ -130,6 +132,7 @@ class ChatMessage {
       intentDetected: json['intent_detected'] as String?,
       modelCalled: json['model_called'] as String?,
       sources: sourcesList,
+      attachments: const [],
       createdAt: json['created_at'] != null ? DateTime.parse(json['created_at'] as String) : DateTime.now(),
     );
   }

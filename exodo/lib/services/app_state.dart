@@ -662,6 +662,7 @@ class AppState extends ChangeNotifier {
       conversationId: activeConversation?.id ?? 'guest',
       role: 'user',
       content: text,
+      attachments: attachments ?? const [],
       createdAt: DateTime.now(),
     );
     currentMessages.add(userMsg);
