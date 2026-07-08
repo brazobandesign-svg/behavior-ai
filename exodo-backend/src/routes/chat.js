@@ -91,7 +91,8 @@ router.post('/', auth, planGuard, async (req, res) => {
     const { message, conversationId, model_override, attachments } = req.body;
     const { userId, plan, anonymous } = req.user;
 
-    if (!message || typeof message !== 'string' || message.trim().length === 0) {
+    const hasAttachments = attachments && Array.isArray(attachments) && attachments.length > 0;
+    if ((!message || typeof message !== 'string' || message.trim().length === 0) && !hasAttachments) {
       return res.status(400).json({ error: 'El campo "message" es requerido' });
     }
 
@@ -99,7 +100,7 @@ router.post('/', auth, planGuard, async (req, res) => {
     // PDFs: extraer texto real con pdf-parse.
     // Imágenes: etiquetar para clasificación + guardar data URI para visión.
     // Archivos de texto: decodificar y prepender al mensaje.
-    let enhancedMessage = message;
+    let enhancedMessage = message || '';
     const imageDataUris = []; // [Punto 42] data URIs para modelos con visión
 
     if (attachments && Array.isArray(attachments) && attachments.length > 0) {
@@ -141,7 +142,10 @@ router.post('/', auth, planGuard, async (req, res) => {
         }
       }
       if (parts.length > 0) {
-        enhancedMessage = parts.join('\n\n') + '\n\n' + message;
+        const msgText = (message || '').trim();
+        enhancedMessage = msgText
+          ? parts.join('\n\n') + '\n\n' + msgText
+          : parts.join('\n\n');
       }
     }
 
