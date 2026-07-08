@@ -117,99 +117,89 @@ class MessageBubble extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.end,
           children: [
-            Container(
-              constraints: BoxConstraints(
-                maxWidth: MediaQuery.of(context).size.width * 0.82,
-              ),
-              margin: const EdgeInsets.symmetric(vertical: 4),
-              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
-              decoration: BoxDecoration(
-                color: isLight
-                    ? const Color(0xFFE5DECF)
-                    : const Color(0xFF131313),
-                borderRadius: BorderRadius.circular(20),
-                border: isLight
-                    ? Border.all(color: const Color(0xFFD4CEBF), width: 1.0)
-                    : null,
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  if (message.attachments.isNotEmpty) ...[
-                    for (final att in message.attachments)
-                      if (att.isImage)
-                        Container(
-                          margin: const EdgeInsets.only(bottom: 8),
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(14),
-                            child: att.bytes.isNotEmpty
-                                ? Image.memory(
-                                    att.bytes,
-                                    fit: BoxFit.cover,
-                                    width: 220,
-                                    height: 220,
-                                  )
-                                : (att.filePath.isNotEmpty
-                                    ? Image.file(
-                                        File(att.filePath),
-                                        fit: BoxFit.cover,
-                                        width: 220,
-                                        height: 220,
-                                      )
-                                    : const SizedBox.shrink()),
-                          ),
-                        )
-                      else
-                        Container(
-                          margin: const EdgeInsets.only(bottom: 8),
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 8,
-                          ),
-                          decoration: BoxDecoration(
-                            color: isLight ? Colors.black12 : Colors.white12,
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                Icons.insert_drive_file,
-                                size: 18,
-                                color: isLight ? Colors.black87 : Colors.white70,
-                              ),
-                              const SizedBox(width: 6),
-                              Flexible(
-                                child: Text(
-                                  att.fileName,
-                                  style: GoogleFonts.inter(
-                                    fontSize: 13,
-                                    color: isLight
-                                        ? Colors.black87
-                                        : Colors.white,
-                                  ),
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                            ],
+            if (message.attachments.isNotEmpty) ...[
+              for (final att in message.attachments)
+                if (att.isImage)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 6),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(14),
+                      child: att.bytes.isNotEmpty
+                          ? Image.memory(
+                              att.bytes,
+                              fit: BoxFit.cover,
+                              height: 140,
+                            )
+                          : (att.filePath.isNotEmpty
+                              ? Image.file(
+                                  File(att.filePath),
+                                  fit: BoxFit.cover,
+                                  height: 140,
+                                )
+                              : const SizedBox.shrink()),
+                    ),
+                  )
+                else
+                  Container(
+                    margin: const EdgeInsets.only(bottom: 6),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
+                    decoration: BoxDecoration(
+                      color: isLight ? Colors.black12 : Colors.white12,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.insert_drive_file,
+                          size: 18,
+                          color: isLight ? Colors.black87 : Colors.white70,
+                        ),
+                        const SizedBox(width: 6),
+                        Flexible(
+                          child: Text(
+                            att.fileName,
+                            style: GoogleFonts.inter(
+                              fontSize: 13,
+                              color: isLight ? Colors.black87 : Colors.white,
+                            ),
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
-                  ],
-                  if (message.content.isNotEmpty)
-                    MarkdownBody(
-                      data: message.content,
-                      styleSheet: MarkdownStyleSheet.fromTheme(
-                        Theme.of(context),
-                      ).copyWith(
+                      ],
+                    ),
+                  ),
+            ],
+            if (message.content.isNotEmpty)
+              Container(
+                constraints: BoxConstraints(
+                  maxWidth: MediaQuery.of(context).size.width * 0.82,
+                ),
+                margin: const EdgeInsets.symmetric(vertical: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+                decoration: BoxDecoration(
+                  color: isLight
+                      ? const Color(0xFFE5DECF)
+                      : const Color(0xFF131313),
+                  borderRadius: BorderRadius.circular(20),
+                  border: isLight
+                      ? Border.all(color: const Color(0xFFD4CEBF), width: 1.0)
+                      : null,
+                ),
+                child: MarkdownBody(
+                  data: message.content,
+                  styleSheet: MarkdownStyleSheet.fromTheme(Theme.of(context))
+                      .copyWith(
                         p: GoogleFonts.inter(
                           fontSize: 15,
                           color: isLight ? const Color(0xFF171615) : Colors.white,
                         ),
                       ),
-                    ),
-                ],
+                ),
               ),
-            ),
             Padding(
               padding: const EdgeInsets.only(right: 6, top: 3),
               child: Text(
