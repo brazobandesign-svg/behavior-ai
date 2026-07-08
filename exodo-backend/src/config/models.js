@@ -62,6 +62,8 @@ const XPI_FALLBACK_CHAIN = [
 const MODEL_TO_PROVIDER = {
   'mistral-small-2506':                        'mistral',
   'codestral-2508':                            'mistral',
+  'mistral-large-2512':                        'mistral',
+  'devstral-2512':                             'mistral',
   'pixtral-12b-2409':                          'mistral',
   'qwen/qwen3.6-27b':                          'groq',
   'meta-llama/llama-4-scout-17b-16e-instruct': 'groq',
