@@ -46,6 +46,7 @@ const MODEL_MAP = {
 // Cadena de fallback para Genesis G1.1 Free
 const GENESIS_FALLBACK_CHAIN = [
   'qwen/qwen3.6-27b',
+  'meta-llama/llama-4-scout-17b-16e-instruct',
   'llama-3.3-70b-versatile',
 ];
 
@@ -57,14 +58,15 @@ const XPI_FALLBACK_CHAIN = [
 
 // Mapeo modelo → proveedor para saber qué archivo de provider usar
 const MODEL_TO_PROVIDER = {
-  'qwen/qwen3.6-27b':        'groq',
-  'llama-3.3-70b-versatile': 'groq',
-  'gemini-2.0-flash':        'gemini',
-  'gemini-1.5-flash':        'gemini',
-  'deepseek-chat':           'deepseek',
-  'deepseek-reasoner':       'deepseek',
-  'claude-3-5-sonnet':       'anthropic',
-  'claude-3-haiku':          'anthropic',
+  'qwen/qwen3.6-27b':                          'groq',
+  'meta-llama/llama-4-scout-17b-16e-instruct': 'groq',
+  'llama-3.3-70b-versatile':                   'groq',
+  'gemini-2.0-flash':                          'gemini',
+  'gemini-1.5-flash':                          'gemini',
+  'deepseek-chat':                             'deepseek',
+  'deepseek-reasoner':                         'deepseek',
+  'claude-3-5-sonnet':                         'anthropic',
+  'claude-3-haiku':                            'anthropic',
 };
 
 module.exports = {

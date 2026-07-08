@@ -1,15 +1,22 @@
 /**
  * Provider: Groq API
- * Soporta cualquier modelo de Groq (ej: llama-3.3-70b-versatile, qwen/qwen3.6-27b)
+ * Soporta cualquier modelo de Groq (ej: qwen/qwen3.6-27b, meta-llama/llama-4-scout-17b-16e-instruct, llama-3.3-70b-versatile)
  * Soporta multimodalidad (visión) para modelos compatibles.
  * Filtra automáticamente bloques de pensamiento <think>...</think> para no mostrarlos al usuario.
  */
 
+const VISION_MODELS = new Set([
+  'qwen/qwen3.6-27b',
+  'meta-llama/llama-4-scout-17b-16e-instruct',
+  'llama-3.2-11b-vision-preview',
+  'llama-3.2-90b-vision-preview'
+]);
+
 function stripThinking(text) {
-  let cleaned = text;
-  cleaned = cleaned.replace(/<think>[\s\S]*?<\/think>/g, '');
+  if (!text.includes('<think>')) return text;
+  let cleaned = text.replace(/<think>[\s\S]*?<\/think>/g, '');
   cleaned = cleaned.replace(/<think>[\s\S]*/g, ''); // Elimina bloque incompleto al final
-  return cleaned;
+  return cleaned.trimStart();
 }
 
 async function call(modelId, messages, systemPrompt, imageDataUris) {
@@ -17,16 +24,17 @@ async function call(modelId, messages, systemPrompt, imageDataUris) {
   if (!groqKey) throw new Error('GROQ_API_KEY no configurada en el entorno');
 
   const targetModel = modelId || 'qwen/qwen3.6-27b';
+  const supportsVision = VISION_MODELS.has(targetModel);
 
   // Clonar y formatear mensajes
   const formattedMessages = messages.map(m => ({ role: m.role, content: m.content }));
 
   // Si hay imágenes y es un modelo multimodal, enriquecer el último mensaje del usuario
-  if (imageDataUris && imageDataUris.length > 0 && formattedMessages.length > 0) {
+  if (imageDataUris && imageDataUris.length > 0 && formattedMessages.length > 0 && supportsVision) {
     const lastMsg = formattedMessages[formattedMessages.length - 1];
     if (lastMsg.role === 'user') {
       const contentArray = [
-        { type: 'text', text: lastMsg.content || '' }
+        { type: 'text', text: typeof lastMsg.content === 'string' ? lastMsg.content : '' }
       ];
       for (const uri of imageDataUris) {
         contentArray.push({
@@ -77,16 +85,17 @@ async function callStream(modelId, messages, systemPrompt, onChunk, imageDataUri
   if (!groqKey) throw new Error('GROQ_API_KEY no configurada para Stream de Groq');
 
   const targetModel = modelId || 'qwen/qwen3.6-27b';
+  const supportsVision = VISION_MODELS.has(targetModel);
 
   // Clonar y formatear mensajes
   const formattedMessages = messages.map(m => ({ role: m.role, content: m.content }));
 
   // Si hay imágenes y es un modelo multimodal, enriquecer el último mensaje del usuario
-  if (imageDataUris && imageDataUris.length > 0 && formattedMessages.length > 0) {
+  if (imageDataUris && imageDataUris.length > 0 && formattedMessages.length > 0 && supportsVision) {
     const lastMsg = formattedMessages[formattedMessages.length - 1];
     if (lastMsg.role === 'user') {
       const contentArray = [
-        { type: 'text', text: lastMsg.content || '' }
+        { type: 'text', text: typeof lastMsg.content === 'string' ? lastMsg.content : '' }
       ];
       for (const uri of imageDataUris) {
         contentArray.push({
@@ -145,14 +154,13 @@ async function callStream(modelId, messages, systemPrompt, onChunk, imageDataUri
         const chunkText = data.choices?.[0]?.delta?.content;
         if (chunkText) {
           fullText += chunkText;
-          let cleanedText = stripThinking(fullText);
-          if (emittedText === '') {
-            cleanedText = cleanedText.trimStart();
-          }
+          const cleanedText = stripThinking(fullText);
           if (cleanedText.length > emittedText.length) {
             const newChunk = cleanedText.slice(emittedText.length);
             emittedText = cleanedText;
-            if (typeof onChunk === 'function') onChunk(newChunk);
+            if (typeof onChunk === 'function' && newChunk.length > 0) {
+              onChunk(newChunk);
+            }
           }
         }
         if (data.usage) {

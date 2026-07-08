@@ -87,92 +87,92 @@ function extractSourcesFromText(text, existingSources = []) {
  *   data: {"type":"error","content":"..."}\n\n
  */
 router.post('/', auth, planGuard, async (req, res) => {
-  const { message, conversationId, model_override, attachments } = req.body;
-  const { userId, plan, anonymous } = req.user;
+  try {
+    const { message, conversationId, model_override, attachments } = req.body;
+    const { userId, plan, anonymous } = req.user;
 
-  if (!message || typeof message !== 'string' || message.trim().length === 0) {
-    return res.status(400).json({ error: 'El campo "message" es requerido' });
-  }
+    if (!message || typeof message !== 'string' || message.trim().length === 0) {
+      return res.status(400).json({ error: 'El campo "message" es requerido' });
+    }
 
-  // [Punto 40+42] Construir mensaje enriquecido con adjuntos.
-  // PDFs: extraer texto real con pdf-parse.
-  // Imágenes: etiquetar para clasificación + guardar data URI para visión.
-  // Archivos de texto: decodificar y prepender al mensaje.
-  let enhancedMessage = message;
-  const imageDataUris = []; // [Punto 42] data URIs para modelos con visión
+    // [Punto 40+42] Construir mensaje enriquecido con adjuntos.
+    // PDFs: extraer texto real con pdf-parse.
+    // Imágenes: etiquetar para clasificación + guardar data URI para visión.
+    // Archivos de texto: decodificar y prepender al mensaje.
+    let enhancedMessage = message;
+    const imageDataUris = []; // [Punto 42] data URIs para modelos con visión
 
-  if (attachments && Array.isArray(attachments) && attachments.length > 0) {
-    const parts = [];
-    for (const att of attachments) {
-      const mime = (att.mime_type || '').toLowerCase();
-      const name = att.file_name || 'archivo';
-      const b64 = att.base64 || '';
+    if (attachments && Array.isArray(attachments) && attachments.length > 0) {
+      const parts = [];
+      for (const att of attachments) {
+        const mime = (att.mime_type || '').toLowerCase();
+        const name = att.file_name || 'archivo';
+        const b64 = att.base64 || '';
 
-      if (mime.startsWith('image/')) {
-        // [Punto 42] Etiquetar para el clasificador + guardar para visión
-        parts.push(`[Imagen: ${name}]`);
-        if (b64) {
-          imageDataUris.push(`data:${mime};base64,${b64}`);
-        }
-      } else if (mime === 'application/pdf') {
-        // [Punto 40] Extraer texto real del PDF con pdf-parse
-        try {
-          const pdfBuffer = Buffer.from(b64, 'base64');
-          const pdfData = await pdfParse(pdfBuffer);
-          const pdfText = pdfData.text || '';
-          parts.push(`[PDF: ${name}]\n${pdfText}`);
-        } catch (_) {
-          parts.push(`[PDF: ${name} - no se pudo extraer texto]`);
-        }
-      } else if (
-        mime.startsWith('text/') ||
-        name.endsWith('.md') || name.endsWith('.json') ||
-        name.endsWith('.xml') || name.endsWith('.csv')
-      ) {
-        try {
-          const text = Buffer.from(b64, 'base64').toString('utf-8');
-          parts.push(`[Archivo: ${name}]\n${text}`);
-        } catch (_) {
+        if (mime.startsWith('image/')) {
+          // [Punto 42] Etiquetar para el clasificador + guardar para visión
+          parts.push(`[Imagen: ${name}]`);
+          if (b64) {
+            imageDataUris.push(`data:${mime};base64,${b64}`);
+          }
+        } else if (mime === 'application/pdf') {
+          // [Punto 40] Extraer texto real del PDF con pdf-parse
+          try {
+            const pdfBuffer = Buffer.from(b64, 'base64');
+            const pdfData = await pdfParse(pdfBuffer);
+            const pdfText = pdfData.text || '';
+            parts.push(`[PDF: ${name}]\n${pdfText}`);
+          } catch (_) {
+            parts.push(`[PDF: ${name} - no se pudo extraer texto]`);
+          }
+        } else if (
+          mime.startsWith('text/') ||
+          name.endsWith('.md') || name.endsWith('.json') ||
+          name.endsWith('.xml') || name.endsWith('.csv')
+        ) {
+          try {
+            const text = Buffer.from(b64, 'base64').toString('utf-8');
+            parts.push(`[Archivo: ${name}]\n${text}`);
+          } catch (_) {
+            parts.push(`[Archivo: ${name}]`);
+          }
+        } else {
           parts.push(`[Archivo: ${name}]`);
         }
-      } else {
-        parts.push(`[Archivo: ${name}]`);
+      }
+      if (parts.length > 0) {
+        enhancedMessage = parts.join('\n\n') + '\n\n' + message;
       }
     }
-    if (parts.length > 0) {
-      enhancedMessage = parts.join('\n\n') + '\n\n' + message;
-    }
-  }
 
-  // Flag para detectar si el cliente se desconectó a mitad de la respuesta.
-  // Si se cierra la conexión, abortamos: no enviamos más SSE, no contamos tokens,
-  // no guardamos mensajes. El provider sigue corriendo pero ignoramos su resultado.
-  let clientConnected = true;
-  req.on('close', () => {
-    clientConnected = false;
-  });
+    // Flag para detectar si el cliente se desconectó a mitad de la respuesta.
+    // Si se cierra la conexión, abortamos: no enviamos más SSE, no contamos tokens,
+    // no guardamos mensajes. El provider sigue corriendo pero ignoramos su resultado.
+    let clientConnected = true;
+    req.on('close', () => {
+      clientConnected = false;
+    });
 
-  // Preparar SSE ANTES de cualquier await para que el cliente vea los
-  // headers inmediatamente y empiece a esperar chunks.
-  res.setHeader('Content-Type', 'text/event-stream');
-  res.setHeader('Cache-Control', 'no-cache');
-  res.setHeader('Connection', 'keep-alive');
-  res.setHeader('X-Accel-Buffering', 'no'); // nginx: desactiva buffering
-  res.flushHeaders();
+    // Preparar SSE ANTES de cualquier await para que el cliente vea los
+    // headers inmediatamente y empiece a esperar chunks.
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    res.setHeader('X-Accel-Buffering', 'no'); // nginx: desactiva buffering
+    res.flushHeaders();
 
-  // Helper para enviar chunks forzando flush al cliente.
-  const sendSse = (payload) => {
-    res.write(`data: ${JSON.stringify(payload)}\n\n`);
-    // Forzar flush inmediato en cada chunk.
-    if (typeof res.flush === 'function') res.flush();
-  };
+    // Helper para enviar chunks forzando flush al cliente.
+    const sendSse = (payload) => {
+      res.write(`data: ${JSON.stringify(payload)}\n\n`);
+      // Forzar flush inmediato en cada chunk.
+      if (typeof res.flush === 'function') res.flush();
+    };
 
-  // [Punto 4 Fix] Enviar heartbeat inmediato. Esto garantiza que el cliente
-  // móvil reciba los headers HTTP y primeros bytes en <100ms, resolviendo
-  // la promesa reqClient.send(request) al instante sin caer por timeout.
-  sendSse({ type: 'heartbeat', status: 'connected' });
+    // [Punto 4 Fix] Enviar heartbeat inmediato. Esto garantiza que el cliente
+    // móvil reciba los headers HTTP y primeros bytes en <100ms, resolviendo
+    // la promesa reqClient.send(request) al instante sin caer por timeout.
+    sendSse({ type: 'heartbeat', status: 'connected' });
 
-  try {
     // 1 & 2. Paralelizar historial e intención para reducir latencia en servidor
     const [history, intent] = await Promise.all([
       getHistory(conversationId, 10),
@@ -251,7 +251,7 @@ router.post('/', auth, planGuard, async (req, res) => {
   } catch (error) {
     console.error('[chat] Error procesando mensaje:', error);
     if (res.headersSent) {
-      sendSse({ type: 'error', content: error.message || 'Error procesando tu mensaje' });
+      res.write(`data: ${JSON.stringify({ type: 'error', content: error.message || 'Error procesando tu mensaje' })}\n\n`);
       res.end();
     } else {
       res.status(500).json({
