@@ -98,7 +98,12 @@ class ThinkingBubble extends StatelessWidget {
 // Regla 13: Estilo de burbujas tipo Claude (Usuario en rectángulo opuesto SIN colita, IA al descubierto)
 class MessageBubble extends StatelessWidget {
   final ChatMessage message;
-  const MessageBubble({super.key, required this.message});
+  final bool isLastAssistant;
+  const MessageBubble({
+    super.key,
+    required this.message,
+    this.isLastAssistant = false,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -219,36 +224,38 @@ class MessageBubble extends StatelessWidget {
           ],
           const SizedBox(height: 10),
           _MessageActionBar(message: message),
-          const SizedBox(height: 14),
-          Row(
-            children: [
-              Image.asset(
-                'assets/images/Logo_behavior.png',
-                height: 26,
-                fit: BoxFit.contain,
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
-          Opacity(
-            opacity: 0.5,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.end,
+          if (isLastAssistant) ...[
+            const SizedBox(height: 14),
+            Row(
               children: [
-                Expanded(
-                  child: Text(
-                    AppI18n.of(context).t('chat.disclaimer'),
-                    textAlign: TextAlign.end,
-                    style: GoogleFonts.inter(
-                      fontSize: 11,
-                      height: 1.35,
-                      color: isLight ? Colors.black : Colors.white,
-                    ),
-                  ),
+                Image.asset(
+                  'assets/images/Logo_behavior.png',
+                  height: 26,
+                  fit: BoxFit.contain,
                 ),
               ],
             ),
-          ),
+            const SizedBox(height: 14),
+            Opacity(
+              opacity: 0.5,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  Expanded(
+                    child: Text(
+                      AppI18n.of(context).t('chat.disclaimer'),
+                      textAlign: TextAlign.end,
+                      style: GoogleFonts.inter(
+                        fontSize: 11,
+                        height: 1.35,
+                        color: isLight ? Colors.black : Colors.white,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ],
       ),
     );

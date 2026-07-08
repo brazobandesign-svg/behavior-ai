@@ -198,13 +198,15 @@ class _ChatScreenState extends State<ChatScreen>
                               ),
                             );
                           }
+                          final lastAssistantIndex = state.currentMessages
+                              .lastIndexWhere((m) => m.role == 'assistant');
                           return ListView.builder(
                             controller: _scrollCtrl,
                             padding: const EdgeInsets.only(
                               left: 16,
                               right: 16,
                               top: 8,
-                              bottom: 160,
+                              bottom: 200,
                             ),
                             itemCount: state.currentMessages.length,
                             itemBuilder: (context, index) {
@@ -212,7 +214,10 @@ class _ChatScreenState extends State<ChatScreen>
                               if (msg.isThinking) {
                                 return ThinkingBubble(pulseAnim: _pulseCtrl);
                               }
-                              return MessageBubble(message: msg);
+                              return MessageBubble(
+                                message: msg,
+                                isLastAssistant: index == lastAssistantIndex,
+                              );
                             },
                           );
                         },
