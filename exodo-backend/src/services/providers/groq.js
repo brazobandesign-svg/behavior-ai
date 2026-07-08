@@ -1,13 +1,42 @@
 /**
  * Provider: Groq API
- * Soporta cualquier modelo de Groq (ej: llama-3.3-70b-versatile)
+ * Soporta cualquier modelo de Groq (ej: llama-3.3-70b-versatile, qwen/qwen3.6-27b)
+ * Soporta multimodalidad (visión) para modelos compatibles.
+ * Filtra automáticamente bloques de pensamiento <think>...</think> para no mostrarlos al usuario.
  */
 
-async function call(modelId, messages, systemPrompt) {
+function stripThinking(text) {
+  let cleaned = text;
+  cleaned = cleaned.replace(/<think>[\s\S]*?<\/think>/g, '');
+  cleaned = cleaned.replace(/<think>[\s\S]*/g, ''); // Elimina bloque incompleto al final
+  return cleaned;
+}
+
+async function call(modelId, messages, systemPrompt, imageDataUris) {
   const groqKey = process.env.GROQ_API_KEY;
   if (!groqKey) throw new Error('GROQ_API_KEY no configurada en el entorno');
 
-  const targetModel = modelId || 'llama-3.3-70b-versatile';
+  const targetModel = modelId || 'qwen/qwen3.6-27b';
+
+  // Clonar y formatear mensajes
+  const formattedMessages = messages.map(m => ({ role: m.role, content: m.content }));
+
+  // Si hay imágenes y es un modelo multimodal, enriquecer el último mensaje del usuario
+  if (imageDataUris && imageDataUris.length > 0 && formattedMessages.length > 0) {
+    const lastMsg = formattedMessages[formattedMessages.length - 1];
+    if (lastMsg.role === 'user') {
+      const contentArray = [
+        { type: 'text', text: lastMsg.content || '' }
+      ];
+      for (const uri of imageDataUris) {
+        contentArray.push({
+          type: 'image_url',
+          image_url: { url: uri }
+        });
+      }
+      lastMsg.content = contentArray;
+    }
+  }
 
   const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
     method: 'POST',
@@ -19,7 +48,7 @@ async function call(modelId, messages, systemPrompt) {
       model: targetModel,
       messages: [
         { role: 'system', content: systemPrompt || '' },
-        ...messages,
+        ...formattedMessages,
       ],
       temperature: 0.7,
       stream: false,
@@ -32,21 +61,42 @@ async function call(modelId, messages, systemPrompt) {
   }
 
   const data = await response.json();
-  const text = data.choices?.[0]?.message?.content || '';
+  const rawText = data.choices?.[0]?.message?.content || '';
+  const cleanedText = stripThinking(rawText).trim();
 
   return {
-    text,
+    text: cleanedText,
     model: targetModel,
     tokensInput: data.usage?.prompt_tokens || 0,
     tokensOutput: data.usage?.completion_tokens || 0,
   };
 }
 
-async function callStream(modelId, messages, systemPrompt, onChunk) {
+async function callStream(modelId, messages, systemPrompt, onChunk, imageDataUris) {
   const groqKey = process.env.GROQ_API_KEY;
   if (!groqKey) throw new Error('GROQ_API_KEY no configurada para Stream de Groq');
 
-  const targetModel = modelId || 'llama-3.3-70b-versatile';
+  const targetModel = modelId || 'qwen/qwen3.6-27b';
+
+  // Clonar y formatear mensajes
+  const formattedMessages = messages.map(m => ({ role: m.role, content: m.content }));
+
+  // Si hay imágenes y es un modelo multimodal, enriquecer el último mensaje del usuario
+  if (imageDataUris && imageDataUris.length > 0 && formattedMessages.length > 0) {
+    const lastMsg = formattedMessages[formattedMessages.length - 1];
+    if (lastMsg.role === 'user') {
+      const contentArray = [
+        { type: 'text', text: lastMsg.content || '' }
+      ];
+      for (const uri of imageDataUris) {
+        contentArray.push({
+          type: 'image_url',
+          image_url: { url: uri }
+        });
+      }
+      lastMsg.content = contentArray;
+    }
+  }
 
   const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
     method: 'POST',
@@ -58,7 +108,7 @@ async function callStream(modelId, messages, systemPrompt, onChunk) {
       model: targetModel,
       messages: [
         { role: 'system', content: systemPrompt || '' },
-        ...messages,
+        ...formattedMessages,
       ],
       temperature: 0.7,
       stream: true,
@@ -74,6 +124,7 @@ async function callStream(modelId, messages, systemPrompt, onChunk) {
   const decoder = new TextDecoder('utf-8');
   let buffer = '';
   let fullText = '';
+  let emittedText = '';
   let tokensInput = 0;
   let tokensOutput = 0;
 
@@ -94,7 +145,15 @@ async function callStream(modelId, messages, systemPrompt, onChunk) {
         const chunkText = data.choices?.[0]?.delta?.content;
         if (chunkText) {
           fullText += chunkText;
-          if (typeof onChunk === 'function') onChunk(chunkText);
+          let cleanedText = stripThinking(fullText);
+          if (emittedText === '') {
+            cleanedText = cleanedText.trimStart();
+          }
+          if (cleanedText.length > emittedText.length) {
+            const newChunk = cleanedText.slice(emittedText.length);
+            emittedText = cleanedText;
+            if (typeof onChunk === 'function') onChunk(newChunk);
+          }
         }
         if (data.usage) {
           tokensInput = data.usage.prompt_tokens || tokensInput;
@@ -107,7 +166,7 @@ async function callStream(modelId, messages, systemPrompt, onChunk) {
   }
 
   return {
-    text: fullText,
+    text: emittedText,
     model: targetModel,
     tokensInput,
     tokensOutput,

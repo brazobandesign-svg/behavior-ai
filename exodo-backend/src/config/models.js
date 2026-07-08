@@ -18,23 +18,23 @@ const PLANS = {
 };
 
 // Modelo real por intención y plan
-// Genesis G1.1 -> Groq directo (llama-3.3-70b-versatile)
+// Genesis G1.1 -> Groq directo (qwen/qwen3.6-27b)
 // Hazak XPi -> DeepSeek directo del proveedor original (o Anthropic cuando se active)
 const MODEL_MAP = {
   SIMPLE: {
-    genesis: 'llama-3.3-70b-versatile',
+    genesis: 'qwen/qwen3.6-27b',
     hazak:   'deepseek-chat',
   },
   REDACCION: {
-    genesis: 'llama-3.3-70b-versatile',
+    genesis: 'qwen/qwen3.6-27b',
     hazak:   'deepseek-chat',
   },
   RAZONAMIENTO: {
-    genesis: 'llama-3.3-70b-versatile',
+    genesis: 'qwen/qwen3.6-27b',
     hazak:   'deepseek-reasoner',
   },
   DOCUMENTO: {
-    genesis: 'llama-3.3-70b-versatile',
+    genesis: 'qwen/qwen3.6-27b',
     hazak:   'deepseek-chat',
   },
   IMAGEN: {
@@ -45,6 +45,7 @@ const MODEL_MAP = {
 
 // Cadena de fallback para Genesis G1.1 Free
 const GENESIS_FALLBACK_CHAIN = [
+  'qwen/qwen3.6-27b',
   'llama-3.3-70b-versatile',
 ];
 
@@ -56,6 +57,7 @@ const XPI_FALLBACK_CHAIN = [
 
 // Mapeo modelo → proveedor para saber qué archivo de provider usar
 const MODEL_TO_PROVIDER = {
+  'qwen/qwen3.6-27b':        'groq',
   'llama-3.3-70b-versatile': 'groq',
   'gemini-2.0-flash':        'gemini',
   'gemini-1.5-flash':        'gemini',
