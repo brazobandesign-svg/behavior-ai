@@ -12,6 +12,63 @@ const { MODEL_MAP, GENESIS_FALLBACK_CHAIN, XPI_FALLBACK_CHAIN, MODEL_TO_PROVIDER
  */
 
 /**
+ * Estima el número de tokens en la petición (promedio ~3.5 chars/token).
+ */
+function estimateTokens(messages, systemPrompt) {
+  const text = (systemPrompt || '') + JSON.stringify(messages || []);
+  return Math.ceil(text.length / 3.5);
+}
+
+/**
+ * Construye dinámicamente la cadena de fallback óptima según la cuota y el volumen de tokens.
+ * Evita enviar documentos/prompts masivos (>12k tokens) a Groq donde morirían con 429.
+ */
+function getFallbackChainForRequest(plan, intent, messages, systemPrompt, effectiveModelId) {
+  const isXpi = plan === 'hazak' || effectiveModelId === 'ehyeh' || effectiveModelId === 'hazak';
+  if (isXpi) {
+    const list = [effectiveModelId, ...XPI_FALLBACK_CHAIN];
+    return Array.from(new Set(list.filter(Boolean)));
+  }
+
+  const tokenCount = estimateTokens(messages, systemPrompt);
+  let chain = [];
+
+  // Regla táctica para documentos densos o prompts gigantes > 12,000 tokens
+  if (intent === 'DOCUMENTO' || tokenCount > 12000) {
+    if (tokenCount > 28000) {
+      // Si supera 28,000 tokens, solo Mistral aguanta (625k - 2.25M TPM)
+      chain = [
+        effectiveModelId,
+        'mistral-large-2512',
+        'codestral-2508',
+        'mistral-small-2506'
+      ];
+    } else {
+      // Entre 12,000 y 28,000 tokens: Mistral + Llama 4 Scout (30k TPM en Groq)
+      chain = [
+        effectiveModelId,
+        'mistral-large-2512',
+        'codestral-2508',
+        'mistral-small-2506',
+        'meta-llama/llama-4-scout-17b-16e-instruct'
+      ];
+    }
+  } else {
+    // Para peticiones estándar <= 12,000 tokens: Cascada optimizada completa
+    chain = [
+      effectiveModelId,
+      'codestral-2508',
+      'mistral-small-2506',
+      'meta-llama/llama-4-scout-17b-16e-instruct',
+      'llama-3.3-70b-versatile',
+      'qwen/qwen3.6-27b'
+    ];
+  }
+
+  return Array.from(new Set(chain.filter(Boolean)));
+}
+
+/**
  * Obtiene el provider correcto y ejecuta la llamada con fallback.
  * @param {string} plan - 'genesis' | 'hazak'
  * @param {string} intent - 'SIMPLE' | 'REDACCION' | 'RAZONAMIENTO' | 'DOCUMENTO' | 'IMAGEN'
@@ -33,12 +90,9 @@ async function routeMessage(plan, intent, messages, systemPrompt, modelOverride,
     };
   }
 
-  // Usar cascada de fallback en caso de error (intenta toda la lista hasta llegar a Ollama local)
-  // Primero intenta el modelo asignado por intent+plan, luego cascada completa.
+  // Usar cascada de fallback en caso de error
   if (intent !== 'IMAGEN') {
-    const isXpi = plan === 'hazak' || modelOverride === 'ehyeh' || modelOverride === 'hazak';
-    const fallbackList = isXpi ? XPI_FALLBACK_CHAIN : GENESIS_FALLBACK_CHAIN;
-    const chain = [effectiveModelId, ...fallbackList.filter((m) => m !== effectiveModelId)];
+    const chain = getFallbackChainForRequest(plan, intent, messages, systemPrompt, effectiveModelId);
     return await callWithFallback(chain, messages, systemPrompt, imageDataUris);
   }
 
@@ -48,15 +102,6 @@ async function routeMessage(plan, intent, messages, systemPrompt, modelOverride,
 
 /**
  * Variante streaming real. Itera la cascada con cada modelo.
- * Si un modelo tiene callStream(), lo usa; si no, cae al modo bloqueante
- * y emite todo el texto de golpe (mejor que nada).
- *
- * @param {string} plan
- * @param {string} intent
- * @param {Array} messages
- * @param {string} systemPrompt
- * @param {(chunk: string) => void} onChunk
- * @returns {Promise<{text:string, model:string, tokensInput:number, tokensOutput:number, error?:string, message?:string, attempts?:Array}>}
  */
 async function routeMessageStream(plan, intent, messages, systemPrompt, onChunk, modelOverride, imageDataUris) {
   const modelId = MODEL_MAP[intent]?.[plan];
@@ -77,9 +122,7 @@ async function routeMessageStream(plan, intent, messages, systemPrompt, onChunk,
   }
 
   if (intent !== 'IMAGEN') {
-    const isXpi = plan === 'hazak' || modelOverride === 'ehyeh' || modelOverride === 'hazak';
-    const fallbackList = isXpi ? XPI_FALLBACK_CHAIN : GENESIS_FALLBACK_CHAIN;
-    const chain = [effectiveModelId, ...fallbackList.filter((m) => m !== effectiveModelId)];
+    const chain = getFallbackChainForRequest(plan, intent, messages, systemPrompt, effectiveModelId);
     return await callStreamWithFallback(chain, messages, systemPrompt, onChunk, imageDataUris);
   }
 

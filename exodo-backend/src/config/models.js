@@ -26,15 +26,15 @@ const MODEL_MAP = {
     hazak:   'deepseek-chat',
   },
   REDACCION: {
-    genesis: 'mistral-small-2506',
+    genesis: 'codestral-2508',
     hazak:   'deepseek-chat',
   },
   RAZONAMIENTO: {
-    genesis: 'mistral-small-2506',
+    genesis: 'mistral-large-2512',
     hazak:   'deepseek-reasoner',
   },
   DOCUMENTO: {
-    genesis: 'mistral-small-2506',
+    genesis: 'mistral-large-2512',
     hazak:   'deepseek-chat',
   },
   IMAGEN: {
@@ -43,12 +43,13 @@ const MODEL_MAP = {
   },
 };
 
-// Cadena de fallback para Genesis G1.1 Free (Mistral primero, Groq después)
+// Cadena de fallback para Genesis G1.1 Free (orden táctico: colchón Mistral primero, luego Scout/70B/Qwen en Groq)
 const GENESIS_FALLBACK_CHAIN = [
+  'codestral-2508',
   'mistral-small-2506',
-  'qwen/qwen3.6-27b',
   'meta-llama/llama-4-scout-17b-16e-instruct',
   'llama-3.3-70b-versatile',
+  'qwen/qwen3.6-27b',
 ];
 
 // Cadena de fallback para XPi / Plan Hazak Pro
