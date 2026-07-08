@@ -18,23 +18,23 @@ const PLANS = {
 };
 
 // Modelo real por intención y plan
-// Genesis G1.1 -> Google Gemini directo (gemini-2.0-flash)
+// Genesis G1.1 -> Groq directo (llama-3.3-70b-versatile)
 // Hazak XPi -> DeepSeek directo del proveedor original (o Anthropic cuando se active)
 const MODEL_MAP = {
   SIMPLE: {
-    genesis: 'gemini-2.0-flash',
+    genesis: 'llama-3.3-70b-versatile',
     hazak:   'deepseek-chat',
   },
   REDACCION: {
-    genesis: 'gemini-2.0-flash',
+    genesis: 'llama-3.3-70b-versatile',
     hazak:   'deepseek-chat',
   },
   RAZONAMIENTO: {
-    genesis: 'gemini-2.0-flash',
+    genesis: 'llama-3.3-70b-versatile',
     hazak:   'deepseek-reasoner',
   },
   DOCUMENTO: {
-    genesis: 'gemini-2.0-flash',
+    genesis: 'llama-3.3-70b-versatile',
     hazak:   'deepseek-chat',
   },
   IMAGEN: {
@@ -45,7 +45,7 @@ const MODEL_MAP = {
 
 // Cadena de fallback para Genesis G1.1 Free
 const GENESIS_FALLBACK_CHAIN = [
-  'gemini-2.0-flash',
+  'llama-3.3-70b-versatile',
 ];
 
 // Cadena de fallback para XPi / Plan Hazak Pro
@@ -56,12 +56,13 @@ const XPI_FALLBACK_CHAIN = [
 
 // Mapeo modelo → proveedor para saber qué archivo de provider usar
 const MODEL_TO_PROVIDER = {
-  'gemini-2.0-flash':  'gemini',
-  'gemini-1.5-flash':  'gemini',
-  'deepseek-chat':     'deepseek',
-  'deepseek-reasoner': 'deepseek',
-  'claude-3-5-sonnet': 'anthropic',
-  'claude-3-haiku':    'anthropic',
+  'llama-3.3-70b-versatile': 'groq',
+  'gemini-2.0-flash':        'gemini',
+  'gemini-1.5-flash':        'gemini',
+  'deepseek-chat':           'deepseek',
+  'deepseek-reasoner':       'deepseek',
+  'claude-3-5-sonnet':       'anthropic',
+  'claude-3-haiku':          'anthropic',
 };
 
 module.exports = {
