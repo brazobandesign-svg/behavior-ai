@@ -33,7 +33,7 @@ async function planGuard(req, res, next) {
 
     if (error && error.code === 'PGRST116') {
       // No existe registro para hoy → crear uno nuevo (reseteo diario automático)
-      const { data: newUsage } = await supabase
+      const { data: newUsage, error: insErr } = await supabase
         .from('user_usage')
         .insert({
           user_id: userId,
@@ -43,11 +43,16 @@ async function planGuard(req, res, next) {
         })
         .select()
         .single();
+      if (insErr || !newUsage) {
+        console.warn(`[planGuard] No se pudo crear user_usage en DB (${insErr?.message || 'null'}). Fallback a memoria.`);
+        req.usage = { id: null, tokens_used: 0, tokens_limit: planConfig.tokensPerDay };
+        return next();
+      }
       usage = newUsage;
-    }
-
-    if (!usage) {
-      return res.status(500).json({ error: 'Error consultando uso de tokens' });
+    } else if (error || !usage) {
+      console.warn(`[planGuard] Error consultando user_usage (${error?.message || 'null'}). Fallback a memoria para no bloquear chat.`);
+      req.usage = { id: null, tokens_used: 0, tokens_limit: planConfig.tokensPerDay };
+      return next();
     }
 
     if (usage.tokens_used >= usage.tokens_limit) {
@@ -72,8 +77,9 @@ async function planGuard(req, res, next) {
 
     next();
   } catch (err) {
-    console.error('[planGuard] Error:', err.message);
-    return res.status(500).json({ error: 'Error verificando límite de uso' });
+    console.warn('[planGuard] Excepción en planGuard:', err.message);
+    req.usage = { id: null, tokens_used: 0, tokens_limit: planConfig.tokensPerDay };
+    return next();
   }
 }
 

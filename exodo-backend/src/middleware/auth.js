@@ -29,11 +29,15 @@ async function auth(req, res, next) {
       return res.status(401).json({ error: 'Token inválido o expirado' });
     }
 
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('plan, full_name, onboarding')
-      .eq('id', user.id)
-      .single();
+    let profile = null;
+    try {
+      const { data } = await supabase
+        .from('profiles')
+        .select('plan, full_name, onboarding')
+        .eq('id', user.id)
+        .single();
+      profile = data;
+    } catch (_) {}
 
     req.user = {
       userId: user.id,
