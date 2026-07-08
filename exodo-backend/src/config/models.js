@@ -46,7 +46,6 @@ const MODEL_MAP = {
 // Cadena de fallback para Genesis G1.1 Free
 const GENESIS_FALLBACK_CHAIN = [
   'gemini-2.0-flash',
-  'deepseek-chat',
 ];
 
 // Cadena de fallback para XPi / Plan Hazak Pro
