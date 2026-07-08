@@ -667,10 +667,18 @@ class AppState extends ChangeNotifier {
     );
     currentMessages.add(userMsg);
     if (shouldSaveHistory && activeConversation != null) {
+      String contentToSave = text;
+      if (attachments != null && attachments.isNotEmpty) {
+        try {
+          final attJson =
+              jsonEncode(attachments.map((a) => a.toJson()).toList());
+          contentToSave = '$contentToSave\n<!-- ATTACHMENTS: $attJson -->';
+        } catch (_) {}
+      }
       SupabaseService.client.from('messages').insert({
         'conversation_id': activeConversation!.id,
         'role': 'user',
-        'content': text,
+        'content': contentToSave,
       }).then((_) {}).catchError((_) {});
     }
 

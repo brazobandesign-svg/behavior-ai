@@ -124,6 +124,32 @@ class ChatMessage {
         }
       }
     }
+    List<Attachment> attachmentsList = [];
+    const attMarker = '<!-- ATTACHMENTS: ';
+    final attIdx = contentStr.indexOf(attMarker);
+    if (attIdx != -1) {
+      final attEndIdx = contentStr.indexOf(' -->', attIdx);
+      if (attEndIdx != -1) {
+        final jsonStr = contentStr.substring(attIdx + attMarker.length, attEndIdx);
+        try {
+          final decoded = jsonDecode(jsonStr);
+          if (decoded is List) {
+            attachmentsList = decoded
+                .where((s) => s is Map)
+                .map((s) => Attachment.fromJson(Map<String, dynamic>.from(s as Map)))
+                .toList();
+          }
+        } catch (_) {}
+        contentStr = (contentStr.substring(0, attIdx) + contentStr.substring(attEndIdx + 4)).trimRight();
+      }
+    } else if (json['attachments'] is List && (json['attachments'] as List).isNotEmpty) {
+      try {
+        attachmentsList = (json['attachments'] as List)
+            .where((s) => s is Map)
+            .map((s) => Attachment.fromJson(Map<String, dynamic>.from(s as Map)))
+            .toList();
+      } catch (_) {}
+    }
     return ChatMessage(
       id: json['id'] as String? ?? '',
       conversationId: json['conversation_id'] as String? ?? '',
@@ -132,7 +158,7 @@ class ChatMessage {
       intentDetected: json['intent_detected'] as String?,
       modelCalled: json['model_called'] as String?,
       sources: sourcesList,
-      attachments: const [],
+      attachments: attachmentsList,
       createdAt: json['created_at'] != null ? DateTime.parse(json['created_at'] as String) : DateTime.now(),
     );
   }
@@ -221,6 +247,28 @@ class Attachment {
     required this.bytes,
     required this.mimeType,
   });
+
+  Map<String, dynamic> toJson() => {
+        'filePath': filePath,
+        'fileName': fileName,
+        'mimeType': mimeType,
+        'bytes': base64Encode(bytes),
+      };
+
+  factory Attachment.fromJson(Map<String, dynamic> json) {
+    Uint8List b = Uint8List(0);
+    try {
+      if (json['bytes'] is String && (json['bytes'] as String).isNotEmpty) {
+        b = base64Decode(json['bytes'] as String);
+      }
+    } catch (_) {}
+    return Attachment(
+      filePath: json['filePath'] as String? ?? '',
+      fileName: json['fileName'] as String? ?? 'file',
+      bytes: b,
+      mimeType: json['mimeType'] as String? ?? 'application/octet-stream',
+    );
+  }
 
   bool get isImage =>
       mimeType.startsWith('image/') && mimeType != 'image/svg+xml';

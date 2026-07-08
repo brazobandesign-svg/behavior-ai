@@ -271,7 +271,10 @@ class _ChatScreenState extends State<ChatScreen>
                         controller: _inputCtrl,
                         onSend: (attachments) {
                           final text = _inputCtrl.text;
-                          if (text.trim().isEmpty) return;
+                          if (text.trim().isEmpty &&
+                              (attachments == null || attachments.isEmpty)) {
+                            return;
+                          }
                           FocusScope.of(context).unfocus();
                           if (!state.isGuestUser &&
                               (state.tokensUsed >= state.tokensLimit ||
@@ -281,7 +284,10 @@ class _ChatScreenState extends State<ChatScreen>
                             if (!state.isPro) {
                               UpgradeModal.show(context);
                             }
-                            state.sendUserMessage(text);
+                            state.sendUserMessage(
+                              text,
+                              attachments: attachments,
+                            );
                             return;
                           }
                           _inputCtrl.clear();
