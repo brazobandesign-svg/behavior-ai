@@ -23,6 +23,8 @@ class ChatService {
       final url = env.endsWith('/api/chat') ? env : '$env/api/chat';
       list.add(url);
     }
+    // [Fix C] Eliminamos el hardcoding. En producción, el backend dependerá
+    // exclusivamente de BACKEND_URL. En debug, usamos loopbacks locales.
     if (kDebugMode) {
       if (!kIsWeb &&
           (defaultTargetPlatform == TargetPlatform.android ||
@@ -101,9 +103,13 @@ class ChatService {
             if (attachmentsJson != null && attachmentsJson.isNotEmpty)
               'attachments': attachmentsJson, // [Punto 40+42]
           });
+          // [Punto 4 Fix] Timeouts adaptativos: 3s para localhost/loopback para no congelar
+          // en móvil, y 45s para URLs remotas/HTTPS permitiendo cold starts de IA sin cortar al usuario.
+          final isLocal = url.contains('localhost') || url.contains('10.0.2.2') || url.contains('192.168.');
+          final timeoutDuration = isLocal ? const Duration(seconds: 3) : const Duration(seconds: 45);
           final resp = await reqClient
               .send(request)
-              .timeout(const Duration(seconds: 12));
+              .timeout(timeoutDuration);
           client = reqClient;
           _activeClient = client;
           response = resp;
@@ -116,9 +122,17 @@ class ChatService {
         if (_activeClient == client) _activeClient = null;
         client?.close();
         if (!_isCancelled) {
-          onError(
-            'Sin conexión con el servidor. Verifica tu red e inténtalo de nuevo.',
-          );
+          String errMsg = 'Sin conexión con el servidor. Verifica tu red e inténtalo de nuevo.';
+          if (response != null) {
+            if (response.statusCode >= 500) {
+              errMsg = 'Error en el servidor (Cód. ${response.statusCode}). Intentando reiniciar...';
+            } else if (response.statusCode == 413) {
+              errMsg = 'El archivo adjunto es demasiado grande. Por favor, intenta con uno más pequeño.';
+            } else if (response.statusCode != 200) {
+              errMsg = 'Hubo un error de conexión (Cód. ${response.statusCode}).';
+            }
+          }
+          onError(errMsg);
         }
         return;
       }

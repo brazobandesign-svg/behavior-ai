@@ -15,7 +15,10 @@ class TtsService {
   TtsService._();
   static final TtsService instance = TtsService._();
 
-  final FlutterTts _tts = FlutterTts();
+  // [Punto 1 Fix] Inicialización perezosa: no instanciamos FlutterTts en el arranque
+  // para evitar que Android Binder bloquee el hilo principal durante 3 segundos.
+  FlutterTts? _ttsInstance;
+  FlutterTts get _tts => _ttsInstance ??= FlutterTts();
   bool _initialized = false;
   bool _isSpeaking = false;
 

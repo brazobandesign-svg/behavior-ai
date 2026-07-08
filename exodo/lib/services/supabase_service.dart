@@ -17,12 +17,6 @@ class SupabaseService {
       url: supabaseUrl,
       // ignore: deprecated_member_use
       anonKey: supabaseAnonKey,
-      authOptions: FlutterAuthClientOptions(
-        // Detecta y procesa el ?code= del deep link al arrancar la app
-        detectSessionInUri: true,
-        // PKCE: en móvil usa memoria para guardar el code_verifier
-        pkceAsyncStorage: SharedPreferencesGotrueAsyncStorage(),
-      ),
     );
     _initialized = true;
   }

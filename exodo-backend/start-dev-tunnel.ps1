@@ -57,4 +57,5 @@ Write-Host "    flutter run -d LMV600TMe5979248 --no-pub --dart-define=BACKEND_U
 Write-Host ""
 
 # Crear tunel temporal (sin login, sin cuenta Cloudflare).
-cloudflared tunnel --url "http://localhost:$backendPort"
+# Usamos 127.0.0.1 en vez de localhost para evitar que Windows intente conectar por IPv6 (::1).
+cloudflared tunnel --url "http://127.0.0.1:$backendPort"

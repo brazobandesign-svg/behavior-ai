@@ -18,23 +18,24 @@ const PLANS = {
 };
 
 // Modelo real por intención y plan
-// Regla #8: en caso de duda → SIMPLE → Gemini Flash (error hacia lo barato)
+// Genesis G1.1 -> Google Gemini directo (gemini-2.0-flash)
+// Hazak XPi -> DeepSeek directo del proveedor original (o Anthropic cuando se active)
 const MODEL_MAP = {
   SIMPLE: {
-    genesis: 'nim-minimax-m3',
-    hazak:   'nim-nemotron-3-ultra',
+    genesis: 'gemini-2.0-flash',
+    hazak:   'deepseek-chat',
   },
   REDACCION: {
-    genesis: 'nim-glm-5-1',
-    hazak:   'nim-nemotron-3-ultra',
+    genesis: 'gemini-2.0-flash',
+    hazak:   'deepseek-chat',
   },
   RAZONAMIENTO: {
-    genesis: 'nim-minimax-m2-7',
-    hazak:   'nim-deepseek-v4-pro',
+    genesis: 'gemini-2.0-flash',
+    hazak:   'deepseek-reasoner',
   },
   DOCUMENTO: {
-    genesis: 'nim-deepseek-v4-flash',
-    hazak:   'nim-kimi-2-6',
+    genesis: 'gemini-2.0-flash',
+    hazak:   'deepseek-chat',
   },
   IMAGEN: {
     genesis: null,
@@ -42,34 +43,25 @@ const MODEL_MAP = {
   },
 };
 
-// Cadena de fallback para Genesis G1.1 Free (modelos rápidos + Ollama local al final)
+// Cadena de fallback para Genesis G1.1 Free
 const GENESIS_FALLBACK_CHAIN = [
-  'nim-minimax-m3',          // ✅ verificado OK, respuesta rápida
-  'nim-glm-5-1',             // ✅ verificado OK
-  'nim-minimax-m2-7',        // ✅ verificado OK
-  'nim-deepseek-v4-flash',   // ✅ verificado OK
-  'qwen2.5:7b',              // Ollama Local (al final, solo si todo NIM cae)
+  'gemini-2.0-flash',
 ];
 
-// Cadena de fallback para XPi / Plan Hazak Pro (los 3 mejores modelos NIM + Ollama local al final)
+// Cadena de fallback para XPi / Plan Hazak Pro
 const XPI_FALLBACK_CHAIN = [
-  'nim-deepseek-v4-pro',     // Razonamiento profundo supremo
-  'nim-nemotron-3-ultra',    // Inteligencia general pesada
-  'nim-kimi-2-6',            // Documentos y contexto largo
-  'qwen2.5:7b',              // Ollama Local como red de seguridad final
+  'deepseek-chat',
+  'deepseek-reasoner',
 ];
 
 // Mapeo modelo → proveedor para saber qué archivo de provider usar
 const MODEL_TO_PROVIDER = {
-  'nim-nemotron-3-ultra': 'nim',
-  'nim-deepseek-v4-flash': 'nim',
-  'nim-deepseek-v4-pro': 'nim',
-  'nim-minimax-m3': 'nim',
-  'nim-kimi-2-6': 'nim',
-  'nim-glm-5-1': 'nim',
-  'nim-minimax-m2-7': 'nim',
-  'nim-llama-4':        'nim',
-  'qwen2.5:7b':         'ollama',
+  'gemini-2.0-flash':  'gemini',
+  'gemini-1.5-flash':  'gemini',
+  'deepseek-chat':     'deepseek',
+  'deepseek-reasoner': 'deepseek',
+  'claude-3-5-sonnet': 'anthropic',
+  'claude-3-haiku':    'anthropic',
 };
 
 module.exports = {

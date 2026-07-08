@@ -167,6 +167,11 @@ router.post('/', auth, planGuard, async (req, res) => {
     if (typeof res.flush === 'function') res.flush();
   };
 
+  // [Punto 4 Fix] Enviar heartbeat inmediato. Esto garantiza que el cliente
+  // móvil reciba los headers HTTP y primeros bytes en <100ms, resolviendo
+  // la promesa reqClient.send(request) al instante sin caer por timeout.
+  sendSse({ type: 'heartbeat', status: 'connected' });
+
   try {
     // 1 & 2. Paralelizar historial e intención para reducir latencia en servidor
     const [history, intent] = await Promise.all([
@@ -181,13 +186,13 @@ router.post('/', auth, planGuard, async (req, res) => {
     ];
 
     // 4. Streamear respuesta del modelo (cada chunk sale al cliente al instante).
-    // [Punto 42] Heartbeat: durante operaciones largas (visión, PDF),
-    // enviamos un SSE cada 15s para que el cliente no cierre la conexión por timeout.
+    // [Punto 4+42] Heartbeat: durante operaciones largas (visión, PDF, cold start),
+    // enviamos un SSE cada 5s (antes 15s) para que la red no corte la conexión.
     const heartbeatInterval = setInterval(() => {
       if (clientConnected) {
         sendSse({ type: 'heartbeat' });
       }
-    }, 15000);
+    }, 5000);
 
     let fullText = '';
     const result = await routeMessageStream(plan, intent, messages, EXODO_SYSTEM_PROMPT, (chunk) => {

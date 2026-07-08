@@ -17,6 +17,13 @@ app.use(cors({
 app.use(express.json({ limit: '10mb' }));
 
 // Rate limiter global en /api/* (se aplica antes de auth)
+app.use((req, res, next) => {
+  console.log(`[${new Date().toISOString()}] ${req.method} ${req.url} - Auth: ${req.headers.authorization ? 'SI' : 'NO'}`);
+  res.on('finish', () => {
+    console.log(`[${new Date().toISOString()}] ${req.method} ${req.url} -> STATUS: ${res.statusCode}`);
+  });
+  next();
+});
 app.use('/api/', chatRateLimiter);
 
 // Rutas
@@ -92,7 +99,6 @@ function runStartupChecks() {
   }
 }
 
-/**
 /**
  * Devuelve las IPs privadas (no loopback) de la máquina para que el
  * usuario sepa qué URL configurar en el frontend.

@@ -50,7 +50,17 @@ class AppState extends ChangeNotifier {
         (u.email == null || u.email!.trim().isEmpty);
   }
 
+  bool _initializedSupabase = false;
+
   AppState() {
+    // [Punto 1 Fix] No bloqueamos el arranque ni competimos por locks en el milisegundo 0.
+    // La inicialización real (_init y _fetchWeather) se llama desde _RootSwitcher
+    // tan pronto como SupabaseService.initialize() ha terminado.
+  }
+
+  void initAfterSupabase() {
+    if (_initializedSupabase) return;
+    _initializedSupabase = true;
     _init();
     _fetchWeather();
   }

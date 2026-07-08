@@ -113,6 +113,49 @@ class _ChatComposerState extends State<ChatComposer>
     }
   }
 
+  Widget _buildAttachmentPreview() {
+    if (_pendingAttachments.isEmpty) return const SizedBox.shrink();
+    return SizedBox(
+      height: 56,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.only(bottom: 8),
+        itemCount: _pendingAttachments.length,
+        separatorBuilder: (_, _) => const SizedBox(width: 8),
+        itemBuilder: (context, i) {
+          final att = _pendingAttachments[i];
+          final isImage = att.mime.startsWith('image/');
+          return Chip(
+            avatar: isImage
+                ? ClipRRect(
+                    borderRadius: BorderRadius.circular(6),
+                    child: Image.memory(
+                      att.bytes,
+                      width: 24,
+                      height: 24,
+                      fit: BoxFit.cover,
+                    ),
+                  )
+                : const Icon(Icons.insert_drive_file_rounded, size: 18, color: ExodoColors.amber),
+            label: Text(
+              att.name.length > 18 ? '${att.name.substring(0, 15)}...' : att.name,
+              style: GoogleFonts.inter(fontSize: 12),
+            ),
+            deleteIcon: const Icon(Icons.close_rounded, size: 16),
+            onDeleted: () {
+              setState(() {
+                _pendingAttachments.removeAt(i);
+                if (_pendingAttachments.isEmpty) _hasAttachment = false;
+              });
+            },
+            backgroundColor: ExodoColors.surface,
+            side: const BorderSide(color: ExodoColors.amber, width: 0.5),
+          );
+        },
+      ),
+    );
+  }
+
   void _showAttachmentMenu() {
     HapticFeedback.vibrate();
     final isLight = Theme.of(context).brightness == Brightness.light;
@@ -172,7 +215,6 @@ class _ChatComposerState extends State<ChatComposer>
                           ),
                         );
                       });
-                      widget.controller.text += '[Foto: ${photo.name}] ';
                     }
                   } catch (e) {
                     // Error silencioso
@@ -212,7 +254,6 @@ class _ChatComposerState extends State<ChatComposer>
                           ),
                         );
                       });
-                      widget.controller.text += '[Galería: ${media.name}] ';
                     }
                   } catch (e) {
                     // Error silencioso
@@ -254,14 +295,6 @@ class _ChatComposerState extends State<ChatComposer>
                       }
                       if (added > 0) {
                         setState(() => _hasAttachment = true);
-                        final cleanNames = res.files
-                            .map(
-                              (e) => e.name
-                                  .replaceAll(RegExp(r'[^a-zA-Z0-9._\- ]'), '_')
-                                  .substring(0, 100.clamp(0, e.name.length)),
-                            )
-                            .join(', ');
-                        widget.controller.text += '[Archivos: $cleanNames] ';
                       }
                     }
                   } catch (e) {
@@ -542,6 +575,7 @@ class _ChatComposerState extends State<ChatComposer>
                       mainAxisSize: MainAxisSize.min,
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        _buildAttachmentPreview(),
                         TextField(
                           controller: widget.controller,
                           maxLines: 4,

@@ -100,19 +100,34 @@ class AppI18nProvider extends StatefulWidget {
 
 class _AppI18nProviderState extends State<AppI18nProvider> {
   final _AppI18nState state = _AppI18nState()..currentLocale = null;
+  int _reloadKey = 0;
 
   @override
   void initState() {
     super.initState();
     state.load();
     state.onChange = () {
-      if (mounted) setState(() {});
+      if (mounted) {
+        setState(() {
+          _reloadKey++;
+        });
+      }
     };
   }
 
   @override
   Widget build(BuildContext context) {
-    return _I18nScope(state: state, child: widget.child);
+    // [Punto 2 Fix] Al cambiar de idioma o disparar onChange, _reloadKey incrementa
+    // y cambia la Key del KeyedSubtree. Esto fuerza a Flutter a desmontar y remontar
+    // por completo toda la app (ExodoApp, MaterialApp, pantallas, modales), logrando
+    // un "reload total" limpio instantáneo para que todo quede en el nuevo idioma.
+    return _I18nScope(
+      state: state,
+      child: KeyedSubtree(
+        key: ValueKey('${state.currentLocale}_$_reloadKey'),
+        child: widget.child,
+      ),
+    );
   }
 }
 
