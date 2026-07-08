@@ -10,36 +10,31 @@ class ChatService {
 
   static List<String> get _candidateUrls {
     if (_workingUrl != null) return [_workingUrl!];
-    // Prioridad de URLs:
-    //   1. BACKEND_URL pasada por --dart-define al compilar (PRODUCCIÓN: https://api.exodo.com).
-    //   2. localhost (solo con `adb reverse tcp:3000 tcp:3000` activo en debug).
-    //   3. 10.0.2.2 (loopback del emulador Android).
-    const env = String.fromEnvironment('BACKEND_URL');
+    const env1 = String.fromEnvironment('BACKEND_URL');
+    const env2 = String.fromEnvironment('EXODO_BACKEND_URL');
     final list = <String>[];
-    if (env.isNotEmpty) {
-      // [Punto 41] BACKEND_URL debe incluir /api/chat. Si el usuario pasó solo
-      // la raíz (ej: --dart-define=BACKEND_URL=https://xxx.trycloudflare.com),
-      // se lo agregamos para que el POST aterrice en el endpoint correcto.
-      final url = env.endsWith('/api/chat') ? env : '$env/api/chat';
-      list.add(url);
+    for (final env in [env1, env2]) {
+      if (env.isNotEmpty) {
+        final url = env.endsWith('/api/chat') ? env : '$env/api/chat';
+        if (!list.contains(url)) list.add(url);
+      }
     }
-    // [Fix C] Eliminamos el hardcoding. En producción, el backend dependerá
-    // exclusivamente de BACKEND_URL. En debug, usamos loopbacks locales.
+    // Siempre añadir URL de producción en Railway para garantizar conexión ininterrumpida
+    const prodUrl = 'https://behavior-ai-production.up.railway.app/api/chat';
+    if (!list.contains(prodUrl)) list.add(prodUrl);
+
     if (kDebugMode) {
       if (!kIsWeb &&
           (defaultTargetPlatform == TargetPlatform.android ||
               defaultTargetPlatform == TargetPlatform.iOS)) {
-        list.add(
-          'http://localhost:3000/api/chat',
-        ); // funciona con `adb reverse tcp:3000 tcp:3000`
-        list.add('http://10.0.2.2:3000/api/chat'); // emulador Android Studio
+        list.add('http://localhost:3000/api/chat');
+        list.add('http://10.0.2.2:3000/api/chat');
       }
-      list.add('http://localhost:3000/api/chat');
     }
     return list;
   }
 
-  static String get backendUrl => _workingUrl ?? _candidateUrls.first;
+  static String get backendUrl => _workingUrl ?? (_candidateUrls.isNotEmpty ? _candidateUrls.first : 'https://behavior-ai-production.up.railway.app/api/chat');
 
   static http.Client? _activeClient;
   static bool _isCancelled = false;
