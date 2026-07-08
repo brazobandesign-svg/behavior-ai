@@ -80,8 +80,11 @@ app.listen(PORT, HOST, () => {
 function runStartupChecks() {
   const checks = [];
 
+  if (!process.env.MISTRAL_API_KEY) {
+    checks.push('⚠️  MISTRAL_API_KEY no configurada — Genesis G1.1 (Mistral) no disponible.');
+  }
   if (!process.env.GROQ_API_KEY) {
-    checks.push('⚠️  GROQ_API_KEY no configurada — Genesis G1.1 y fallbacks de Groq no disponibles.');
+    checks.push('⚠️  GROQ_API_KEY no configurada — fallbacks de Groq no disponibles.');
   }
   if (!process.env.DEEPSEEK_API_KEY) {
     checks.push('⚠️  DEEPSEEK_API_KEY no configurada — modelos DeepSeek de XPi no disponibles.');

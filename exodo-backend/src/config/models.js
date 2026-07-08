@@ -18,23 +18,23 @@ const PLANS = {
 };
 
 // Modelo real por intención y plan
-// Genesis G1.1 -> Groq directo (qwen/qwen3.6-27b)
+// Genesis G1.1 -> Mistral directo (mistral-small-2506 + pixtral para visión) y Groq en fallback
 // Hazak XPi -> DeepSeek directo del proveedor original (o Anthropic cuando se active)
 const MODEL_MAP = {
   SIMPLE: {
-    genesis: 'qwen/qwen3.6-27b',
+    genesis: 'mistral-small-2506',
     hazak:   'deepseek-chat',
   },
   REDACCION: {
-    genesis: 'qwen/qwen3.6-27b',
+    genesis: 'mistral-small-2506',
     hazak:   'deepseek-chat',
   },
   RAZONAMIENTO: {
-    genesis: 'qwen/qwen3.6-27b',
+    genesis: 'mistral-small-2506',
     hazak:   'deepseek-reasoner',
   },
   DOCUMENTO: {
-    genesis: 'qwen/qwen3.6-27b',
+    genesis: 'mistral-small-2506',
     hazak:   'deepseek-chat',
   },
   IMAGEN: {
@@ -43,8 +43,9 @@ const MODEL_MAP = {
   },
 };
 
-// Cadena de fallback para Genesis G1.1 Free
+// Cadena de fallback para Genesis G1.1 Free (Mistral primero, Groq después)
 const GENESIS_FALLBACK_CHAIN = [
+  'mistral-small-2506',
   'qwen/qwen3.6-27b',
   'meta-llama/llama-4-scout-17b-16e-instruct',
   'llama-3.3-70b-versatile',
@@ -58,6 +59,9 @@ const XPI_FALLBACK_CHAIN = [
 
 // Mapeo modelo → proveedor para saber qué archivo de provider usar
 const MODEL_TO_PROVIDER = {
+  'mistral-small-2506':                        'mistral',
+  'codestral-2508':                            'mistral',
+  'pixtral-12b-2409':                          'mistral',
   'qwen/qwen3.6-27b':                          'groq',
   'meta-llama/llama-4-scout-17b-16e-instruct': 'groq',
   'llama-3.3-70b-versatile':                   'groq',
