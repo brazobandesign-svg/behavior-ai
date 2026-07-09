@@ -227,7 +227,11 @@ router.post('/', auth, planGuard, async (req, res) => {
     sendSse({ type: 'done', content: fullText, sources });
     res.end();
 
-    // 6. Background: contar tokens, guardar en DB. NO bloqueamos el cliente.
+    // 6. Guardar en DB. [Fix race condition & visión context] El turno 'user'
+    // y 'assistant' se guardan CON await antes de terminar el handler, usando
+    // enhancedMessage en el usuario para que el historial recuerde qué imagen vio.
+    // Si el siguiente mensaje del usuario llega inmediatamente después, getHistory()
+    // encontrará ambos turnos ya persistidos en Supabase.
     const totalTokens = (result.tokensInput || 0) + (result.tokensOutput || 0);
     const userIdSafe = req.usage?.id;
     const tokensUsedSoFar = req.usage?.tokens_used || 0;
@@ -238,19 +242,19 @@ router.post('/', auth, planGuard, async (req, res) => {
       );
     }
     if (conversationId && !anonymous) {
-      saveMessage(conversationId, 'user', message, { intent }).catch((e) =>
-        console.error('[chat] saveMessage(user) falló:', e.message)
-      );
-      // [Punto 00] Persistir sources para que sobrevivan al cierre de la app.
-      saveMessage(conversationId, 'assistant', fullText, {
-        intent,
-        model: result.model,
-        tokensInput: result.tokensInput,
-        tokensOutput: result.tokensOutput,
-        sources: sources,
-      }).catch((e) =>
-        console.error('[chat] saveMessage(assistant) falló:', e.message)
-      );
+      try {
+        await saveMessage(conversationId, 'user', enhancedMessage, { intent });
+        // [Punto 00] Persistir sources para que sobrevivan al cierre de la app.
+        await saveMessage(conversationId, 'assistant', fullText, {
+          intent,
+          model: result.model,
+          tokensInput: result.tokensInput,
+          tokensOutput: result.tokensOutput,
+          sources: sources,
+        });
+      } catch (e) {
+        console.error('[chat] saveMessage falló:', e.message);
+      }
     }
   } catch (error) {
     console.error('[chat] Error procesando mensaje:', error);
