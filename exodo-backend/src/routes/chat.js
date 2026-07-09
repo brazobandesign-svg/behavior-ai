@@ -227,25 +227,15 @@ router.post('/', auth, planGuard, async (req, res) => {
       return;
     }
 
-    // 5. Cerrar el stream con evento "done".
+    // 5. [Fix race condition real] Guardar en DB ANTES de cerrar el stream.
+    // El `await` anterior (Fix A) no era suficiente: aunque protegía el ORDEN
+    // de las escrituras dentro del servidor, el cliente recibía res.end() y
+    // quedaba libre para mandar el siguiente mensaje MIENTRAS el guardado
+    // seguía en curso en el servidor. Ahora el cliente no ve 'done' hasta
+    // que ambos turnos (user + assistant) ya están persistidos en Supabase,
+    // garantizando que getHistory() del siguiente mensaje los encuentre.
     const sources = extractSourcesFromText(fullText, result.sources);
-    sendSse({ type: 'done', content: fullText, sources });
-    res.end();
 
-    // 6. Guardar en DB. [Fix race condition & visión context] El turno 'user'
-    // y 'assistant' se guardan CON await antes de terminar el handler, usando
-    // enhancedMessage en el usuario para que el historial recuerde qué imagen vio.
-    // Si el siguiente mensaje del usuario llega inmediatamente después, getHistory()
-    // encontrará ambos turnos ya persistidos en Supabase.
-    const totalTokens = (result.tokensInput || 0) + (result.tokensOutput || 0);
-    const userIdSafe = req.usage?.id;
-    const tokensUsedSoFar = req.usage?.tokens_used || 0;
-
-    if (userIdSafe && !anonymous) {
-      updateTokenUsage(userIdSafe, tokensUsedSoFar, totalTokens).catch((e) =>
-        console.error('[chat] updateTokenUsage falló:', e.message)
-      );
-    }
     if (conversationId && !anonymous) {
       try {
         await saveMessage(conversationId, 'user', enhancedMessage, { intent });
@@ -260,6 +250,21 @@ router.post('/', auth, planGuard, async (req, res) => {
       } catch (e) {
         console.error('[chat] saveMessage falló:', e.message);
       }
+    }
+
+    sendSse({ type: 'done', content: fullText, sources });
+    res.end();
+
+    // 6. Background: contar tokens. Esto SÍ puede quedar fire-and-forget
+    // porque no afecta la memoria conversacional del siguiente mensaje.
+    const totalTokens = (result.tokensInput || 0) + (result.tokensOutput || 0);
+    const userIdSafe = req.usage?.id;
+    const tokensUsedSoFar = req.usage?.tokens_used || 0;
+
+    if (userIdSafe && !anonymous) {
+      updateTokenUsage(userIdSafe, tokensUsedSoFar, totalTokens).catch((e) =>
+        console.error('[chat] updateTokenUsage falló:', e.message)
+      );
     }
   } catch (error) {
     console.error('[chat] Error procesando mensaje:', error);
