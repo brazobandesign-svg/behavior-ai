@@ -98,9 +98,9 @@ class ScrollToBottomButtonState extends State<ScrollToBottomButton> {
     if (_isAtBottom) return const SizedBox.shrink();
 
     final isLight = Theme.of(context).brightness == Brightness.light;
-    final bgColor = isLight ? const Color(0xFFE5DECF) : ExodoColors.composerBg;
+    final bgColor = isLight ? const Color(0xFFE8E8E8) : ExodoColors.composerBg;
     final fgColor = ExodoColors.amber;
-    final borderColor = isLight ? const Color(0xFFD4CEBF) : Colors.transparent;
+    final borderColor = isLight ? const Color(0xFFDDDDDD) : Colors.transparent;
 
     return AnimatedScale(
       scale: 1.0,

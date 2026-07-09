@@ -217,11 +217,11 @@ class MessageBubble extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
                 decoration: BoxDecoration(
                   color: isLight
-                      ? const Color(0xFFE5DECF)
+                      ? const Color(0xFFE8E8E8)
                       : const Color(0xFF131313),
                   borderRadius: BorderRadius.circular(20),
                   border: isLight
-                      ? Border.all(color: const Color(0xFFD4CEBF), width: 1.0)
+                      ? Border.all(color: const Color(0xFFDDDDDD), width: 1.0)
                       : null,
                 ),
                 child: MarkdownBody(
@@ -268,15 +268,6 @@ class MessageBubble extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.end,
-            children: [
-              _StickyMessageCopyButton(
-                content: message.content,
-                isLight: isLight,
-              ),
-            ],
-          ),
           MarkdownBody(
             data: message.content,
             builders: {
@@ -293,19 +284,14 @@ class MessageBubble extends StatelessWidget {
                   ),
                   code: GoogleFonts.jetBrainsMono(
                     backgroundColor: isLight
-                        ? const Color(0xFFEFECE4)
+                        ? const Color(0xFFF5F5F5)
                         : ExodoColors.surface,
                     color: isLight
                         ? const Color(0xFFB85A35)
                         : ExodoColors.amber,
                   ),
-                  codeblockDecoration: BoxDecoration(
-                    color: isLight
-                        ? const Color(0xFFF2ECE1)
-                        : ExodoColors.surface,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: ExodoColors.border),
-                  ),
+                  codeblockDecoration: const BoxDecoration(),
+                  codeblockPadding: EdgeInsets.zero,
                 ),
           ),
           if (message.intentDetected != null) ...[
@@ -816,19 +802,7 @@ class _SmartCopyButtonState extends State<_SmartCopyButton> {
   }
 }
 
-class _StickyMessageCopyButton extends StatelessWidget {
-  final String content;
-  final bool isLight;
-  const _StickyMessageCopyButton({required this.content, required this.isLight});
 
-  @override
-  Widget build(BuildContext context) {
-    return _SmartCopyButton(
-      textToCopy: content,
-      color: isLight ? Colors.black38 : Colors.white38,
-    );
-  }
-}
 
 class _PreElementBuilder extends MarkdownElementBuilder {
   final BuildContext context;
@@ -887,9 +861,9 @@ class _InteractiveCodeBlockState extends State<_InteractiveCodeBlock> {
 
   @override
   Widget build(BuildContext context) {
-    final bg = widget.isLight ? const Color(0xFFF2ECE1) : ExodoColors.surface;
-    final headerBg = widget.isLight ? const Color(0xFFE5DECF) : const Color(0xFF1E1C1A);
-    final borderCol = widget.isLight ? const Color(0xFFD4CEBF) : ExodoColors.border;
+    final bg = widget.isLight ? const Color(0xFFF5F5F5) : ExodoColors.surface;
+    final headerBg = widget.isLight ? const Color(0xFFE8E8E8) : const Color(0xFF1A1A1A);
+    final borderCol = widget.isLight ? const Color(0xFFDDDDDD) : ExodoColors.border;
     final textCol = widget.isLight ? const Color(0xFFB85A35) : ExodoColors.amber;
 
     return Container(
@@ -929,36 +903,25 @@ class _InteractiveCodeBlockState extends State<_InteractiveCodeBlock> {
                 GestureDetector(
                   onTap: _copy,
                   behavior: HitTestBehavior.opaque,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                    decoration: BoxDecoration(
-                      color: _copied
-                          ? Colors.green.withValues(alpha: 0.15)
-                          : widget.isLight
-                              ? Colors.black.withValues(alpha: 0.05)
-                              : Colors.white.withValues(alpha: 0.08),
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          _copied ? Icons.check_rounded : Icons.copy_rounded,
-                          size: 14,
-                          color: _copied ? Colors.green : (widget.isLight ? Colors.black87 : ExodoColors.textPrimary),
-                        ),
-                        const SizedBox(width: 5),
-                        Text(
-                          _copied
-                              ? AppI18n.of(context).t('act.copied')
-                              : AppI18n.of(context).t('act.copy'),
-                          style: GoogleFonts.inter(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                            color: _copied ? Colors.green : (widget.isLight ? Colors.black87 : ExodoColors.textPrimary),
-                          ),
-                        ),
-                      ],
+                  child: Tooltip(
+                    message: _copied
+                        ? AppI18n.of(context).t('act.copied')
+                        : AppI18n.of(context).t('act.copy'),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                      decoration: BoxDecoration(
+                        color: _copied
+                            ? Colors.green.withValues(alpha: 0.15)
+                            : widget.isLight
+                                ? Colors.black.withValues(alpha: 0.05)
+                                : Colors.white.withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Icon(
+                        _copied ? Icons.check_rounded : Icons.copy_rounded,
+                        size: 14,
+                        color: _copied ? Colors.green : (widget.isLight ? Colors.black87 : ExodoColors.textPrimary),
+                      ),
                     ),
                   ),
                 ),

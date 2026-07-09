@@ -298,8 +298,8 @@ class _HeaderTokenBarState extends State<_HeaderTokenBar> {
     final pct = (progress * 100).toStringAsFixed(1);
     final isLight = Theme.of(context).brightness == Brightness.light;
 
-    final bgColor = isLight ? const Color(0xFFE5DECF) : ExodoColors.tokenBarBg;
-    final trackColor = isLight ? const Color(0xFFD4CCBC) : const Color(0xFF131313);
+    final bgColor = isLight ? const Color(0xFFE8E8E8) : ExodoColors.tokenBarBg;
+    final trackColor = isLight ? const Color(0xFFDDDDDD) : const Color(0xFF131313);
     final fillColor = isLight ? const Color(0xFF171615) : ExodoColors.textPrimary;
     final textColor = isLight ? const Color(0xFF171615) : ExodoColors.textPrimary;
     final subTextColor = isLight ? const Color(0xFF7B7872) : ExodoColors.textSecondary;

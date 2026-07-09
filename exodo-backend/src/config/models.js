@@ -37,15 +37,12 @@ const MODEL_MAP = {
     genesis: 'mistral-large-2512',
     hazak:   'deepseek-chat',
   },
-  // [Fix visión] Nueva categoría determinística: se activa solo cuando
-  // hay imágenes adjuntas (chat.js la fuerza, nunca depende del LLM
-  // clasificador). Ambos planes apuntan a Gemini porque es el único
-  // proveedor de la cascada con soporte de visión ya confirmado.
-  // DeepSeek no tiene visión pública; Mistral sí (pixtral-12b-2409)
-  // pero se deja Gemini como primario por ser el ya verificado.
+  // [Fix visión] Categoría determinística para cuando hay imágenes adjuntas.
+  // Como Gemini fue reemplazado por Mistral en G1.1 y DeepSeek en XPi,
+  // enrutamos directamente a pixtral-12b-2409 (Mistral Visión) en ambos planes.
   VISION: {
-    genesis: 'gemini-2.0-flash',
-    hazak:   'gemini-2.0-flash',
+    genesis: 'pixtral-12b-2409',
+    hazak:   'pixtral-12b-2409',
   },
   IMAGEN: {
     genesis: null,

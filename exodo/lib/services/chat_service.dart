@@ -98,10 +98,14 @@ class ChatService {
             if (attachmentsJson != null && attachmentsJson.isNotEmpty)
               'attachments': attachmentsJson, // [Punto 40+42]
           });
-          // [Punto 4 Fix] Timeouts adaptativos: 3s para localhost/loopback para no congelar
-          // en móvil, y 45s para URLs remotas/HTTPS permitiendo cold starts de IA sin cortar al usuario.
+          // [Punto 2 Fix] Lógica de timeouts resiliente:
+          // Si la URL ya está validada como funcional, le damos los 45s completos para cold starts o razonamientos largos.
+          // Si estamos sondeando candidatos, usamos 8s para descartar rápido locales caídas y 45s para remotas.
+          final isWorkingUrl = _workingUrl == url;
           final isLocal = url.contains('localhost') || url.contains('10.0.2.2') || url.contains('192.168.');
-          final timeoutDuration = isLocal ? const Duration(seconds: 3) : const Duration(seconds: 45);
+          final timeoutDuration = isWorkingUrl
+              ? const Duration(seconds: 45)
+              : (isLocal ? const Duration(seconds: 8) : const Duration(seconds: 45));
           final resp = await reqClient
               .send(request)
               .timeout(timeoutDuration);

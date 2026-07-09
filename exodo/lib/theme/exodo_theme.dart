@@ -3,19 +3,19 @@ import 'package:google_fonts/google_fonts.dart';
 
 class ExodoColors {
   static const Color background = Color(0xFF0E0C0A); // Negro Cálido (fondo global dark)
-  static const Color surface = Color(0xFF1A1612);    // Superficie tarjeta
-  static const Color border = Color(0xFF2A241D);     // Bordes sutiles (cálido, coherente con paleta)
-  static const Color amber = Color(0xFFC9933A);      // Ámbar Éxodo
+  static const Color surface = Color(0xFF141414);    // Superficie tarjeta (Neutro puro sin marrón)
+  static const Color border = Color(0xFF222222);     // Bordes sutiles (Neutro puro sin marrón)
+  static const Color amber = Color(0xFFC9933A);      // Ámbar Éxodo (Exclusivo marca/acento)
   static const Color amberGlow = Color(0x33C9933A);  // Ámbar traslúcido para resplandores
   static const Color textPrimary = Color(0xFFF5F2EB);
   static const Color textSecondary = Color(0xFF9E9689);
   static const Color error = Color(0xFFE5534B);
 
   // === Dark mode: colores específicos por zona ===
-  static const Color chatBg = Color(0xFF20201F);         // Fondo del chat (donde va el saludo)
-  static const Color composerBg = Color(0xFF2C2C2A);     // Tab/cápsula donde se escribe
+  static const Color chatBg = Color(0xFF141414);         // Fondo del chat (donde va el saludo)
+  static const Color composerBg = Color(0xFF1D1D1D);     // Tab/cápsula donde se escribe
   static const Color modelChipBg = Color(0xFF131313);    // Rectángulo selector de modelo
-  static const Color tokenBarBg = Color(0xFF2C2C2A);     // Barra de progreso de tokens
+  static const Color tokenBarBg = Color(0xFF1D1D1D);     // Barra de progreso de tokens
 }
 
 class ExodoTheme {
@@ -82,7 +82,7 @@ class ExodoTheme {
   static ThemeData get lightTheme {
     final base = ThemeData.light();
     const creamBg = Color(0xFFFBF9F5); // Blanco yeso o hueso cremoso
-    const creamSurface = Color(0xFFF2ECE1);
+    const creamSurface = Color(0xFFF5F5F5);
     const darkInk = Color(0xFF171615);
 
     return base.copyWith(

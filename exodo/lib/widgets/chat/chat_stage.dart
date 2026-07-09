@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../services/app_state.dart';
+import '../../theme/exodo_theme.dart';
 import '../../l10n/app_i18n.dart';
 
 // Regla 2 & 7: Fondo ambiental sólido (sin animación innecesaria) con watermark según modo.
@@ -23,7 +24,7 @@ class AnimatedAmbientBackground extends StatelessWidget {
 
     final isDarkBg = isDarkMode || isIncognito;
     final bgColor = isDarkBg
-        ? const Color(0xFF20201F)
+        ? ExodoColors.chatBg
         : const Color(0xFFFBF9F5);
 
     // La watermark ahora vive dentro de ChatStage para garantizar

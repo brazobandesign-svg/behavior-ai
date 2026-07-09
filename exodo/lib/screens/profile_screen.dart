@@ -38,11 +38,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
   // Usa la paleta Éxodo: grises, sheet, tab, yeso, hueso del dark mode.
   void _showClearHistoryConfirmation(BuildContext context, AppState state) {
     final isLight = !state.isDarkMode;
-    final bg = isLight ? const Color(0xFFFBF9F5) : const Color(0xFF1E1C19);     // yeso / gris carbón
+    final bg = isLight ? const Color(0xFFFBF9F5) : ExodoColors.background;     // yeso / negro cálido
     final textCol = isLight ? const Color(0xFF171615) : ExodoColors.textPrimary;
     final subTextCol = isLight ? const Color(0xFF7B7872) : ExodoColors.textSecondary;
-    final dividerColor = isLight ? const Color(0xFFD4CEBF) : ExodoColors.border;
-    final cardBg = isLight ? const Color(0xFFF2ECE1) : const Color(0xFF131313);   // hueso / tab
+    final dividerColor = isLight ? const Color(0xFFDDDDDD) : ExodoColors.border;
+    final cardBg = isLight ? const Color(0xFFF5F5F5) : ExodoColors.surface;   // neutro / superficie
 
     showDialog(
       context: context,
