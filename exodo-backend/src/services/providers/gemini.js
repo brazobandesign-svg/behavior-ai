@@ -15,7 +15,7 @@ const MODEL_IDS = {
  * [{role, parts:[{text}]}], fusionando mensajes consecutivos del mismo rol
  * para evitar el error "adjacent user/model messages" de Gemini.
  */
-function formatMessages(messages) {
+function formatMessages(messages, imageDataUris) {
   const contents = [];
   for (const m of messages) {
     const geminiRole = m.role === 'assistant' ? 'model' : 'user';
@@ -27,15 +27,33 @@ function formatMessages(messages) {
       contents.push({ role: geminiRole, parts: [{ text }] });
     }
   }
+
+  // [Fix visión] Adjuntar imágenes al ÚLTIMO turno de usuario (el mensaje actual).
+  // Gemini espera inlineData como parte del mismo turno que la pregunta del usuario,
+  // no como un turno separado.
+  if (imageDataUris && imageDataUris.length > 0 && contents.length > 0) {
+    const lastContent = contents[contents.length - 1];
+    if (lastContent.role === 'user') {
+      for (const dataUri of imageDataUris) {
+        const match = /^data:([^;]+);base64,(.+)$/.exec(dataUri);
+        if (match) {
+          lastContent.parts.push({
+            inlineData: { mimeType: match[1], data: match[2] },
+          });
+        }
+      }
+    }
+  }
+
   return contents;
 }
 
-async function call(modelId, messages, systemPrompt) {
+async function call(modelId, messages, systemPrompt, imageDataUris) {
   const apiKey = process.env.GOOGLE_AI_API_KEY;
   if (!apiKey) throw new Error('GOOGLE_AI_API_KEY no configurada');
 
   const geminiModel = MODEL_IDS[modelId] || 'gemini-2.0-flash';
-  const contents = formatMessages(messages);
+  const contents = formatMessages(messages, imageDataUris);
 
   const response = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/${geminiModel}:generateContent?key=${apiKey}`,
@@ -70,12 +88,12 @@ async function call(modelId, messages, systemPrompt) {
   };
 }
 
-async function callStream(modelId, messages, systemPrompt, onChunk) {
+async function callStream(modelId, messages, systemPrompt, onChunk, imageDataUris) {
   const apiKey = process.env.GOOGLE_AI_API_KEY;
   if (!apiKey) throw new Error('GOOGLE_AI_API_KEY no configurada');
 
   const geminiModel = MODEL_IDS[modelId] || 'gemini-2.0-flash';
-  const contents = formatMessages(messages);
+  const contents = formatMessages(messages, imageDataUris);
 
   const response = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/${geminiModel}:streamGenerateContent?alt=sse&key=${apiKey}`,

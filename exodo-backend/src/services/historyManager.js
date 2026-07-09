@@ -72,7 +72,18 @@ async function getHistory(conversationId, limit = 10, maxTokens = 6000) {
       accumulatedChars += msgChars;
     }
 
-    return prunedHistory;
+    // [Fix Gemini-contract] Gemini exige que `contents` empiece en role:'user'.
+    // Si el pruning por tokens o el .slice(-limit) dejó el historial arrancando
+    // en 'assistant', descartamos turnos iniciales hasta el primer 'user'.
+    // Esto es específico al contrato de Gemini, pero es inofensivo para los
+    // demás proveedores (Mistral/Groq/DeepSeek no tienen esta restricción).
+    let startIdx = 0;
+    while (startIdx < prunedHistory.length && prunedHistory[startIdx].role !== 'user') {
+      startIdx++;
+    }
+    const safeHistory = prunedHistory.slice(startIdx);
+
+    return safeHistory;
   } catch (err) {
     console.error('[historyManager] Error recuperando historial:', err.message);
     return [];
