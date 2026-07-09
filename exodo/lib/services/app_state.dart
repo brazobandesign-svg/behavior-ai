@@ -36,6 +36,7 @@ class AppState extends ChangeNotifier {
   bool isGenerating = false;
   String? errorMessage;
   int guestMessagesSessionCount = 0;
+  final Set<String> _preLimitWarnedConversations = {};
 
   // [Punto 43] Conectividad: la app detecta si hay internet en tiempo real.
   bool _isOnline = true;
@@ -619,6 +620,7 @@ class AppState extends ChangeNotifier {
       }
     } else {
       final estNew = tokensUsed + (text.length ~/ 3) + 15;
+      final convKey = activeConversation?.id ?? 'free';
       if (tokensUsed >= tokensLimit || estNew > tokensLimit) {
         final limitMsg = isPro
             ? AppI18n.instance.t('limit.pro_msg')
@@ -626,9 +628,39 @@ class AppState extends ChangeNotifier {
         currentMessages.add(
           ChatMessage(
             id: 'limit-${DateTime.now().microsecondsSinceEpoch}',
-            conversationId: activeConversation?.id ?? 'free',
+            conversationId: convKey,
             role: 'assistant',
             content: limitMsg,
+            createdAt: DateTime.now(),
+          ),
+        );
+        notifyListeners();
+        return;
+      }
+
+      // [Alerta Preventiva pre-límite]: si el usuario está al >= 82% del límite o quedan <= 3000 tokens
+      // pausamos para avisarle que solicite su documento HTML de respaldo antes de que se agote.
+      if (tokensUsed < tokensLimit &&
+          estNew <= tokensLimit &&
+          (tokensUsed >= tokensLimit * 0.82 || (tokensLimit - tokensUsed) <= 3000) &&
+          !_preLimitWarnedConversations.contains(convKey)) {
+        _preLimitWarnedConversations.add(convKey);
+        HapticFeedback.vibrate();
+        final preLimitText =
+            '⚠️ **Alerta de Límite Próximo: Respaldo de Contexto Recomendado**\n\n'
+            'Estás a punto de alcanzar la capacidad máxima de memoria para este chat '
+            '(te quedan aprox. **${tokensLimit - tokensUsed} tokens**, alrededor de 1 o 2 turnos).\n\n'
+            'Para evitar que te quedes sin tokens a mitad del trabajo sin poder exportar la información, '
+            '**hemos hecho un paro preventivo** para que puedas decidir:\n\n'
+            '1️⃣ Si deseas conservar tu progreso, **pídeme ahora mismo un documento HTML** '
+            '*(ejemplo: "Genera un archivo HTML con todo el contexto y conclusiones de este chat")* y usa el **botón fijo de copiar al tope del artefacto** para llevártelo.\n'
+            '2️⃣ Si no necesitas el documento o ya lo copiaste, **puedes volver a enviar tu mensaje con normalidad** para consumir tus últimos turnos en este chat.';
+        currentMessages.add(
+          ChatMessage(
+            id: 'prelimit-${DateTime.now().microsecondsSinceEpoch}',
+            conversationId: convKey,
+            role: 'assistant',
+            content: preLimitText,
             createdAt: DateTime.now(),
           ),
         );

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
+import 'package:markdown/markdown.dart' as md;
 import 'package:google_fonts/google_fonts.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:share_plus/share_plus.dart';
@@ -248,14 +249,9 @@ class MessageBubble extends StatelessWidget {
             Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                _ActionButton(
-                  assetPath: 'assets/images/copy-2-svgrepo-com.png',
-                  tooltip: AppI18n.of(context).t('act.copy'),
+                _SmartCopyButton(
+                  textToCopy: message.content,
                   color: isLight ? Colors.black38 : Colors.white38,
-                  onTap: () {
-                    HapticFeedback.lightImpact();
-                    Clipboard.setData(ClipboardData(text: message.content));
-                  },
                 ),
               ],
             ),
@@ -272,8 +268,20 @@ class MessageBubble extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              _StickyMessageCopyButton(
+                content: message.content,
+                isLight: isLight,
+              ),
+            ],
+          ),
           MarkdownBody(
             data: message.content,
+            builders: {
+              'pre': _PreElementBuilder(context, isLight),
+            },
             styleSheet: MarkdownStyleSheet.fromTheme(Theme.of(context))
                 .copyWith(
                   p: GoogleFonts.inter(
@@ -565,11 +573,6 @@ class _MessageActionBar extends StatelessWidget {
     final isLight = Theme.of(context).brightness == Brightness.light;
     final subText = isLight ? Colors.black54 : Colors.white60;
 
-    void copy() {
-      HapticFeedback.lightImpact();
-      Clipboard.setData(ClipboardData(text: message.content));
-    }
-
     void share() {
       HapticFeedback.lightImpact();
       final playStoreUrl =
@@ -698,11 +701,9 @@ class _MessageActionBar extends StatelessWidget {
       runSpacing: 4,
       crossAxisAlignment: WrapCrossAlignment.center,
       children: [
-        _ActionButton(
-          assetPath: 'assets/images/copy-2-svgrepo-com.png',
-          tooltip: AppI18n.of(context).t('act.copy'),
+        _SmartCopyButton(
+          textToCopy: message.content,
           color: subText,
-          onTap: copy,
         ),
         _ActionButton(
           assetPath: 'assets/images/like-1-svgrepo-com.png',
@@ -764,6 +765,222 @@ class _ActionButton extends StatelessWidget {
         onTap: onTap,
         radius: 18,
         child: Padding(padding: const EdgeInsets.all(4), child: childWidget),
+      ),
+    );
+  }
+}
+
+class _SmartCopyButton extends StatefulWidget {
+  final String textToCopy;
+  final Color? color;
+  const _SmartCopyButton({required this.textToCopy, this.color});
+
+  @override
+  State<_SmartCopyButton> createState() => _SmartCopyButtonState();
+}
+
+class _SmartCopyButtonState extends State<_SmartCopyButton> {
+  bool _copied = false;
+
+  void _copy() {
+    HapticFeedback.vibrate();
+    HapticFeedback.mediumImpact();
+    Clipboard.setData(ClipboardData(text: widget.textToCopy));
+    setState(() => _copied = true);
+    Future.delayed(const Duration(milliseconds: 1500), () {
+      if (mounted) setState(() => _copied = false);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final col = widget.color ?? (Theme.of(context).brightness == Brightness.light ? Colors.black54 : Colors.white60);
+    return Tooltip(
+      message: _copied ? AppI18n.of(context).t('act.copied') : AppI18n.of(context).t('act.copy'),
+      child: InkResponse(
+        onTap: _copy,
+        radius: 18,
+        child: Padding(
+          padding: const EdgeInsets.all(4),
+          child: _copied
+              ? const Icon(Icons.check_rounded, size: 18, color: Colors.green)
+              : Image.asset(
+                  'assets/images/copy-2-svgrepo-com.png',
+                  width: 18,
+                  height: 18,
+                  color: col,
+                ),
+        ),
+      ),
+    );
+  }
+}
+
+class _StickyMessageCopyButton extends StatelessWidget {
+  final String content;
+  final bool isLight;
+  const _StickyMessageCopyButton({required this.content, required this.isLight});
+
+  @override
+  Widget build(BuildContext context) {
+    return _SmartCopyButton(
+      textToCopy: content,
+      color: isLight ? Colors.black38 : Colors.white38,
+    );
+  }
+}
+
+class _PreElementBuilder extends MarkdownElementBuilder {
+  final BuildContext context;
+  final bool isLight;
+  _PreElementBuilder(this.context, this.isLight);
+
+  @override
+  Widget? visitElementAfter(md.Element element, TextStyle? preferredStyle) {
+    String language = 'ARTEFACTO / CÓDIGO';
+    String code = element.textContent;
+    if (element.children != null && element.children!.isNotEmpty) {
+      final first = element.children!.first;
+      if (first is md.Element && first.attributes['class'] != null) {
+        final cls = first.attributes['class']!;
+        if (cls.startsWith('language-')) {
+          language = cls.substring(9).toUpperCase();
+        } else {
+          language = cls.toUpperCase();
+        }
+      }
+    }
+    return _InteractiveCodeBlock(
+      code: code.trimRight(),
+      language: language,
+      isLight: isLight,
+    );
+  }
+}
+
+class _InteractiveCodeBlock extends StatefulWidget {
+  final String code;
+  final String language;
+  final bool isLight;
+  const _InteractiveCodeBlock({
+    required this.code,
+    required this.language,
+    required this.isLight,
+  });
+
+  @override
+  State<_InteractiveCodeBlock> createState() => _InteractiveCodeBlockState();
+}
+
+class _InteractiveCodeBlockState extends State<_InteractiveCodeBlock> {
+  bool _copied = false;
+
+  void _copy() {
+    HapticFeedback.vibrate();
+    HapticFeedback.mediumImpact();
+    Clipboard.setData(ClipboardData(text: widget.code));
+    setState(() => _copied = true);
+    Future.delayed(const Duration(milliseconds: 1500), () {
+      if (mounted) setState(() => _copied = false);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bg = widget.isLight ? const Color(0xFFF2ECE1) : ExodoColors.surface;
+    final headerBg = widget.isLight ? const Color(0xFFE5DECF) : const Color(0xFF1E1C1A);
+    final borderCol = widget.isLight ? const Color(0xFFD4CEBF) : ExodoColors.border;
+    final textCol = widget.isLight ? const Color(0xFFB85A35) : ExodoColors.amber;
+
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.symmetric(vertical: 8),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: borderCol),
+      ),
+      clipBehavior: Clip.hardEdge,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Header FIJO y PERMANENTE para el Artefacto (visible siempre al tope del bloque)
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            color: headerBg,
+            child: Row(
+              children: [
+                Icon(
+                  Icons.code_rounded,
+                  size: 16,
+                  color: textCol,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    widget.language,
+                    style: GoogleFonts.jetBrainsMono(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: textCol,
+                    ),
+                  ),
+                ),
+                GestureDetector(
+                  onTap: _copy,
+                  behavior: HitTestBehavior.opaque,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    decoration: BoxDecoration(
+                      color: _copied
+                          ? Colors.green.withValues(alpha: 0.15)
+                          : widget.isLight
+                              ? Colors.black.withValues(alpha: 0.05)
+                              : Colors.white.withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          _copied ? Icons.check_rounded : Icons.copy_rounded,
+                          size: 14,
+                          color: _copied ? Colors.green : (widget.isLight ? Colors.black87 : ExodoColors.textPrimary),
+                        ),
+                        const SizedBox(width: 5),
+                        Text(
+                          _copied
+                              ? AppI18n.of(context).t('act.copied')
+                              : AppI18n.of(context).t('act.copy'),
+                          style: GoogleFonts.inter(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: _copied ? Colors.green : (widget.isLight ? Colors.black87 : ExodoColors.textPrimary),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          // Contenido del artefacto con altura máxima y scroll propio para mantener el botón SIEMPRE en pantalla
+          Container(
+            constraints: const BoxConstraints(maxHeight: 450),
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(14),
+              child: SelectableText(
+                widget.code,
+                style: GoogleFonts.jetBrainsMono(
+                  fontSize: 13,
+                  color: widget.isLight ? const Color(0xFF171615) : ExodoColors.textPrimary,
+                  height: 1.4,
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
