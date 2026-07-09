@@ -470,6 +470,16 @@ class UpgradeModal {
                           ),
                         ),
                       ),
+                      const SizedBox(height: 8),
+                      Center(
+                        child: Text(
+                          AppI18n.of(context).t('billing.no_commitments'),
+                          style: GoogleFonts.inter(
+                            fontSize: 11.5,
+                            color: textSecondary.withValues(alpha: 0.85),
+                          ),
+                        ),
+                      ),
                       const SizedBox(height: 18),
                       Text(
                         AppI18n.of(context).t('billing.pro_features'),
@@ -494,6 +504,14 @@ class UpgradeModal {
                       ),
                       _item(
                         AppI18n.of(context).t('billing.feat4'),
+                        textSecondary,
+                      ),
+                      _item(
+                        AppI18n.of(context).t('billing.feat5'),
+                        textSecondary,
+                      ),
+                      _item(
+                        AppI18n.of(context).t('billing.feat6'),
                         textSecondary,
                       ),
                     ],

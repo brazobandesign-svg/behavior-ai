@@ -99,198 +99,199 @@ class _DrawerMenuState extends State<DrawerMenu> {
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // 1. Header fijo: Logo_behavior + exodo_text (izquierda) + botón cerrar (derecha)
-                Padding(
-                  padding: EdgeInsets.fromLTRB(hPad, s(28), s(12), _showVersion ? 8 : s(18)),
+                // 1-3. Header fijo con fondo sólido para evitar cualquier transparencia o solapamiento con el historial
+                Material(
+                  color: bg,
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        children: [
-                          Flexible(
-                            child: GestureDetector(
-                              onTap: () {
-                                HapticFeedback.lightImpact();
-                                setState(() => _showVersion = !_showVersion);
-                              },
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                crossAxisAlignment: CrossAxisAlignment.center,
-                                children: [
-                                  Image.asset(
-                                    'assets/images/Logo_behavior.png',
-                                    height: logoH,
-                                    color: ExodoColors.amber,
-                                  ),
-                                  SizedBox(width: s(10)),
-                                  Flexible(
-                                    child: Image.asset(
-                                      'assets/images/exodo_text.png',
-                                      height: exodoTextH,
-                                      color: textCol,
-                                      fit: BoxFit.scaleDown,
+                      // 1. Header fijo: Logo_behavior + exodo_text (izquierda) + botón cerrar (derecha)
+                      Padding(
+                        padding: EdgeInsets.fromLTRB(hPad, s(28), s(12), _showVersion ? 8 : s(18)),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              crossAxisAlignment: CrossAxisAlignment.center,
+                              children: [
+                                Flexible(
+                                  child: GestureDetector(
+                                    onTap: () {
+                                      HapticFeedback.lightImpact();
+                                      setState(() => _showVersion = !_showVersion);
+                                    },
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      crossAxisAlignment: CrossAxisAlignment.center,
+                                      children: [
+                                        Image.asset(
+                                          'assets/images/Logo_behavior.png',
+                                          height: logoH,
+                                          color: ExodoColors.amber,
+                                        ),
+                                        SizedBox(width: s(10)),
+                                        Flexible(
+                                          child: Image.asset(
+                                            'assets/images/exodo_text.png',
+                                            height: exodoTextH,
+                                            color: textCol,
+                                            fit: BoxFit.scaleDown,
+                                          ),
+                                        ),
+                                      ],
                                     ),
                                   ),
-                                ],
-                              ),
+                                ),
+                                IconButton(
+                                  icon: Icon(Icons.close_rounded, color: subTextCol, size: s(20)),
+                                  onPressed: () => Navigator.pop(context),
+                                ),
+                              ],
                             ),
-                          ),
-                          IconButton(
-                            icon: Icon(Icons.close_rounded, color: subTextCol, size: s(20)),
-                            onPressed: () => Navigator.pop(context),
-                          ),
-                        ],
-                      ),
-                      if (_showVersion) ...[
-                        const SizedBox(height: 8),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: isLight ? const Color(0xFFF5F2EB) : const Color(0xFF131313),
-                            borderRadius: BorderRadius.circular(6),
-                            border: Border.all(color: ExodoColors.amber.withValues(alpha: 0.3), width: 0.8),
-                          ),
-                          child: Text(
-                            'AVI 1.1.86-release.01',
-                            style: GoogleFonts.jetBrainsMono(
-                              fontSize: 10.5,
-                              color: ExodoColors.amber,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-
-                // 2. Opciones de menú.
-                // [Patrón Wrap] Antes: 3 _DrawerItem como children directos de una Column
-                // (cada uno ocupa 100% del ancho y el siguiente se empuja abajo con un
-                // espacio fijo). Después: Wrap con `spacing` y `runSpacing` para que:
-                //  - En vertical: cada item ocupa su línea natural (sin gaps fantasma).
-                //  - En horizontal estrecho (rotación / tablets): si el texto del título
-                //    no cabe, el item hace wrap al item de abajo en lugar de desbordar.
-                //  - `IntrinsicHeight` alinea la altura de cada item con la del más alto,
-                //    útil cuando un título se parte en 2 líneas.
-                IntrinsicHeight(
-                  child: Wrap(
-                    spacing: 0,
-                    runSpacing: 0,
-                    children: [
-                      _DrawerItem(
-                        horizontalPad: hPad,
-                        icon: Icon(Icons.chat_bubble_outline_rounded, size: s(20), color: textCol),
-                        title: Text(AppI18n.of(context).t('drawer.new_chat'), style: GoogleFonts.jetBrainsMono(fontSize: s(14), color: textCol, fontWeight: FontWeight.w600, letterSpacing: -0.2)),
-                        onTap: () {
-                          state.startNewChat();
-                          Navigator.pop(context);
-                        },
-                      ),
-                      _DrawerItem(
-                        horizontalPad: hPad,
-                        icon: Icon(state.isDarkMode ? Icons.light_mode_outlined : Icons.dark_mode_outlined, size: s(20), color: textCol),
-                        title: Text(state.isDarkMode ? AppI18n.of(context).t('drawer.light_mode') : AppI18n.of(context).t('drawer.dark_mode'), style: GoogleFonts.jetBrainsMono(fontSize: s(14), color: textCol, fontWeight: FontWeight.w600, letterSpacing: -0.2)),
-                        onTap: () => state.toggleTheme(),
-                      ),
-                      _DrawerItem(
-                        horizontalPad: hPad,
-                        icon: Image.asset(
-                          'assets/images/incognito-svgrepo-com.png',
-                          width: s(20),
-                          height: s(20),
-                          color: state.isIncognito ? ExodoColors.amber : textCol,
-                        ),
-                        title: Text(AppI18n.of(context).t('drawer.incognito'), style: GoogleFonts.jetBrainsMono(fontSize: s(14), color: state.isIncognito ? ExodoColors.amber : textCol, fontWeight: FontWeight.w600, letterSpacing: -0.2)),
-                        onTap: () {
-                          HapticFeedback.vibrate();
-                          state.toggleIncognito();
-                        },
-                      ),
-                    ],
-                  ),
-                ),
-
-
-                // 3. Buscar conversación
-                Padding(
-                  padding: EdgeInsets.symmetric(horizontal: hPad - s(8), vertical: 2),
-                  child: _isSearching
-                      ? Container(
-                          height: s(38).clamp(34.0, 44.0),
-                          padding: const EdgeInsets.symmetric(horizontal: 8),
-                          margin: const EdgeInsets.symmetric(horizontal: 8),
-                          decoration: BoxDecoration(
-                            color: isLight ? Colors.white : const Color(0xFF1E1C19),
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: Row(
-                            children: [
-                              Icon(Icons.search, size: s(18), color: subTextCol),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: TextField(
-                                  controller: _searchCtrl,
-                                  autofocus: true,
-                                  cursorColor: textCol,
-                                  style: TextStyle(fontSize: s(13), color: textCol),
-                                  decoration: InputDecoration(
-                                    hintText: AppI18n.of(context).t('drawer.search_chats'),
-                                    hintStyle: TextStyle(fontSize: s(13), color: subTextCol),
-                                    filled: false,
-                                    border: InputBorder.none,
-                                    enabledBorder: InputBorder.none,
-                                    focusedBorder: InputBorder.none,
-                                    disabledBorder: InputBorder.none,
-                                    contentPadding: EdgeInsets.zero,
-                                    isDense: true,
+                            if (_showVersion) ...[
+                              const SizedBox(height: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: isLight ? const Color(0xFFF5F2EB) : const Color(0xFF131313),
+                                  borderRadius: BorderRadius.circular(6),
+                                  border: Border.all(color: ExodoColors.amber.withValues(alpha: 0.3), width: 0.8),
+                                ),
+                                child: Text(
+                                  'AVI 1.1.86-release.01',
+                                  style: GoogleFonts.jetBrainsMono(
+                                    fontSize: 10.5,
+                                    color: ExodoColors.amber,
+                                    fontWeight: FontWeight.w600,
                                   ),
-                                  onChanged: (v) {
-                                    setState(() => _searchQuery = v);
-                                    if (v.trim().length >= 2) {
-                                      SupabaseService.searchConversationIdsByMessage(v.trim()).then((ids) {
-                                        if (mounted && _searchQuery == v) {
-                                          setState(() => _matchingIds = ids.toSet());
-                                        }
-                                      });
-                                    } else {
-                                      setState(() => _matchingIds.clear());
-                                    }
-                                  },
                                 ),
                               ),
-                              InkWell(
-                                onTap: () {
-                                  _searchCtrl.clear();
-                                  setState(() {
-                                    _searchQuery = '';
-                                    _matchingIds.clear();
-                                    _isSearching = false;
-                                  });
-                                },
-                                child: Icon(Icons.close, size: s(16), color: subTextCol),
-                              ),
                             ],
-                          ),
-                        )
-                      : _DrawerItem(
-                          horizontalPad: hPad - s(8),
-                          icon: Icon(Icons.search_rounded, size: s(20), color: textCol),
-                          title: Text(AppI18n.of(context).t('drawer.search_chats'), style: GoogleFonts.jetBrainsMono(fontSize: s(14), color: textCol, fontWeight: FontWeight.w600, letterSpacing: -0.2)),
-                          onTap: () => setState(() => _isSearching = true),
+                          ],
                         ),
+                      ),
+
+                      // 2. Opciones de menú.
+                      IntrinsicHeight(
+                        child: Wrap(
+                          spacing: 0,
+                          runSpacing: 0,
+                          children: [
+                            _DrawerItem(
+                              horizontalPad: hPad,
+                              icon: Icon(Icons.chat_bubble_outline_rounded, size: s(20), color: textCol),
+                              title: Text(AppI18n.of(context).t('drawer.new_chat'), style: GoogleFonts.jetBrainsMono(fontSize: s(14), color: textCol, fontWeight: FontWeight.w600, letterSpacing: -0.2)),
+                              onTap: () {
+                                state.startNewChat();
+                                Navigator.pop(context);
+                              },
+                            ),
+                            _DrawerItem(
+                              horizontalPad: hPad,
+                              icon: Icon(state.isDarkMode ? Icons.light_mode_outlined : Icons.dark_mode_outlined, size: s(20), color: textCol),
+                              title: Text(state.isDarkMode ? AppI18n.of(context).t('drawer.light_mode') : AppI18n.of(context).t('drawer.dark_mode'), style: GoogleFonts.jetBrainsMono(fontSize: s(14), color: textCol, fontWeight: FontWeight.w600, letterSpacing: -0.2)),
+                              onTap: () => state.toggleTheme(),
+                            ),
+                            _DrawerItem(
+                              horizontalPad: hPad,
+                              icon: Image.asset(
+                                'assets/images/incognito-svgrepo-com.png',
+                                width: s(20),
+                                height: s(20),
+                                color: state.isIncognito ? ExodoColors.amber : textCol,
+                              ),
+                              title: Text(AppI18n.of(context).t('drawer.incognito'), style: GoogleFonts.jetBrainsMono(fontSize: s(14), color: state.isIncognito ? ExodoColors.amber : textCol, fontWeight: FontWeight.w600, letterSpacing: -0.2)),
+                              onTap: () {
+                                HapticFeedback.vibrate();
+                                state.toggleIncognito();
+                              },
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      // 3. Buscar conversación
+                      Padding(
+                        padding: EdgeInsets.symmetric(horizontal: hPad - s(8), vertical: 2),
+                        child: _isSearching
+                            ? Container(
+                                height: s(38).clamp(34.0, 44.0),
+                                padding: const EdgeInsets.symmetric(horizontal: 8),
+                                margin: const EdgeInsets.symmetric(horizontal: 8),
+                                decoration: BoxDecoration(
+                                  color: isLight ? Colors.white : const Color(0xFF1E1C19),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: Row(
+                                  children: [
+                                    Icon(Icons.search, size: s(18), color: subTextCol),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: TextField(
+                                        controller: _searchCtrl,
+                                        autofocus: true,
+                                        cursorColor: textCol,
+                                        style: TextStyle(fontSize: s(13), color: textCol),
+                                        decoration: InputDecoration(
+                                          hintText: AppI18n.of(context).t('drawer.search_chats'),
+                                          hintStyle: TextStyle(fontSize: s(13), color: subTextCol),
+                                          filled: false,
+                                          border: InputBorder.none,
+                                          enabledBorder: InputBorder.none,
+                                          focusedBorder: InputBorder.none,
+                                          disabledBorder: InputBorder.none,
+                                          contentPadding: EdgeInsets.zero,
+                                          isDense: true,
+                                        ),
+                                        onChanged: (v) {
+                                          setState(() => _searchQuery = v);
+                                          if (v.trim().length >= 2) {
+                                            SupabaseService.searchConversationIdsByMessage(v.trim()).then((ids) {
+                                              if (mounted && _searchQuery == v) {
+                                                setState(() => _matchingIds = ids.toSet());
+                                              }
+                                            });
+                                          } else {
+                                            setState(() => _matchingIds.clear());
+                                          }
+                                        },
+                                      ),
+                                    ),
+                                    InkWell(
+                                      onTap: () {
+                                        _searchCtrl.clear();
+                                        setState(() {
+                                          _searchQuery = '';
+                                          _matchingIds.clear();
+                                          _isSearching = false;
+                                        });
+                                      },
+                                      child: Icon(Icons.close, size: s(16), color: subTextCol),
+                                    ),
+                                  ],
+                                ),
+                              )
+                            : _DrawerItem(
+                                horizontalPad: hPad - s(8),
+                                icon: Icon(Icons.search_rounded, size: s(20), color: textCol),
+                                title: Text(AppI18n.of(context).t('drawer.search_chats'), style: GoogleFonts.jetBrainsMono(fontSize: s(14), color: textCol, fontWeight: FontWeight.w600, letterSpacing: -0.2)),
+                                onTap: () => setState(() => _isSearching = true),
+                              ),
+                      ),
+
+                      const SizedBox(height: 6),
+                      Divider(color: isLight ? const Color(0xFFE2DDD2) : const Color(0xFF2A2622), height: 1),
+                      const SizedBox(height: 8),
+                    ],
+                  ),
                 ),
 
-                const SizedBox(height: 6),
-                Divider(color: isLight ? const Color(0xFFE2DDD2) : const Color(0xFF2A2622), height: 1),
-                const SizedBox(height: 8),
-
-                // 4. Historial (Expanded real, ocupa todo el espacio disponible entre header y footer)
+                // 4. Historial (Expanded real, con ClipRect para truncar cualquier scroll o stretch de Android)
                 Expanded(
-                  child: filtered.isEmpty
+                  child: ClipRect(
+                    child: filtered.isEmpty
                       ? Center(
                           child: Padding(
                             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
@@ -380,6 +381,7 @@ class _DrawerMenuState extends State<DrawerMenu> {
                             const SliverToBoxAdapter(child: SizedBox(height: 130)),
                           ],
                         ),
+                  ),
                 ),
               ],
             ),
@@ -598,7 +600,7 @@ void _showAddWidgetSheet(BuildContext context) {
                             ],
                           ),
                         ),
-                        const Icon(Icons.chevron_right_rounded, color: const Color(0xFF0E0C0A), size: 20),
+                        const Icon(Icons.chevron_right_rounded, color: Color(0xFF0E0C0A), size: 20),
                       ],
                     ),
                   ),
