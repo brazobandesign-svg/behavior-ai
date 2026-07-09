@@ -116,41 +116,106 @@ class _ChatComposerState extends State<ChatComposer>
   Widget _buildAttachmentPreview() {
     if (_pendingAttachments.isEmpty) return const SizedBox.shrink();
     return SizedBox(
-      height: 56,
+      height: 72,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.only(bottom: 8),
+        padding: const EdgeInsets.only(bottom: 4),
         itemCount: _pendingAttachments.length,
         separatorBuilder: (_, _) => const SizedBox(width: 8),
         itemBuilder: (context, i) {
           final att = _pendingAttachments[i];
           final isImage = att.mime.startsWith('image/');
-          return Chip(
-            avatar: isImage
-                ? ClipRRect(
-                    borderRadius: BorderRadius.circular(6),
+          final isLight = Theme.of(context).brightness == Brightness.light;
+          if (isImage) {
+            return Stack(
+              children: [
+                Container(
+                  width: 62,
+                  height: 62,
+                  margin: const EdgeInsets.only(top: 6, right: 6),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: isLight ? const Color(0xFFD1D1D6) : const Color(0xFF3A3A3C),
+                      width: 1,
+                    ),
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(11),
                     child: Image.memory(
                       att.bytes,
-                      width: 24,
-                      height: 24,
                       fit: BoxFit.cover,
                     ),
-                  )
-                : const Icon(Icons.insert_drive_file_rounded, size: 18, color: ExodoColors.amber),
-            label: Text(
-              att.name.length > 18 ? '${att.name.substring(0, 15)}...' : att.name,
-              style: GoogleFonts.inter(fontSize: 12),
-            ),
-            deleteIcon: const Icon(Icons.close_rounded, size: 16),
-            onDeleted: () {
-              setState(() {
-                _pendingAttachments.removeAt(i);
-                if (_pendingAttachments.isEmpty) _hasAttachment = false;
-              });
-            },
-            backgroundColor: ExodoColors.surface,
-            side: const BorderSide(color: ExodoColors.amber, width: 0.5),
-          );
+                  ),
+                ),
+                Positioned(
+                  top: 0,
+                  right: 0,
+                  child: GestureDetector(
+                    onTap: () {
+                      setState(() {
+                        _pendingAttachments.removeAt(i);
+                        if (_pendingAttachments.isEmpty) _hasAttachment = false;
+                      });
+                    },
+                    child: Container(
+                      width: 20,
+                      height: 20,
+                      decoration: BoxDecoration(
+                        color: isLight ? const Color(0xFF131313) : const Color(0xFFFBF9F5),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        Icons.close,
+                        size: 13,
+                        color: isLight ? Colors.white : const Color(0xFF141210),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            );
+          } else {
+            return Container(
+              margin: const EdgeInsets.only(top: 6),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: isLight ? const Color(0xFFF2F2F7) : const Color(0xFF2C2C2E),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: isLight ? const Color(0xFFD1D1D6) : const Color(0xFF3A3A3C),
+                ),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.insert_drive_file_rounded, size: 18, color: ExodoColors.amber),
+                  const SizedBox(width: 8),
+                  Text(
+                    att.name.length > 18 ? '${att.name.substring(0, 15)}...' : att.name,
+                    style: GoogleFonts.inter(
+                      fontSize: 12.5,
+                      color: isLight ? const Color(0xFF000000) : const Color(0xFFFFFFFF),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  GestureDetector(
+                    onTap: () {
+                      setState(() {
+                        _pendingAttachments.removeAt(i);
+                        if (_pendingAttachments.isEmpty) _hasAttachment = false;
+                      });
+                    },
+                    child: Icon(
+                      Icons.close_rounded,
+                      size: 16,
+                      color: isLight ? Colors.black54 : Colors.white70,
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }
         },
       ),
     );
@@ -507,13 +572,13 @@ class _ChatComposerState extends State<ChatComposer>
               padding: const EdgeInsets.fromLTRB(16, 8, 14, 22),
               decoration: BoxDecoration(
                 color: isLight
-                    ? const Color(0xFF2C2C2A)
-                    : const Color(0xFFEFECE4),
+                    ? const Color(0xFF1D1D1D)
+                    : const Color(0xFFF5F5F5),
                 borderRadius: const BorderRadius.vertical(
                   top: Radius.circular(20),
                 ),
                 border: isLight
-                    ? Border.all(color: const Color(0xFF2C2C2A), width: 1.0)
+                    ? Border.all(color: const Color(0xFF1D1D1D), width: 1.0)
                     : Border.all(color: Colors.transparent, width: 1.0),
               ),
               child: FittedBox(
@@ -577,11 +642,11 @@ class _ChatComposerState extends State<ChatComposer>
             child: Container(
               decoration: BoxDecoration(
                 color: isLight
-                    ? const Color(0xFFE5DECF)
+                    ? const Color(0xFFE8E8E8)
                     : ExodoColors.composerBg,
                 borderRadius: BorderRadius.circular(32),
                 border: isLight
-                    ? Border.all(color: const Color(0xFFD4CEBF), width: 1.0)
+                    ? Border.all(color: const Color(0xFFDDDDDD), width: 1.0)
                     : Border.all(color: Colors.transparent, width: 1.0),
               ),
               padding: (guestIsBlocked || !isOnline)

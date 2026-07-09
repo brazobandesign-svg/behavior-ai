@@ -89,8 +89,8 @@ class ModelSelectorSheet extends StatelessWidget {
                         color: active
                             ? ExodoColors.amber.withValues(alpha: 0.18)
                             : (isLight
-                                  ? const Color(0xFFEFECE4)
-                                  : const Color(0xFF3A352F)),
+                                  ? const Color(0xFFE8E8E8)
+                                  : const Color(0xFF222222)),
                         borderRadius: BorderRadius.circular(4),
                         border: Border.all(
                           color: active
@@ -248,7 +248,7 @@ class UpgradeModal {
       ),
       builder: (ctx) => StatefulBuilder(
         builder: (context, setModalState) => SafeArea(
-          child: Padding(
+          child: SingleChildScrollView(
             padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
             child: Column(
               mainAxisSize: MainAxisSize.min,

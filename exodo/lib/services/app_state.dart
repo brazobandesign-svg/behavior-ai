@@ -610,7 +610,7 @@ class AppState extends ChangeNotifier {
     String text, {
     List<Attachment>? attachments,
   }) async {
-    if (text.trim().isEmpty) return;
+    if (text.trim().isEmpty && (attachments == null || attachments.isEmpty)) return;
     final isGuest = isGuestUser;
     if (isGuest) {
       if (guestIsBlocked || guestMessagesSessionCount >= 3) {
@@ -653,8 +653,10 @@ class AppState extends ChangeNotifier {
             'Para evitar que te quedes sin tokens a mitad del trabajo sin poder exportar la información, '
             '**hemos hecho un paro preventivo** para que puedas decidir:\n\n'
             '1️⃣ Si deseas conservar tu progreso, **pídeme ahora mismo un documento HTML** '
-            '*(ejemplo: "Genera un archivo HTML con todo el contexto y conclusiones de este chat")* y usa el **botón fijo de copiar al tope del artefacto** para llevártelo.\n'
-            '2️⃣ Si no necesitas el documento o ya lo copiaste, **puedes volver a enviar tu mensaje con normalidad** para consumir tus últimos turnos en este chat.';
+            'completo con todos los códigos, explicaciones e historial de este chat para descargarlo y guardarlo.\n'
+            '2️⃣ Si solo estás haciendo pruebas rápidas o no necesitas conservar este historial, '
+            '**puedes continuar escribiendo** y te responderé con normalidad hasta que se agoten tus tokens.\n\n'
+            '*(Este aviso es solo preventivo y no gasta tokens de tu límite. Si deseas continuar sin exportar, envía tu mensaje de nuevo).*';
         currentMessages.add(
           ChatMessage(
             id: 'prelimit-${DateTime.now().microsecondsSinceEpoch}',
@@ -675,9 +677,13 @@ class AppState extends ChangeNotifier {
 
     // 1. Crear conversación en DB si no existe y debemos guardar historial
     if (activeConversation == null && shouldSaveHistory) {
-      final title = text.length > 30 ? '${text.substring(0, 30)}...' : text;
+      final effectiveTitle = text.trim().isNotEmpty
+          ? (text.length > 30 ? '${text.substring(0, 30)}...' : text)
+          : (attachments != null && attachments.isNotEmpty && attachments.first.fileName.isNotEmpty
+              ? attachments.first.fileName
+              : 'Imagen adjunta');
       activeConversation = await SupabaseService.createConversation(
-        title,
+        effectiveTitle,
         selectedModel.plan,
         false,
       );
