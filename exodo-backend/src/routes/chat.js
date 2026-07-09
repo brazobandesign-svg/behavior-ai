@@ -145,7 +145,7 @@ router.post('/', auth, planGuard, async (req, res) => {
         const msgText = (message || '').trim();
         enhancedMessage = msgText
           ? parts.join('\n\n') + '\n\n' + msgText
-          : parts.join('\n\n');
+          : parts.join('\n\n') + '\n\nPor favor analiza y describe detalladamente el contenido y los detalles clave de esta imagen o archivo adjunto para ayudar al usuario.';
       }
     }
 

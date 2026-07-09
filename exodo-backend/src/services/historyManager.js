@@ -35,8 +35,36 @@ async function getHistory(conversationId, limit = 10, maxTokens = 6000) {
       return 0;
     });
 
+    // Limpiar marcadores intermedios de UI (como <!-- ATTACHMENTS con base64 y SOURCES)
+    // y deduplicar turnos consecutivos de 'user' causados por guardados en paralelo/móvil
+    const cleanedMessages = [];
+    for (const msg of sorted) {
+      const cleanContent = (msg.content || '')
+        .replace(/<!--\s*ATTACHMENTS:.*?-->/gs, '')
+        .replace(/<!--\s*SOURCES:.*?-->/gs, '')
+        .trim();
+
+      // Si después de limpiar el contenido queda vacío pero es 'user', omitir si es un placeholder de inserción
+      if (!cleanContent && msg.role === 'user') continue;
+
+      if (cleanedMessages.length > 0 && cleanedMessages[cleanedMessages.length - 1].role === msg.role && msg.role === 'user') {
+        const prev = cleanedMessages[cleanedMessages.length - 1];
+        if (cleanContent.length > prev.content.length || cleanContent.includes('[Imagen:')) {
+          prev.content = cleanContent || msg.content;
+          prev.created_at = msg.created_at;
+        }
+        continue;
+      }
+
+      cleanedMessages.push({
+        role: msg.role,
+        content: cleanContent || msg.content,
+        created_at: msg.created_at,
+      });
+    }
+
     // Tomar los últimos N mensajes como ventana cronológica inicial
-    const windowMessages = sorted.slice(-limit);
+    const windowMessages = cleanedMessages.slice(-limit);
 
     // Capa 3: Pruning Adaptativo por Presupuesto de Tokens
     // Recorremos desde el mensaje MÁS RECIENTE del historial hacia el más antiguo

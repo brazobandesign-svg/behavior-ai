@@ -705,12 +705,26 @@ class AppState extends ChangeNotifier {
     );
     currentMessages.add(userMsg);
     if (shouldSaveHistory && activeConversation != null) {
-      String contentToSave = text;
+      String contentToSave = text.trim();
       if (attachments != null && attachments.isNotEmpty) {
         try {
-          final attJson =
-              jsonEncode(attachments.map((a) => a.toJson()).toList());
-          contentToSave = '$contentToSave\n<!-- ATTACHMENTS: $attJson -->';
+          final attLight = attachments
+              .map((a) => {
+                    'filePath': a.filePath,
+                    'fileName': a.fileName,
+                    'mimeType': a.mimeType,
+                  })
+              .toList();
+          final attJson = jsonEncode(attLight);
+          final labels = attachments
+              .map((a) =>
+                  a.mimeType.startsWith('image/')
+                      ? '[Imagen: ${a.fileName}]'
+                      : '[Archivo: ${a.fileName}]')
+              .join('\n');
+          contentToSave = contentToSave.isEmpty
+              ? '$labels\n<!-- ATTACHMENTS: $attJson -->'
+              : '$contentToSave\n\n$labels\n<!-- ATTACHMENTS: $attJson -->';
         } catch (_) {}
       }
       SupabaseService.client.from('messages').insert({
