@@ -30,6 +30,14 @@ function getFallbackChainForRequest(plan, intent, messages, systemPrompt, effect
     return Array.from(new Set(list.filter(Boolean)));
   }
 
+  // [Fix visión] VISION nunca debe caer en la cascada normal de texto
+  // (Mistral/Groq/Llama en Genesis, DeepSeek en Hazak) porque ninguno de
+  // esos providers acepta imageDataUris. Cadena corta y específica:
+  // Gemini primero, Pixtral como único fallback real con visión.
+  if (intent === 'VISION') {
+    return Array.from(new Set([effectiveModelId, 'pixtral-12b-2409'].filter(Boolean)));
+  }
+
   const tokenCount = estimateTokens(messages, systemPrompt);
   let chain = [];
 

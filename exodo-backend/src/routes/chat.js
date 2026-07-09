@@ -177,10 +177,15 @@ router.post('/', auth, planGuard, async (req, res) => {
     // la promesa reqClient.send(request) al instante sin caer por timeout.
     sendSse({ type: 'heartbeat', status: 'connected' });
 
-    // 1 & 2. Paralelizar historial e intención para reducir latencia en servidor
+    // 1 & 2. Paralelizar historial e intención para reducir latencia en servidor.
+    // [Fix visión] Si hay imágenes adjuntas, la intención NO depende de
+    // interpretar texto (que puede fallar y caer en DOCUMENTO/SIMPLE, ambos
+    // enrutados a modelos sin capacidad de visión). Es un hecho binario:
+    // hay imagen o no la hay. Forzamos 'VISION' de forma determinística.
+    const hasImages = imageDataUris && imageDataUris.length > 0;
     const [history, intent] = await Promise.all([
       getHistory(conversationId, 10),
-      classifyIntent(enhancedMessage),
+      hasImages ? Promise.resolve('VISION') : classifyIntent(enhancedMessage),
     ]);
 
     // 3. Construir mensajes con contexto
