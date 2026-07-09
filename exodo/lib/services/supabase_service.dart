@@ -163,7 +163,17 @@ class SupabaseService {
         .eq('conversation_id', convId)
         .order('created_at', ascending: true);
 
-    return (res as List).map((json) => ChatMessage.fromJson(json)).toList();
+    final rawList = (res as List).map((json) => ChatMessage.fromJson(json)).toList();
+    final deduped = <ChatMessage>[];
+    for (final m in rawList) {
+      if (deduped.isNotEmpty &&
+          deduped.last.role == m.role &&
+          deduped.last.content.trim() == m.content.trim()) {
+        continue; // Eliminar duplicados almacenados por la antigua doble ejecución
+      }
+      deduped.add(m);
+    }
+    return deduped;
   }
 
   // [Punto 37 aviso] Feedback directo a Supabase (sin abrir email).

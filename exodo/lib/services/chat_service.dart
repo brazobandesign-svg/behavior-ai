@@ -134,6 +134,7 @@ class ChatService {
 
       String fullText = '';
       List<Source> sources = [];
+      bool isCompleted = false;
 
       response.stream
           .transform(utf8.decoder)
@@ -143,20 +144,22 @@ class ChatService {
               if (_isCancelled) return;
               if (line.startsWith('data: ')) {
                 final dataStr = line.substring(6).trim();
-                if (dataStr.isEmpty) return;
+                if (dataStr == '[DONE]') return;
                 try {
                   final data = jsonDecode(dataStr);
                   final type = data['type'];
                   if (type == 'heartbeat') {
                     // [Punto 41+42] Heartbeat del backend para mantener viva la conexión SSE.
-                    // No hacemos nada, solo evitamos que el canal se cierre por idle timeout.
                   } else if (type == 'chunk') {
-                    final content = data['content'] as String? ?? '';
-                    fullText += content;
-                    onChunk(content);
+                    final content = data['content'] as String?;
+                    if (content != null && content.isNotEmpty) {
+                      fullText += content;
+                      onChunk(content);
+                    }
                   } else if (type == 'done') {
-                    final content = data['content'] as String? ?? fullText;
-                    fullText = content;
+                    if (isCompleted) return;
+                    isCompleted = true;
+                    final message = data['message'] as String? ?? fullText;
                     final rawSources = data['sources'];
                     if (rawSources is List) {
                       sources = rawSources
@@ -173,8 +176,6 @@ class ChatService {
                           onComplete(fullText, enriched);
                         })
                         .catchError((_) {
-                          // Si enriquecer fuentes falla (red, timeout), entregamos
-                          // la respuesta SIN fuentes en lugar de dejar la UI zombie.
                           onComplete(fullText, sources);
                         });
                   } else if (type == 'error') {
@@ -187,9 +188,10 @@ class ChatService {
               if (_activeClient == client) _activeClient = null;
               client?.close();
               // Si el stream cerró sin enviar 'done', finalizar con lo que hay.
-              if (!_isCancelled && fullText.isNotEmpty) {
+              if (!_isCancelled && !isCompleted && fullText.isNotEmpty) {
+                isCompleted = true;
                 onComplete(fullText, sources);
-              } else if (!_isCancelled && fullText.isEmpty) {
+              } else if (!_isCancelled && !isCompleted && fullText.isEmpty) {
                 // Stream cerró sin enviar nada — notificar error para
                 // desbloquear isGenerating en AppState.
                 onError('La conexión se cerró inesperadamente.');

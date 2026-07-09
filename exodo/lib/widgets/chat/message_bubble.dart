@@ -317,35 +317,31 @@ class MessageBubble extends StatelessWidget {
           const SizedBox(height: 10),
           _MessageActionBar(message: message),
           if (isLastAssistant) ...[
-            const SizedBox(height: 14),
+            const SizedBox(height: 16),
             Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 Image.asset(
                   'assets/images/Logo_behavior.png',
-                  height: 26,
+                  height: 22,
                   fit: BoxFit.contain,
                 ),
-              ],
-            ),
-            const SizedBox(height: 14),
-            Opacity(
-              opacity: 0.5,
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  Expanded(
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Opacity(
+                    opacity: 0.5,
                     child: Text(
                       AppI18n.of(context).t('chat.disclaimer'),
                       textAlign: TextAlign.end,
                       style: GoogleFonts.inter(
-                        fontSize: 11,
-                        height: 1.35,
+                        fontSize: 10.5,
+                        height: 1.3,
                         color: isLight ? Colors.black : Colors.white,
                       ),
                     ),
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
           ],
         ],
