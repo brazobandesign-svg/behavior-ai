@@ -730,7 +730,11 @@ class _ChatComposerState extends State<ChatComposer>
                                   const SizedBox(width: 8),
                                   Flexible(
                                     child: GestureDetector(
-                                      onTap: widget.onModelTap,
+                                      onTap: isIncognito
+                                          ? () {
+                                              HapticFeedback.selectionClick();
+                                            }
+                                          : widget.onModelTap,
                                       child: AnimatedBuilder(
                                         animation: _auraController,
                                         builder: (context, _) {
@@ -842,8 +846,10 @@ class _ChatComposerState extends State<ChatComposer>
                                                 ),
                                                 const SizedBox(width: 4),
                                                 Icon(
-                                                  Icons.keyboard_arrow_down,
-                                                  size: 16,
+                                                  isIncognito
+                                                      ? Icons.lock_outline
+                                                      : Icons.keyboard_arrow_down,
+                                                  size: isIncognito ? 13 : 16,
                                                   color: isLight
                                                       ? const Color(0xFF171615)
                                                       : Colors.white70,

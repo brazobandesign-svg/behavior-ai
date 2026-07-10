@@ -310,60 +310,69 @@ class _HeaderTokenBarState extends State<_HeaderTokenBar> {
         controller: _portalController,
         overlayChildBuilder: (BuildContext ctx) {
           final barWidth = _layerLink.leaderSize?.width ?? 190.0;
-          return CompositedTransformFollower(
-            link: _layerLink,
-            targetAnchor: Alignment.bottomLeft,
-            followerAnchor: Alignment.topLeft,
-            offset: const Offset(0, 4),
-            child: Align(
-              alignment: Alignment.topLeft,
-              child: SizedBox(
-                width: barWidth,
-                child: Material(
-                  color: Colors.transparent,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 6,
-                    ),
-                    decoration: BoxDecoration(
-                      color: bgColor,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: ExodoColors.amber.withValues(alpha: 0.4),
-                        width: 1.0,
+          return TapRegion(
+            groupId: _portalController,
+            onTapOutside: (event) {
+              if (_portalController.isShowing) {
+                _portalController.hide();
+                setState(() {});
+              }
+            },
+            child: CompositedTransformFollower(
+              link: _layerLink,
+              targetAnchor: Alignment.bottomLeft,
+              followerAnchor: Alignment.topLeft,
+              offset: const Offset(0, 4),
+              child: Align(
+                alignment: Alignment.topLeft,
+                child: SizedBox(
+                  width: barWidth,
+                  child: Material(
+                    color: Colors.transparent,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 6,
                       ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.2),
-                          blurRadius: 10,
-                          offset: const Offset(0, 4),
+                      decoration: BoxDecoration(
+                        color: bgColor,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: ExodoColors.amber.withValues(alpha: 0.4),
+                          width: 1.0,
                         ),
-                      ],
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        _infoPill(
-                          'Consumido',
-                          '${widget.used} ($pct%)',
-                          isLight,
-                          false,
-                        ),
-                        if (widget.isPro)
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.2),
+                            blurRadius: 10,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
                           _infoPill(
-                            'Disponible',
-                            '$remaining tk',
+                            'Consumido',
+                            '${widget.used} ($pct%)',
                             isLight,
                             false,
                           ),
-                        _infoPill(
-                          'Reinicio en',
-                          _getCountdown(),
-                          isLight,
-                          true,
-                        ),
-                      ],
+                          if (widget.isPro)
+                            _infoPill(
+                              'Disponible',
+                              '$remaining tk',
+                              isLight,
+                              false,
+                            ),
+                          _infoPill(
+                            'Reinicio en',
+                            _getCountdown(),
+                            isLight,
+                            true,
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
@@ -371,55 +380,58 @@ class _HeaderTokenBarState extends State<_HeaderTokenBar> {
             ),
           );
         },
-        child: GestureDetector(
-          onTap: () {
-            HapticFeedback.selectionClick();
-            setState(() {
-              _portalController.toggle();
-            });
-          },
-          behavior: HitTestBehavior.opaque,
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-            decoration: BoxDecoration(
-              color: bgColor,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Row(
-              children: [
-                Text(
-                  '${widget.used}/${widget.limit}',
-                  style: GoogleFonts.jetBrainsMono(
-                    fontSize: 9.5,
-                    color: textColor,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(3),
-                    child: LinearProgressIndicator(
-                      value: progress,
-                      backgroundColor: trackColor,
-                      valueColor: AlwaysStoppedAnimation<Color>(fillColor),
-                      minHeight: 4.5,
+        child: TapRegion(
+          groupId: _portalController,
+          child: GestureDetector(
+            onTap: () {
+              HapticFeedback.selectionClick();
+              setState(() {
+                _portalController.toggle();
+              });
+            },
+            behavior: HitTestBehavior.opaque,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: bgColor,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(
+                children: [
+                  Text(
+                    '${widget.used}/${widget.limit}',
+                    style: GoogleFonts.jetBrainsMono(
+                      fontSize: 9.5,
+                      color: textColor,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
-                ),
-                const SizedBox(width: 6),
-                AnimatedRotation(
-                  turns: _portalController.isShowing ? 0.5 : 0.0,
-                  duration: const Duration(milliseconds: 200),
-                  child: Icon(
-                    Icons.keyboard_arrow_down_rounded,
-                    size: 15,
-                    color: _portalController.isShowing
-                        ? ExodoColors.amber
-                        : subTextColor,
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(3),
+                      child: LinearProgressIndicator(
+                        value: progress,
+                        backgroundColor: trackColor,
+                        valueColor: AlwaysStoppedAnimation<Color>(fillColor),
+                        minHeight: 4.5,
+                      ),
+                    ),
                   ),
-                ),
-              ],
+                  const SizedBox(width: 6),
+                  AnimatedRotation(
+                    turns: _portalController.isShowing ? 0.5 : 0.0,
+                    duration: const Duration(milliseconds: 200),
+                    child: Icon(
+                      Icons.keyboard_arrow_down_rounded,
+                      size: 15,
+                      color: _portalController.isShowing
+                          ? ExodoColors.amber
+                          : subTextColor,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ),

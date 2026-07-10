@@ -324,6 +324,9 @@ class AppState extends ChangeNotifier {
 
   void toggleIncognito() {
     isIncognito = !isIncognito;
+    if (isIncognito) {
+      selectedModel = exodoModels[0];
+    }
     startNewChat(resetIncognito: false);
   }
 
@@ -346,6 +349,7 @@ class AppState extends ChangeNotifier {
   }
 
   void selectModelOption(ExodoModelOption option) {
+    if (isIncognito) return;
     if (option.plan == 'hazak' && !isPro) {
       return;
     }

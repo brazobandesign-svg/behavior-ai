@@ -103,6 +103,10 @@ class _ChatScreenState extends State<ChatScreen>
   }
 
   void _showModelSheet() {
+    if (context.read<AppState>().isIncognito) {
+      HapticFeedback.selectionClick();
+      return;
+    }
     final isDark = Theme.of(context).brightness == Brightness.dark;
     showModalBottomSheet(
       context: context,

@@ -15,7 +15,7 @@ class ModelSelectorSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final state = context.watch<AppState>();
-    final isLight = !state.isDarkMode;
+    final isLight = !state.isDarkMode && !state.isIncognito;
 
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 10, 20, 20),
@@ -45,6 +45,7 @@ class ModelSelectorSheet extends StatelessWidget {
                 vertical: 2,
               ),
               onTap: () {
+                if (state.isIncognito) return;
                 if (isProModel && isFree) {
                   Navigator.pop(context);
                   Future.delayed(const Duration(milliseconds: 150), () {
