@@ -316,7 +316,10 @@ class UpgradeModal {
                               onTap: () =>
                                   setModalState(() => isAnnual = false),
                               child: Container(
-                                padding: const EdgeInsets.all(14),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                  vertical: 12,
+                                ),
                                 decoration: BoxDecoration(
                                   color: !isAnnual ? surfaceColor : bgColor,
                                   borderRadius: BorderRadius.circular(14),
@@ -352,6 +355,8 @@ class UpgradeModal {
                                       AppI18n.of(
                                         context,
                                       ).t('billing.billed_monthly'),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
                                       style: GoogleFonts.inter(
                                         fontSize: 11,
                                         color: textSecondary,
@@ -362,12 +367,15 @@ class UpgradeModal {
                               ),
                             ),
                           ),
-                          const SizedBox(width: 12),
+                          const SizedBox(width: 10),
                           Expanded(
                             child: GestureDetector(
                               onTap: () => setModalState(() => isAnnual = true),
                               child: Container(
-                                padding: const EdgeInsets.all(14),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                  vertical: 12,
+                                ),
                                 decoration: BoxDecoration(
                                   color: isAnnual ? surfaceColor : bgColor,
                                   borderRadius: BorderRadius.circular(14),
@@ -394,27 +402,36 @@ class UpgradeModal {
                                               ? ExodoColors.amber
                                               : radioOff,
                                         ),
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 6,
-                                            vertical: 2,
-                                          ),
-                                          decoration: BoxDecoration(
-                                            color: ExodoColors.amber.withValues(
-                                              alpha: 0.2,
-                                            ),
-                                            borderRadius: BorderRadius.circular(
-                                              6,
-                                            ),
-                                          ),
-                                          child: Text(
-                                            AppI18n.of(
-                                              context,
-                                            ).t('billing.save_pct'),
-                                            style: GoogleFonts.inter(
-                                              fontSize: 9,
-                                              fontWeight: FontWeight.bold,
-                                              color: ExodoColors.amber,
+                                        const SizedBox(width: 4),
+                                        Flexible(
+                                          child: FittedBox(
+                                            fit: BoxFit.scaleDown,
+                                            child: Container(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                horizontal: 5,
+                                                vertical: 2,
+                                              ),
+                                              decoration: BoxDecoration(
+                                                color: ExodoColors.amber
+                                                    .withValues(
+                                                  alpha: 0.2,
+                                                ),
+                                                borderRadius:
+                                                    BorderRadius.circular(
+                                                  6,
+                                                ),
+                                              ),
+                                              child: Text(
+                                                AppI18n.of(
+                                                  context,
+                                                ).t('billing.save_pct'),
+                                                style: GoogleFonts.inter(
+                                                  fontSize: 9,
+                                                  fontWeight: FontWeight.bold,
+                                                  color: ExodoColors.amber,
+                                                ),
+                                              ),
                                             ),
                                           ),
                                         ),
@@ -433,6 +450,8 @@ class UpgradeModal {
                                       AppI18n.of(
                                         context,
                                       ).t('billing.billed_annually'),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
                                       style: GoogleFonts.inter(
                                         fontSize: 11,
                                         color: textSecondary,
