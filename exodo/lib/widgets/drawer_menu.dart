@@ -1202,17 +1202,51 @@ class _ClaudeAccountModal {
                   children: [
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(AppI18n.of(context).t('billing.current_plan'), style: GoogleFonts.inter(color: textSecondary, fontSize: 13)),
-                        Text(isPro ? AppI18n.of(context).t('billing.plan_pro') : AppI18n.of(context).t('billing.plan_free'), style: GoogleFonts.inter(color: ExodoColors.amber, fontWeight: FontWeight.bold)),
+                        Expanded(
+                          child: Text(
+                            AppI18n.of(context).t('billing.current_plan'),
+                            style: GoogleFonts.inter(
+                              color: textSecondary,
+                              fontSize: 13,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Text(
+                          isPro
+                              ? AppI18n.of(context).t('billing.plan_pro')
+                              : AppI18n.of(context).t('billing.plan_free'),
+                          style: GoogleFonts.inter(
+                            color: ExodoColors.amber,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                       ],
                     ),
                     const SizedBox(height: 10),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(AppI18n.of(context).t('billing.gateway'), style: GoogleFonts.inter(color: textSecondary, fontSize: 13)),
-                        Text(isPro ? 'Stripe / Mobile Pay' : AppI18n.of(context).t('billing.gateway_free'), style: GoogleFonts.inter(color: textPrimary)),
+                        Expanded(
+                          child: Text(
+                            AppI18n.of(context).t('billing.gateway'),
+                            style: GoogleFonts.inter(
+                              color: textSecondary,
+                              fontSize: 13,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Text(
+                          isPro
+                              ? 'Stripe / Mobile Pay'
+                              : AppI18n.of(context).t('billing.gateway_free'),
+                          style: GoogleFonts.inter(color: textPrimary),
+                          textAlign: TextAlign.end,
+                        ),
                       ],
                     ),
                   ],

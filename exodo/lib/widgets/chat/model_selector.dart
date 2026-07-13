@@ -530,10 +530,19 @@ class UpgradeModal {
     return Padding(
       padding: const EdgeInsets.only(bottom: 6),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(Icons.check, size: 15, color: color),
+          Padding(
+            padding: const EdgeInsets.only(top: 2),
+            child: Icon(Icons.check, size: 15, color: color),
+          ),
           const SizedBox(width: 8),
-          Text(text, style: GoogleFonts.inter(fontSize: 12.5, color: color)),
+          Expanded(
+            child: Text(
+              text,
+              style: GoogleFonts.inter(fontSize: 12.5, color: color),
+            ),
+          ),
         ],
       ),
     );
