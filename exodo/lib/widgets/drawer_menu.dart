@@ -397,14 +397,15 @@ class _DrawerMenuState extends State<DrawerMenu> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Divider(color: isLight ? const Color(0xFFE2DDD2) : const Color(0xFF212121), height: 1),
-                    Padding(
-                      padding: EdgeInsets.fromLTRB(hPad, s(12), hPad, s(14)),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          GestureDetector(
-                            onTap: () => _ClaudeAccountModal.show(context, state),
-                            child: Row(
+                    GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: () => _ClaudeAccountModal.show(context, state),
+                      child: Padding(
+                        padding: EdgeInsets.fromLTRB(hPad, s(12), hPad, s(14)),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
                               children: [
                                 CircleAvatar(
                                   radius: avatarR,
@@ -432,14 +433,14 @@ class _DrawerMenuState extends State<DrawerMenu> {
                                 ),
                               ],
                             ),
-                          ),
-                          SizedBox(height: s(10)),
-                          Image.asset(
-                            'assets/images/bybehavior_text.png',
-                            height: bybehaviorH,
-                            color: isLight ? const Color(0xFF66605A) : ExodoColors.textSecondary,
-                          ),
-                        ],
+                            SizedBox(height: s(10)),
+                            Image.asset(
+                              'assets/images/bybehavior_text.png',
+                              height: bybehaviorH,
+                              color: isLight ? const Color(0xFF66605A) : ExodoColors.textSecondary,
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ],
