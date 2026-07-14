@@ -29,7 +29,9 @@ class ModelSelectorSheet extends StatelessWidget {
               height: 4,
               margin: const EdgeInsets.only(bottom: 14),
               decoration: BoxDecoration(
-                color: isLight ? Colors.black26 : ExodoColors.border,
+                color: isLight
+                    ? const Color(0xFFF5F2EB)
+                    : const Color(0xFF191919),
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
