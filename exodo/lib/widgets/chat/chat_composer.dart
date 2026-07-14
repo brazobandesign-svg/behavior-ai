@@ -180,7 +180,7 @@ class _ChatComposerState extends State<ChatComposer>
               margin: const EdgeInsets.only(top: 6),
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               decoration: BoxDecoration(
-                color: isLight ? const Color(0xFFF2F2F7) : const Color(0xFF2C2C2E),
+                color: isLight ? const Color(0xFFF2F2F7) : ExodoColors.modelChipBg,
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(
                   color: isLight ? const Color(0xFFD1D1D6) : const Color(0xFF3A3A3C),
@@ -229,7 +229,7 @@ class _ChatComposerState extends State<ChatComposer>
       context: context,
       backgroundColor: isLight
           ? const Color(0xFFF5F2EB)
-          : const Color(0xFF131313),
+          : ExodoColors.composerBg,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
@@ -715,7 +715,7 @@ class _ChatComposerState extends State<ChatComposer>
                                       decoration: BoxDecoration(
                                         color: isLight
                                             ? const Color(0xFFFBF9F5)
-                                            : const Color(0xFF131313),
+                                            : ExodoColors.modelChipBg,
                                         shape: BoxShape.circle,
                                       ),
                                       child: Icon(
@@ -753,7 +753,7 @@ class _ChatComposerState extends State<ChatComposer>
                                             decoration: BoxDecoration(
                                               color: isLight
                                                   ? const Color(0xFFFBF9F5)
-                                                  : const Color(0xFF131313),
+                                                  : ExodoColors.modelChipBg,
                                               borderRadius:
                                                   BorderRadius.circular(16),
                                               border: Border.all(

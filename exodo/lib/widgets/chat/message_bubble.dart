@@ -367,7 +367,7 @@ class _SourcesSheet extends StatelessWidget {
         HapticFeedback.lightImpact();
         showModalBottomSheet(
           context: context,
-          backgroundColor: isLight ? Colors.white : const Color(0xFF131313),
+          backgroundColor: isLight ? Colors.white : ExodoColors.background,
           shape: const RoundedRectangleBorder(
             borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
           ),

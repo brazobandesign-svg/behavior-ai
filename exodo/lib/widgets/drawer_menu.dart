@@ -61,7 +61,7 @@ class _DrawerMenuState extends State<DrawerMenu> {
   Widget build(BuildContext context) {
     final state = context.watch<AppState>();
     final isLight = !state.isDarkMode;
-    final bg = isLight ? const Color(0xFFF7F5F0) : const Color(0xFF181817);
+    final bg = isLight ? const Color(0xFFF7F5F0) : ExodoColors.background;
     final textCol = isLight ? const Color(0xFF171615) : ExodoColors.textPrimary;
     final subTextCol = isLight ? Colors.black54 : ExodoColors.textSecondary;
 
@@ -830,7 +830,7 @@ class _LangTile extends StatelessWidget {
 class _ClaudeAccountModal {
   static void show(BuildContext context, AppState state) {
     final isLight = !state.isDarkMode;
-    final bg = isLight ? const Color(0xFFF7F5F0) : const Color(0xFF131313);
+    final bg = isLight ? const Color(0xFFF7F5F0) : ExodoColors.background;
     final textCol = isLight ? const Color(0xFF171615) : Colors.white;
     final subTextCol = isLight ? Colors.black54 : Colors.white54;
     final cardBg = isLight ? const Color(0xFFEBE7DE) : ExodoColors.surface;

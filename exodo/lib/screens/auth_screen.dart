@@ -31,7 +31,7 @@ class _AuthScreenState extends State<AuthScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       // Pantalla de login SIEMPRE en Negro Cálido (#0E0C0A), inamovible.
-      backgroundColor: ExodoColors.background,
+      backgroundColor: ExodoColors.loginBg,
       body: SafeArea(
         child: SingleChildScrollView(
             padding: const EdgeInsets.only(left: 28, right: 28, top: 180, bottom: 28),
@@ -95,7 +95,7 @@ class _AuthScreenState extends State<AuthScreen> {
                           },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: ExodoColors.textPrimary,
-                      foregroundColor: ExodoColors.background,
+                      foregroundColor: ExodoColors.loginBg,
                       elevation: 1,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(27)),
                     ),
