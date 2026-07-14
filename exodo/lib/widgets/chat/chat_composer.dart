@@ -649,9 +649,9 @@ class _ChatComposerState extends State<ChatComposer>
                 boxShadow: isLight
                     ? [
                         BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.08),
-                          blurRadius: 16,
-                          offset: const Offset(0, 4),
+                          color: Colors.black.withValues(alpha: 0.16),
+                          blurRadius: 20,
+                          offset: const Offset(0, 5),
                         ),
                       ]
                     : null,
@@ -721,7 +721,7 @@ class _ChatComposerState extends State<ChatComposer>
                                       height: 36,
                                       decoration: BoxDecoration(
                                         color: isLight
-                                            ? ExodoColors.lightSheetBg
+                                            ? Colors.white
                                             : ExodoColors.modelChipBg,
                                         shape: BoxShape.circle,
                                       ),
@@ -759,7 +759,7 @@ class _ChatComposerState extends State<ChatComposer>
                                             ),
                                             decoration: BoxDecoration(
                                               color: isLight
-                                                  ? ExodoColors.lightSheetBg
+                                                  ? Colors.white
                                                   : ExodoColors.modelChipBg,
                                               borderRadius:
                                                   BorderRadius.circular(16),
