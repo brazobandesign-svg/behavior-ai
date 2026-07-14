@@ -830,11 +830,11 @@ class _LangTile extends StatelessWidget {
 class _ClaudeAccountModal {
   static void show(BuildContext context, AppState state) {
     final isLight = !state.isDarkMode;
-    final bg = isLight ? ExodoColors.lightSheetBg : ExodoColors.background;
-    final textCol = isLight ? const Color(0xFF171615) : ExodoColors.textPrimary;
-    final subTextCol = isLight ? Colors.black54 : ExodoColors.textPrimary;
-    final cardBg = isLight ? const Color(0xFFE2DDD2) : ExodoColors.composerBg;
-    final borderColor = isLight ? const Color(0xFFD4CEBF) : Colors.transparent;
+    final bg = isLight ? Colors.white : ExodoColors.background;
+    final textCol = isLight ? const Color(0xFF191919) : ExodoColors.textPrimary;
+    final subTextCol = isLight ? const Color(0xFF191919) : ExodoColors.textPrimary;
+    final cardBg = isLight ? ExodoColors.textPrimary : ExodoColors.composerBg;
+    final borderColor = isLight ? const Color(0xFFE8E0D8) : Colors.transparent;
     final handleColor = isLight ? Colors.black26 : ExodoColors.textPrimary.withValues(alpha: 0.3);
     final dividerColor = isLight ? const Color(0xFFE2DDD2) : Colors.transparent;
 
@@ -1013,11 +1013,11 @@ class _ClaudeAccountModal {
     String? subtitle,
     required bool isLight,
   }) {
-    final tileBg = isLight ? Colors.white : ExodoColors.composerBg;
-    final textCol = isLight ? const Color(0xFF171615) : ExodoColors.textPrimary;
-    final subCol = isLight ? Colors.black54 : ExodoColors.textPrimary;
-    final iconCol = isLight ? Colors.black87 : ExodoColors.textPrimary;
-    final chevronCol = isLight ? Colors.black38 : ExodoColors.textPrimary;
+    final tileBg = isLight ? ExodoColors.textPrimary : ExodoColors.composerBg;
+    final textCol = isLight ? const Color(0xFF191919) : ExodoColors.textPrimary;
+    final subCol = isLight ? const Color(0xFF191919) : ExodoColors.textPrimary;
+    final iconCol = isLight ? const Color(0xFF191919) : ExodoColors.textPrimary;
+    final chevronCol = isLight ? const Color(0xFF191919) : ExodoColors.textPrimary;
 
     return InkWell(
       onTap: onTap,
