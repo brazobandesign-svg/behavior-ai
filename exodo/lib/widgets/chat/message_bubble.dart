@@ -629,7 +629,7 @@ class _MessageActionBar extends StatelessWidget {
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
                     color: isLight
-                        ? const Color(0xFF171615)
+                        ? const Color(0xFF191919)
                         : ExodoColors.textPrimary,
                   ),
                 ),
@@ -644,7 +644,7 @@ class _MessageActionBar extends StatelessWidget {
               fontFamily: 'AnthropicSans',
               fontSize: 14,
               color: isLight
-                  ? const Color(0xFF171615)
+                  ? const Color(0xFF191919)
                   : ExodoColors.textPrimary,
             ),
             decoration: InputDecoration(
@@ -656,11 +656,21 @@ class _MessageActionBar extends StatelessWidget {
               ),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(10),
-                borderSide: BorderSide(color: ExodoColors.border),
+                borderSide: isLight
+                    ? BorderSide.none
+                    : const BorderSide(color: ExodoColors.border),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+                borderSide: isLight
+                    ? BorderSide.none
+                    : const BorderSide(color: ExodoColors.border),
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(10),
-                borderSide: const BorderSide(color: ExodoColors.amber),
+                borderSide: isLight
+                    ? BorderSide.none
+                    : const BorderSide(color: ExodoColors.amber),
               ),
               filled: true,
               fillColor: isLight ? Colors.white : const Color(0xFF191919),
