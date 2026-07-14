@@ -212,9 +212,12 @@ class UpgradeModal {
     bool isAnnual = false;
     final isLight = Theme.of(context).brightness == Brightness.light;
     final bgColor = isLight ? Colors.white : ExodoColors.background;
-    final surfaceColor = isLight
-        ? const Color(0xFFE8E0D8)
-        : ExodoColors.composerBg;
+    final planSelectedBg = isLight
+        ? Colors.white
+        : const Color(0xFF191919);
+    final planUnselectedBg = isLight
+        ? ExodoColors.textPrimary
+        : const Color(0xFF252525);
     final composerBg = isLight
         ? ExodoColors.textPrimary
         : ExodoColors.composerBg;
@@ -317,7 +320,7 @@ class UpgradeModal {
                                   vertical: 12,
                                 ),
                                 decoration: BoxDecoration(
-                                  color: !isAnnual ? surfaceColor : bgColor,
+                                  color: !isAnnual ? planSelectedBg : planUnselectedBg,
                                   borderRadius: BorderRadius.circular(14),
                                   border: Border.all(
                                     color: !isAnnual
@@ -373,7 +376,7 @@ class UpgradeModal {
                                   vertical: 12,
                                 ),
                                 decoration: BoxDecoration(
-                                  color: isAnnual ? surfaceColor : bgColor,
+                                  color: isAnnual ? planSelectedBg : planUnselectedBg,
                                   borderRadius: BorderRadius.circular(14),
                                   border: Border.all(
                                     color: isAnnual
