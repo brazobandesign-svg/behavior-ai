@@ -101,7 +101,8 @@ class ChatStage extends StatelessWidget {
               textAlign: TextAlign.center,
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
-              style: TextStyle(fontFamily: 'AnthropicSans', 
+              style: TextStyle(
+                fontFamily: 'AnthropicSerif',
                 fontSize: 22,
                 fontWeight: FontWeight.bold,
                 color: isLight ? const Color(0xFF171615) : Colors.white,
