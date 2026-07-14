@@ -298,9 +298,9 @@ class _HeaderTokenBarState extends State<_HeaderTokenBar> {
     final pct = (progress * 100).toStringAsFixed(1);
     final isLight = Theme.of(context).brightness == Brightness.light;
 
-    final bgColor = isLight ? const Color(0xFFE8E8E8) : ExodoColors.tokenBarBg;
-    final trackColor = isLight ? const Color(0xFFDDDDDD) : ExodoColors.modelChipBg;
-    final fillColor = isLight ? const Color(0xFF171615) : ExodoColors.textPrimary;
+    final bgColor = isLight ? Colors.white : ExodoColors.tokenBarBg;
+    final trackColor = isLight ? const Color(0xFFE8E0D8) : ExodoColors.modelChipBg;
+    final fillColor = isLight ? const Color(0xFF191919) : ExodoColors.textPrimary;
     final textColor = isLight ? const Color(0xFF171615) : ExodoColors.textPrimary;
     final subTextColor = isLight ? const Color(0xFF7B7872) : ExodoColors.textSecondary;
 
@@ -338,7 +338,9 @@ class _HeaderTokenBarState extends State<_HeaderTokenBar> {
                         color: bgColor,
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(
-                          color: ExodoColors.amber.withValues(alpha: 0.4),
+                          color: isLight
+                              ? ExodoColors.amber
+                              : ExodoColors.amber.withValues(alpha: 0.4),
                           width: 1.0,
                         ),
                         boxShadow: [
@@ -395,6 +397,9 @@ class _HeaderTokenBarState extends State<_HeaderTokenBar> {
               decoration: BoxDecoration(
                 color: bgColor,
                 borderRadius: BorderRadius.circular(12),
+                border: isLight
+                    ? Border.all(color: ExodoColors.amber, width: 1.0)
+                    : null,
               ),
               child: Row(
                 children: [
