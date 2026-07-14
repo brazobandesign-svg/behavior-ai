@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class ExodoColors {
-  static const Color background = Color(0xFF0E0C0A); // Negro Cálido
+  static const Color background = Color(0xFF191919); // Fondo principal del Chat y App en Dark Mode (#191919)
+  static const Color loginBg = Color(0xFF0E0C0A);    // Negro Cálido (Exclusivo de Login y Logo - intocable)
   static const Color surface = Color(0xFF1A1612);
   static const Color border = Color(0xFF2A241D);
 
@@ -14,9 +15,9 @@ class ExodoColors {
 
   // === Dark mode ===
   static const Color chatBg = background;
-  static const Color composerBg = surface;
-  static const Color modelChipBg = surface;
-  static const Color tokenBarBg = surface;
+  static const Color composerBg = Color(0xFF252525);   // Elevado sobre #191919 (#252525)
+  static const Color modelChipBg = Color(0xFF141414);  // Fondo de botones añadir, selector y barra tokens (#141414)
+  static const Color tokenBarBg = Color(0xFF252525);   // Elevada en el header (#252525)
 }
 
 class ExodoTheme {
