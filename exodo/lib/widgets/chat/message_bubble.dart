@@ -217,11 +217,11 @@ class MessageBubble extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
                 decoration: BoxDecoration(
                   color: isLight
-                      ? const Color(0xFFE8E8E8)
+                      ? Colors.white
                       : const Color(0xFF212121),
                   borderRadius: BorderRadius.circular(20),
                   border: Border.all(
-                    color: isLight ? const Color(0xFFDDDDDD) : Colors.transparent,
+                    color: isLight ? const Color(0xFFE8E0D8) : Colors.transparent,
                     width: 1.0,
                   ),
                 ),
