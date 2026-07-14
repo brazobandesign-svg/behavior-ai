@@ -831,12 +831,12 @@ class _ClaudeAccountModal {
   static void show(BuildContext context, AppState state) {
     final isLight = !state.isDarkMode;
     final bg = isLight ? const Color(0xFFF7F5F0) : ExodoColors.background;
-    final textCol = isLight ? const Color(0xFF171615) : Colors.white;
-    final subTextCol = isLight ? Colors.black54 : Colors.white54;
+    final textCol = isLight ? const Color(0xFF171615) : ExodoColors.textPrimary;
+    final subTextCol = isLight ? Colors.black54 : ExodoColors.textPrimary;
     final cardBg = isLight ? const Color(0xFFEBE7DE) : ExodoColors.composerBg;
     final borderColor = isLight ? const Color(0xFFD4CEBF) : Colors.transparent;
-    final handleColor = isLight ? Colors.black26 : Colors.white24;
-    final dividerColor = isLight ? const Color(0xFFE2DDD2) : Colors.white12;
+    final handleColor = isLight ? Colors.black26 : ExodoColors.textPrimary.withValues(alpha: 0.3);
+    final dividerColor = isLight ? const Color(0xFFE2DDD2) : Colors.transparent;
 
     showModalBottomSheet(
       context: context,
@@ -888,10 +888,10 @@ class _ClaudeAccountModal {
                     const SizedBox(width: 12),
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                      decoration: BoxDecoration(color: isLight ? const Color(0xFF171615) : Colors.white, borderRadius: BorderRadius.circular(20)),
+                      decoration: BoxDecoration(color: isLight ? const Color(0xFF171615) : ExodoColors.textPrimary, borderRadius: BorderRadius.circular(20)),
                       child: Text(
                         state.profile?.plan == 'hazak' ? 'Pro' : 'Free',
-                        style: TextStyle(fontFamily: 'AnthropicSans', fontSize: 12, fontWeight: FontWeight.bold, color: isLight ? Colors.white : Colors.black, letterSpacing: -0.2),
+                        style: TextStyle(fontFamily: 'AnthropicSans', fontSize: 12, fontWeight: FontWeight.bold, color: isLight ? Colors.white : ExodoColors.background, letterSpacing: -0.2),
                       ),
                     ),
                   ],
@@ -985,14 +985,14 @@ class _ClaudeAccountModal {
                     Image.asset(
                       'assets/images/Logo_behavior.png',
                       height: 16,
-                      color: (isLight ? Colors.black : Colors.white).withValues(alpha: 0.5),
+                      color: isLight ? Colors.black54 : ExodoColors.textPrimary,
                     ),
                     const SizedBox(width: 8),
                     Text(
                       'AVI 1.1.86-release.01',
                       style: TextStyle(fontFamily: 'AnthropicSans', 
                         fontSize: 12,
-                        color: (isLight ? Colors.black : Colors.white).withValues(alpha: 0.5),
+                        color: isLight ? Colors.black54 : ExodoColors.textPrimary,
                       ),
                     ),
                   ],
@@ -1014,10 +1014,10 @@ class _ClaudeAccountModal {
     required bool isLight,
   }) {
     final tileBg = isLight ? Colors.white : ExodoColors.composerBg;
-    final textCol = isLight ? const Color(0xFF171615) : Colors.white;
-    final subCol = isLight ? Colors.black54 : Colors.white60;
-    final iconCol = isLight ? Colors.black87 : Colors.white70;
-    final chevronCol = isLight ? Colors.black38 : Colors.white38;
+    final textCol = isLight ? const Color(0xFF171615) : ExodoColors.textPrimary;
+    final subCol = isLight ? Colors.black54 : ExodoColors.textPrimary;
+    final iconCol = isLight ? Colors.black87 : ExodoColors.textPrimary;
+    final chevronCol = isLight ? Colors.black38 : ExodoColors.textPrimary;
 
     return InkWell(
       onTap: onTap,
@@ -1074,8 +1074,8 @@ class _ClaudeAccountModal {
     final currentCode = context.currentLocaleCode;
     final isLight = Theme.of(context).brightness == Brightness.light;
     final bg = isLight ? Colors.white : ExodoColors.background;
-    final textCol = isLight ? const Color(0xFF171615) : Colors.white;
-    final subTextCol = isLight ? Colors.black54 : Colors.white60;
+    final textCol = isLight ? const Color(0xFF171615) : ExodoColors.textPrimary;
+    final subTextCol = isLight ? Colors.black54 : ExodoColors.textPrimary;
 
     HapticFeedback.selectionClick();
 

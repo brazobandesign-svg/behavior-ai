@@ -40,7 +40,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final isLight = !state.isDarkMode;
     final bg = isLight ? const Color(0xFFFBF9F5) : ExodoColors.background;     // yeso / negro cálido
     final textCol = isLight ? const Color(0xFF171615) : ExodoColors.textPrimary;
-    final subTextCol = isLight ? const Color(0xFF7B7872) : ExodoColors.textSecondary;
+    final subTextCol = isLight ? const Color(0xFF7B7872) : ExodoColors.textPrimary;
     final dividerColor = isLight ? const Color(0xFFDDDDDD) : Colors.white12;
     final cardBg = isLight ? const Color(0xFFF5F5F5) : ExodoColors.composerBg;
 
@@ -162,9 +162,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final state = Provider.of<AppState>(context);
     final isLight = !state.isDarkMode;
     final bg = isLight ? const Color(0xFFF7F5F0) : ExodoColors.background;
-    final cardBg = isLight ? Colors.white : ExodoColors.surface;
-    final textCol = isLight ? const Color(0xFF171615) : Colors.white;
-    final subCol = isLight ? Colors.black54 : Colors.white60;
+    final cardBg = isLight ? Colors.white : ExodoColors.composerBg;
+    final textCol = isLight ? const Color(0xFF171615) : ExodoColors.textPrimary;
+    final subCol = isLight ? Colors.black54 : ExodoColors.textPrimary;
 
 
     return Scaffold(
@@ -257,8 +257,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       height: 52,
                       child: ElevatedButton(
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: ExodoColors.amber,
-                          foregroundColor: Colors.black,
+                          backgroundColor: cardBg,
+                          foregroundColor: textCol,
                           elevation: 0,
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                         ),
@@ -293,16 +293,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
               padding: const EdgeInsets.fromLTRB(24, 0, 24, 8),
               child: SizedBox(
                 width: double.infinity,
-                child: OutlinedButton.icon(
-                  style: OutlinedButton.styleFrom(
+                child: TextButton.icon(
+                  style: TextButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                    side: BorderSide(color: isLight ? const Color(0xFFD4CEBF) : ExodoColors.border),
                   ),
-                  icon: Icon(Icons.delete_sweep_rounded, size: 20, color: isLight ? const Color(0xFF7B7872) : ExodoColors.textSecondary),
+                  icon: Icon(Icons.delete_sweep_rounded, size: 20, color: textCol),
                   label: Text(
                     AppI18n.of(context).t('profile.clear_history_btn'),
-                    style: GoogleFonts.inter(color: isLight ? const Color(0xFF7B7872) : ExodoColors.textSecondary, fontSize: 15, fontWeight: FontWeight.w500),
+                    style: GoogleFonts.inter(color: textCol, fontSize: 15, fontWeight: FontWeight.w500),
                   ),
                   onPressed: () => _showClearHistoryConfirmation(context, state),
                 ),
