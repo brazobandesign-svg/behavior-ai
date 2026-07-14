@@ -607,7 +607,7 @@ class _MessageActionBar extends StatelessWidget {
         builder: (ctx) => AlertDialog(
           backgroundColor: isLight
               ? const Color(0xFFF5F2EB)
-              : ExodoColors.background,
+              : const Color(0xFF252525),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
           ),
@@ -624,7 +624,8 @@ class _MessageActionBar extends StatelessWidget {
               Expanded(
                 child: Text(
                   title,
-                  style: GoogleFonts.inter(
+                  style: TextStyle(
+                    fontFamily: 'AnthropicSans',
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
                     color: isLight
@@ -639,7 +640,8 @@ class _MessageActionBar extends StatelessWidget {
             controller: ctrl,
             maxLines: 4,
             minLines: 2,
-            style: GoogleFonts.inter(
+            style: TextStyle(
+              fontFamily: 'AnthropicSans',
               fontSize: 14,
               color: isLight
                   ? const Color(0xFF171615)
@@ -647,7 +649,8 @@ class _MessageActionBar extends StatelessWidget {
             ),
             decoration: InputDecoration(
               hintText: hint,
-              hintStyle: GoogleFonts.inter(
+              hintStyle: const TextStyle(
+                fontFamily: 'AnthropicSans',
                 color: ExodoColors.textSecondary,
                 fontSize: 13,
               ),
@@ -660,7 +663,7 @@ class _MessageActionBar extends StatelessWidget {
                 borderSide: const BorderSide(color: ExodoColors.amber),
               ),
               filled: true,
-              fillColor: isLight ? Colors.white : ExodoColors.surface,
+              fillColor: isLight ? Colors.white : const Color(0xFF191919),
             ),
           ),
           actions: [
@@ -668,7 +671,10 @@ class _MessageActionBar extends StatelessWidget {
               onPressed: () => Navigator.pop(ctx),
               child: Text(
                 AppI18n.of(context).t('ctx.cancel'),
-                style: GoogleFonts.inter(color: ExodoColors.textSecondary),
+                style: const TextStyle(
+                  fontFamily: 'AnthropicSans',
+                  color: ExodoColors.textSecondary,
+                ),
               ),
             ),
             TextButton(
@@ -687,7 +693,8 @@ class _MessageActionBar extends StatelessWidget {
               },
               child: Text(
                 AppI18n.of(context).t('action.send'),
-                style: GoogleFonts.inter(
+                style: const TextStyle(
+                  fontFamily: 'AnthropicSans',
                   color: ExodoColors.amber,
                   fontWeight: FontWeight.bold,
                 ),
