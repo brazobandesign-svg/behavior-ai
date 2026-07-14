@@ -1013,7 +1013,7 @@ class _ClaudeAccountModal {
     String? subtitle,
     required bool isLight,
   }) {
-    final tileBg = isLight ? Colors.white : ExodoColors.surface;
+    final tileBg = isLight ? Colors.white : ExodoColors.composerBg;
     final textCol = isLight ? const Color(0xFF171615) : Colors.white;
     final subCol = isLight ? Colors.black54 : Colors.white60;
     final iconCol = isLight ? Colors.black87 : Colors.white70;
