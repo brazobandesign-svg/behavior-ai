@@ -53,10 +53,22 @@ class AppState extends ChangeNotifier {
 
   bool _initializedSupabase = false;
 
-  AppState() {
-    // [Punto 1 Fix] No bloqueamos el arranque ni competimos por locks en el milisegundo 0.
-    // La inicialización real (_init y _fetchWeather) se llama desde _RootSwitcher
-    // tan pronto como SupabaseService.initialize() ha terminado.
+  AppState({String? savedModelId, String? savedProfileJson}) {
+    // Carga Cache-First instantánea en el milisegundo 0 para el primer frame
+    if (savedModelId != null) {
+      final found = exodoModels.where((m) => m.id == savedModelId);
+      if (found.isNotEmpty) {
+        selectedModel = found.first;
+      }
+    }
+    if (savedProfileJson != null) {
+      try {
+        profile = UserProfile.fromJson(jsonDecode(savedProfileJson));
+        if (savedModelId == null) {
+          selectedModel = profile?.plan == 'hazak' ? exodoModels[1] : exodoModels[0];
+        }
+      } catch (_) {}
+    }
   }
 
   void initAfterSupabase() {
@@ -95,17 +107,15 @@ class AppState extends ChangeNotifier {
       final event = data.event;
       if (event == AuthChangeEvent.signedIn ||
           event == AuthChangeEvent.initialSession) {
-        // [Punto 36 aviso] Antes: `stopGeneration()` se llamaba aquí, lo que
-        // añadía un mensaje "You stopped the response" a `currentMessages` y
-        // notificaba listeners ANTES de que `loadUserData` → `startNewChat`
-        // limpiaran el chat. Resultado: el usuario veía un flash del mensaje
-        // "stopped..." al iniciar sesión. Ahora: cancelamos el stream en
-        // background pero NO añadimos ningún mensaje, y limpiamos los
-        // mensajes inmediatamente para garantizar un inicio limpio.
         ChatService.cancelStream();
-        currentMessages = [];
-        isThinking = false;
-        isGenerating = false;
+        // Si el usuario acaba de iniciar sesión de cero (signedIn), limpiamos los mensajes.
+        // En initialSession (arranque de app con sesión ya activa), no borramos los mensajes
+        // optimistas que ya estén en pantalla o cargados desde caché para evitar parpadeos.
+        if (event == AuthChangeEvent.signedIn) {
+          currentMessages = [];
+          isThinking = false;
+          isGenerating = false;
+        }
         await loadUserData();
       } else if (event == AuthChangeEvent.signedOut) {
         ChatService.cancelStream();

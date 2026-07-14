@@ -13,26 +13,50 @@ import 'theme/exodo_theme.dart';
 import 'screens/auth_screen.dart';
 import 'screens/chat_screen.dart';
 
-void main() {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   // [Sprint 0] Permitir descarga HTTP de Google Fonts mientras no están bundled.
   GoogleFonts.config.allowRuntimeFetching = true;
 
-  // No bloqueamos runApp: iniciamos la inicialización asíncrona pero abrimos
-  // la UI al milisegundo 0 para que el usuario no vea una pantalla congelada.
+  // 1. Carga ultra-rápida de SharedPreferences antes del primer frame (~5ms, sin red)
+  final prefs = await SharedPreferences.getInstance();
+  final hasCachedToken = prefs.getKeys().any(
+    (k) => k.startsWith('sb-') && k.contains('auth-token'),
+  );
+  final savedModelId = prefs.getString('exodo_selected_model');
+  final savedProfileJson = prefs.getString('exodo_cached_profile');
+
+  // 2. Supabase sigue inicializando en paralelo en background sin bloquear
   final initFuture = SupabaseService.initialize();
 
   runApp(
     MultiProvider(
-      providers: [ChangeNotifierProvider(create: (_) => AppState())],
-      child: AppI18nProvider(child: ExodoApp(initFuture: initFuture)),
+      providers: [
+        ChangeNotifierProvider(
+          create: (_) => AppState(
+            savedModelId: savedModelId,
+            savedProfileJson: savedProfileJson,
+          ),
+        ),
+      ],
+      child: AppI18nProvider(
+        child: ExodoApp(
+          initFuture: initFuture,
+          initialHasSession: hasCachedToken,
+        ),
+      ),
     ),
   );
 }
 
 class ExodoApp extends StatelessWidget {
   final Future<void> initFuture;
-  const ExodoApp({super.key, required this.initFuture});
+  final bool initialHasSession;
+  const ExodoApp({
+    super.key,
+    required this.initFuture,
+    this.initialHasSession = false,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -81,9 +105,16 @@ class ExodoApp extends StatelessWidget {
         }
         return const Locale('es', '');
       },
-      home: _RootSwitcher(initFuture: initFuture),
-      onUnknownRoute: (settings) =>
-          MaterialPageRoute(builder: (_) => _RootSwitcher(initFuture: initFuture)),
+      home: _RootSwitcher(
+        initFuture: initFuture,
+        initialHasSession: initialHasSession,
+      ),
+      onUnknownRoute: (settings) => MaterialPageRoute(
+        builder: (_) => _RootSwitcher(
+          initFuture: initFuture,
+          initialHasSession: initialHasSession,
+        ),
+      ),
     );
   }
 }
@@ -97,7 +128,12 @@ Locale? _resolveLocale(String? appLocale) {
 
 class _RootSwitcher extends StatefulWidget {
   final Future<void> initFuture;
-  const _RootSwitcher({super.key, required this.initFuture});
+  final bool initialHasSession;
+  const _RootSwitcher({
+    super.key,
+    required this.initFuture,
+    this.initialHasSession = false,
+  });
 
   @override
   State<_RootSwitcher> createState() => _RootSwitcherState();
@@ -117,6 +153,9 @@ class _RootSwitcherState extends State<_RootSwitcher> {
   @override
   void initState() {
     super.initState();
+    // Al haber pre-leído SharedPreferences en main(), ya sabemos la sesión en el frame 0.
+    _hasCachedSession = widget.initialHasSession;
+    _checkedCache = true;
     _checkCachedSessionFast();
     // Supabase sigue inicializando en paralelo, no lo esperamos.
     widget.initFuture.then((_) {
