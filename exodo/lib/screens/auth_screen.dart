@@ -94,8 +94,8 @@ class _AuthScreenState extends State<AuthScreen> {
                             }
                           },
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.white,
-                      foregroundColor: Colors.black87,
+                      backgroundColor: ExodoColors.textPrimary,
+                      foregroundColor: ExodoColors.background,
                       elevation: 1,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(27)),
                     ),
@@ -125,16 +125,17 @@ class _AuthScreenState extends State<AuthScreen> {
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: ExodoColors.surface,
+                      foregroundColor: ExodoColors.textPrimary.withValues(alpha: 0.4),
                       disabledBackgroundColor: ExodoColors.surface.withValues(alpha: 0.5),
-                      disabledForegroundColor: Colors.white38,
+                      disabledForegroundColor: ExodoColors.textPrimary.withValues(alpha: 0.4),
                       elevation: 0,
-                      side: BorderSide(color: ExodoColors.border.withValues(alpha: 0.5)),
+                      side: BorderSide.none,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(27)),
                     ),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const Icon(Icons.apple, size: 28, color: Colors.white38),
+                        Icon(Icons.apple, size: 28, color: ExodoColors.textPrimary.withValues(alpha: 0.4)),
                         const SizedBox(width: 14),
                         Text(
                           AppI18n.of(context).t('auth.continue_apple'),
@@ -160,15 +161,14 @@ class _AuthScreenState extends State<AuthScreen> {
                       child: Container(
                         width: 50,
                         height: 50,
-                        decoration: BoxDecoration(
+                        decoration: const BoxDecoration(
                           shape: BoxShape.circle,
                           color: ExodoColors.surface,
-                          border: Border.all(color: ExodoColors.border),
                         ),
                         child: const Center(
                           child: Text(
                             '𝕏',
-                            style: TextStyle(fontSize: 22, color: Colors.white, fontWeight: FontWeight.bold),
+                            style: TextStyle(fontSize: 22, color: ExodoColors.textPrimary, fontWeight: FontWeight.bold),
                           ),
                         ),
                       ),
@@ -183,17 +183,16 @@ class _AuthScreenState extends State<AuthScreen> {
                       child: Container(
                         width: 50,
                         height: 50,
-                        decoration: BoxDecoration(
+                        decoration: const BoxDecoration(
                           shape: BoxShape.circle,
                           color: ExodoColors.surface,
-                          border: Border.all(color: ExodoColors.border),
                         ),
                         child: Center(
                           child: Image.asset(
                             'assets/images/github_logo.png',
                             width: 26,
                             height: 26,
-                            color: Colors.white,
+                            color: ExodoColors.textPrimary,
                           ),
                         ),
                       ),
@@ -208,7 +207,7 @@ class _AuthScreenState extends State<AuthScreen> {
                     onPressed: isLoading
                         ? null
                         : _signInAsGuest,
-                    style: TextButton.styleFrom(foregroundColor: ExodoColors.textSecondary),
+                    style: TextButton.styleFrom(foregroundColor: ExodoColors.textPrimary),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
