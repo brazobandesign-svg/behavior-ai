@@ -25,7 +25,7 @@ class AnimatedAmbientBackground extends StatelessWidget {
     final isDarkBg = isDarkMode || isIncognito;
     final bgColor = isDarkBg
         ? ExodoColors.chatBg
-        : const Color(0xFFFBF9F5);
+        : ExodoColors.textPrimary;
 
     // La watermark ahora vive dentro de ChatStage para garantizar
     // que saludo y PNG nunca choquen.
