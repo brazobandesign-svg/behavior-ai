@@ -19,12 +19,14 @@ class ScrollToBottomButton extends StatefulWidget {
   final ScrollController controller;
   final int messagesCount;
   final int thresholdMessages;
+  final VoidCallback? onPressed;
 
   const ScrollToBottomButton({
     super.key,
     required this.controller,
     required this.messagesCount,
     this.thresholdMessages = 4,
+    this.onPressed,
   });
 
   @override
@@ -114,6 +116,7 @@ class ScrollToBottomButtonState extends State<ScrollToBottomButton> {
             child: InkWell(
               onTap: () {
                 HapticFeedback.selectionClick();
+                widget.onPressed?.call();
                 _scrollToBottom();
               },
               customBorder: const CircleBorder(),

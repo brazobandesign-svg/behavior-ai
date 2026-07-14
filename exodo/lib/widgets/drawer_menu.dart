@@ -161,7 +161,7 @@ class _DrawerMenuState extends State<DrawerMenu> {
                                 ),
                                 child: Text(
                                   'AVI 1.1.86-release.01',
-                                  style: GoogleFonts.jetBrainsMono(
+                                  style: TextStyle(fontFamily: 'AnthropicSans', 
                                     fontSize: 10.5,
                                     color: ExodoColors.amber,
                                     fontWeight: FontWeight.w600,
@@ -182,7 +182,7 @@ class _DrawerMenuState extends State<DrawerMenu> {
                             _DrawerItem(
                               horizontalPad: hPad,
                               icon: Icon(Icons.chat_bubble_outline_rounded, size: s(20), color: textCol),
-                              title: Text(AppI18n.of(context).t('drawer.new_chat'), style: GoogleFonts.jetBrainsMono(fontSize: s(14), color: textCol, fontWeight: FontWeight.w600, letterSpacing: -0.2)),
+                              title: Text(AppI18n.of(context).t('drawer.new_chat'), style: TextStyle(fontFamily: 'AnthropicSans', fontSize: s(14), color: textCol, fontWeight: FontWeight.w600, letterSpacing: -0.2)),
                               onTap: () {
                                 state.startNewChat();
                                 Navigator.pop(context);
@@ -191,7 +191,7 @@ class _DrawerMenuState extends State<DrawerMenu> {
                             _DrawerItem(
                               horizontalPad: hPad,
                               icon: Icon(state.isDarkMode ? Icons.light_mode_outlined : Icons.dark_mode_outlined, size: s(20), color: textCol),
-                              title: Text(state.isDarkMode ? AppI18n.of(context).t('drawer.light_mode') : AppI18n.of(context).t('drawer.dark_mode'), style: GoogleFonts.jetBrainsMono(fontSize: s(14), color: textCol, fontWeight: FontWeight.w600, letterSpacing: -0.2)),
+                              title: Text(state.isDarkMode ? AppI18n.of(context).t('drawer.light_mode') : AppI18n.of(context).t('drawer.dark_mode'), style: TextStyle(fontFamily: 'AnthropicSans', fontSize: s(14), color: textCol, fontWeight: FontWeight.w600, letterSpacing: -0.2)),
                               onTap: () => state.toggleTheme(),
                             ),
                             _DrawerItem(
@@ -202,7 +202,7 @@ class _DrawerMenuState extends State<DrawerMenu> {
                                 height: s(20),
                                 color: state.isIncognito ? ExodoColors.amber : textCol,
                               ),
-                              title: Text(AppI18n.of(context).t('drawer.incognito'), style: GoogleFonts.jetBrainsMono(fontSize: s(14), color: state.isIncognito ? ExodoColors.amber : textCol, fontWeight: FontWeight.w600, letterSpacing: -0.2)),
+                              title: Text(AppI18n.of(context).t('drawer.incognito'), style: TextStyle(fontFamily: 'AnthropicSans', fontSize: s(14), color: state.isIncognito ? ExodoColors.amber : textCol, fontWeight: FontWeight.w600, letterSpacing: -0.2)),
                               onTap: () {
                                 HapticFeedback.vibrate();
                                 state.toggleIncognito();
@@ -276,7 +276,7 @@ class _DrawerMenuState extends State<DrawerMenu> {
                             : _DrawerItem(
                                 horizontalPad: hPad - s(8),
                                 icon: Icon(Icons.search_rounded, size: s(20), color: textCol),
-                                title: Text(AppI18n.of(context).t('drawer.search_chats'), style: GoogleFonts.jetBrainsMono(fontSize: s(14), color: textCol, fontWeight: FontWeight.w600, letterSpacing: -0.2)),
+                                title: Text(AppI18n.of(context).t('drawer.search_chats'), style: TextStyle(fontFamily: 'AnthropicSans', fontSize: s(14), color: textCol, fontWeight: FontWeight.w600, letterSpacing: -0.2)),
                                 onTap: () => setState(() => _isSearching = true),
                               ),
                       ),
@@ -323,7 +323,7 @@ class _DrawerMenuState extends State<DrawerMenu> {
                                   state.conversations.isEmpty
                                       ? AppI18n.of(context).t('drawer.no_history')
                                       : AppI18n.of(context).t('drawer.no_found'),
-                                  style: GoogleFonts.jetBrainsMono(
+                                  style: TextStyle(fontFamily: 'AnthropicSans', 
                                     fontSize: s(13),
                                     color: subTextCol,
                                     fontWeight: FontWeight.w600,
@@ -353,7 +353,7 @@ class _DrawerMenuState extends State<DrawerMenu> {
                               SliverPadding(
                                 padding: EdgeInsets.fromLTRB(hPad, 6, hPad, 4),
                                 sliver: SliverToBoxAdapter(
-                                  child: Text(AppI18n.of(context).t('drawer.starred'), style: GoogleFonts.jetBrainsMono(fontSize: s(11.5), fontWeight: FontWeight.bold, color: subTextCol, letterSpacing: -0.1)),
+                                  child: Text(AppI18n.of(context).t('drawer.starred'), style: TextStyle(fontFamily: 'AnthropicSans', fontSize: s(11.5), fontWeight: FontWeight.bold, color: subTextCol, letterSpacing: -0.1)),
                                 ),
                               ),
                               SliverList(
@@ -368,7 +368,7 @@ class _DrawerMenuState extends State<DrawerMenu> {
                             SliverPadding(
                               padding: EdgeInsets.fromLTRB(hPad, 6, hPad, 4),
                               sliver: SliverToBoxAdapter(
-                                child: Text(AppI18n.of(context).t('drawer.recents'), style: GoogleFonts.jetBrainsMono(fontSize: s(11.5), fontWeight: FontWeight.bold, color: subTextCol, letterSpacing: -0.1)),
+                                child: Text(AppI18n.of(context).t('drawer.recents'), style: TextStyle(fontFamily: 'AnthropicSans', fontSize: s(11.5), fontWeight: FontWeight.bold, color: subTextCol, letterSpacing: -0.1)),
                               ),
                             ),
                             SliverList(
@@ -418,14 +418,14 @@ class _DrawerMenuState extends State<DrawerMenu> {
                                           (state.profile?.fullName?.trim().isNotEmpty == true)
                                               ? state.profile!.fullName!.trim().substring(0, 1).toUpperCase()
                                               : 'U',
-                                          style: GoogleFonts.syne(fontSize: s(19), fontWeight: FontWeight.bold, color: Colors.black),
+                                          style: TextStyle(fontFamily: 'Syne', fontSize: s(19), fontWeight: FontWeight.bold, color: Colors.black),
                                         ),
                                 ),
                                 SizedBox(width: s(12)),
                                 Flexible(
                                   child: Text(
                                     state.profile?.fullName ?? AppI18n.of(context).t('drawer.user_default'),
-                                    style: GoogleFonts.jetBrainsMono(fontSize: s(14), fontWeight: FontWeight.w600, color: textCol, letterSpacing: -0.2),
+                                    style: TextStyle(fontFamily: 'AnthropicSans', fontSize: s(14), fontWeight: FontWeight.w600, color: textCol, letterSpacing: -0.2),
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
                                   ),
@@ -491,7 +491,7 @@ void _showAddWidgetSheet(BuildContext context) {
                     Expanded(
                       child: Text(
                         AppI18n.of(sheetCtx).t('drawer.add_widget'),
-                        style: GoogleFonts.syne(
+                        style: TextStyle(fontFamily: 'Syne', 
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
                           color: ExodoColors.textPrimary,
@@ -638,7 +638,7 @@ void _showAddWidgetSheet(BuildContext context) {
           (conv.title == 'New chat' || conv.title == 'Nuevo chat' || conv.title == 'Nueva conversación' || conv.title == 'Nova conversa' || conv.title == 'Nouvelle conversation' || conv.title == 'Nuova chat' || conv.title == 'Neuer Chat' || conv.title == 'New conversation' || conv.title == 'Sin título') ? AppI18n.of(context).t('drawer.new_chat') : conv.title,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
-          style: GoogleFonts.jetBrainsMono(
+          style: TextStyle(fontFamily: 'AnthropicSans', 
             fontSize: s(13),
             fontWeight: active ? FontWeight.w600 : FontWeight.normal,
             color: active ? (isLight ? Colors.black : Colors.white) : (isLight ? const Color(0xFF171615) : Colors.white),
@@ -833,10 +833,10 @@ class _ClaudeAccountModal {
     final bg = isLight ? const Color(0xFFF7F5F0) : const Color(0xFF131313);
     final textCol = isLight ? const Color(0xFF171615) : Colors.white;
     final subTextCol = isLight ? Colors.black54 : Colors.white54;
-    final cardBg = isLight ? const Color(0xFFEBE7DE) : const Color(0xFF1E1E1E);
-    final borderColor = isLight ? const Color(0xFFD4CEBF) : Colors.white12;
+    final cardBg = isLight ? const Color(0xFFEBE7DE) : ExodoColors.surface;
+    final borderColor = isLight ? const Color(0xFFD4CEBF) : ExodoColors.border;
     final handleColor = isLight ? Colors.black26 : Colors.white24;
-    final dividerColor = isLight ? const Color(0xFFE2DDD2) : Colors.white12;
+    final dividerColor = isLight ? const Color(0xFFE2DDD2) : ExodoColors.border;
 
     showModalBottomSheet(
       context: context,
@@ -863,7 +863,7 @@ class _ClaudeAccountModal {
                 ),
               ),
               Center(
-                child: Text(AppI18n.of(context).t('settings.title'), style: GoogleFonts.syne(fontSize: 18, fontWeight: FontWeight.bold, color: textCol)),
+                child: Text(AppI18n.of(context).t('settings.title'), style: TextStyle(fontFamily: 'Syne', fontSize: 18, fontWeight: FontWeight.bold, color: textCol)),
               ),
               const SizedBox(height: 20),
 
@@ -881,7 +881,7 @@ class _ClaudeAccountModal {
                     Expanded(
                       child: Text(
                         state.userEmail.isNotEmpty ? state.userEmail : AppI18n.of(context).t('settings.no_email'),
-                        style: GoogleFonts.jetBrainsMono(fontSize: 14, fontWeight: FontWeight.w600, color: state.userEmail.isNotEmpty ? textCol : subTextCol, letterSpacing: -0.2),
+                        style: TextStyle(fontFamily: 'AnthropicSans', fontSize: 14, fontWeight: FontWeight.w600, color: state.userEmail.isNotEmpty ? textCol : subTextCol, letterSpacing: -0.2),
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
@@ -891,7 +891,7 @@ class _ClaudeAccountModal {
                       decoration: BoxDecoration(color: isLight ? const Color(0xFF171615) : Colors.white, borderRadius: BorderRadius.circular(20)),
                       child: Text(
                         state.profile?.plan == 'hazak' ? 'Pro' : 'Free',
-                        style: GoogleFonts.jetBrainsMono(fontSize: 12, fontWeight: FontWeight.bold, color: isLight ? Colors.white : Colors.black, letterSpacing: -0.2),
+                        style: TextStyle(fontFamily: 'AnthropicSans', fontSize: 12, fontWeight: FontWeight.bold, color: isLight ? Colors.white : Colors.black, letterSpacing: -0.2),
                       ),
                     ),
                   ],
@@ -955,7 +955,7 @@ class _ClaudeAccountModal {
                     context: context,
                     builder: (_) => AlertDialog(
                       backgroundColor: cardBg,
-                      title: Text(AppI18n.of(context).t('settings.terms'), style: GoogleFonts.syne(color: textCol)),
+                      title: Text(AppI18n.of(context).t('settings.terms'), style: TextStyle(fontFamily: 'Syne', color: textCol)),
                       content: Text(AppI18n.of(context).t('settings.legal_body'), style: GoogleFonts.inter(color: subTextCol)),
                       actions: [TextButton(onPressed: () => Navigator.pop(context), child: Text(AppI18n.of(context).t('action.close'), style: const TextStyle(color: ExodoColors.amber)))],
                     ),
@@ -970,7 +970,7 @@ class _ClaudeAccountModal {
               ListTile(
                 contentPadding: const EdgeInsets.symmetric(horizontal: 8),
                 leading: const Icon(Icons.logout_rounded, color: Color(0xFFE57373), size: 22),
-                title: Text(AppI18n.of(context).t('settings.logout'), style: GoogleFonts.jetBrainsMono(fontSize: 15, fontWeight: FontWeight.w600, color: const Color(0xFFE57373), letterSpacing: -0.2)),
+                title: Text(AppI18n.of(context).t('settings.logout'), style: TextStyle(fontFamily: 'AnthropicSans', fontSize: 15, fontWeight: FontWeight.w600, color: const Color(0xFFE57373), letterSpacing: -0.2)),
                 onTap: () async {
                   Navigator.pop(ctx);
                   await Future.delayed(const Duration(milliseconds: 300));
@@ -990,7 +990,7 @@ class _ClaudeAccountModal {
                     const SizedBox(width: 8),
                     Text(
                       'AVI 1.1.86-release.01',
-                      style: GoogleFonts.jetBrainsMono(
+                      style: TextStyle(fontFamily: 'AnthropicSans', 
                         fontSize: 12,
                         color: (isLight ? Colors.black : Colors.white).withValues(alpha: 0.5),
                       ),
@@ -1037,10 +1037,10 @@ class _ClaudeAccountModal {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(title, style: GoogleFonts.jetBrainsMono(fontSize: 15, color: textCol, fontWeight: FontWeight.w600, letterSpacing: -0.2)),
+                  Text(title, style: TextStyle(fontFamily: 'AnthropicSans', fontSize: 15, color: textCol, fontWeight: FontWeight.w600, letterSpacing: -0.2)),
                   if (subtitle != null && subtitle.isNotEmpty) ...[
                     const SizedBox(height: 2),
-                    Text(subtitle, style: GoogleFonts.jetBrainsMono(fontSize: 12, color: subCol, letterSpacing: -0.2)),
+                    Text(subtitle, style: TextStyle(fontFamily: 'AnthropicSans', fontSize: 12, color: subCol, letterSpacing: -0.2)),
                   ],
                 ],
               ),
@@ -1099,7 +1099,7 @@ class _ClaudeAccountModal {
                   alignment: Alignment.centerLeft,
                   child: Text(
                     i18n.t('lang.sheet_title'),
-                    style: GoogleFonts.syne(fontSize: 18, fontWeight: FontWeight.bold, color: textCol),
+                    style: TextStyle(fontFamily: 'Syne', fontSize: 18, fontWeight: FontWeight.bold, color: textCol),
                   ),
                 ),
               ),
@@ -1192,7 +1192,7 @@ class _ClaudeAccountModal {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(AppI18n.of(context).t('settings.billing'), style: GoogleFonts.syne(fontSize: 20, fontWeight: FontWeight.bold, color: textPrimary)),
+              Text(AppI18n.of(context).t('settings.billing'), style: TextStyle(fontFamily: 'Syne', fontSize: 20, fontWeight: FontWeight.bold, color: textPrimary)),
               const SizedBox(height: 16),
               Container(
                 padding: const EdgeInsets.all(16),

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:google_fonts/google_fonts.dart';
 import '../theme/exodo_theme.dart';
 import '../l10n/app_i18n.dart';
 
@@ -50,7 +49,7 @@ class _CodeBlockWidgetState extends State<CodeBlockWidget> {
   Widget build(BuildContext context) {
     // Fondo tipo "terminal" — siempre oscuro para que el código se lea bien
     // independientemente del theme de la app.
-    final bgColor = const Color(0xFF131313);
+    final bgColor = ExodoColors.surface;
     final borderColor = ExodoColors.border;
     final textColor = Colors.white;
 
@@ -82,7 +81,7 @@ class _CodeBlockWidgetState extends State<CodeBlockWidget> {
                     const SizedBox(width: 6),
                     Text(
                       (widget.language ?? 'code').toUpperCase(),
-                      style: GoogleFonts.jetBrainsMono(
+                      style: TextStyle(fontFamily: 'AnthropicSans', 
                         fontSize: 10,
                         fontWeight: FontWeight.w600,
                         color: ExodoColors.textSecondary,
@@ -111,7 +110,7 @@ class _CodeBlockWidgetState extends State<CodeBlockWidget> {
                             _copied
                                 ? i18n.t('code.copied')
                                 : i18n.t('code.copy'),
-                            style: GoogleFonts.jetBrainsMono(
+                            style: TextStyle(fontFamily: 'AnthropicSans', 
                               fontSize: 10,
                               fontWeight: FontWeight.w600,
                               color: _copied ? ExodoColors.amber : ExodoColors.textSecondary,
@@ -132,7 +131,7 @@ class _CodeBlockWidgetState extends State<CodeBlockWidget> {
             padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
             child: SelectableText(
               widget.code,
-              style: GoogleFonts.jetBrainsMono(
+              style: TextStyle(fontFamily: 'AnthropicSans', 
                 fontSize: 13,
                 color: textColor,
                 height: 1.5,

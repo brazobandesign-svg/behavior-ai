@@ -279,7 +279,7 @@ class _HeaderTokenBarState extends State<_HeaderTokenBar> {
         const SizedBox(height: 1),
         Text(
           value,
-          style: GoogleFonts.jetBrainsMono(
+          style: TextStyle(fontFamily: 'AnthropicSans', 
             fontSize: 10,
             fontWeight: FontWeight.bold,
             color: isAmber
@@ -400,7 +400,7 @@ class _HeaderTokenBarState extends State<_HeaderTokenBar> {
                 children: [
                   Text(
                     '${widget.used}/${widget.limit}',
-                    style: GoogleFonts.jetBrainsMono(
+                    style: TextStyle(fontFamily: 'AnthropicSans', 
                       fontSize: 9.5,
                       color: textColor,
                       fontWeight: FontWeight.w600,

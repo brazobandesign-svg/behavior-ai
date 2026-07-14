@@ -447,7 +447,7 @@ class _ChatComposerState extends State<ChatComposer>
                 isNetworkOffline
                     ? AppI18n.of(context).t('network.offline_title')
                     : AppI18n.of(context).t('offline.title'),
-                style: GoogleFonts.syne(
+                style: TextStyle(fontFamily: 'Syne', 
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
                   color: isLight ? softBlack : ExodoColors.textPrimary,
@@ -588,7 +588,7 @@ class _ChatComposerState extends State<ChatComposer>
                   children: [
                     Text(
                       AppI18n.of(context).t('tokens.more_cap'),
-                      style: GoogleFonts.jetBrainsMono(
+                      style: TextStyle(fontFamily: 'AnthropicSans', 
                         color: isLight
                             ? const Color(0xFFF5F2EB)
                             : const Color(0xFF55514C),
@@ -607,7 +607,7 @@ class _ChatComposerState extends State<ChatComposer>
                         ),
                         child: Text(
                           AppI18n.of(context).t('tokens.upgrade_btn'),
-                          style: GoogleFonts.jetBrainsMono(
+                          style: TextStyle(fontFamily: 'AnthropicSans', 
                             color: ExodoColors.amber,
                             fontWeight: FontWeight.bold,
                             fontSize: 12.0,
@@ -837,7 +837,7 @@ class _ChatComposerState extends State<ChatComposer>
                                                     overflow:
                                                         TextOverflow.ellipsis,
                                                     style:
-                                                        GoogleFonts.jetBrainsMono(
+                                                        TextStyle(fontFamily: 'AnthropicSans', 
                                                           fontSize: 13,
                                                           fontWeight:
                                                               FontWeight.bold,

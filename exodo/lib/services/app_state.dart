@@ -184,6 +184,12 @@ class AppState extends ChangeNotifier {
         } catch (_) {}
       }
 
+      if (activeConversation != null && !fetchedConvs.any((c) => c.id == activeConversation!.id)) {
+        fetchedConvs.insert(0, activeConversation!);
+      }
+      if (activeConversation != null && !fetchedConvs.any((c) => c.id == activeConversation!.id)) {
+        fetchedConvs.insert(0, activeConversation!);
+      }
       conversations = fetchedConvs;
 
       final currentUserEmail = SupabaseService.currentUser?.email;
@@ -679,22 +685,7 @@ class AppState extends ChangeNotifier {
 
     final shouldSaveHistory = !isIncognito && !isGuest;
 
-    // 1. Crear conversación en DB si no existe y debemos guardar historial
-    if (activeConversation == null && shouldSaveHistory) {
-      final effectiveTitle = text.trim().isNotEmpty
-          ? (text.length > 30 ? '${text.substring(0, 30)}...' : text)
-          : (attachments != null && attachments.isNotEmpty && attachments.first.fileName.isNotEmpty
-              ? attachments.first.fileName
-              : 'Imagen adjunta');
-      activeConversation = await SupabaseService.createConversation(
-        effectiveTitle,
-        selectedModel.plan,
-        false,
-      );
-      conversations.insert(0, activeConversation!);
-    }
-
-    // 2. Añadir mensaje de usuario a UI
+    // 1. AÑADIR MENSAJE DE USUARIO Y THINKING BUBBLE A LA UI INMEDIATAMENTE (Optimistic UI 0 ms lag)
     currentMessages.removeWhere((m) => m.id == 'error');
     final userTokensEst = (text.length ~/ 3) + 15;
     tokensUsed += userTokensEst;
@@ -708,6 +699,55 @@ class AppState extends ChangeNotifier {
       createdAt: DateTime.now(),
     );
     currentMessages.add(userMsg);
+
+    isThinking = true;
+    isGenerating = true;
+    final thinkingMsg = ChatMessage(
+      id: 'thinking',
+      conversationId: activeConversation?.id ?? 'guest',
+      role: 'assistant',
+      content: '',
+      createdAt: DateTime.now(),
+      isThinking: true,
+    );
+    currentMessages.add(thinkingMsg);
+    notifyListeners(); // ¡Aparece en pantalla en el milisegundo que el usuario pulsa Enviar!
+
+    // 2. CREAR CONVERSACIÓN EN BD (si no existe) SIN DETENER LA UI
+    if (activeConversation == null && shouldSaveHistory) {
+      final effectiveTitle = text.trim().isNotEmpty
+          ? (text.length > 30 ? '${text.substring(0, 30)}...' : text)
+          : (attachments != null && attachments.isNotEmpty && attachments.first.fileName.isNotEmpty
+              ? attachments.first.fileName
+              : 'Imagen adjunta');
+      try {
+        activeConversation = await SupabaseService.createConversation(
+          effectiveTitle,
+          selectedModel.plan,
+          false,
+        );
+        conversations.insert(0, activeConversation!);
+        for (int i = 0; i < currentMessages.length; i++) {
+          if (currentMessages[i].conversationId == 'guest' ||
+              currentMessages[i].conversationId == 'incognito' ||
+              currentMessages[i].conversationId.isEmpty) {
+            currentMessages[i] = ChatMessage(
+              id: currentMessages[i].id,
+              conversationId: activeConversation!.id,
+              role: currentMessages[i].role,
+              content: currentMessages[i].content,
+              attachments: currentMessages[i].attachments,
+              sources: currentMessages[i].sources,
+              createdAt: currentMessages[i].createdAt,
+              isThinking: currentMessages[i].isThinking,
+            );
+          }
+        }
+        notifyListeners();
+      } catch (_) {}
+    }
+
+    // 3. GUARDAR MENSAJE DE USUARIO EN BD EN SEGUNDO PLANO
     if (shouldSaveHistory && activeConversation != null) {
       String contentToSave = text.trim();
       if (attachments != null && attachments.isNotEmpty) {
@@ -737,20 +777,6 @@ class AppState extends ChangeNotifier {
         'content': contentToSave,
       }).then((_) {}).catchError((_) {});
     }
-
-    // 3. Añadir burbuja temporal de pensamiento con animación personalizada
-    isThinking = true;
-    isGenerating = true;
-    final thinkingMsg = ChatMessage(
-      id: 'thinking',
-      conversationId: activeConversation?.id ?? 'guest',
-      role: 'assistant',
-      content: '',
-      createdAt: DateTime.now(),
-      isThinking: true,
-    );
-    currentMessages.add(thinkingMsg);
-    notifyListeners();
 
     try {
       final msgId = 'asst-${DateTime.now().microsecondsSinceEpoch}';

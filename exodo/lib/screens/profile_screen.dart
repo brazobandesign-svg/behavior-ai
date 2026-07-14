@@ -56,7 +56,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             Expanded(
               child: Text(
                 AppI18n.of(context).t('profile.clear_history_title'),
-                style: GoogleFonts.syne(color: textCol, fontWeight: FontWeight.bold, fontSize: 17),
+                style: TextStyle(fontFamily: 'Syne', color: textCol, fontWeight: FontWeight.bold, fontSize: 17),
               ),
             ),
           ],
@@ -125,7 +125,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             Expanded(
               child: Text(
                 AppI18n.of(context).t('profile.delete_title'),
-                style: GoogleFonts.syne(color: textCol, fontWeight: FontWeight.bold, fontSize: 18),
+                style: TextStyle(fontFamily: 'Syne', color: textCol, fontWeight: FontWeight.bold, fontSize: 18),
               ),
             ),
           ],
@@ -161,8 +161,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Widget build(BuildContext context) {
     final state = Provider.of<AppState>(context);
     final isLight = !state.isDarkMode;
-    final bg = isLight ? const Color(0xFFF7F5F0) : const Color(0xFF131313);
-    final cardBg = isLight ? Colors.white : const Color(0xFF1E1E1E);
+    final bg = isLight ? const Color(0xFFF7F5F0) : ExodoColors.background;
+    final cardBg = isLight ? Colors.white : ExodoColors.surface;
     final textCol = isLight ? const Color(0xFF171615) : Colors.white;
     final subCol = isLight ? Colors.black54 : Colors.white60;
 
@@ -178,7 +178,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ),
         title: Text(
           AppI18n.of(context).t('settings.profile'),
-          style: GoogleFonts.syne(color: textCol, fontWeight: FontWeight.bold, fontSize: 20),
+          style: TextStyle(fontFamily: 'Syne', color: textCol, fontWeight: FontWeight.bold, fontSize: 20),
         ),
         centerTitle: true,
       ),
@@ -205,7 +205,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 state.profile?.fullName?.isNotEmpty == true
                                     ? state.profile!.fullName!.substring(0, 1).toUpperCase()
                                     : 'E',
-                                style: GoogleFonts.syne(fontSize: 32, fontWeight: FontWeight.bold, color: ExodoColors.amber),
+                                style: TextStyle(fontFamily: 'Syne', fontSize: 32, fontWeight: FontWeight.bold, color: ExodoColors.amber),
                               ),
                       ),
                     ),

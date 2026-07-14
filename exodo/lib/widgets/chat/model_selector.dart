@@ -63,7 +63,7 @@ class ModelSelectorSheet extends StatelessWidget {
                 children: [
                   Text(
                     m.title,
-                    style: GoogleFonts.jetBrainsMono(
+                    style: TextStyle(fontFamily: 'AnthropicSans', 
                       fontWeight: FontWeight.bold,
                       fontSize: 15,
                       color: active
@@ -73,7 +73,7 @@ class ModelSelectorSheet extends StatelessWidget {
                   ),
                   Text(
                     m.subtitle,
-                    style: GoogleFonts.jetBrainsMono(
+                    style: TextStyle(fontFamily: 'AnthropicSans', 
                       fontSize: 13,
                       color: active
                           ? ExodoColors.amber
@@ -101,13 +101,13 @@ class ModelSelectorSheet extends StatelessWidget {
                       ),
                       child: Text(
                         'PRO',
-                        style: GoogleFonts.jetBrainsMono(
+                        style: TextStyle(fontFamily: 'AnthropicSans', 
                           fontSize: 9.5,
                           fontWeight: FontWeight.bold,
                           color: active
                               ? ExodoColors.amber
                               : (isLight
-                                    ? const Color(0xFF33302C)
+                                    ? ExodoColors.surface
                                     : Colors.white),
                         ),
                       ),
@@ -116,7 +116,7 @@ class ModelSelectorSheet extends StatelessWidget {
               ),
               subtitle: Text(
                 AppI18n.of(context).t('models.${m.id}_desc'),
-                style: GoogleFonts.jetBrainsMono(
+                style: TextStyle(fontFamily: 'AnthropicSans', 
                   fontSize: 11.5,
                   color: active
                       ? ExodoColors.amber
@@ -145,7 +145,7 @@ class ModelSelectorSheet extends StatelessWidget {
                 const SizedBox(width: 6),
                 Text(
                   AppI18n.of(context).t('models.thinking_default'),
-                  style: GoogleFonts.jetBrainsMono(
+                  style: TextStyle(fontFamily: 'AnthropicSans', 
                     fontSize: 11,
                     color: isLight ? Colors.black54 : ExodoColors.textSecondary,
                   ),
@@ -215,16 +215,16 @@ class UpgradeModal {
     HapticFeedback.vibrate();
     bool isAnnual = false;
     final isLight = Theme.of(context).brightness == Brightness.light;
-    final bgColor = isLight ? const Color(0xFFFFFFFF) : const Color(0xFF1C1C1E);
+    final bgColor = isLight ? const Color(0xFFFFFFFF) : ExodoColors.background;
     final surfaceColor = isLight
         ? const Color(0xFFF2F2F7)
-        : const Color(0xFF2C2C2E);
+        : ExodoColors.surface;
     final composerBg = isLight
         ? const Color(0xFFF2F2F7)
-        : const Color(0xFF2C2C2E);
+        : ExodoColors.surface;
     final borderColor = isLight
         ? const Color(0xFFD1D1D6)
-        : const Color(0xFF3A3A3C);
+        : ExodoColors.border;
     final textPrimary = isLight
         ? const Color(0xFF000000)
         : const Color(0xFFFFFFFF);
@@ -233,7 +233,7 @@ class UpgradeModal {
         : const Color(0xFF8E8E93);
     final radioOff = isLight
         ? const Color(0xFFC7C7CC)
-        : const Color(0xFF48484A);
+        : ExodoColors.border;
     final buttonBg = isLight
         ? const Color(0xFF000000)
         : const Color(0xFFFFFFFF);
@@ -264,7 +264,7 @@ class UpgradeModal {
                     children: [
                       Text(
                         AppI18n.of(context).t('billing.title'),
-                        style: GoogleFonts.syne(
+                        style: TextStyle(fontFamily: 'Syne', 
                           fontSize: 24,
                           fontWeight: FontWeight.bold,
                           color: textPrimary,
@@ -294,7 +294,7 @@ class UpgradeModal {
                     children: [
                       Text(
                         'XPi PRO',
-                        style: GoogleFonts.syne(
+                        style: TextStyle(fontFamily: 'Syne', 
                           fontSize: 20,
                           fontWeight: FontWeight.bold,
                           color: textPrimary,
@@ -345,7 +345,7 @@ class UpgradeModal {
                                     const SizedBox(height: 10),
                                     Text(
                                       '\$4.99',
-                                      style: GoogleFonts.jetBrainsMono(
+                                      style: TextStyle(fontFamily: 'AnthropicSans', 
                                         fontSize: 18,
                                         fontWeight: FontWeight.bold,
                                         color: textPrimary,
@@ -440,7 +440,7 @@ class UpgradeModal {
                                     const SizedBox(height: 10),
                                     Text(
                                       '\$49.99',
-                                      style: GoogleFonts.jetBrainsMono(
+                                      style: TextStyle(fontFamily: 'AnthropicSans', 
                                         fontSize: 18,
                                         fontWeight: FontWeight.bold,
                                         color: textPrimary,

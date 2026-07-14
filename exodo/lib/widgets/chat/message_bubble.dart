@@ -218,11 +218,12 @@ class MessageBubble extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: isLight
                       ? const Color(0xFFE8E8E8)
-                      : const Color(0xFF131313),
+                      : ExodoColors.surface,
                   borderRadius: BorderRadius.circular(20),
-                  border: isLight
-                      ? Border.all(color: const Color(0xFFDDDDDD), width: 1.0)
-                      : null,
+                  border: Border.all(
+                    color: isLight ? const Color(0xFFDDDDDD) : Colors.transparent,
+                    width: 1.0,
+                  ),
                 ),
                 child: MarkdownBody(
                   data: message.content,
@@ -282,7 +283,7 @@ class MessageBubble extends StatelessWidget {
                         : ExodoColors.textPrimary,
                     height: 1.45,
                   ),
-                  code: GoogleFonts.jetBrainsMono(
+                  code: TextStyle(fontFamily: 'AnthropicSans', 
                     backgroundColor: isLight
                         ? const Color(0xFFF5F5F5)
                         : ExodoColors.surface,
@@ -298,7 +299,7 @@ class MessageBubble extends StatelessWidget {
             const SizedBox(height: 8),
             Text(
               '${AppI18n.of(context).t('chat.intent')}: ${message.intentDetected}',
-              style: GoogleFonts.jetBrainsMono(
+              style: TextStyle(fontFamily: 'AnthropicSans', 
                 fontSize: 10,
                 color: ExodoColors.amber.withValues(alpha: 0.8),
               ),
@@ -404,7 +405,7 @@ class _SourcesSheet extends StatelessWidget {
                                 circleColors[idx % circleColors.length],
                             child: Text(
                               _sourceInitials(s),
-                              style: GoogleFonts.jetBrainsMono(
+                              style: TextStyle(fontFamily: 'AnthropicSans', 
                                 fontSize: 11,
                                 fontWeight: FontWeight.bold,
                                 color: Colors.white,
@@ -515,7 +516,7 @@ class _SourcesSheet extends StatelessWidget {
                             ),
                             child: Text(
                               _sourceInitials(displaySources[i]),
-                              style: GoogleFonts.jetBrainsMono(
+                              style: TextStyle(fontFamily: 'AnthropicSans', 
                                 fontSize: 8.5,
                                 fontWeight: FontWeight.bold,
                                 color: Colors.white,
@@ -634,7 +635,7 @@ class _MessageActionBar extends StatelessWidget {
                 borderSide: const BorderSide(color: ExodoColors.amber),
               ),
               filled: true,
-              fillColor: isLight ? Colors.white : const Color(0xFF131313),
+              fillColor: isLight ? Colors.white : ExodoColors.surface,
             ),
           ),
           actions: [
@@ -862,7 +863,7 @@ class _InteractiveCodeBlockState extends State<_InteractiveCodeBlock> {
   @override
   Widget build(BuildContext context) {
     final bg = widget.isLight ? const Color(0xFFF5F5F5) : ExodoColors.surface;
-    final headerBg = widget.isLight ? const Color(0xFFE8E8E8) : const Color(0xFF1A1A1A);
+    final headerBg = widget.isLight ? const Color(0xFFE8E8E8) : ExodoColors.surface;
     final borderCol = widget.isLight ? const Color(0xFFDDDDDD) : ExodoColors.border;
     final textCol = widget.isLight ? const Color(0xFFB85A35) : ExodoColors.amber;
 
@@ -893,7 +894,7 @@ class _InteractiveCodeBlockState extends State<_InteractiveCodeBlock> {
                 Expanded(
                   child: Text(
                     widget.language,
-                    style: GoogleFonts.jetBrainsMono(
+                    style: TextStyle(fontFamily: 'AnthropicSans', 
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
                       color: textCol,
@@ -935,7 +936,7 @@ class _InteractiveCodeBlockState extends State<_InteractiveCodeBlock> {
               padding: const EdgeInsets.all(14),
               child: SelectableText(
                 widget.code,
-                style: GoogleFonts.jetBrainsMono(
+                style: TextStyle(fontFamily: 'AnthropicSans', 
                   fontSize: 13,
                   color: widget.isLight ? const Color(0xFF171615) : ExodoColors.textPrimary,
                   height: 1.4,

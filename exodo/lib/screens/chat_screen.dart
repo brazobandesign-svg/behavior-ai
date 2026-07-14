@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/rendering.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../services/app_state.dart';
@@ -29,6 +30,7 @@ class _ChatScreenState extends State<ChatScreen>
   late AnimationController _ambientBgCtrl;
   late AnimationController _pulseCtrl;
   int _lastMessageCount = 0;
+  bool _followStreamingBottom = true;
 
   @override
   void initState() {
@@ -206,11 +208,17 @@ class _ChatScreenState extends State<ChatScreen>
                             itemBuilder: (context, index) {
                               final msg = state.currentMessages[index];
                               if (msg.isThinking) {
-                                return ThinkingBubble(pulseAnim: _pulseCtrl);
+                                return RepaintBoundary(
+                                  key: ValueKey('thinking-${msg.id}'),
+                                  child: ThinkingBubble(pulseAnim: _pulseCtrl),
+                                );
                               }
-                              return MessageBubble(
-                                message: msg,
-                                isLastAssistant: index == lastAssistantIndex,
+                              return RepaintBoundary(
+                                key: ValueKey(msg.id),
+                                child: MessageBubble(
+                                  message: msg,
+                                  isLastAssistant: index == lastAssistantIndex,
+                                ),
                               );
                             },
                           );
@@ -251,9 +259,8 @@ class _ChatScreenState extends State<ChatScreen>
                     Positioned(
                       right: 16,
                       bottom: 240,
-                      child: _ScrollToBottomHost(
+                      child: _ScrollToBottomHostSelector(
                         controller: _scrollCtrl,
-                        messagesCount: state.currentMessages.length,
                       ),
                     ),
                     // Barra inferior entrelazada del Tab 1 (SIEMPRE en su sitio exacto flotando)
@@ -309,10 +316,10 @@ class _NetworkOfflineBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bg = isLight ? const Color(0xFFE8D5C4) : const Color(0xFF3D2E1C);
+    final bg = isLight ? const Color(0xFFE8D5C4) : ExodoColors.surface;
     final textColor = isLight
         ? const Color(0xFF5D3A1A)
-        : const Color(0xFFE8CBA4);
+        : ExodoColors.amber;
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
@@ -342,26 +349,26 @@ class _NetworkOfflineBanner extends StatelessWidget {
   }
 }
 
-/// Wrapper interno para usar ScrollToBottomButton dentro de chat_screen.
-/// Maneja la lógica de "mostrar solo cuando hay suficientes mensajes".
-class _ScrollToBottomHost extends StatefulWidget {
+/// [Fix rendimiento streaming] Este wrapper ahora usa su propio
+/// context.select para leer solo currentMessages.length, sin arrastrar
+/// al padre (_ChatScreenState) a reconstruirse en cada chunk.
+class _ScrollToBottomHostSelector extends StatelessWidget {
   final ScrollController controller;
-  final int messagesCount;
-  const _ScrollToBottomHost({
+  final VoidCallback? onPressed;
+  const _ScrollToBottomHostSelector({
     required this.controller,
-    required this.messagesCount,
+    this.onPressed,
   });
 
   @override
-  State<_ScrollToBottomHost> createState() => _ScrollToBottomHostState();
-}
-
-class _ScrollToBottomHostState extends State<_ScrollToBottomHost> {
-  @override
   Widget build(BuildContext context) {
+    final messagesCount = context.select<AppState, int>(
+      (s) => s.currentMessages.length,
+    );
     return ScrollToBottomButton(
-      controller: widget.controller,
-      messagesCount: widget.messagesCount,
+      controller: controller,
+      messagesCount: messagesCount,
+      onPressed: onPressed,
     );
   }
 }

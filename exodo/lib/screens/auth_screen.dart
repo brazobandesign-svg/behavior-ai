@@ -124,11 +124,11 @@ class _AuthScreenState extends State<AuthScreen> {
                       HapticFeedback.selectionClick();
                     },
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF131313),
-                      disabledBackgroundColor: const Color(0xFF131313).withValues(alpha: 0.5),
+                      backgroundColor: ExodoColors.surface,
+                      disabledBackgroundColor: ExodoColors.surface.withValues(alpha: 0.5),
                       disabledForegroundColor: Colors.white38,
                       elevation: 0,
-                      side: BorderSide(color: const Color(0xFF131313).withValues(alpha: 0.5)),
+                      side: BorderSide(color: ExodoColors.border.withValues(alpha: 0.5)),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(27)),
                     ),
                     child: Row(
@@ -162,7 +162,7 @@ class _AuthScreenState extends State<AuthScreen> {
                         height: 50,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          color: const Color(0xFF131313),
+                          color: ExodoColors.surface,
                           border: Border.all(color: ExodoColors.border),
                         ),
                         child: const Center(
@@ -185,7 +185,7 @@ class _AuthScreenState extends State<AuthScreen> {
                         height: 50,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          color: const Color(0xFF131313),
+                          color: ExodoColors.surface,
                           border: Border.all(color: ExodoColors.border),
                         ),
                         child: Center(

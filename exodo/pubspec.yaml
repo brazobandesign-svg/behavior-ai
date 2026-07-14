@@ -80,22 +80,77 @@ flutter:
   # For details regarding adding assets from package dependencies, see
   # https://flutter.dev/to/asset-from-package
 
-  # To add custom fonts to your application, add a fonts section here,
-  # in this "flutter" section. Each entry in this list should have a
-  # "family" key with the font family name, and a "fonts" key with a
-  # list giving the asset and other descriptors for the font. For
-  # example:
-  # fonts:
-  #   - family: Schyler
-  #     fonts:
-  #       - asset: fonts/Schyler-Regular.ttf
-  #       - asset: fonts/Schyler-Italic.ttf
-  #         style: italic
-  #   - family: Trajan Pro
-  #     fonts:
-  #       - asset: fonts/TrajanPro.ttf
-  #       - asset: fonts/TrajanPro_Bold.ttf
-  #         weight: 700
-  #
-  # For details regarding fonts from package dependencies,
-  # see https://flutter.dev/to/font-from-package
+  fonts:
+    - family: AnthropicSans
+      fonts:
+        - asset: assets/fonts/AnthropicSans-Text-Light-Static.otf
+          weight: 300
+        - asset: assets/fonts/AnthropicSans-Text-Regular-Static.otf
+          weight: 400
+        - asset: assets/fonts/AnthropicSans-Text-RegularItalic-Static.otf
+          weight: 400
+          style: italic
+        - asset: assets/fonts/AnthropicSans-Text-Medium-Static.otf
+          weight: 500
+        - asset: assets/fonts/AnthropicSans-Text-MediumItalic-Static.otf
+          weight: 500
+          style: italic
+        - asset: assets/fonts/AnthropicSans-Text-Semibold-Static.otf
+          weight: 600
+        - asset: assets/fonts/AnthropicSans-Text-Bold-Static.otf
+          weight: 700
+        - asset: assets/fonts/AnthropicSans-Text-BoldItalic-Static.otf
+          weight: 700
+          style: italic
+        - asset: assets/fonts/AnthropicSans-Text-Extrabold-Static.otf
+          weight: 800
+        - asset: assets/fonts/AnthropicSans-Text-ExtraboldItalic-Static.otf
+          weight: 800
+          style: italic
+
+    - family: AnthropicSerif
+      fonts:
+        - asset: assets/fonts/AnthropicSerif-Text-Light-Static.otf
+          weight: 300
+        - asset: assets/fonts/AnthropicSerif-Text-LightItalic-Static.otf
+          weight: 300
+          style: italic
+        - asset: assets/fonts/AnthropicSerif-Text-Regular-Static.otf
+          weight: 400
+        - asset: assets/fonts/AnthropicSerif-Text-RegularItalic-Static.otf
+          weight: 400
+          style: italic
+        - asset: assets/fonts/AnthropicSerif-Text-Medium-Static.otf
+          weight: 500
+        - asset: assets/fonts/AnthropicSerif-Text-MediumItalic-Static.otf
+          weight: 500
+          style: italic
+        - asset: assets/fonts/AnthropicSerif-Text-Semibold-Static.otf
+          weight: 600
+        - asset: assets/fonts/AnthropicSerif-Text-SemiboldItalic-Static.otf
+          weight: 600
+          style: italic
+        - asset: assets/fonts/AnthropicSerif-Text-Bold-Static.otf
+          weight: 700
+        - asset: assets/fonts/AnthropicSerif-Text-BoldItalic-Static.otf
+          weight: 700
+          style: italic
+        - asset: assets/fonts/AnthropicSerif-Text-Extrabold-Static.otf
+          weight: 800
+        - asset: assets/fonts/AnthropicSerif-Text-ExtraboldItalic-Static.otf
+          weight: 800
+          style: italic
+
+
+    - family: Syne
+      fonts:
+        - asset: assets/fonts/Syne-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/Syne-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/Syne-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/Syne-Bold.ttf
+          weight: 700
+        - asset: assets/fonts/Syne-ExtraBold.ttf
+          weight: 800
