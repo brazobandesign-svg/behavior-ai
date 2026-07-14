@@ -40,7 +40,7 @@
             android:background="@drawable/bg_grok_widget_text_light"
             android:gravity="center"
             android:text="@string/widget_chat"
-            android:textColor="#0E0C0A"
+            android:textColor="#191919"
             android:textSize="15sp"
             android:textStyle="bold" />
 
