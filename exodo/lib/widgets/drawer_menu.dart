@@ -282,7 +282,7 @@ class _DrawerMenuState extends State<DrawerMenu> {
                       ),
 
                       const SizedBox(height: 6),
-                      Divider(color: isLight ? const Color(0xFFE2DDD2) : const Color(0xFF2A2622), height: 1),
+                      Divider(color: isLight ? const Color(0xFFE2DDD2) : const Color(0xFF212121), height: 1),
                       const SizedBox(height: 8),
                     ],
                   ),
@@ -396,7 +396,7 @@ class _DrawerMenuState extends State<DrawerMenu> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Divider(color: isLight ? const Color(0xFFE2DDD2) : const Color(0xFF2A2622), height: 1),
+                    Divider(color: isLight ? const Color(0xFFE2DDD2) : const Color(0xFF212121), height: 1),
                     Padding(
                       padding: EdgeInsets.fromLTRB(hPad, s(12), hPad, s(14)),
                       child: Column(
@@ -625,7 +625,7 @@ void _showAddWidgetSheet(BuildContext context) {
         dense: true,
         contentPadding: EdgeInsets.symmetric(horizontal: s(12)),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        tileColor: active ? (isLight ? const Color(0xFFEBE7DE) : const Color(0xFF262320)) : Colors.transparent,
+        tileColor: active ? (isLight ? const Color(0xFFEBE7DE) : const Color(0xFF212121)) : Colors.transparent,
         onTap: () {
           state.selectConversation(conv);
           Navigator.pop(context);
