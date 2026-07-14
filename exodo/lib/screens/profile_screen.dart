@@ -41,8 +41,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final bg = isLight ? const Color(0xFFFBF9F5) : ExodoColors.background;     // yeso / negro cálido
     final textCol = isLight ? const Color(0xFF171615) : ExodoColors.textPrimary;
     final subTextCol = isLight ? const Color(0xFF7B7872) : ExodoColors.textSecondary;
-    final dividerColor = isLight ? const Color(0xFFDDDDDD) : ExodoColors.border;
-    final cardBg = isLight ? const Color(0xFFF5F5F5) : ExodoColors.surface;   // neutro / superficie
+    final dividerColor = isLight ? const Color(0xFFDDDDDD) : Colors.white12;
+    final cardBg = isLight ? const Color(0xFFF5F5F5) : ExodoColors.composerBg;
 
     showDialog(
       context: context,
@@ -109,7 +109,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   void _showDeleteConfirmation(BuildContext context, AppState state) {
     final isLight = Theme.of(context).brightness == Brightness.light;
-    final bgColor = isLight ? const Color(0xFFF5F2EB) : const Color(0xFF1E1E1E);
+    final bgColor = isLight ? const Color(0xFFF5F2EB) : ExodoColors.background;
     final textCol = isLight ? const Color(0xFF171615) : Colors.white;
     final subCol = isLight ? const Color(0xFF7B7872) : Colors.white70;
     final cancelCol = isLight ? const Color(0xFF9E9689) : Colors.white54;

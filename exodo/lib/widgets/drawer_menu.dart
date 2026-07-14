@@ -221,7 +221,7 @@ class _DrawerMenuState extends State<DrawerMenu> {
                                 padding: const EdgeInsets.symmetric(horizontal: 8),
                                 margin: const EdgeInsets.symmetric(horizontal: 8),
                                 decoration: BoxDecoration(
-                                  color: isLight ? Colors.white : const Color(0xFF1E1C19),
+                                  color: isLight ? Colors.white : ExodoColors.composerBg,
                                   borderRadius: BorderRadius.circular(10),
                                 ),
                                 child: Row(
@@ -657,7 +657,7 @@ void _showAddWidgetSheet(BuildContext context) {
 
     showModalBottomSheet(
       context: context,
-      backgroundColor: isLight ? Colors.white : const Color(0xFF1E1C19),
+      backgroundColor: isLight ? Colors.white : ExodoColors.background,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (ctx) => SafeArea(
         child: Column(
@@ -707,7 +707,7 @@ void _showAddWidgetSheet(BuildContext context) {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: isLight ? Colors.white : const Color(0xFF1E1C19),
+        backgroundColor: isLight ? Colors.white : ExodoColors.background,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Text(AppI18n.of(context).t('dialog.rename_chat'), style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.bold, color: isLight ? Colors.black : Colors.white)),
         content: TextField(
@@ -747,7 +747,7 @@ void _showAddWidgetSheet(BuildContext context) {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: isLight ? Colors.white : const Color(0xFF1E1C19),
+        backgroundColor: isLight ? Colors.white : ExodoColors.background,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Row(
           children: [
@@ -833,10 +833,10 @@ class _ClaudeAccountModal {
     final bg = isLight ? const Color(0xFFF7F5F0) : ExodoColors.background;
     final textCol = isLight ? const Color(0xFF171615) : Colors.white;
     final subTextCol = isLight ? Colors.black54 : Colors.white54;
-    final cardBg = isLight ? const Color(0xFFEBE7DE) : ExodoColors.surface;
-    final borderColor = isLight ? const Color(0xFFD4CEBF) : ExodoColors.border;
+    final cardBg = isLight ? const Color(0xFFEBE7DE) : ExodoColors.composerBg;
+    final borderColor = isLight ? const Color(0xFFD4CEBF) : Colors.transparent;
     final handleColor = isLight ? Colors.black26 : Colors.white24;
-    final dividerColor = isLight ? const Color(0xFFE2DDD2) : ExodoColors.border;
+    final dividerColor = isLight ? const Color(0xFFE2DDD2) : Colors.white12;
 
     showModalBottomSheet(
       context: context,
@@ -954,7 +954,7 @@ class _ClaudeAccountModal {
                   showDialog(
                     context: context,
                     builder: (_) => AlertDialog(
-                      backgroundColor: cardBg,
+                      backgroundColor: bg,
                       title: Text(AppI18n.of(context).t('settings.terms'), style: TextStyle(fontFamily: 'Syne', color: textCol)),
                       content: Text(AppI18n.of(context).t('settings.legal_body'), style: GoogleFonts.inter(color: subTextCol)),
                       actions: [TextButton(onPressed: () => Navigator.pop(context), child: Text(AppI18n.of(context).t('action.close'), style: const TextStyle(color: ExodoColors.amber)))],
@@ -1013,7 +1013,7 @@ class _ClaudeAccountModal {
     String? subtitle,
     required bool isLight,
   }) {
-    final tileBg = isLight ? Colors.white : const Color(0xFF1E1E1E);
+    final tileBg = isLight ? Colors.white : ExodoColors.surface;
     final textCol = isLight ? const Color(0xFF171615) : Colors.white;
     final subCol = isLight ? Colors.black54 : Colors.white60;
     final iconCol = isLight ? Colors.black87 : Colors.white70;
@@ -1073,7 +1073,7 @@ class _ClaudeAccountModal {
     final i18n = AppI18n.of(context);
     final currentCode = context.currentLocaleCode;
     final isLight = Theme.of(context).brightness == Brightness.light;
-    final bg = isLight ? Colors.white : const Color(0xFF1E1C19);
+    final bg = isLight ? Colors.white : ExodoColors.background;
     final textCol = isLight ? const Color(0xFF171615) : Colors.white;
     final subTextCol = isLight ? Colors.black54 : Colors.white60;
 
@@ -1174,11 +1174,11 @@ class _ClaudeAccountModal {
     // card interna (ExodoColors.surface = #1A1612). Ahora la card usa el
     // mismo `bgColor` del modal + un borde sutil, sin marrón.
     final isLight = Theme.of(context).brightness == Brightness.light;
-    final bgColor = isLight ? const Color(0xFFFBF9F5) : ExodoColors.chatBg;
-    final cardBg = isLight ? const Color(0xFFF5F5F5) : ExodoColors.surface;
-    final borderColor = isLight ? const Color(0xFFDDDDDD) : ExodoColors.border;
-    final textPrimary = isLight ? const Color(0xFF171615) : ExodoColors.textPrimary;
-    final textSecondary = isLight ? const Color(0xFF7B7872) : ExodoColors.textSecondary;
+    final bgColor = isLight ? const Color(0xFFFBF9F5) : ExodoColors.background;
+    final cardBg = isLight ? const Color(0xFFF5F5F5) : ExodoColors.composerBg;
+    final borderColor = isLight ? const Color(0xFFDDDDDD) : Colors.transparent;
+    final textPrimary = isLight ? const Color(0xFF171615) : const Color(0xFFFFFFFF);
+    final textSecondary = isLight ? const Color(0xFF7B7872) : ExodoColors.textPrimary;
 
     showModalBottomSheet(
       context: context,

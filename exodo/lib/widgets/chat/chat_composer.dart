@@ -229,7 +229,7 @@ class _ChatComposerState extends State<ChatComposer>
       context: context,
       backgroundColor: isLight
           ? const Color(0xFFF5F2EB)
-          : ExodoColors.composerBg,
+          : ExodoColors.background,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),

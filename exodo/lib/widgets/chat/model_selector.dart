@@ -215,25 +215,25 @@ class UpgradeModal {
     HapticFeedback.vibrate();
     bool isAnnual = false;
     final isLight = Theme.of(context).brightness == Brightness.light;
-    final bgColor = isLight ? const Color(0xFFFFFFFF) : ExodoColors.composerBg;
+    final bgColor = isLight ? const Color(0xFFFFFFFF) : ExodoColors.background;
     final surfaceColor = isLight
         ? const Color(0xFFF2F2F7)
-        : ExodoColors.surface;
+        : ExodoColors.composerBg;
     final composerBg = isLight
         ? const Color(0xFFF2F2F7)
-        : ExodoColors.surface;
+        : ExodoColors.composerBg;
     final borderColor = isLight
         ? const Color(0xFFD1D1D6)
-        : ExodoColors.border;
+        : Colors.transparent;
     final textPrimary = isLight
         ? const Color(0xFF000000)
         : const Color(0xFFFFFFFF);
     final textSecondary = isLight
         ? const Color(0xFF8E8E93)
-        : const Color(0xFF8E8E93);
+        : ExodoColors.textPrimary;
     final radioOff = isLight
         ? const Color(0xFFC7C7CC)
-        : ExodoColors.border;
+        : Colors.white24;
     final buttonBg = isLight
         ? const Color(0xFF000000)
         : const Color(0xFFFFFFFF);

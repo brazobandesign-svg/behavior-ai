@@ -113,7 +113,7 @@ class _ChatScreenState extends State<ChatScreen>
     showModalBottomSheet(
       context: context,
       backgroundColor: isDark
-          ? ExodoColors.modelChipBg
+          ? ExodoColors.background
           : Theme.of(context).scaffoldBackgroundColor,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
