@@ -641,7 +641,7 @@ void _showAddWidgetSheet(BuildContext context) {
           style: TextStyle(fontFamily: 'AnthropicSans', 
             fontSize: s(13),
             fontWeight: active ? FontWeight.w600 : FontWeight.normal,
-            color: active ? (isLight ? Colors.black : Colors.white) : (isLight ? const Color(0xFF171615) : Colors.white),
+            color: active ? (isLight ? Colors.black : ExodoColors.textPrimary) : (isLight ? const Color(0xFF171615) : ExodoColors.textPrimary),
             letterSpacing: -0.1,
           ),
         ),

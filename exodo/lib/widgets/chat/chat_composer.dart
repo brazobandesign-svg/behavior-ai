@@ -680,7 +680,7 @@ class _ChatComposerState extends State<ChatComposer>
                             fontSize: 16,
                             color: isLight
                                 ? const Color(0xFF171615)
-                                : Colors.white,
+                                : ExodoColors.textPrimary,
                           ),
                           decoration: InputDecoration(
                             hintText: _getPlaceholder(context),

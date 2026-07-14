@@ -232,7 +232,7 @@ class MessageBubble extends StatelessWidget {
                         p: TextStyle(
                           fontFamily: 'AnthropicSans',
                           fontSize: 15,
-                          color: isLight ? const Color(0xFF171615) : Colors.white,
+                          color: isLight ? const Color(0xFF171615) : ExodoColors.textPrimary,
                         ),
                       ),
                 ),
@@ -356,7 +356,7 @@ class MessageBubble extends StatelessWidget {
                       style: GoogleFonts.inter(
                         fontSize: 10.5,
                         height: 1.3,
-                        color: isLight ? Colors.black : Colors.white,
+                        color: isLight ? Colors.black : ExodoColors.textPrimary,
                       ),
                     ),
                   ),

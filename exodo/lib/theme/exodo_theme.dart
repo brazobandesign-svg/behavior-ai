@@ -9,7 +9,7 @@ class ExodoColors {
 
   static const Color amber = Color(0xFFC9933A);      // Ámbar Éxodo (Exclusivo marca/acento)
   static const Color amberGlow = Color(0x33C9933A);  // Ámbar traslúcido para resplandores
-  static const Color textPrimary = Color(0xFFF5F2EB);
+  static const Color textPrimary = Color(0xFFE8E0D8);
   static const Color textSecondary = Color(0xFF9E9689);
   static const Color error = Color(0xFFE5534B);
 

@@ -68,7 +68,7 @@ class ModelSelectorSheet extends StatelessWidget {
                       fontSize: 15,
                       color: active
                           ? ExodoColors.amber
-                          : (isLight ? const Color(0xFF171615) : Colors.white),
+                          : (isLight ? const Color(0xFF171615) : ExodoColors.textPrimary),
                     ),
                   ),
                   Text(
@@ -77,7 +77,7 @@ class ModelSelectorSheet extends StatelessWidget {
                       fontSize: 13,
                       color: active
                           ? ExodoColors.amber
-                          : (isLight ? Colors.black54 : Colors.white70),
+                          : (isLight ? Colors.black54 : ExodoColors.textSecondary),
                     ),
                   ),
                   if (isProModel)
@@ -108,7 +108,7 @@ class ModelSelectorSheet extends StatelessWidget {
                               ? ExodoColors.amber
                               : (isLight
                                     ? ExodoColors.surface
-                                    : Colors.white),
+                                    : ExodoColors.textPrimary),
                         ),
                       ),
                     ),
@@ -120,7 +120,7 @@ class ModelSelectorSheet extends StatelessWidget {
                   fontSize: 11.5,
                   color: active
                       ? ExodoColors.amber
-                      : (isLight ? Colors.black54 : Colors.white70),
+                      : (isLight ? Colors.black54 : ExodoColors.textSecondary),
                 ),
               ),
               trailing: active
