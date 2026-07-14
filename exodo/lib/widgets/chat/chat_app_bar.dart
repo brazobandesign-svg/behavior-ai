@@ -397,7 +397,7 @@ class _HeaderTokenBarState extends State<_HeaderTokenBar> {
               decoration: BoxDecoration(
                 color: bgColor,
                 borderRadius: BorderRadius.circular(12),
-                border: isLight
+                border: (_portalController.isShowing && isLight)
                     ? Border.all(color: ExodoColors.amber, width: 1.0)
                     : null,
               ),

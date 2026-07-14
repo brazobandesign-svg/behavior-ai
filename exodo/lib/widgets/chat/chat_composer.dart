@@ -572,13 +572,13 @@ class _ChatComposerState extends State<ChatComposer>
               padding: const EdgeInsets.fromLTRB(16, 8, 14, 22),
               decoration: BoxDecoration(
                 color: isLight
-                    ? const Color(0xFF1D1D1D)
+                    ? const Color(0xFF252525)
                     : ExodoColors.textPrimary,
                 borderRadius: const BorderRadius.vertical(
                   top: Radius.circular(20),
                 ),
                 border: isLight
-                    ? Border.all(color: const Color(0xFF1D1D1D), width: 1.0)
+                    ? Border.all(color: const Color(0xFF252525), width: 1.0)
                     : Border.all(color: Colors.transparent, width: 1.0),
               ),
               child: FittedBox(
