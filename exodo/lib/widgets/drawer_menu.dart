@@ -1174,11 +1174,11 @@ class _ClaudeAccountModal {
     // card interna (ExodoColors.surface = #1A1612). Ahora la card usa el
     // mismo `bgColor` del modal + un borde sutil, sin marrón.
     final isLight = Theme.of(context).brightness == Brightness.light;
-    final bgColor = isLight ? ExodoColors.lightSheetBg : ExodoColors.background;
-    final cardBg = isLight ? const Color(0xFFF5F5F5) : ExodoColors.composerBg;
-    final borderColor = isLight ? const Color(0xFFDDDDDD) : Colors.transparent;
-    final textPrimary = isLight ? const Color(0xFF171615) : ExodoColors.textPrimary;
-    final textSecondary = isLight ? const Color(0xFF7B7872) : ExodoColors.textPrimary;
+    final bgColor = isLight ? Colors.white : ExodoColors.background;
+    final cardBg = isLight ? ExodoColors.textPrimary : ExodoColors.composerBg;
+    final borderColor = isLight ? const Color(0xFFE8E0D8) : Colors.transparent;
+    final textPrimary = isLight ? const Color(0xFF191919) : ExodoColors.textPrimary;
+    final textSecondary = isLight ? const Color(0xFF191919) : ExodoColors.textPrimary;
 
     showModalBottomSheet(
       context: context,
