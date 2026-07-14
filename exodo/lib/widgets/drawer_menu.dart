@@ -1177,7 +1177,7 @@ class _ClaudeAccountModal {
     final bgColor = isLight ? const Color(0xFFFBF9F5) : ExodoColors.background;
     final cardBg = isLight ? const Color(0xFFF5F5F5) : ExodoColors.composerBg;
     final borderColor = isLight ? const Color(0xFFDDDDDD) : Colors.transparent;
-    final textPrimary = isLight ? const Color(0xFF171615) : const Color(0xFFFFFFFF);
+    final textPrimary = isLight ? const Color(0xFF171615) : ExodoColors.textPrimary;
     final textSecondary = isLight ? const Color(0xFF7B7872) : ExodoColors.textPrimary;
 
     showModalBottomSheet(
