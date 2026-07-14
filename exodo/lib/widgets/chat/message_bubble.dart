@@ -229,7 +229,8 @@ class MessageBubble extends StatelessWidget {
                   data: message.content,
                   styleSheet: MarkdownStyleSheet.fromTheme(Theme.of(context))
                       .copyWith(
-                        p: GoogleFonts.inter(
+                        p: TextStyle(
+                          fontFamily: 'AnthropicSans',
                           fontSize: 15,
                           color: isLight ? const Color(0xFF171615) : Colors.white,
                         ),
@@ -276,12 +277,36 @@ class MessageBubble extends StatelessWidget {
             },
             styleSheet: MarkdownStyleSheet.fromTheme(Theme.of(context))
                 .copyWith(
-                  p: GoogleFonts.inter(
+                  p: TextStyle(
+                    fontFamily: 'AnthropicSerif',
                     fontSize: 15.5,
                     color: isLight
                         ? const Color(0xFF171615)
                         : ExodoColors.textPrimary,
                     height: 1.45,
+                  ),
+                  h1: TextStyle(
+                    fontFamily: 'AnthropicSerif',
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                    color: isLight ? const Color(0xFF171615) : ExodoColors.textPrimary,
+                  ),
+                  h2: TextStyle(
+                    fontFamily: 'AnthropicSerif',
+                    fontSize: 19,
+                    fontWeight: FontWeight.bold,
+                    color: isLight ? const Color(0xFF171615) : ExodoColors.textPrimary,
+                  ),
+                  h3: TextStyle(
+                    fontFamily: 'AnthropicSerif',
+                    fontSize: 17,
+                    fontWeight: FontWeight.bold,
+                    color: isLight ? const Color(0xFF171615) : ExodoColors.textPrimary,
+                  ),
+                  listBullet: TextStyle(
+                    fontFamily: 'AnthropicSerif',
+                    fontSize: 15.5,
+                    color: isLight ? const Color(0xFF171615) : ExodoColors.textPrimary,
                   ),
                   code: TextStyle(fontFamily: 'AnthropicSans', 
                     backgroundColor: isLight
