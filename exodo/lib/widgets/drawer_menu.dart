@@ -1073,9 +1073,9 @@ class _ClaudeAccountModal {
     final i18n = AppI18n.of(context);
     final currentCode = context.currentLocaleCode;
     final isLight = Theme.of(context).brightness == Brightness.light;
-    final bg = isLight ? ExodoColors.lightSheetBg : ExodoColors.background;
-    final textCol = isLight ? const Color(0xFF171615) : ExodoColors.textPrimary;
-    final subTextCol = isLight ? Colors.black54 : ExodoColors.textPrimary;
+    final bg = isLight ? Colors.white : ExodoColors.background;
+    final textCol = isLight ? const Color(0xFF191919) : ExodoColors.textPrimary;
+    final subTextCol = isLight ? const Color(0xFF191919) : ExodoColors.textPrimary;
 
     HapticFeedback.selectionClick();
 
