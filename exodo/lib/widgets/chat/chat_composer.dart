@@ -642,11 +642,11 @@ class _ChatComposerState extends State<ChatComposer>
             child: Container(
               decoration: BoxDecoration(
                 color: isLight
-                    ? const Color(0xFFE8E8E8)
+                    ? ExodoColors.lightSheetBg
                     : ExodoColors.composerBg,
                 borderRadius: BorderRadius.circular(32),
                 border: isLight
-                    ? Border.all(color: const Color(0xFFDDDDDD), width: 1.0)
+                    ? Border.all(color: const Color(0xFFD4CEBF), width: 1.0)
                     : Border.all(color: Colors.transparent, width: 1.0),
               ),
               padding: (guestIsBlocked || !isOnline)
@@ -714,7 +714,7 @@ class _ChatComposerState extends State<ChatComposer>
                                       height: 36,
                                       decoration: BoxDecoration(
                                         color: isLight
-                                            ? const Color(0xFFFBF9F5)
+                                            ? ExodoColors.textPrimary
                                             : ExodoColors.modelChipBg,
                                         shape: BoxShape.circle,
                                       ),
@@ -752,7 +752,7 @@ class _ChatComposerState extends State<ChatComposer>
                                             ),
                                             decoration: BoxDecoration(
                                               color: isLight
-                                                  ? const Color(0xFFFBF9F5)
+                                                  ? ExodoColors.textPrimary
                                                   : ExodoColors.modelChipBg,
                                               borderRadius:
                                                   BorderRadius.circular(16),
@@ -941,7 +941,7 @@ class _ChatComposerState extends State<ChatComposer>
                                           decoration: BoxDecoration(
                                             color: isLight
                                                 ? const Color(0xFF131313)
-                                                : const Color(0xFFFBF9F5),
+                                                : ExodoColors.textPrimary,
                                             shape: BoxShape.circle,
                                           ),
                                           child: Icon(
