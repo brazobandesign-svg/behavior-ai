@@ -145,7 +145,7 @@ class _DrawerMenuState extends State<DrawerMenu> {
                                   ),
                                 ),
                                 IconButton(
-                                  icon: Icon(Icons.close_rounded, color: subTextCol, size: s(20)),
+                                  icon: Icon(Icons.chevron_right_rounded, color: subTextCol, size: s(24)),
                                   onPressed: () => Navigator.pop(context),
                                 ),
                               ],
