@@ -642,12 +642,19 @@ class _ChatComposerState extends State<ChatComposer>
             child: Container(
               decoration: BoxDecoration(
                 color: isLight
-                    ? ExodoColors.lightSheetBg
+                    ? ExodoColors.textPrimary
                     : ExodoColors.composerBg,
                 borderRadius: BorderRadius.circular(32),
-                border: isLight
-                    ? Border.all(color: const Color(0xFFD4CEBF), width: 1.0)
-                    : Border.all(color: Colors.transparent, width: 1.0),
+                border: Border.all(color: Colors.transparent, width: 1.0),
+                boxShadow: isLight
+                    ? [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.08),
+                          blurRadius: 16,
+                          offset: const Offset(0, 4),
+                        ),
+                      ]
+                    : null,
               ),
               padding: (guestIsBlocked || !isOnline)
                   ? const EdgeInsets.symmetric(horizontal: 16, vertical: 6)
@@ -714,7 +721,7 @@ class _ChatComposerState extends State<ChatComposer>
                                       height: 36,
                                       decoration: BoxDecoration(
                                         color: isLight
-                                            ? ExodoColors.textPrimary
+                                            ? ExodoColors.lightSheetBg
                                             : ExodoColors.modelChipBg,
                                         shape: BoxShape.circle,
                                       ),
@@ -752,7 +759,7 @@ class _ChatComposerState extends State<ChatComposer>
                                             ),
                                             decoration: BoxDecoration(
                                               color: isLight
-                                                  ? ExodoColors.textPrimary
+                                                  ? ExodoColors.lightSheetBg
                                                   : ExodoColors.modelChipBg,
                                               borderRadius:
                                                   BorderRadius.circular(16),
