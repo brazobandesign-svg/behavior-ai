@@ -68,16 +68,14 @@ class ModelSelectorSheet extends StatelessWidget {
                       fontSize: 15,
                       color: active
                           ? ExodoColors.amber
-                          : (isLight ? const Color(0xFF171615) : ExodoColors.textPrimary),
+                          : (isLight ? const Color(0xFF191919) : ExodoColors.textPrimary),
                     ),
                   ),
                   Text(
                     m.subtitle,
                     style: TextStyle(fontFamily: 'AnthropicSans', 
                       fontSize: 13,
-                      color: active
-                          ? ExodoColors.amber
-                          : (isLight ? Colors.black54 : ExodoColors.textSecondary),
+                      color: isLight ? const Color(0xFF191919) : ExodoColors.textSecondary,
                     ),
                   ),
                   if (isProModel)
@@ -118,9 +116,7 @@ class ModelSelectorSheet extends StatelessWidget {
                 AppI18n.of(context).t('models.${m.id}_desc'),
                 style: TextStyle(fontFamily: 'AnthropicSans', 
                   fontSize: 11.5,
-                  color: active
-                      ? ExodoColors.amber
-                      : (isLight ? Colors.black54 : ExodoColors.textSecondary),
+                  color: isLight ? const Color(0xFF191919) : ExodoColors.textSecondary,
                 ),
               ),
               trailing: active
@@ -147,7 +143,7 @@ class ModelSelectorSheet extends StatelessWidget {
                   AppI18n.of(context).t('models.thinking_default'),
                   style: TextStyle(fontFamily: 'AnthropicSans', 
                     fontSize: 11,
-                    color: isLight ? Colors.black54 : ExodoColors.textSecondary,
+                    color: isLight ? const Color(0xFF191919) : ExodoColors.textSecondary,
                   ),
                 ),
               ],
