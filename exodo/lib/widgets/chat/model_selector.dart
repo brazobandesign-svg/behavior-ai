@@ -31,7 +31,7 @@ class ModelSelectorSheet extends StatelessWidget {
               decoration: BoxDecoration(
                 color: isLight
                     ? const Color(0xFFF5F2EB)
-                    : const Color(0xFF191919),
+                    : const Color(0xFF252525),
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
