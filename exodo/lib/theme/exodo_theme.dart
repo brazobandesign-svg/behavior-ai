@@ -18,6 +18,9 @@ class ExodoColors {
   static const Color composerBg = Color(0xFF252525);   // Elevado sobre #191919 (#252525)
   static const Color modelChipBg = Color(0xFF141414);  // Fondo de botones añadir, selector y barra tokens (#141414)
   static const Color tokenBarBg = Color(0xFF252525);   // Elevada en el header (#252525)
+
+  // === Light mode ===
+  static const Color lightSheetBg = Color(0xFFEBE7DE); // Sheet/modal en Light mode (#EBE7DE, o alternativamente #E8E0D8)
 }
 
 class ExodoTheme {

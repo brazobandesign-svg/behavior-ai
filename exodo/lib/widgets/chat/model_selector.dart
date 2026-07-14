@@ -215,7 +215,7 @@ class UpgradeModal {
     HapticFeedback.vibrate();
     bool isAnnual = false;
     final isLight = Theme.of(context).brightness == Brightness.light;
-    final bgColor = isLight ? const Color(0xFFFFFFFF) : ExodoColors.background;
+    final bgColor = isLight ? ExodoColors.lightSheetBg : ExodoColors.background;
     final surfaceColor = isLight
         ? const Color(0xFFF2F2F7)
         : ExodoColors.composerBg;

@@ -114,7 +114,7 @@ class _ChatScreenState extends State<ChatScreen>
       context: context,
       backgroundColor: isDark
           ? ExodoColors.background
-          : Theme.of(context).scaffoldBackgroundColor,
+          : ExodoColors.lightSheetBg,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
       ),
