@@ -124,20 +124,21 @@ class _ChatScreenState extends State<ChatScreen>
 
   @override
   Widget build(BuildContext context) {
-    final state = context.watch<AppState>();
-    final isLight = !state.isDarkMode && !state.isIncognito;
-    if (state.currentMessages.length > _lastMessageCount) {
-      _lastMessageCount = state.currentMessages.length;
-      _scrollToBottom();
-    } else {
-      _lastMessageCount = state.currentMessages.length;
-    }
+    // [Fix rendimiento streaming] Este build() ahora usa context.select en
+    // vez de context.watch. Solo se reconstruye cuando isDarkMode, isIncognito
+    // u isOnline cambian — NO cada vez que llega un chunk SSE (que muta
+    // currentMessages). El chat en sí vive en ChatMessagesList, que tiene
+    // su propia suscripción aislada a AppState y no le pega al Scaffold.
+    final isDarkMode = context.select<AppState, bool>((s) => s.isDarkMode);
+    final isIncognito = context.select<AppState, bool>((s) => s.isIncognito);
+    final isOnline = context.select<AppState, bool>((s) => s.isOnline);
+    final isLight = !isDarkMode && !isIncognito;
 
     return Scaffold(
       drawer: const DrawerMenu(),
       onDrawerChanged: (isOpened) {
-        if (isOpened && state.isIncognito) {
-          state.exitIncognitoAndClear();
+        if (isOpened && isIncognito) {
+          context.read<AppState>().exitIncognitoAndClear();
         }
       },
       body: AnimatedAmbientBackground(
@@ -149,81 +150,22 @@ class _ChatScreenState extends State<ChatScreen>
               const ChatAppBar(),
 
               // [Punto 43] Banner de offline: aparece cuando no hay internet.
-              if (!state.isOnline) _NetworkOfflineBanner(isLight: isLight),
+              if (!isOnline) _NetworkOfflineBanner(isLight: isLight),
 
               // Stage principal o lista de mensajes (SIEMPRE VISIBLE y fluye tras el composer)
               Expanded(
                 child: Stack(
                   children: [
-                    if (state.currentMessages.isEmpty)
-                      Center(
-                        child: SingleChildScrollView(
-                          padding: const EdgeInsets.only(bottom: 120),
-                          physics: const ClampingScrollPhysics(),
-                          child: ChatStage(
-                            pulseAnim: _pulseCtrl,
-                            fullName: state.profile?.fullName,
-                          ),
-                        ),
-                      )
-                    else
-                      // [Punto 36 aviso] Filtro defensivo: aunque currentMessages
-                      // tenga contenido, si NO hay conversación activa seleccionada
-                      // Y NO hay un mensaje del usuario en la lista, mostramos el
-                      // stage vacío en lugar de mensajes residuales. Esto elimina
-                      // el flash de "You stopped the response" o cualquier
-                      // mensaje huérfano al iniciar sesión / cambiar de cuenta.
-                      Builder(
-                        builder: (context) {
-                          final hasUserMsg = state.currentMessages.any(
-                            (m) => m.role == 'user',
-                          );
-                          final hasActiveConv =
-                              state.activeConversation != null;
-                          if (!hasUserMsg &&
-                              !hasActiveConv &&
-                              !state.isIncognito) {
-                            return Center(
-                              child: SingleChildScrollView(
-                                padding: const EdgeInsets.only(bottom: 120),
-                                physics: const ClampingScrollPhysics(),
-                                child: ChatStage(
-                                  pulseAnim: _pulseCtrl,
-                                  fullName: state.profile?.fullName,
-                                ),
-                              ),
-                            );
-                          }
-                          final lastAssistantIndex = state.currentMessages
-                              .lastIndexWhere((m) => m.role == 'assistant');
-                          return ListView.builder(
-                            controller: _scrollCtrl,
-                            padding: const EdgeInsets.only(
-                              left: 16,
-                              right: 16,
-                              top: 8,
-                              bottom: 200,
-                            ),
-                            itemCount: state.currentMessages.length,
-                            itemBuilder: (context, index) {
-                              final msg = state.currentMessages[index];
-                              if (msg.isThinking) {
-                                return RepaintBoundary(
-                                  key: ValueKey('thinking-${msg.id}'),
-                                  child: ThinkingBubble(pulseAnim: _pulseCtrl),
-                                );
-                              }
-                              return RepaintBoundary(
-                                key: ValueKey(msg.id),
-                                child: MessageBubble(
-                                  message: msg,
-                                  isLastAssistant: index == lastAssistantIndex,
-                                ),
-                              );
-                            },
-                          );
-                        },
-                      ),
+                    // [Fix rendimiento streaming] Todo el contenido que depende
+                    // de currentMessages/isGenerating vive aislado aquí dentro.
+                    ChatMessagesList(
+                      scrollCtrl: _scrollCtrl,
+                      pulseAnim: _pulseCtrl,
+                      isLight: isLight,
+                      onFollowBottomChanged: (value) {
+                        _followStreamingBottom = value;
+                      },
+                    ),
                     // Degradado inferior (borrado suave para que el texto fluya sin corte brusco)
                     Positioned(
                       left: 0,
@@ -277,6 +219,7 @@ class _ChatScreenState extends State<ChatScreen>
                             return;
                           }
                           FocusScope.of(context).unfocus();
+                          final state = context.read<AppState>();
                           if (!state.isGuestUser &&
                               (state.tokensUsed >= state.tokensLimit ||
                                   state.tokensUsed + (text.length ~/ 3) + 15 >
@@ -308,6 +251,160 @@ class _ChatScreenState extends State<ChatScreen>
     );
   }
 }
+
+/// [Fix rendimiento streaming] Widget aislado que contiene TODO lo que
+/// depende de currentMessages y isGenerating. Su propio context.watch<AppState>()
+/// vive aquí, no en _ChatScreenState.build(), así que cuando llega un chunk SSE
+/// solo ESTE subárbol se reconstruye — ChatAppBar, el degradado, el botón de
+/// scroll y el composer del padre quedan intactos y no repintan nada de más.
+class ChatMessagesList extends StatefulWidget {
+  final ScrollController scrollCtrl;
+  final AnimationController pulseAnim;
+  final bool isLight;
+  final ValueChanged<bool> onFollowBottomChanged;
+
+  const ChatMessagesList({
+    super.key,
+    required this.scrollCtrl,
+    required this.pulseAnim,
+    required this.isLight,
+    required this.onFollowBottomChanged,
+  });
+
+  @override
+  State<ChatMessagesList> createState() => _ChatMessagesListState();
+}
+
+class _ChatMessagesListState extends State<ChatMessagesList> {
+  int _lastMessageCount = 0;
+  bool _followStreamingBottom = true;
+
+  void _scrollToBottom() {
+    _followStreamingBottom = true;
+    widget.onFollowBottomChanged(true);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (widget.scrollCtrl.hasClients) {
+        widget.scrollCtrl.animateTo(
+          widget.scrollCtrl.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 280),
+          curve: Curves.easeOut,
+        );
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // Este watch queda AISLADO a este widget. Cuando currentMessages cambia
+    // (cada chunk), solo este subárbol reconstruye, no el Scaffold del padre.
+    final state = context.watch<AppState>();
+
+    if (state.currentMessages.length > _lastMessageCount) {
+      _lastMessageCount = state.currentMessages.length;
+      _followStreamingBottom = true;
+      widget.onFollowBottomChanged(true);
+      _scrollToBottom();
+    } else {
+      _lastMessageCount = state.currentMessages.length;
+      if (_followStreamingBottom && state.isGenerating) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (_followStreamingBottom &&
+              state.isGenerating &&
+              widget.scrollCtrl.hasClients) {
+            if (widget.scrollCtrl.position.extentAfter > 2) {
+              widget.scrollCtrl.jumpTo(
+                widget.scrollCtrl.position.maxScrollExtent,
+              );
+            }
+          }
+        });
+      }
+    }
+
+    if (state.currentMessages.isEmpty) {
+      return Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.only(bottom: 120),
+          physics: const ClampingScrollPhysics(),
+          child: ChatStage(
+            pulseAnim: widget.pulseAnim,
+            fullName: state.profile?.fullName,
+          ),
+        ),
+      );
+    }
+
+    // [Punto 36 aviso] Filtro defensivo: aunque currentMessages
+    // tenga contenido, si NO hay conversación activa seleccionada
+    // Y NO hay un mensaje del usuario en la lista, mostramos el
+    // stage vacío en lugar de mensajes residuales.
+    final hasUserMsg = state.currentMessages.any((m) => m.role == 'user');
+    final hasActiveConv = state.activeConversation != null;
+    if (!hasUserMsg && !hasActiveConv && !state.isIncognito) {
+      return Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.only(bottom: 120),
+          physics: const ClampingScrollPhysics(),
+          child: ChatStage(
+            pulseAnim: widget.pulseAnim,
+            fullName: state.profile?.fullName,
+          ),
+        ),
+      );
+    }
+
+    final lastAssistantIndex = state.currentMessages.lastIndexWhere(
+      (m) => m.role == 'assistant',
+    );
+
+    return NotificationListener<ScrollNotification>(
+      onNotification: (notification) {
+        if (notification is ScrollStartNotification &&
+            notification.dragDetails != null) {
+          _followStreamingBottom = false;
+          widget.onFollowBottomChanged(false);
+        } else if (notification is ScrollUpdateNotification &&
+            notification.dragDetails != null) {
+          _followStreamingBottom = false;
+          widget.onFollowBottomChanged(false);
+        } else if (notification is UserScrollNotification &&
+            notification.direction != ScrollDirection.idle &&
+            widget.scrollCtrl.position.isScrollingNotifier.value) {
+          _followStreamingBottom = false;
+          widget.onFollowBottomChanged(false);
+        }
+        return false;
+      },
+      child: ListView.builder(
+        controller: widget.scrollCtrl,
+        padding: const EdgeInsets.only(
+          left: 16,
+          right: 16,
+          top: 8,
+          bottom: 200,
+        ),
+        itemCount: state.currentMessages.length,
+        itemBuilder: (context, index) {
+          final msg = state.currentMessages[index];
+          if (msg.isThinking) {
+            return RepaintBoundary(
+              key: ValueKey('thinking-${msg.id}'),
+              child: ThinkingBubble(pulseAnim: widget.pulseAnim),
+            );
+          }
+          return RepaintBoundary(
+            key: ValueKey(msg.id),
+            child: MessageBubble(
+              message: msg,
+              isLastAssistant: index == lastAssistantIndex,
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
 
 // [Punto 43] Banner de offline: aparece arriba del chat cuando no hay internet.
 class _NetworkOfflineBanner extends StatelessWidget {
