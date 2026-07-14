@@ -136,6 +136,8 @@ class _ChatScreenState extends State<ChatScreen>
 
     return Scaffold(
       drawer: const DrawerMenu(),
+      drawerEnableOpenDragGesture: true,
+      drawerEdgeDragWidth: MediaQuery.of(context).size.width * 0.26,
       onDrawerChanged: (isOpened) {
         if (isOpened && isIncognito) {
           context.read<AppState>().exitIncognitoAndClear();
