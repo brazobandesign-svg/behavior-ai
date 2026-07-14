@@ -20,7 +20,7 @@ class ExodoColors {
   static const Color tokenBarBg = Color(0xFF252525);   // Elevada en el header (#252525)
 
   // === Light mode ===
-  static const Color lightSheetBg = Color(0xFFEBE7DE); // Sheet/modal en Light mode (#EBE7DE, o alternativamente #E8E0D8)
+  static const Color lightSheetBg = Color(0xFFE8E0D8); // Sheet/modal en Light mode (#E8E0D8)
 }
 
 class ExodoTheme {
