@@ -239,15 +239,15 @@ class _ChatScreenState extends State<ChatScreen>
                               stops: const [0.0, 0.45, 1.0],
                               colors: [
                                 (isLight
-                                        ? const Color(0xFFFBF9F5)
+                                        ? ExodoColors.textPrimary
                                         : ExodoColors.chatBg)
                                     .withValues(alpha: 0.0),
                                 (isLight
-                                        ? const Color(0xFFFBF9F5)
+                                        ? ExodoColors.textPrimary
                                         : ExodoColors.chatBg)
                                     .withValues(alpha: 0.85),
                                 (isLight
-                                    ? const Color(0xFFFBF9F5)
+                                    ? ExodoColors.textPrimary
                                     : ExodoColors.chatBg),
                               ],
                             ),

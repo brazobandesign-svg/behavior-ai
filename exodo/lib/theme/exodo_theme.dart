@@ -83,8 +83,8 @@ class ExodoTheme {
 
   static ThemeData get lightTheme {
     final base = ThemeData.light();
-    const creamBg = Color(0xFFFBF9F5); // Blanco yeso o hueso cremoso
-    const creamSurface = Color(0xFFF5F5F5);
+    const creamBg = ExodoColors.textPrimary; // Blanco yeso (#F5F2EB)
+    const creamSurface = Color(0xFFFFFFFF);
     const darkInk = Color(0xFF171615);
 
     return base.copyWith(

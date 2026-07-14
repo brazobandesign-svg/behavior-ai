@@ -61,7 +61,7 @@ class _DrawerMenuState extends State<DrawerMenu> {
   Widget build(BuildContext context) {
     final state = context.watch<AppState>();
     final isLight = !state.isDarkMode;
-    final bg = isLight ? const Color(0xFFF7F5F0) : ExodoColors.background;
+    final bg = isLight ? ExodoColors.textPrimary : ExodoColors.background;
     final textCol = isLight ? const Color(0xFF171615) : ExodoColors.textPrimary;
     final subTextCol = isLight ? Colors.black54 : ExodoColors.textSecondary;
 
@@ -830,7 +830,7 @@ class _LangTile extends StatelessWidget {
 class _ClaudeAccountModal {
   static void show(BuildContext context, AppState state) {
     final isLight = !state.isDarkMode;
-    final bg = isLight ? const Color(0xFFF7F5F0) : ExodoColors.background;
+    final bg = isLight ? ExodoColors.textPrimary : ExodoColors.background;
     final textCol = isLight ? const Color(0xFF171615) : ExodoColors.textPrimary;
     final subTextCol = isLight ? Colors.black54 : ExodoColors.textPrimary;
     final cardBg = isLight ? const Color(0xFFEBE7DE) : ExodoColors.composerBg;
@@ -1073,7 +1073,7 @@ class _ClaudeAccountModal {
     final i18n = AppI18n.of(context);
     final currentCode = context.currentLocaleCode;
     final isLight = Theme.of(context).brightness == Brightness.light;
-    final bg = isLight ? Colors.white : ExodoColors.background;
+    final bg = isLight ? ExodoColors.textPrimary : ExodoColors.background;
     final textCol = isLight ? const Color(0xFF171615) : ExodoColors.textPrimary;
     final subTextCol = isLight ? Colors.black54 : ExodoColors.textPrimary;
 
@@ -1174,7 +1174,7 @@ class _ClaudeAccountModal {
     // card interna (ExodoColors.surface = #1A1612). Ahora la card usa el
     // mismo `bgColor` del modal + un borde sutil, sin marrón.
     final isLight = Theme.of(context).brightness == Brightness.light;
-    final bgColor = isLight ? const Color(0xFFFBF9F5) : ExodoColors.background;
+    final bgColor = isLight ? ExodoColors.textPrimary : ExodoColors.background;
     final cardBg = isLight ? const Color(0xFFF5F5F5) : ExodoColors.composerBg;
     final borderColor = isLight ? const Color(0xFFDDDDDD) : Colors.transparent;
     final textPrimary = isLight ? const Color(0xFF171615) : ExodoColors.textPrimary;

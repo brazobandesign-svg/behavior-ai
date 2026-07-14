@@ -218,7 +218,7 @@ class MessageBubble extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: isLight
                       ? const Color(0xFFE8E8E8)
-                      : ExodoColors.surface,
+                      : const Color(0xFF212121),
                   borderRadius: BorderRadius.circular(20),
                   border: Border.all(
                     color: isLight ? const Color(0xFFDDDDDD) : Colors.transparent,

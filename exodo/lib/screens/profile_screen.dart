@@ -38,7 +38,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   // Usa la paleta Éxodo: grises, sheet, tab, yeso, hueso del dark mode.
   void _showClearHistoryConfirmation(BuildContext context, AppState state) {
     final isLight = !state.isDarkMode;
-    final bg = isLight ? const Color(0xFFFBF9F5) : ExodoColors.background;     // yeso / negro cálido
+    final bg = isLight ? ExodoColors.textPrimary : ExodoColors.background;     // yeso / negro cálido
     final textCol = isLight ? const Color(0xFF171615) : ExodoColors.textPrimary;
     final subTextCol = isLight ? const Color(0xFF7B7872) : ExodoColors.textPrimary;
     final dividerColor = isLight ? const Color(0xFFDDDDDD) : Colors.white12;
@@ -109,7 +109,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   void _showDeleteConfirmation(BuildContext context, AppState state) {
     final isLight = Theme.of(context).brightness == Brightness.light;
-    final bgColor = isLight ? const Color(0xFFF5F2EB) : ExodoColors.background;
+    final bgColor = isLight ? ExodoColors.textPrimary : ExodoColors.background;
     final textCol = isLight ? const Color(0xFF171615) : Colors.white;
     final subCol = isLight ? const Color(0xFF7B7872) : Colors.white70;
     final cancelCol = isLight ? const Color(0xFF9E9689) : Colors.white54;
@@ -161,7 +161,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Widget build(BuildContext context) {
     final state = Provider.of<AppState>(context);
     final isLight = !state.isDarkMode;
-    final bg = isLight ? const Color(0xFFF7F5F0) : ExodoColors.background;
+    final bg = isLight ? ExodoColors.textPrimary : ExodoColors.background;
     final cardBg = isLight ? Colors.white : ExodoColors.composerBg;
     final textCol = isLight ? const Color(0xFF171615) : ExodoColors.textPrimary;
     final subCol = isLight ? Colors.black54 : ExodoColors.textPrimary;
