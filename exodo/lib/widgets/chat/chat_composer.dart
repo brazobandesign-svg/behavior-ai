@@ -573,7 +573,7 @@ class _ChatComposerState extends State<ChatComposer>
               decoration: BoxDecoration(
                 color: isLight
                     ? const Color(0xFF1D1D1D)
-                    : const Color(0xFFF5F5F5),
+                    : ExodoColors.textPrimary,
                 borderRadius: const BorderRadius.vertical(
                   top: Radius.circular(20),
                 ),
@@ -590,8 +590,8 @@ class _ChatComposerState extends State<ChatComposer>
                       AppI18n.of(context).t('tokens.more_cap'),
                       style: TextStyle(fontFamily: 'AnthropicSans', 
                         color: isLight
-                            ? const Color(0xFFF5F2EB)
-                            : const Color(0xFF55514C),
+                            ? ExodoColors.textPrimary
+                            : ExodoColors.background,
                         fontSize: 12.0,
                         fontWeight: FontWeight.w600,
                       ),
@@ -627,7 +627,7 @@ class _ChatComposerState extends State<ChatComposer>
                         child: Icon(
                           Icons.close,
                           size: 16,
-                          color: isLight ? Colors.white70 : Colors.black54,
+                          color: isLight ? ExodoColors.textPrimary : ExodoColors.background,
                         ),
                       ),
                     ),
