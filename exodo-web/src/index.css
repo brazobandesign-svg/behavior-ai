@@ -1,0 +1,581 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+@font-face {
+  font-family: 'AnthropicSerif';
+  src: url('/fonts/AnthropicSerif-Display-Light-Static.otf') format('opentype');
+  font-weight: 300;
+  font-style: normal;
+}
+@font-face {
+  font-family: 'AnthropicSerif';
+  src: url('/fonts/AnthropicSerif-Display-Regular-Static.otf') format('opentype');
+  font-weight: 400;
+  font-style: normal;
+}
+@font-face {
+  font-family: 'AnthropicSerif';
+  src: url('/fonts/AnthropicSerif-Display-Medium-Static.otf') format('opentype');
+  font-weight: 500;
+  font-style: normal;
+}
+@font-face {
+  font-family: 'AnthropicSerif';
+  src: url('/fonts/AnthropicSerif-Text-Bold-Static.otf') format('opentype');
+  font-weight: bold;
+  font-style: normal;
+}
+@font-face {
+  font-family: 'AnthropicSans';
+  src: url('/fonts/AnthropicSans-Text-Regular-Static.otf') format('opentype');
+  font-weight: normal;
+  font-style: normal;
+}
+@font-face {
+  font-family: 'AnthropicSans';
+  src: url('/fonts/AnthropicSans-Text-Bold-Static.otf') format('opentype');
+  font-weight: bold;
+  font-style: normal;
+}
+
+:root {
+  /* Paleta de colores oficial ExodoColors (#0E0C0A Negro Cálido) */
+  --bg-warm-black: #0E0C0A;
+  --surface-card: #191919;
+  --surface-input: #252525;
+  --border-color: #2A241D;
+  --amber-exodo: #C9933A;
+  --amber-glow: rgba(201, 147, 58, 0.2);
+  --text-primary: #F5F2EB;
+  --text-secondary: #9E9689;
+  --text-muted: #6C665D;
+  --transition-fast: 0.15s ease-out;
+  --transition-normal: 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  --bg-chat-main: #191919;
+}
+
+[data-theme="light"] {
+  --bg-warm-black: #F5F2EB;
+  --bg-chat-main: #FFFFFF;
+  --surface-card: #FFFFFF;
+  --surface-input: #FFFFFF;
+  --border-color: #E0DDD6;
+  --amber-exodo: #C9933A;
+  --amber-glow: rgba(201, 147, 58, 0.15);
+  --text-primary: #191919;
+  --text-secondary: #5A544A;
+  --text-muted: #8A847A;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body, html, #root {
+  width: 100%;
+  height: 100%;
+  background-color: var(--bg-warm-black);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+::-webkit-scrollbar {
+  width: 5px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--surface-input);
+  border-radius: 99px;
+}
+
+.app-container {
+  display: flex;
+  flex-direction: row;
+  width: 100vw;
+  height: 100vh;
+  background: var(--bg-warm-black);
+  position: relative;
+  overflow: hidden;
+}
+
+/* Barra lateral vertical izquierda con línea hasta abajo separando menú del chat */
+.sidebar-rail {
+  width: 64px;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 16px 0;
+  background-color: var(--bg-chat-main);
+  border-right: 1px solid var(--border-color);
+  flex-shrink: 0;
+  z-index: 24;
+  box-sizing: border-box;
+}
+
+/* Barra superior del chat principal responsiva al zoom */
+.chat-header-bar {
+  width: 100%;
+  padding: 16px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 12px;
+  box-sizing: border-box;
+  z-index: 23;
+  flex-shrink: 0;
+}
+
+.floating-token-banner {
+  position: absolute;
+  top: 18px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 25;
+}
+
+/* TokenBar Banner exacto al móvil (#252525) */
+.header-token-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--surface-input);
+  padding: 6px 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(201, 147, 58, 0.3);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.header-token-bar:hover {
+  border-color: var(--amber-exodo);
+  transform: translateY(-1px);
+}
+
+.token-bar-progress {
+  width: 76px;
+  height: 5px;
+  background: #1e1e1e;
+  border-radius: 3px;
+  overflow: hidden;
+  position: relative;
+}
+
+.token-bar-fill {
+  height: 100%;
+  background: var(--amber-exodo);
+  border-radius: 3px;
+}
+
+.token-popup-card {
+  position: absolute;
+  top: 64px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--surface-input);
+  border: 1px solid var(--amber-exodo);
+  border-radius: 14px;
+  padding: 14px 18px;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.6);
+  z-index: 35;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 290px;
+  animation: fadeIn 0.15s ease-out;
+}
+
+.capacity-upgrade-banner {
+  background: rgba(201, 147, 58, 0.15);
+  border: 1px dashed var(--amber-exodo);
+  border-radius: 10px;
+  padding: 10px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: var(--amber-exodo);
+  font-weight: 700;
+  font-size: 0.82rem;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.capacity-upgrade-banner:hover {
+  background: var(--amber-exodo);
+  color: #0E0C0A;
+}
+
+.icon-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: 20px;
+  background: transparent;
+  border: none;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background var(--transition-fast);
+}
+
+.icon-btn:hover {
+  background: var(--surface-card);
+}
+
+.header-center-logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+}
+
+.mask-logo-amber {
+  width: 26px;
+  height: 26px;
+  background-color: var(--amber-exodo);
+  -webkit-mask-image: url(/Logo_behavior.png);
+  -webkit-mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  mask-image: url(/Logo_behavior.png);
+  mask-size: contain;
+  mask-repeat: no-repeat;
+  mask-position: center;
+}
+
+.mask-text-yeso {
+  width: 72px;
+  height: 22px;
+  background-color: var(--text-primary);
+  -webkit-mask-image: url(/exodo_text.png);
+  -webkit-mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  mask-image: url(/exodo_text.png);
+  mask-size: contain;
+  mask-repeat: no-repeat;
+  mask-position: center;
+}
+
+/* Drawer Menu Deslizable (Exacto al móvil) */
+.drawer-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(4px);
+  z-index: 40;
+  animation: fadeIn 0.2s ease-out;
+}
+
+.drawer-slide {
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 290px;
+  background: var(--surface-card);
+  border-right: 1px solid var(--border-color);
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  transition: transform var(--transition-normal);
+  transform: translateX(-100%);
+}
+
+.drawer-slide.open {
+  transform: translateX(0);
+}
+
+.drawer-header {
+  padding: 24px 20px 16px 20px;
+  border-bottom: 1px solid var(--border-color);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.drawer-item {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 13px 20px;
+  color: var(--text-primary);
+  font-size: 0.94rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background var(--transition-fast);
+  border: none;
+  background: transparent;
+  width: 100%;
+  text-align: left;
+}
+
+.drawer-item:hover {
+  background: var(--surface-input);
+}
+
+.search-box {
+  margin: 12px 16px;
+  padding: 8px 14px;
+  background: var(--surface-input);
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.search-input {
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--text-primary);
+  font-size: 0.88rem;
+  width: 100%;
+}
+
+.conv-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 4px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.conv-item {
+  padding: 11px 14px;
+  border-radius: 10px;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.conv-item:hover, .conv-item.active {
+  background: var(--surface-input);
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.drawer-footer {
+  padding: 16px;
+  border-top: 1px solid var(--border-color);
+}
+
+/* Área Principal de Chat (Exacta a móvil, adaptativa al zoom) */
+.chat-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  overflow-y: auto;
+  overflow-x: hidden;
+  background-color: var(--bg-chat-main);
+  box-sizing: border-box;
+}
+
+.welcome-center {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 20px 24px 8vh 24px;
+  width: 100%;
+  box-sizing: border-box;
+  animation: fadeIn 0.25s ease-out;
+  min-height: min-content;
+}
+
+.greeting-text-exodo {
+  font-family: 'AnthropicSerif', Georgia, serif;
+  font-size: 45px;
+  font-weight: 300;
+  color: #F5F2EB !important;
+  line-height: 1.15;
+  letter-spacing: -0.5px;
+  max-width: 860px;
+}
+
+.watermark-box {
+  width: min(280px, 40vw);
+  height: auto;
+  pointer-events: none;
+  user-select: none;
+  margin-top: 16px;
+  margin-bottom: 24px;
+}
+
+.messages-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px 16px 140px 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.messages-wrapper {
+  width: 100%;
+  max-width: 760px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.msg-row {
+  display: flex;
+  width: 100%;
+  animation: fadeIn 0.15s ease-out;
+}
+
+.msg-row.user {
+  justify-content: flex-end;
+}
+
+.msg-bubble {
+  max-width: 88%;
+  padding: 14px 18px;
+  border-radius: 20px;
+  font-size: 0.98rem;
+  line-height: 1.55;
+}
+
+.msg-row.user .msg-bubble {
+  background: var(--surface-input);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+  border-bottom-right-radius: 4px;
+}
+
+.msg-row.assistant .msg-bubble {
+  background: transparent;
+  color: var(--text-primary);
+  padding-left: 4px;
+  width: 100%;
+}
+
+.thinking-pulse {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  border-radius: 99px;
+  background: var(--surface-card);
+  border: 1px solid var(--amber-exodo);
+  color: var(--amber-exodo);
+  font-size: 0.88rem;
+  font-weight: 500;
+  animation: pulseGlow 1.8s infinite ease-in-out;
+}
+
+@keyframes pulseGlow {
+  0%, 100% { box-shadow: 0 0 6px var(--amber-glow); }
+  50% { box-shadow: 0 0 18px rgba(201, 147, 58, 0.4); }
+}
+
+/* Composer de Chat (Exacto al móvil ChatComposer #252525 / #FFFFFF) */
+.composer-pinned {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 12px 16px 20px 16px;
+  background: linear-gradient(0deg, var(--bg-chat-main) 70%, transparent 100%);
+  display: flex;
+  justify-content: center;
+  z-index: 15;
+}
+
+.composer-container {
+  width: 100%;
+  max-width: 760px;
+  background: #252525;
+  border: none !important;
+  outline: none !important;
+  border-radius: 32px;
+  padding: 16px 18px 14px 18px;
+  display: flex;
+  flex-direction: column;
+}
+
+.composer-container:focus,
+.composer-container:focus-within {
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+.composer-input {
+  flex: 1;
+  background: transparent;
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-size: 0.96rem;
+  resize: none;
+  max-height: 140px;
+  min-height: 24px;
+  line-height: 1.4;
+  padding: 4px 0;
+}
+
+.composer-input:focus {
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+.composer-input::placeholder {
+  color: var(--text-secondary);
+}
+
+.send-circle {
+  width: 38px;
+  height: 38px;
+  border-radius: 19px;
+  background: var(--amber-exodo);
+  color: #0E0C0A;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: transform var(--transition-fast);
+  flex-shrink: 0;
+}
+
+.send-circle:disabled {
+  background: var(--surface-card);
+  color: var(--text-muted);
+  cursor: not-allowed;
+}
+
+.send-circle:not(:disabled):hover {
+  transform: scale(1.06);
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
