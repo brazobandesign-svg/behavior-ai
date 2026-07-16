@@ -11,7 +11,8 @@ import {
   X,
   Search,
   Download,
-  Pin
+  Pin,
+  Lock
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -65,16 +66,46 @@ export default function App() {
 
   // Sincronización de sesión y Realtime
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      if (session?.user) fetchProfile(session.user.id);
-    });
+    // Detectar posibles errores de redirección OAuth devueltos por Google / Supabase en la URL
+    const params = new URLSearchParams(window.location.search);
+    const hashParams = new URLSearchParams(window.location.hash.substring(1));
+    const oauthError = params.get('error') || hashParams.get('error');
+    const oauthErrorDesc = params.get('error_description') || hashParams.get('error_description');
+    
+    if (oauthError) {
+      console.error('Error de OAuth detectado en URL tras redirección:', oauthError, oauthErrorDesc);
+      alert(`No se pudo iniciar sesión con Google.\nError: ${oauthError}\nDescripción: ${decodeURIComponent(oauthErrorDesc || 'Desconocida')}\n\n⚠️ Consejo: Verifica en tu proyecto de Supabase (zyvaakfsnlqlgrjdigkr -> Authentication -> URL Configuration -> Redirect URLs) que la URL "${window.location.origin}" esté agregada a la lista blanca de redirecciones permitidas.`);
+    }
+
+    // Retraso de 100ms en getSession para no competir con el bloqueo interno (_acquireLock) de Supabase
+    const sessionTimeout = setTimeout(() => {
+      supabase.auth.getSession().then(({ data: { session }, error }) => {
+        if (error) {
+          console.error('Error al obtener sesión / intercambiar código de Google:', error);
+          if (window.location.search.includes('code=')) {
+            alert(`Error al verificar la autenticación con Google: ${error.message}\n\nPor favor intenta de nuevo o verifica la configuración del dominio.`);
+          }
+        }
+        if (session) setSession(session);
+        if (session?.user) {
+          fetchProfile(session.user.id);
+          setShowAuthModal(false);
+          if (window.location.search.includes('code=') || window.location.hash.includes('access_token=')) {
+            window.history.replaceState({}, document.title, window.location.pathname);
+          }
+        }
+      });
+    }, 100);
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
       if (session?.user) {
         fetchProfile(session.user.id);
         fetchConversations();
+        setShowAuthModal(false);
+        if (window.location.search.includes('code=') || window.location.hash.includes('access_token=')) {
+          window.history.replaceState({}, document.title, window.location.pathname);
+        }
       } else {
         setUserProfile(null);
       }
@@ -90,6 +121,7 @@ export default function App() {
     fetchConversations();
 
     return () => {
+      clearTimeout(sessionTimeout);
       subscription.unsubscribe();
       supabase.removeChannel(channel);
     };
@@ -291,7 +323,11 @@ export default function App() {
     return 'La noche es joven';
   };
 
-  const renderChatComposer = () => (
+  const renderChatComposer = () => {
+    const isModelLocked = !session?.user || isIncognito;
+    const displayModelTitle = !session?.user ? 'G1.1' : selectedModel.title;
+
+    return (
     <div style={{ width: '100%', maxWidth: 680, margin: '0 auto', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
       {showUpgradeBanner && !isIncognito && (
         <div style={{
@@ -299,7 +335,9 @@ export default function App() {
           padding: '4px 16px 29px 16px',
           position: 'relative' as const,
           top: 10,
-          background: '#F5F2EB',
+          background: 'var(--banner-bg, #252525)',
+          border: '1px solid var(--banner-border, transparent)',
+          borderBottom: 'none',
           borderRadius: '20px 20px 0 0',
           display: 'flex',
           alignItems: 'center',
@@ -309,7 +347,7 @@ export default function App() {
           boxSizing: 'border-box' as const,
           textAlign: 'center'
         }}>
-          <span style={{ fontFamily: 'AnthropicSans, sans-serif', fontSize: '12px', fontWeight: 600, color: '#0E0C0A', lineHeight: 1.2 }}>
+          <span style={{ fontFamily: 'AnthropicSans, sans-serif', fontSize: '12px', fontWeight: 600, color: 'var(--banner-text, #F5F2EB)', lineHeight: 1.2 }}>
             Más capacidad con XPi PRO
           </span>
           <button
@@ -324,119 +362,135 @@ export default function App() {
             onClick={() => setShowUpgradeBanner(false)}
             style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px 6px', display: 'flex', alignItems: 'center' }}
           >
-            <X size={16} color="#0E0C0A" />
+            <X size={16} color="var(--banner-text, #F5F2EB)" />
           </button>
         </div>
       )}
-      <form 
-        className="composer-container" 
-        onSubmit={handleSendMessage} 
-        style={{
-          position: showUpgradeBanner && !isIncognito ? 'relative' : undefined,
-          top: showUpgradeBanner && !isIncognito ? -18 : undefined, 
-        width: '100%', 
-        maxWidth: 680,
-        margin: '0 auto',
-        background: '#252525',
-        border: 'none',
-        outline: 'none',
-        boxShadow: 'none',
-        borderRadius: 24,
-        padding: '18px 20px 14px 20px',
+      <div style={{
+        width: '100%',
+        position: showUpgradeBanner && !isIncognito ? 'relative' : undefined,
+        top: showUpgradeBanner && !isIncognito ? -18 : undefined,
         display: 'flex',
-        flexDirection: 'column'
-      }}
-    >
-      <textarea
-        className="composer-input"
-        placeholder="Reply to Exodo..."
-        value={input}
-        onChange={(e) => setInput(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter' && !e.shiftKey) {
-            e.preventDefault();
-            handleSendMessage();
-          }
-        }}
-        rows={2}
-        style={{
-          width: '100%',
-          background: 'transparent',
-          border: 'none',
-          outline: 'none',
-          boxShadow: 'none',
-          color: 'var(--text-primary)',
-          fontSize: '16px',
-          fontFamily: 'var(--font-sans)',
-          resize: 'none',
-          minHeight: '52px',
-          padding: '4px 6px 16px 6px'
-        }}
-      />
-
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <button 
-            type="button" 
-            className="icon-btn" 
-            style={{ width: 36, height: 36, borderRadius: '50%', background: '#1B1B1B', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-            title="Adjuntar archivos"
-            onClick={() => alert('Selector de adjuntos sincronizado con nube')}
-          >
-            <Plus size={20} color="var(--text-primary)" />
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setShowModelSelector(true)}
-            style={{
-              padding: '6px 14px',
-              borderRadius: 16,
-              background: '#1B1B1B',
-              border: selectedModel.id === 'ehyeh' ? '1px solid var(--amber-exodo)' : '1px solid transparent',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 6,
-              cursor: 'pointer',
-              color: 'var(--text-primary)'
-            }}
-            title="Seleccionar Modelo"
-          >
-            <span style={{ fontFamily: 'AnthropicSans, sans-serif', fontSize: '13px', fontWeight: 700 }}>
-              {selectedModel.title}
-            </span>
-            <ChevronRight size={15} color="var(--text-secondary)" style={{ transform: 'rotate(90deg)' }} />
-          </button>
-        </div>
-
-        <button
-          type="submit"
-          disabled={!input.trim() || isStreaming}
+        flexDirection: 'column',
+        alignItems: 'center'
+      }}>
+        <form 
+          className="composer-container" 
+          onSubmit={handleSendMessage} 
           style={{
-            width: 38,
-            height: 38,
-            borderRadius: '50%',
-            background: input.trim() && !isStreaming ? '#F5F2EB' : '#36322D',
-            color: input.trim() && !isStreaming ? '#141210' : '#6B6560',
+            width: '100%', 
+            maxWidth: 680,
+            margin: '0 auto',
+            background: 'var(--surface-input)',
             border: 'none',
             outline: 'none',
+            boxShadow: 'var(--shadow-composer, none)',
+            borderRadius: 24,
+            padding: '18px 20px 14px 20px',
             display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            cursor: input.trim() && !isStreaming ? 'pointer' : 'default',
-            transition: 'background 0.2s ease, color 0.2s ease'
+            flexDirection: 'column',
+            transition: 'background 0.25s ease, box-shadow 0.25s ease'
           }}
-          title="Enviar"
         >
-          <ArrowUp size={19} strokeWidth={2.5} />
-        </button>
+          <textarea
+            className="composer-input"
+            placeholder="Habla con Éxodo..."
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                handleSendMessage();
+              }
+            }}
+            rows={2}
+            style={{
+              width: '100%',
+              background: 'transparent',
+              border: 'none',
+              outline: 'none',
+              boxShadow: 'none',
+              color: 'var(--text-primary)',
+              fontSize: '16px',
+              fontFamily: 'var(--font-sans)',
+              resize: 'none',
+              minHeight: '52px',
+              padding: '4px 6px 16px 6px'
+            }}
+          />
+
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <button 
+                type="button" 
+                className="icon-btn" 
+                style={{ width: 36, height: 36, borderRadius: '50%', background: 'var(--model-chip-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                title="Adjuntar archivos"
+                onClick={() => alert('Selector de adjuntos sincronizado con nube')}
+              >
+                <Plus size={20} color="var(--text-primary)" />
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  if (isModelLocked) return;
+                  setShowModelSelector(true);
+                }}
+                style={{
+                  padding: '6px 14px',
+                  borderRadius: 16,
+                  background: 'var(--model-chip-bg)',
+                  border: selectedModel.id === 'ehyeh' && !isModelLocked ? '1px solid var(--amber-exodo)' : '1px solid transparent',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  cursor: isModelLocked ? 'default' : 'pointer',
+                  color: 'var(--text-primary)'
+                }}
+                title={isModelLocked ? (!session?.user ? "En invitado no se puede elegir modelos, solo G1.1" : "Modelo bloqueado en Modo Incógnito") : "Seleccionar Modelo"}
+              >
+                <span style={{ fontFamily: 'AnthropicSans, sans-serif', fontSize: '13px', fontWeight: 700 }}>
+                  {displayModelTitle}
+                </span>
+                {isModelLocked ? (
+                  <Lock size={13} color="var(--text-secondary)" />
+                ) : (
+                  <ChevronRight size={15} color="var(--text-secondary)" style={{ transform: 'rotate(90deg)' }} />
+                )}
+              </button>
+            </div>
+
+            <button
+              type="submit"
+              disabled={!input.trim() || isStreaming}
+              style={{
+                width: 38,
+                height: 38,
+                borderRadius: '50%',
+                background: input.trim() && !isStreaming ? 'var(--send-btn-bg)' : 'var(--send-btn-disabled)',
+                color: input.trim() && !isStreaming ? 'var(--send-btn-color)' : 'var(--text-muted)',
+                border: 'none',
+                outline: 'none',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: input.trim() && !isStreaming ? 'pointer' : 'default',
+                transition: 'background 0.2s ease, color 0.2s ease'
+              }}
+              title="Enviar"
+            >
+              <ArrowUp size={19} strokeWidth={2.5} />
+            </button>
+          </div>
+        </form>
+        <div style={{ marginTop: 10, textAlign: 'center', fontFamily: 'AnthropicSans, sans-serif', fontSize: '12px', color: 'var(--text-secondary)' }}>
+          Exodo es IA y puede cometer errores. Por favor verifica las respuestas.
+        </div>
       </div>
-    </form>
-    <div style={{ marginTop: -4, textAlign: 'center', fontFamily: 'AnthropicSans, sans-serif', fontSize: '12px', color: 'var(--text-secondary)' }}>
-      Exodo es IA y puede cometer errores. Por favor verifica las respuestas.
-    </div>
     </div>
   );
+  };
 
   return (
     <div className="app-container">
@@ -494,15 +548,10 @@ export default function App() {
             onClick={() => { setIsIncognito(!isIncognito); setDrawerOpen(false); }}
             style={{ color: isIncognito ? 'var(--amber-exodo)' : undefined }}
           >
-            <img 
-              src="/incognito-svgrepo-com.png" 
-              alt="Incógnito" 
+            <div 
+              className="mask-icon-incognito" 
               style={{ 
-                width: 20, 
-                height: 20, 
-                filter: isIncognito 
-                  ? 'brightness(0) saturate(100%) invert(60%) sepia(80%) saturate(600%) hue-rotate(360deg) brightness(95%) contrast(90%)' 
-                  : 'invert(0.8)' 
+                backgroundColor: isIncognito ? 'var(--amber-exodo)' : undefined 
               }} 
             />
             <span>Modo Incógnito</span>
@@ -790,15 +839,10 @@ export default function App() {
               title={isIncognito ? "Modo Incógnito activo" : "Modo Incógnito"}
               style={{ color: isIncognito ? 'var(--amber-exodo)' : undefined }}
             >
-              <img 
-                src="/incognito-svgrepo-com.png" 
-                alt="Incógnito" 
+              <div 
+                className="mask-icon-incognito" 
                 style={{ 
-                  width: 20, 
-                  height: 20, 
-                  filter: isIncognito 
-                    ? 'brightness(0) saturate(100%) invert(60%) sepia(80%) saturate(600%) hue-rotate(360deg) brightness(95%) contrast(90%)' 
-                    : 'invert(0.8)' 
+                  backgroundColor: isIncognito ? 'var(--amber-exodo)' : undefined 
                 }} 
               />
             </button>
@@ -807,15 +851,29 @@ export default function App() {
 
         {!messages.some((m) => m.role === 'user') ? (
           <div className="welcome-center">
-            <div style={{ display: 'flex', alignItems: 'center', gap: 24, marginBottom: 36 }}>
-              <img 
-                src="/Logo_behavior.png" 
-                alt="Éxodo Logo" 
-                style={{ width: 72, height: 72, objectFit: 'contain', flexShrink: 0 }} 
-              />
-              <div className="greeting-text-exodo" style={{ textAlign: 'left' }}>
-                {getExodoGreeting()}
-              </div>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14, marginBottom: 36 }}>
+              {!isIncognito && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 24 }}>
+                  <img 
+                    src="/Logo_behavior.png" 
+                    alt="Éxodo Logo" 
+                    style={{ width: 72, height: 72, objectFit: 'contain', flexShrink: 0 }} 
+                  />
+                  <div className="greeting-text-exodo" style={{ textAlign: 'left' }}>
+                    {getExodoGreeting()}
+                  </div>
+                </div>
+              )}
+              {isIncognito && (
+                <>
+                  <div className="greeting-text-exodo" style={{ textAlign: 'center' }}>
+                    Incógnito
+                  </div>
+                  <div style={{ fontSize: '14px', color: 'var(--text-secondary)', textAlign: 'center', maxWidth: 480, lineHeight: 1.4, marginTop: 4 }}>
+                    Los chats de incógnito no se guardan en el historial.
+                  </div>
+                </>
+              )}
             </div>
 
             {/* Cajón de escritura exacto a móvil (#252525 con selector de modelos) */}
@@ -929,7 +987,7 @@ export default function App() {
                           {m.subtitle}
                         </span>
                         {isProModel && (
-                          <span style={{ padding: '2px 6px', borderRadius: 4, background: active ? 'rgba(201, 147, 58, 0.2)' : '#222', border: `1px solid ${active ? 'var(--amber-exodo)' : 'rgba(255,255,255,0.15)'}`, fontSize: '10px', fontWeight: 700, color: active ? 'var(--amber-exodo)' : 'var(--text-primary)' }}>
+                          <span style={{ padding: '2px 6px', borderRadius: 4, background: active ? 'rgba(201, 147, 58, 0.2)' : 'var(--surface-input)', border: `1px solid ${active ? 'var(--amber-exodo)' : 'var(--border-color)'}`, fontSize: '10px', fontWeight: 700, color: active ? 'var(--amber-exodo)' : 'var(--text-primary)' }}>
                             PRO
                           </span>
                         )}

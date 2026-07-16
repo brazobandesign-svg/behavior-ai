@@ -22,12 +22,15 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess
           redirectTo: window.location.origin,
         },
       });
-      if (error) throw error;
-    } catch (err) {
-      console.warn('Error con Google OAuth, procediendo:', err);
+      if (error) {
+        console.error('Error reportado al iniciar con Google:', error);
+        alert(`Error al iniciar con Google: ${error.message || error}`);
+        setLoading(false);
+      }
+    } catch (err: any) {
+      console.error('Error en catch de Google OAuth:', err);
+      alert(`No se pudo iniciar sesión: ${err.message || err}`);
       setLoading(false);
-      onSuccess();
-      onClose();
     }
   };
 
