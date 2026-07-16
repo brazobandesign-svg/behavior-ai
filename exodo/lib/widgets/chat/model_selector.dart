@@ -31,7 +31,7 @@ class ModelSelectorSheet extends StatelessWidget {
               decoration: BoxDecoration(
                 color: isLight
                     ? const Color(0xFFF5F2EB)
-                    : const Color(0xFF252525),
+                    : const Color(0xFF444444),
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
@@ -77,7 +77,7 @@ class ModelSelectorSheet extends StatelessWidget {
                     m.subtitle,
                     style: TextStyle(fontFamily: 'AnthropicSans', 
                       fontSize: 13,
-                      color: isLight ? const Color(0xFF191919) : ExodoColors.textSecondary,
+                      color: isLight ? const Color(0xFF191919) : const Color(0xFFB0A99F),
                     ),
                   ),
                   if (isProModel)
@@ -91,7 +91,7 @@ class ModelSelectorSheet extends StatelessWidget {
                             ? ExodoColors.amber.withValues(alpha: 0.18)
                             : (isLight
                                   ? const Color(0xFFE8E8E8)
-                                  : const Color(0xFF222222)),
+                                  : const Color(0xFF2A2A2A)),
                         borderRadius: BorderRadius.circular(4),
                         border: Border.all(
                           color: active
@@ -118,7 +118,7 @@ class ModelSelectorSheet extends StatelessWidget {
                 AppI18n.of(context).t('models.${m.id}_desc'),
                 style: TextStyle(fontFamily: 'AnthropicSans', 
                   fontSize: 11.5,
-                  color: isLight ? const Color(0xFF191919) : ExodoColors.textSecondary,
+                  color: isLight ? const Color(0xFF191919) : const Color(0xFFB0A99F),
                 ),
               ),
               trailing: active
@@ -145,7 +145,7 @@ class ModelSelectorSheet extends StatelessWidget {
                   AppI18n.of(context).t('models.thinking_default'),
                   style: TextStyle(fontFamily: 'AnthropicSans', 
                     fontSize: 11,
-                    color: isLight ? const Color(0xFF191919) : ExodoColors.textSecondary,
+                    color: isLight ? const Color(0xFF191919) : const Color(0xFFB0A99F),
                   ),
                 ),
               ],

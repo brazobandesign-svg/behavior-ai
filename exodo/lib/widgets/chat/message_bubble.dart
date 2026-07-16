@@ -227,6 +227,12 @@ class MessageBubble extends StatelessWidget {
                 ),
                 child: MarkdownBody(
                   data: message.content,
+                  onTapLink: (text, href, title) {
+                    if (href != null) {
+                      final uri = Uri.tryParse(href);
+                      if (uri != null) launchUrl(uri, mode: LaunchMode.externalApplication);
+                    }
+                  },
                   styleSheet: MarkdownStyleSheet.fromTheme(Theme.of(context))
                       .copyWith(
                         p: TextStyle(
@@ -272,6 +278,12 @@ class MessageBubble extends StatelessWidget {
         children: [
           MarkdownBody(
             data: message.content,
+            onTapLink: (text, href, title) {
+              if (href != null) {
+                final uri = Uri.tryParse(href);
+                if (uri != null) launchUrl(uri, mode: LaunchMode.externalApplication);
+              }
+            },
             builders: {
               'pre': _PreElementBuilder(context, isLight),
             },
