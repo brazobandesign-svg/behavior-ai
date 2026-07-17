@@ -522,10 +522,10 @@ export default function App() {
                             }}
                           >
                             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                              <span style={{ fontFamily: 'AnthropicSans, sans-serif', fontWeight: active ? 700 : 500, fontSize: '13.5px', color: 'var(--text-primary)' }}>
+                              <span style={{ fontFamily: 'AnthropicSans, sans-serif', fontWeight: active ? 700 : 500, fontSize: '13.5px', color: active ? 'var(--amber-exodo)' : 'var(--text-primary)' }}>
                                 {m.title}
                               </span>
-                              {active && <Check size={16} color="var(--text-primary)" />}
+                              {active && <Check size={16} color="var(--amber-exodo)" />}
                             </div>
                             <span style={{ fontFamily: 'AnthropicSans, sans-serif', fontSize: '11.5px', color: 'var(--text-secondary)' }}>
                               {m.description}
