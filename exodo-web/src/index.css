@@ -505,6 +505,10 @@ body, html, #root {
   border-bottom-right-radius: 4px;
 }
 
+[data-theme="light"] .msg-row.user .msg-bubble {
+  border: none;
+}
+
 .msg-row.assistant .msg-bubble {
   background: transparent;
   color: var(--text-primary);
