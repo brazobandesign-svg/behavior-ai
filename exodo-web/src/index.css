@@ -141,7 +141,7 @@ body, html, #root {
 /* Barra superior del chat principal responsiva al zoom */
 .chat-header-bar {
   width: 100%;
-  padding: 16px 20px;
+  padding: 10px 20px;
   display: flex;
   align-items: center;
   justify-content: flex-end;
@@ -462,14 +462,14 @@ body, html, #root {
 .messages-list {
   flex: 1;
   overflow-y: auto;
-  padding: 20px 16px 140px 16px;
+  padding: 4px 16px 140px 16px;
   display: flex;
   flex-direction: column;
   align-items: center;
   position: relative;
   width: 100%;
-  mask-image: linear-gradient(180deg, transparent 0%, black 50px, black 100%);
-  -webkit-mask-image: linear-gradient(180deg, transparent 0%, black 50px, black 100%);
+  mask-image: linear-gradient(180deg, transparent 0%, black 18px, black 100%);
+  -webkit-mask-image: linear-gradient(180deg, transparent 0%, black 18px, black 100%);
 }
 
 .messages-wrapper {
