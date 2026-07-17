@@ -445,34 +445,124 @@ export default function App() {
                 <Plus size={20} color="var(--text-primary)" />
               </button>
 
-              <button
-                type="button"
-                onClick={() => {
-                  if (isModelLocked) return;
-                  setShowModelSelector(true);
-                }}
-                style={{
-                  padding: '6px 14px',
-                  borderRadius: 16,
-                  background: 'var(--model-chip-bg)',
-                  border: selectedModel.id === 'ehyeh' && !isModelLocked ? '1px solid var(--amber-exodo)' : '1px solid transparent',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 6,
-                  cursor: isModelLocked ? 'default' : 'pointer',
-                  color: 'var(--text-primary)'
-                }}
-                title={isModelLocked ? (!session?.user ? "En invitado no se puede elegir modelos, solo G1.1" : "Modelo bloqueado en Modo Incógnito") : "Seleccionar Modelo"}
-              >
-                <span style={{ fontFamily: 'AnthropicSans, sans-serif', fontSize: '13px', fontWeight: 700 }}>
-                  {displayModelTitle}
-                </span>
-                {isModelLocked ? (
-                  <Lock size={13} color="var(--text-secondary)" />
-                ) : (
-                  <ChevronRight size={15} color="var(--text-secondary)" style={{ transform: 'rotate(90deg)' }} />
+              <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (isModelLocked) return;
+                    setShowModelSelector(!showModelSelector);
+                  }}
+                  style={{
+                    padding: '6px 14px',
+                    borderRadius: 16,
+                    background: 'var(--model-chip-bg)',
+                    border: selectedModel.id === 'ehyeh' && !isModelLocked ? '1px solid var(--amber-exodo)' : '1px solid transparent',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    cursor: isModelLocked ? 'default' : 'pointer',
+                    color: 'var(--text-primary)'
+                  }}
+                  title={isModelLocked ? (!session?.user ? "En invitado no se puede elegir modelos, solo G1.1" : "Modelo bloqueado en Modo Incógnito") : "Seleccionar Modelo"}
+                >
+                  <span style={{ fontFamily: 'AnthropicSans, sans-serif', fontSize: '13px', fontWeight: 700 }}>
+                    {displayModelTitle}
+                  </span>
+                  {isModelLocked ? (
+                    <Lock size={13} color="var(--text-secondary)" />
+                  ) : (
+                    <ChevronRight size={15} color="var(--text-secondary)" style={{ transform: showModelSelector ? 'rotate(-90deg)' : 'rotate(90deg)', transition: 'transform 0.2s ease' }} />
+                  )}
+                </button>
+
+                {showModelSelector && !isModelLocked && (
+                  <>
+                    <div 
+                      style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 100 }}
+                      onClick={(e) => { e.stopPropagation(); setShowModelSelector(false); }}
+                    />
+                    <div
+                      style={{
+                        position: 'absolute',
+                        bottom: 'calc(100% + 8px)',
+                        left: 0,
+                        background: 'var(--surface-card)',
+                        border: '1px solid var(--border-color)',
+                        borderRadius: 16,
+                        padding: '12px',
+                        width: '290px',
+                        zIndex: 101,
+                        boxShadow: '0 12px 32px rgba(0,0,0,0.35), 0 4px 12px rgba(0,0,0,0.15)',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '6px',
+                        animation: 'fadeIn 0.15s ease-out'
+                      }}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      {[
+                        {
+                          id: 'origo',
+                          title: 'G1.1',
+                          subtitle: 'Origo',
+                          plan: 'genesis',
+                          description: 'Modelo capaz para tareas diarias.'
+                        },
+                        {
+                          id: 'ehyeh',
+                          title: 'XPi',
+                          subtitle: 'Ehyeh',
+                          plan: 'hazak',
+                          description: 'Razonamiento avanzado para tareas exigentes.'
+                        }
+                      ].map((m) => {
+                        const active = selectedModel.id === m.id;
+                        const isProModel = m.plan === 'hazak';
+                        return (
+                          <div
+                            key={m.id}
+                            onClick={() => {
+                              setSelectedModel(m);
+                              setShowModelSelector(false);
+                            }}
+                            style={{
+                              padding: '10px 12px',
+                              borderRadius: 12,
+                              background: active ? 'rgba(201, 147, 58, 0.12)' : 'var(--surface-input)',
+                              border: active ? '1px solid var(--amber-exodo)' : '1px solid transparent',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              flexDirection: 'column',
+                              gap: 2,
+                              transition: 'all 0.15s ease'
+                            }}
+                          >
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                <span style={{ fontFamily: 'AnthropicSans, sans-serif', fontWeight: 700, fontSize: '14px', color: active ? 'var(--amber-exodo)' : 'var(--text-primary)' }}>
+                                  {m.title}
+                                </span>
+                                <span style={{ fontFamily: 'AnthropicSans, sans-serif', fontSize: '12px', color: 'var(--text-secondary)' }}>
+                                  {m.subtitle}
+                                </span>
+                                {isProModel && (
+                                  <span style={{ padding: '2px 5px', borderRadius: 4, background: active ? 'rgba(201, 147, 58, 0.2)' : 'var(--surface-input)', border: `1px solid ${active ? 'var(--amber-exodo)' : 'var(--border-color)'}`, fontSize: '9px', fontWeight: 700, color: active ? 'var(--amber-exodo)' : 'var(--text-primary)' }}>
+                                    PRO
+                                  </span>
+                                )}
+                              </div>
+                              {active && <Check size={16} color="var(--amber-exodo)" />}
+                            </div>
+                            <span style={{ fontFamily: 'AnthropicSans, sans-serif', fontSize: '11px', color: 'var(--text-secondary)' }}>
+                              {m.description}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </>
                 )}
-              </button>
+              </div>
             </div>
 
             <button
@@ -925,105 +1015,7 @@ export default function App() {
         )}
       </main>
 
-      {/* Modal Selector de Modelos Exacto a model_selector.dart */}
-      {showModelSelector && (
-        <div className="drawer-backdrop" onClick={() => setShowModelSelector(false)} style={{ zIndex: 60 }}>
-          <div 
-            className="model-selector-modal"
-            onClick={(e) => e.stopPropagation()}
-            style={{
-              position: 'fixed',
-              top: '50%',
-              left: '50%',
-              transform: 'translate(-50%, -50%)',
-              background: 'var(--surface-card)',
-              border: '1px solid var(--border-color)',
-              borderRadius: 20,
-              padding: '24px',
-              width: '90%',
-              maxWidth: '420px',
-              zIndex: 61,
-              boxShadow: '0 20px 50px rgba(0,0,0,0.5)'
-            }}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-              <span style={{ fontFamily: 'AnthropicSans, sans-serif', fontSize: '16px', fontWeight: 700, color: 'var(--text-primary)' }}>
-                Modelo de Inteligencia
-              </span>
-              <button type="button" className="icon-btn" onClick={() => setShowModelSelector(false)}>
-                <ChevronRight size={20} color="var(--text-secondary)" />
-              </button>
-            </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {[
-                {
-                  id: 'origo',
-                  title: 'G1.1',
-                  subtitle: 'Origo',
-                  plan: 'genesis',
-                  description: 'Modelo capaz para tareas diarias.'
-                },
-                {
-                  id: 'ehyeh',
-                  title: 'XPi',
-                  subtitle: 'Ehyeh',
-                  plan: 'hazak',
-                  description: 'Razonamiento avanzado para tareas exigentes.'
-                }
-              ].map((m) => {
-                const active = selectedModel.id === m.id;
-                const isProModel = m.plan === 'hazak';
-                return (
-                  <div
-                    key={m.id}
-                    onClick={() => {
-                      setSelectedModel(m);
-                      setShowModelSelector(false);
-                    }}
-                    style={{
-                      padding: '14px 16px',
-                      borderRadius: 14,
-                      background: active ? 'rgba(201, 147, 58, 0.12)' : 'var(--surface-input)',
-                      border: active ? '1px solid var(--amber-exodo)' : '1px solid transparent',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: 4
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <span style={{ fontFamily: 'AnthropicSans, sans-serif', fontWeight: 700, fontSize: '15px', color: active ? 'var(--amber-exodo)' : 'var(--text-primary)' }}>
-                          {m.title}
-                        </span>
-                        <span style={{ fontFamily: 'AnthropicSans, sans-serif', fontSize: '13px', color: 'var(--text-secondary)' }}>
-                          {m.subtitle}
-                        </span>
-                        {isProModel && (
-                          <span style={{ padding: '2px 6px', borderRadius: 4, background: active ? 'rgba(201, 147, 58, 0.2)' : 'var(--surface-input)', border: `1px solid ${active ? 'var(--amber-exodo)' : 'var(--border-color)'}`, fontSize: '10px', fontWeight: 700, color: active ? 'var(--amber-exodo)' : 'var(--text-primary)' }}>
-                            PRO
-                          </span>
-                        )}
-                      </div>
-                      {active && <Check size={18} color="var(--amber-exodo)" />}
-                    </div>
-                    <span style={{ fontFamily: 'AnthropicSans, sans-serif', fontSize: '12px', color: 'var(--text-secondary)' }}>
-                      {m.description}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
-
-            <div style={{ marginTop: 20, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-              <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
-                ❖ Razonamiento por defecto activo en todos los modelos
-              </span>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Modal exacto de AuthScreen móvil (sin pestañas de correo) */}
       <AuthModal
