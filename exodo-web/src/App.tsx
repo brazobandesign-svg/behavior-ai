@@ -456,7 +456,7 @@ export default function App() {
                     padding: '6px 14px',
                     borderRadius: 16,
                     background: 'var(--model-chip-bg)',
-                    border: selectedModel.id === 'ehyeh' && !isModelLocked ? '1px solid var(--amber-exodo)' : '1px solid transparent',
+                    border: '1px solid transparent',
                     display: 'flex',
                     alignItems: 'center',
                     gap: 6,
@@ -488,14 +488,14 @@ export default function App() {
                         left: 0,
                         background: 'var(--surface-card)',
                         border: '1px solid var(--border-color)',
-                        borderRadius: 16,
-                        padding: '12px',
-                        width: '290px',
+                        borderRadius: 14,
+                        padding: '6px',
+                        width: '260px',
                         zIndex: 101,
-                        boxShadow: '0 12px 32px rgba(0,0,0,0.35), 0 4px 12px rgba(0,0,0,0.15)',
+                        boxShadow: '0 12px 32px rgba(0,0,0,0.35)',
                         display: 'flex',
                         flexDirection: 'column',
-                        gap: '6px',
+                        gap: '2px',
                         animation: 'fadeIn 0.15s ease-out'
                       }}
                       onClick={(e) => e.stopPropagation()}
@@ -506,18 +506,17 @@ export default function App() {
                           title: 'G1.1',
                           subtitle: 'Origo',
                           plan: 'genesis',
-                          description: 'Modelo capaz para tareas diarias.'
+                          description: 'Modelo rápido para uso general'
                         },
                         {
                           id: 'ehyeh',
-                          title: 'XPi',
+                          title: 'XPi PRO',
                           subtitle: 'Ehyeh',
                           plan: 'hazak',
-                          description: 'Razonamiento avanzado para tareas exigentes.'
+                          description: 'Razonamiento avanzado'
                         }
                       ].map((m) => {
                         const active = selectedModel.id === m.id;
-                        const isProModel = m.plan === 'hazak';
                         return (
                           <div
                             key={m.id}
@@ -527,33 +526,22 @@ export default function App() {
                             }}
                             style={{
                               padding: '10px 12px',
-                              borderRadius: 12,
-                              background: active ? 'rgba(201, 147, 58, 0.12)' : 'var(--surface-input)',
-                              border: active ? '1px solid var(--amber-exodo)' : '1px solid transparent',
+                              borderRadius: 10,
+                              background: active ? 'var(--surface-input)' : 'transparent',
                               cursor: 'pointer',
                               display: 'flex',
                               flexDirection: 'column',
-                              gap: 2,
-                              transition: 'all 0.15s ease'
+                              gap: '2px',
+                              transition: 'background 0.15s ease'
                             }}
                           >
                             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                                <span style={{ fontFamily: 'AnthropicSans, sans-serif', fontWeight: 700, fontSize: '14px', color: active ? 'var(--amber-exodo)' : 'var(--text-primary)' }}>
-                                  {m.title}
-                                </span>
-                                <span style={{ fontFamily: 'AnthropicSans, sans-serif', fontSize: '12px', color: 'var(--text-secondary)' }}>
-                                  {m.subtitle}
-                                </span>
-                                {isProModel && (
-                                  <span style={{ padding: '2px 5px', borderRadius: 4, background: active ? 'rgba(201, 147, 58, 0.2)' : 'var(--surface-input)', border: `1px solid ${active ? 'var(--amber-exodo)' : 'var(--border-color)'}`, fontSize: '9px', fontWeight: 700, color: active ? 'var(--amber-exodo)' : 'var(--text-primary)' }}>
-                                    PRO
-                                  </span>
-                                )}
-                              </div>
-                              {active && <Check size={16} color="var(--amber-exodo)" />}
+                              <span style={{ fontFamily: 'AnthropicSans, sans-serif', fontWeight: active ? 700 : 500, fontSize: '13.5px', color: 'var(--text-primary)' }}>
+                                {m.title}
+                              </span>
+                              {active && <Check size={16} color="var(--text-primary)" />}
                             </div>
-                            <span style={{ fontFamily: 'AnthropicSans, sans-serif', fontSize: '11px', color: 'var(--text-secondary)' }}>
+                            <span style={{ fontFamily: 'AnthropicSans, sans-serif', fontSize: '11.5px', color: 'var(--text-secondary)' }}>
                               {m.description}
                             </span>
                           </div>
