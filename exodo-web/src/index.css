@@ -182,7 +182,7 @@ body, html, #root {
 .token-bar-progress {
   width: 76px;
   height: 5px;
-  background: #1e1e1e;
+  background: var(--surface-input);
   border-radius: 3px;
   overflow: hidden;
   position: relative;
@@ -521,6 +521,61 @@ body, html, #root {
   color: var(--text-primary);
   padding-left: 4px;
   width: 100%;
+}
+
+/* Estilos estrictos para Markdown en Web (sin colores inventados: #252525, #FFFFFF, yeso, #191919) */
+.markdown-body p {
+  margin: 0 0 12px 0;
+  line-height: 1.6;
+}
+.markdown-body p:last-child {
+  margin-bottom: 0;
+}
+.markdown-body code {
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-size: 0.88em;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: #252525;
+  color: var(--text-primary);
+  border: 1px solid #252525;
+}
+[data-theme="light"] .markdown-body code {
+  background: #FFFFFF;
+  color: #191919;
+  border: 1px solid rgba(25, 25, 25, 0.15);
+}
+.markdown-body pre {
+  margin: 14px 0;
+  padding: 16px;
+  border-radius: 12px;
+  background: #252525;
+  border: 1px solid #252525;
+  overflow-x: auto;
+}
+[data-theme="light"] .markdown-body pre {
+  background: #FFFFFF;
+  border: 1px solid rgba(25, 25, 25, 0.15);
+}
+.markdown-body pre code {
+  background: transparent !important;
+  border: none !important;
+  padding: 0;
+  font-size: 0.9em;
+  color: inherit;
+}
+.markdown-body ul, .markdown-body ol {
+  margin: 8px 0 12px 20px;
+  padding: 0;
+}
+.markdown-body li {
+  margin-bottom: 6px;
+}
+.markdown-body blockquote {
+  margin: 12px 0;
+  padding-left: 14px;
+  border-left: 3px solid var(--amber-exodo);
+  color: var(--text-secondary);
 }
 
 .thinking-pulse {
