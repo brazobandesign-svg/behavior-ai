@@ -482,22 +482,7 @@ export default function App() {
                       onClick={(e) => { e.stopPropagation(); setShowModelSelector(false); }}
                     />
                     <div
-                      style={{
-                        position: 'absolute',
-                        bottom: 'calc(100% + 8px)',
-                        left: 0,
-                        background: 'var(--surface-card)',
-                        border: '1px solid var(--border-color)',
-                        borderRadius: 14,
-                        padding: '6px',
-                        width: '260px',
-                        zIndex: 101,
-                        boxShadow: '0 12px 32px rgba(0,0,0,0.35)',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: '2px',
-                        animation: 'fadeIn 0.15s ease-out'
-                      }}
+                      className="model-selector-popover"
                       onClick={(e) => e.stopPropagation()}
                     >
                       {[
