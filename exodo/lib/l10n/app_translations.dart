@@ -115,9 +115,9 @@ const Map<String, String> _es = <String, String>{
   'chat.thinking_label': 'Pensando',
 
   // Greetings (time-of-day)
-  'greeting.morning': 'Cafecito con Exodo',
-  'greeting.afternoon': 'Tarde productiva',
-  'greeting.evening': 'La noche es joven',
+  'greeting.morning': 'Buenos días',
+  'greeting.afternoon': 'Buenas tardes',
+  'greeting.evening': 'Buenas noches',
   'greeting.late': 'Ni la madrugada te detiene',
   'greeting.morning_en': 'Morning',
   'greeting.afternoon_en': 'Afternoon',

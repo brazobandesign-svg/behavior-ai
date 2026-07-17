@@ -44,20 +44,27 @@ class ChatStage extends StatelessWidget {
 
   String _getGreeting(BuildContext context, double? temp) {
     final i18n = AppI18n.of(context);
+    final userEmail = context.select<AppState, String>((s) => s.userEmail);
+    final profileName = fullName?.trim().isNotEmpty == true
+        ? fullName!.trim()
+        : (userEmail.isNotEmpty
+            ? userEmail.split('@').first.replaceFirstMapped(
+                RegExp(r'^[a-z]'), (m) => m[0]!.toUpperCase())
+            : 'User');
 
     if (temp != null) {
       if (temp <= 21.0) {
-        return i18n.t('greeting.cold');
+        return '${i18n.t('greeting.cold')}, $profileName';
       } else if (temp >= 31.0) {
-        return i18n.t('greeting.hot');
+        return '${i18n.t('greeting.hot')}, $profileName';
       }
     }
 
     final hour = DateTime.now().hour;
-    if (hour >= 0 && hour < 6) return i18n.t('greeting.late');
-    if (hour < 12) return i18n.t('greeting.morning');
-    if (hour < 18) return i18n.t('greeting.afternoon');
-    return i18n.t('greeting.evening');
+    if (hour >= 0 && hour < 6) return '${i18n.t('greeting.late')}, $profileName';
+    if (hour < 12) return '${i18n.t('greeting.morning')}, $profileName';
+    if (hour < 18) return '${i18n.t('greeting.afternoon')}, $profileName';
+    return '${i18n.t('greeting.evening')}, $profileName';
   }
 
   @override

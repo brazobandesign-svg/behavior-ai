@@ -314,13 +314,24 @@ export default function App() {
     c.title.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  const getUserDisplayName = () => {
+    if (userProfile?.full_name && userProfile.full_name.trim().length > 0) {
+      return userProfile.full_name.trim();
+    }
+    if (session?.user?.email) {
+      const emailName = session.user.email.split('@')[0];
+      return emailName.charAt(0).toUpperCase() + emailName.slice(1);
+    }
+    return 'User';
+  };
+
   const getExodoGreeting = () => {
     if (isIncognito) return 'Modo Incógnito';
+    const name = getUserDisplayName();
     const hour = new Date().getHours();
-    if (hour >= 0 && hour < 6) return 'Ni la madrugada te detiene';
-    if (hour < 12) return 'Cafecito con Exodo';
-    if (hour < 18) return 'Tarde productiva';
-    return 'La noche es joven';
+    if (hour < 12) return `Buenos días, ${name}`;
+    if (hour < 18) return `Buenas tardes, ${name}`;
+    return `Buenas noches, ${name}`;
   };
 
   const renderChatComposer = () => {
