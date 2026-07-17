@@ -263,8 +263,18 @@ class AppState extends ChangeNotifier {
     }
     activeConversation = conv;
     isIncognito = false;
-    currentMessages = await SupabaseService.getMessages(conv.id);
-    notifyListeners();
+
+    // Guardar el ID de la conversación que estamos cargando para detectar
+    // si el usuario cambió de chat o envió un mensaje mientras esperábamos.
+    final loadingConvId = conv.id;
+    final fetchedMessages = await SupabaseService.getMessages(conv.id);
+
+    // Solo aplicar si el usuario NO envió un mensaje (isGenerating)
+    // y NO cambió a otra conversación durante la espera de red.
+    if (activeConversation?.id == loadingConvId && !isGenerating) {
+      currentMessages = fetchedMessages;
+      notifyListeners();
+    }
   }
 
   void startNewChat({bool resetIncognito = true}) {

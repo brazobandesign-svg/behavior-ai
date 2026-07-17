@@ -111,6 +111,11 @@ class MessageBubble extends StatelessWidget {
   Widget build(BuildContext context) {
     final isUser = message.role == 'user';
     final isLight = Theme.of(context).brightness == Brightness.light;
+    final copyLabel = AppI18n.of(context).t('act.copy');
+    final copiedLabel = AppI18n.of(context).t('act.copied');
+    final likeLabel = AppI18n.of(context).t('act.like');
+    final dislikeLabel = AppI18n.of(context).t('act.dislike');
+    final shareLabel = AppI18n.of(context).t('act.share');
 
     if (isUser) {
       return Align(
@@ -260,6 +265,8 @@ class MessageBubble extends StatelessWidget {
                 _SmartCopyButton(
                   textToCopy: message.content,
                   color: isLight ? Colors.black38 : Colors.white38,
+                  copyLabel: copyLabel,
+                  copiedLabel: copiedLabel,
                 ),
               ],
             ),
@@ -285,7 +292,7 @@ class MessageBubble extends StatelessWidget {
               }
             },
             builders: {
-              'pre': _PreElementBuilder(context, isLight),
+              'pre': _PreElementBuilder(context, isLight, copyLabel, copiedLabel),
             },
             styleSheet: MarkdownStyleSheet.fromTheme(Theme.of(context))
                 .copyWith(
@@ -347,7 +354,14 @@ class MessageBubble extends StatelessWidget {
             _SourcesSheet(sources: message.sources),
           ],
           const SizedBox(height: 10),
-          _MessageActionBar(message: message),
+          _MessageActionBar(
+            message: message,
+            copyLabel: copyLabel,
+            copiedLabel: copiedLabel,
+            likeLabel: likeLabel,
+            dislikeLabel: dislikeLabel,
+            shareLabel: shareLabel,
+          ),
           if (isLastAssistant) ...[
             const SizedBox(height: 16),
             Row(
@@ -590,7 +604,19 @@ String _sourceInitials(Source s) {
 /// Copy · Share · Like · Dislike.
 class _MessageActionBar extends StatelessWidget {
   final ChatMessage message;
-  const _MessageActionBar({required this.message});
+  final String copyLabel;
+  final String copiedLabel;
+  final String likeLabel;
+  final String dislikeLabel;
+  final String shareLabel;
+  const _MessageActionBar({
+    required this.message,
+    required this.copyLabel,
+    required this.copiedLabel,
+    required this.likeLabel,
+    required this.dislikeLabel,
+    required this.shareLabel,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -745,23 +771,25 @@ class _MessageActionBar extends StatelessWidget {
         _SmartCopyButton(
           textToCopy: message.content,
           color: subText,
+          copyLabel: copyLabel,
+          copiedLabel: copiedLabel,
         ),
         _ActionButton(
           assetPath: 'assets/images/like-1-svgrepo-com.png',
-          tooltip: AppI18n.of(context).t('act.like'),
+          tooltip: likeLabel,
           color: subText,
           onTap: like,
         ),
         _ActionButton(
           assetPath: 'assets/images/like-1-svgrepo-com.png',
           flipVertically: true,
-          tooltip: AppI18n.of(context).t('act.dislike'),
+          tooltip: dislikeLabel,
           color: subText,
           onTap: dislike,
         ),
         _ActionButton(
           assetPath: 'assets/images/share-svgrepo-com.png',
-          tooltip: AppI18n.of(context).t('act.share'),
+          tooltip: shareLabel,
           color: subText,
           onTap: share,
         ),
@@ -800,13 +828,10 @@ class _ActionButton extends StatelessWidget {
     if (flipVertically) {
       childWidget = Transform.flip(flipY: true, child: childWidget);
     }
-    return Tooltip(
-      message: tooltip,
-      child: InkResponse(
-        onTap: onTap,
-        radius: 18,
-        child: Padding(padding: const EdgeInsets.all(4), child: childWidget),
-      ),
+    return InkResponse(
+      onTap: onTap,
+      radius: 18,
+      child: Padding(padding: const EdgeInsets.all(4), child: childWidget),
     );
   }
 }
@@ -814,7 +839,14 @@ class _ActionButton extends StatelessWidget {
 class _SmartCopyButton extends StatefulWidget {
   final String textToCopy;
   final Color? color;
-  const _SmartCopyButton({required this.textToCopy, this.color});
+  final String copyLabel;
+  final String copiedLabel;
+  const _SmartCopyButton({
+    required this.textToCopy,
+    this.color,
+    required this.copyLabel,
+    required this.copiedLabel,
+  });
 
   @override
   State<_SmartCopyButton> createState() => _SmartCopyButtonState();
@@ -836,22 +868,19 @@ class _SmartCopyButtonState extends State<_SmartCopyButton> {
   @override
   Widget build(BuildContext context) {
     final col = widget.color ?? (Theme.of(context).brightness == Brightness.light ? Colors.black54 : Colors.white60);
-    return Tooltip(
-      message: _copied ? AppI18n.of(context).t('act.copied') : AppI18n.of(context).t('act.copy'),
-      child: InkResponse(
-        onTap: _copy,
-        radius: 18,
-        child: Padding(
-          padding: const EdgeInsets.all(4),
-          child: _copied
-              ? const Icon(Icons.check_rounded, size: 18, color: Colors.green)
-              : Image.asset(
-                  'assets/images/copy-2-svgrepo-com.png',
-                  width: 18,
-                  height: 18,
-                  color: col,
-                ),
-        ),
+    return InkResponse(
+      onTap: _copy,
+      radius: 18,
+      child: Padding(
+        padding: const EdgeInsets.all(4),
+        child: _copied
+            ? const Icon(Icons.check_rounded, size: 18, color: Colors.green)
+            : Image.asset(
+                'assets/images/copy-2-svgrepo-com.png',
+                width: 18,
+                height: 18,
+                color: col,
+              ),
       ),
     );
   }
@@ -862,7 +891,9 @@ class _SmartCopyButtonState extends State<_SmartCopyButton> {
 class _PreElementBuilder extends MarkdownElementBuilder {
   final BuildContext context;
   final bool isLight;
-  _PreElementBuilder(this.context, this.isLight);
+  final String copyLabel;
+  final String copiedLabel;
+  _PreElementBuilder(this.context, this.isLight, this.copyLabel, this.copiedLabel);
 
   @override
   Widget? visitElementAfter(md.Element element, TextStyle? preferredStyle) {
@@ -883,6 +914,8 @@ class _PreElementBuilder extends MarkdownElementBuilder {
       code: code.trimRight(),
       language: language,
       isLight: isLight,
+      copyLabel: copyLabel,
+      copiedLabel: copiedLabel,
     );
   }
 }
@@ -891,10 +924,14 @@ class _InteractiveCodeBlock extends StatefulWidget {
   final String code;
   final String language;
   final bool isLight;
+  final String copyLabel;
+  final String copiedLabel;
   const _InteractiveCodeBlock({
     required this.code,
     required this.language,
     required this.isLight,
+    required this.copyLabel,
+    required this.copiedLabel,
   });
 
   @override
@@ -958,25 +995,20 @@ class _InteractiveCodeBlockState extends State<_InteractiveCodeBlock> {
                 GestureDetector(
                   onTap: _copy,
                   behavior: HitTestBehavior.opaque,
-                  child: Tooltip(
-                    message: _copied
-                        ? AppI18n.of(context).t('act.copied')
-                        : AppI18n.of(context).t('act.copy'),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
-                      decoration: BoxDecoration(
-                        color: _copied
-                            ? Colors.green.withValues(alpha: 0.15)
-                            : widget.isLight
-                                ? Colors.black.withValues(alpha: 0.05)
-                                : Colors.white.withValues(alpha: 0.08),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Icon(
-                        _copied ? Icons.check_rounded : Icons.copy_rounded,
-                        size: 14,
-                        color: _copied ? Colors.green : (widget.isLight ? Colors.black87 : ExodoColors.textPrimary),
-                      ),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                    decoration: BoxDecoration(
+                      color: _copied
+                          ? Colors.green.withValues(alpha: 0.15)
+                          : widget.isLight
+                              ? Colors.black.withValues(alpha: 0.05)
+                              : Colors.white.withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Icon(
+                      _copied ? Icons.check_rounded : Icons.copy_rounded,
+                      size: 14,
+                      color: _copied ? Colors.green : (widget.isLight ? Colors.black87 : ExodoColors.textPrimary),
                     ),
                   ),
                 ),
