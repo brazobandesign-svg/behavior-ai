@@ -12,7 +12,8 @@ import {
   Search,
   Download,
   Pin,
-  Lock
+  Lock,
+  Sparkles
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -532,6 +533,13 @@ export default function App() {
                           </div>
                         );
                       })}
+                      <div style={{ height: 1, background: 'var(--border-color)', margin: '4px 6px' }} />
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '4px 6px 2px 6px' }}>
+                        <Sparkles size={13} color="var(--text-secondary)" />
+                        <span style={{ fontFamily: 'AnthropicSans, sans-serif', fontSize: '11px', color: 'var(--text-secondary)', textAlign: 'center' }}>
+                          modo thinking activado por defecto
+                        </span>
+                      </div>
                     </div>
                   </>
                 )}
