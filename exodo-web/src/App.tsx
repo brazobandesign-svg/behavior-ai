@@ -339,13 +339,16 @@ export default function App() {
     const displayModelTitle = !session?.user ? 'G1.1' : selectedModel.title;
 
     return (
-    <div style={{ width: '100%', maxWidth: 680, margin: '0 auto', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+    <div style={{ width: '100%', maxWidth: 680, margin: '0 auto', position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
       {showUpgradeBanner && !isIncognito && (
         <div style={{
           width: 'min(92%, 360px)',
-          padding: '4px 16px 29px 16px',
-          position: 'relative' as const,
-          top: 10,
+          padding: '4px 16px 24px 16px',
+          position: 'absolute' as const,
+          bottom: 'calc(100% - 18px)',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          zIndex: 1,
           background: 'var(--banner-bg, #252525)',
           border: '1px solid var(--banner-border, transparent)',
           borderBottom: 'none',
@@ -379,8 +382,8 @@ export default function App() {
       )}
       <div style={{
         width: '100%',
-        position: showUpgradeBanner && !isIncognito ? 'relative' : undefined,
-        top: showUpgradeBanner && !isIncognito ? -18 : undefined,
+        position: 'relative',
+        zIndex: 2,
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center'
