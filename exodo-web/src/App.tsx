@@ -502,13 +502,14 @@ export default function App() {
                         },
                         {
                           id: 'ehyeh',
-                          title: 'XPi PRO',
+                          title: 'XPi',
                           subtitle: 'Ehyeh',
                           plan: 'hazak',
                           description: 'Razonamiento avanzado'
                         }
                       ].map((m) => {
                         const active = selectedModel.id === m.id;
+                        const isProModel = m.plan === 'hazak';
                         return (
                           <div
                             key={m.id}
@@ -528,9 +529,16 @@ export default function App() {
                             }}
                           >
                             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                              <span style={{ fontFamily: 'AnthropicSans, sans-serif', fontWeight: active ? 700 : 500, fontSize: '13.5px', color: active ? 'var(--amber-exodo)' : 'var(--text-primary)' }}>
-                                {m.title}
-                              </span>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                <span style={{ fontFamily: 'AnthropicSans, sans-serif', fontWeight: active ? 700 : 500, fontSize: '13.5px', color: active ? 'var(--amber-exodo)' : 'var(--text-primary)' }}>
+                                  {m.title}
+                                </span>
+                                {isProModel && (
+                                  <span style={{ fontSize: '9px', padding: '1px 5px', borderRadius: 4, border: `1px solid ${active ? 'var(--amber-exodo)' : 'var(--border-color)'}`, color: active ? 'var(--amber-exodo)' : 'var(--text-secondary)', fontWeight: 700 }}>
+                                    PRO
+                                  </span>
+                                )}
+                              </div>
                               {active && <Check size={16} color="var(--amber-exodo)" />}
                             </div>
                             <span style={{ fontFamily: 'AnthropicSans, sans-serif', fontSize: '11.5px', color: 'var(--text-secondary)' }}>
