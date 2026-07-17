@@ -72,7 +72,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess
           right: 28,
           background: 'transparent',
           border: 'none',
-          color: '#9E9689',
+          color: '#8E8E93',
           cursor: 'pointer',
           padding: 8
         }}
