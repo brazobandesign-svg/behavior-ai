@@ -339,7 +339,7 @@ export default function App() {
     const displayModelTitle = !session?.user ? 'G1.1' : selectedModel.title;
 
     return (
-    <div style={{ width: '100%', maxWidth: 680, margin: '0 auto', position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+    <div style={{ width: '100%', maxWidth: 820, margin: '0 auto', position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
       {showUpgradeBanner && !isIncognito && (
         <div style={{
           width: 'min(92%, 360px)',
@@ -393,7 +393,7 @@ export default function App() {
           onSubmit={handleSendMessage} 
           style={{
             width: '100%', 
-            maxWidth: 680,
+            maxWidth: 820,
             margin: '0 auto',
             background: 'var(--surface-input)',
             border: 'none',
