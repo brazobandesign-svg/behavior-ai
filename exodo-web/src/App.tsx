@@ -12,13 +12,19 @@ import {
   Search,
   Download,
   Pin,
-  Lock,
-  Sparkles
+  Lock
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { supabase, type Conversation, type Message } from './lib/supabase';
 import { AuthModal } from './components/AuthModal';
+
+const PsychologyIcon = ({ size = 14, color = 'currentColor' }: { size?: number; color?: string }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" style={{ flexShrink: 0, color }}>
+    <path d="M13 3c-4.97 0-9 4.03-9 9 0 2.12.74 4.07 1.97 5.61L4.35 19.2c-.39.39-.39 1.02 0 1.41.39.39 1.02.39 1.41 0l1.9-1.9C9.24 19.58 11.06 20 13 20c4.97 0 9-4.03 9-9s-4.03-9-9-9zm0 15c-3.31 0-6-2.69-6-6s2.69-6 6-6 6 2.69 6 6-2.69 6-6 6z"/>
+    <path d="M11 9h2v2h-2zm0 4h2v2h-2zm3-2h2v2h-2z"/>
+  </svg>
+);
 
 export default function App() {
   // Estados de sesión y autenticación
@@ -535,7 +541,7 @@ export default function App() {
                       })}
                       <div style={{ height: 1, background: 'var(--border-color)', margin: '4px 6px' }} />
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '4px 6px 2px 6px' }}>
-                        <Sparkles size={13} color="var(--text-secondary)" />
+                        <PsychologyIcon size={14} color="var(--text-secondary)" />
                         <span style={{ fontFamily: 'AnthropicSans, sans-serif', fontSize: '11px', color: 'var(--text-secondary)', textAlign: 'center' }}>
                           modo thinking activado por defecto
                         </span>
