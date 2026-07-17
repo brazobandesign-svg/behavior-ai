@@ -90,6 +90,10 @@
   box-sizing: border-box;
   margin: 0;
   padding: 0;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  font-synthesis: none;
 }
 
 body, html, #root {
@@ -100,6 +104,9 @@ body, html, #root {
   font-family: var(--font-sans);
   overflow: hidden;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  font-synthesis: none;
 }
 
 ::-webkit-scrollbar {
@@ -506,7 +513,7 @@ body, html, #root {
 }
 
 [data-theme="light"] .msg-row.user .msg-bubble {
-  border: none;
+  border: 1px solid transparent;
 }
 
 .msg-row.assistant .msg-bubble {
