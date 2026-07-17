@@ -334,7 +334,7 @@ export default function App() {
     return `Buenas noches, ${name}`;
   };
 
-  const renderChatComposer = () => {
+  const renderChatComposer = (isPinned: boolean = false) => {
     const isModelLocked = !session?.user || isIncognito;
     const displayModelTitle = !session?.user ? 'G1.1' : selectedModel.title;
 
@@ -397,7 +397,7 @@ export default function App() {
             outline: 'none',
             boxShadow: 'var(--shadow-composer, none)',
             borderRadius: 24,
-            padding: '18px 20px 14px 20px',
+            padding: isPinned ? '14px 20px 10px 20px' : '18px 20px 14px 20px',
             display: 'flex',
             flexDirection: 'column',
             transition: 'background 0.25s ease, box-shadow 0.25s ease'
@@ -495,7 +495,7 @@ export default function App() {
             </button>
           </div>
         </form>
-        <div style={{ marginTop: 10, textAlign: 'center', fontFamily: 'AnthropicSans, sans-serif', fontSize: '12px', color: 'var(--text-secondary)' }}>
+        <div style={{ marginTop: isPinned ? 4 : 10, marginBottom: isPinned ? 2 : 0, textAlign: 'center', fontFamily: 'AnthropicSans, sans-serif', fontSize: '12px', color: 'var(--text-secondary)' }}>
           Exodo es IA y puede cometer errores. Por favor verifica las respuestas.
         </div>
       </div>
@@ -888,7 +888,7 @@ export default function App() {
             </div>
 
             {/* Cajón de escritura exacto a móvil (#252525 con selector de modelos) */}
-            {renderChatComposer()}
+            {renderChatComposer(false)}
           </div>
         ) : (
           <>
@@ -916,7 +916,7 @@ export default function App() {
 
             {/* 4. Composer Pinned Exacto al Móvil (#252525) */}
             <div className="composer-pinned" style={{ width: '100%', display: 'flex', justifyContent: 'center' }}>
-              {renderChatComposer()}
+              {renderChatComposer(true)}
             </div>
           </>
         )}
