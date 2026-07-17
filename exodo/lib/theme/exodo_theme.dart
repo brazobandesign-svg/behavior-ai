@@ -4,13 +4,13 @@ import 'package:google_fonts/google_fonts.dart';
 class ExodoColors {
   static const Color background = Color(0xFF191919); // Fondo principal del Chat y App en Dark Mode (#191919)
   static const Color loginBg = Color(0xFF0E0C0A);    // Negro Cálido (Exclusivo de Login y Logo - intocable)
-  static const Color surface = Color(0xFF1C1C1E);
-  static const Color border = Color(0xFF2C2C2E);
+  static const Color surface = Color(0xFF252525);    // Elevado (#252525)
+  static const Color border = Color(0xFF252525);     // (#252525)
 
   static const Color amber = Color(0xFFC9933A);      // Ámbar Éxodo (Exclusivo marca/acento)
   static const Color amberGlow = Color(0x33C9933A);  // Ámbar traslúcido para resplandores
   static const Color textPrimary = Color(0xFFF5F2EB);
-  static const Color textSecondary = Color(0xFF8E8E93);
+  static const Color textSecondary = Color(0xFF9E9689); // Oficial AGENTS.md (#9E9689)
   static const Color error = Color(0xFFE5534B);
 
   // === Dark mode ===
@@ -20,7 +20,7 @@ class ExodoColors {
   static const Color tokenBarBg = Color(0xFF252525);   // Elevada en el header (#252525)
 
   // === Light mode ===
-  static const Color lightSheetBg = Color(0xFFE5E5EA); // Sheet/modal en Light mode (#E5E5EA)
+  static const Color lightSheetBg = Color(0xFFFFFFFF); // Sheet/modal en Light mode (#FFFFFF)
 }
 
 class ExodoTheme {
@@ -110,7 +110,7 @@ class ExodoTheme {
         titleMedium: GoogleFonts.inter(color: darkInk, fontWeight: FontWeight.w600, fontSize: 16),
         bodyLarge: GoogleFonts.inter(color: darkInk, fontSize: 16),
         bodyMedium: GoogleFonts.inter(color: darkInk, fontSize: 14),
-        bodySmall: GoogleFonts.inter(color: const Color(0xFF8E8E93), fontSize: 12),
+        bodySmall: GoogleFonts.inter(color: ExodoColors.textSecondary, fontSize: 12),
         labelLarge: TextStyle(fontFamily: 'AnthropicSans', color: ExodoColors.amber, fontWeight: FontWeight.w600),
       ),
       appBarTheme: const AppBarTheme(

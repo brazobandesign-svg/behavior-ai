@@ -299,10 +299,10 @@ class _HeaderTokenBarState extends State<_HeaderTokenBar> {
     final isLight = Theme.of(context).brightness == Brightness.light;
 
     final bgColor = isLight ? Colors.white : ExodoColors.tokenBarBg;
-    final trackColor = isLight ? const Color(0xFFE5E5EA) : ExodoColors.modelChipBg;
+    final trackColor = isLight ? Colors.black12 : ExodoColors.modelChipBg;
     final fillColor = isLight ? const Color(0xFF191919) : ExodoColors.textPrimary;
     final textColor = isLight ? const Color(0xFF171615) : ExodoColors.textPrimary;
-    final subTextColor = isLight ? const Color(0xFF8E8E93) : ExodoColors.textSecondary;
+    final subTextColor = ExodoColors.textSecondary;
 
     return CompositedTransformTarget(
       link: _layerLink,

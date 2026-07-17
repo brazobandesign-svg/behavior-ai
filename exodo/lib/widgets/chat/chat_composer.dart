@@ -180,7 +180,7 @@ class _ChatComposerState extends State<ChatComposer>
               margin: const EdgeInsets.only(top: 6),
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               decoration: BoxDecoration(
-                color: isLight ? const Color(0xFFF2F2F7) : ExodoColors.modelChipBg,
+                color: isLight ? Colors.white : ExodoColors.modelChipBg,
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(
                   color: isLight ? const Color(0xFFD1D1D6) : const Color(0xFF3A3A3C),
@@ -428,7 +428,7 @@ class _ChatComposerState extends State<ChatComposer>
     bool isNetworkOffline,
     bool isLight,
   ) {
-    final softBlack = const Color(0xFF1C1C1E);
+    final softBlack = const Color(0xFF191919);
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 12),
       child: Column(
@@ -692,7 +692,7 @@ class _ChatComposerState extends State<ChatComposer>
                           decoration: InputDecoration(
                             hintText: _getPlaceholder(context),
                             hintStyle: GoogleFonts.inter(
-                              color: const Color(0xFF8E8E93),
+                              color: ExodoColors.textSecondary,
                               fontSize: 16,
                             ),
                             border: InputBorder.none,

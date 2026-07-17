@@ -42,12 +42,12 @@
   --bg-warm-black: #0E0C0A;
   --surface-card: #191919;
   --surface-input: #252525;
-  --border-color: #2C2C2E;
+  --border-color: #252525;
   --amber-exodo: #C9933A;
   --amber-glow: rgba(201, 147, 58, 0.2);
   --text-primary: #F5F2EB;
-  --text-secondary: #8E8E93;
-  --text-muted: #636366;
+  --text-secondary: #9E9689;
+  --text-muted: #9E9689;
   --transition-fast: 0.15s ease-out;
   --transition-normal: 0.25s cubic-bezier(0.16, 1, 0.3, 1);
   --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
@@ -57,7 +57,7 @@
   --model-chip-bg: #141414;
   --send-btn-bg: #F5F2EB;
   --send-btn-color: #141210;
-  --send-btn-disabled: #3A3A3C;
+  --send-btn-disabled: #252525;
   --banner-bg: #F5F2EB;
   --banner-text: #0E0C0A;
   --banner-border: transparent;
@@ -69,11 +69,11 @@
   --bg-chat-main: #FFFFFF;
   --surface-card: #FFFFFF;
   --surface-input: #F5F2EB;
-  --border-color: #E5E5EA;
+  --border-color: #191919;
   --amber-exodo: #C9933A;
   --amber-glow: rgba(201, 147, 58, 0.15);
   --text-primary: #191919;
-  --text-secondary: #636366;
+  --text-secondary: #191919;
   --shadow-composer: 0 12px 36px rgba(0, 0, 0, 0.22), 0 4px 12px rgba(0, 0, 0, 0.10);
   --border-composer: transparent;
   --model-chip-bg: #FFFFFF;

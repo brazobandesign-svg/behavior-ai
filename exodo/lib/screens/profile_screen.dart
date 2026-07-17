@@ -40,7 +40,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final isLight = !state.isDarkMode;
     final bg = isLight ? ExodoColors.textPrimary : ExodoColors.background;     // yeso / negro cálido
     final textCol = isLight ? const Color(0xFF171615) : ExodoColors.textPrimary;
-    final subTextCol = isLight ? const Color(0xFF8E8E93) : ExodoColors.textPrimary;
+    final subTextCol = isLight ? ExodoColors.textSecondary : ExodoColors.textPrimary;
 
     showDialog(
       context: context,
@@ -109,8 +109,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final isLight = Theme.of(context).brightness == Brightness.light;
     final bgColor = isLight ? ExodoColors.textPrimary : ExodoColors.background;
     final textCol = isLight ? const Color(0xFF171615) : Colors.white;
-    final subCol = isLight ? const Color(0xFF8E8E93) : Colors.white70;
-    final cancelCol = isLight ? const Color(0xFF8E8E93) : Colors.white54;
+    final subCol = isLight ? ExodoColors.textSecondary : Colors.white70;
+    final cancelCol = isLight ? ExodoColors.textSecondary : Colors.white54;
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
