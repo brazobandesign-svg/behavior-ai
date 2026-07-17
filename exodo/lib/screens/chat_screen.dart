@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/rendering.dart';
 import 'package:provider/provider.dart';
-import 'package:google_fonts/google_fonts.dart';
 import '../services/app_state.dart';
 import '../services/widget_service.dart';
 import '../widgets/drawer_menu.dart';
@@ -13,7 +12,6 @@ import '../widgets/chat/chat_composer.dart';
 import '../widgets/chat/message_bubble.dart';
 import '../widgets/chat/model_selector.dart';
 import '../theme/exodo_theme.dart';
-import '../l10n/app_i18n.dart';
 
 class ChatScreen extends StatefulWidget {
   const ChatScreen({super.key});
@@ -131,7 +129,6 @@ class _ChatScreenState extends State<ChatScreen>
     // su propia suscripción aislada a AppState y no le pega al Scaffold.
     final isDarkMode = context.select<AppState, bool>((s) => s.isDarkMode);
     final isIncognito = context.select<AppState, bool>((s) => s.isIncognito);
-    final isOnline = context.select<AppState, bool>((s) => s.isOnline);
     final isLight = !isDarkMode && !isIncognito;
 
     return Scaffold(
@@ -151,8 +148,6 @@ class _ChatScreenState extends State<ChatScreen>
               // Barra superior minimalista y limpia modularizada
               const ChatAppBar(),
 
-              // [Punto 43] Banner de offline: aparece cuando no hay internet.
-              if (!isOnline) _NetworkOfflineBanner(isLight: isLight),
 
               // Stage principal o lista de mensajes (SIEMPRE VISIBLE y fluye tras el composer)
               Expanded(
@@ -408,45 +403,6 @@ class _ChatMessagesListState extends State<ChatMessagesList> {
 }
 
 
-// [Punto 43] Banner de offline: aparece arriba del chat cuando no hay internet.
-class _NetworkOfflineBanner extends StatelessWidget {
-  final bool isLight;
-  const _NetworkOfflineBanner({required this.isLight});
-
-  @override
-  Widget build(BuildContext context) {
-    final bg = isLight ? const Color(0xFFE8D5C4) : ExodoColors.surface;
-    final textColor = isLight
-        ? const Color(0xFF5D3A1A)
-        : ExodoColors.amber;
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-      color: bg,
-      child: SafeArea(
-        bottom: false,
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.signal_wifi_off_rounded, size: 18, color: textColor),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                AppI18n.of(context).t('network.offline_body'),
-                style: GoogleFonts.inter(
-                  fontSize: 13,
-                  color: textColor,
-                  fontWeight: FontWeight.w500,
-                ),
-                textAlign: TextAlign.center,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
 
 /// [Fix rendimiento streaming] Este wrapper ahora usa su propio
 /// context.select para leer solo currentMessages.length, sin arrastrar

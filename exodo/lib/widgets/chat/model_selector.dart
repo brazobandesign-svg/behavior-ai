@@ -77,7 +77,7 @@ class ModelSelectorSheet extends StatelessWidget {
                     m.subtitle,
                     style: TextStyle(fontFamily: 'AnthropicSans', 
                       fontSize: 13,
-                      color: isLight ? const Color(0xFF191919) : const Color(0xFFB0A99F),
+                      color: isLight ? const Color(0xFF191919) : const Color(0xFF8E8E93),
                     ),
                   ),
                   if (isProModel)
@@ -118,7 +118,7 @@ class ModelSelectorSheet extends StatelessWidget {
                 AppI18n.of(context).t('models.${m.id}_desc'),
                 style: TextStyle(fontFamily: 'AnthropicSans', 
                   fontSize: 11.5,
-                  color: isLight ? const Color(0xFF191919) : const Color(0xFFB0A99F),
+                  color: isLight ? const Color(0xFF191919) : const Color(0xFF8E8E93),
                 ),
               ),
               trailing: active
@@ -145,7 +145,7 @@ class ModelSelectorSheet extends StatelessWidget {
                   AppI18n.of(context).t('models.thinking_default'),
                   style: TextStyle(fontFamily: 'AnthropicSans', 
                     fontSize: 11,
-                    color: isLight ? const Color(0xFF191919) : const Color(0xFFB0A99F),
+                    color: isLight ? const Color(0xFF191919) : const Color(0xFF8E8E93),
                   ),
                 ),
               ],

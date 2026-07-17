@@ -835,9 +835,9 @@ class _ClaudeAccountModal {
     final textCol = isLight ? const Color(0xFF191919) : ExodoColors.textPrimary;
     final subTextCol = isLight ? const Color(0xFF191919) : ExodoColors.textPrimary;
     final cardBg = isLight ? ExodoColors.textPrimary : ExodoColors.composerBg;
-    final borderColor = isLight ? const Color(0xFFE8E0D8) : Colors.transparent;
+    final borderColor = isLight ? const Color(0xFFE5E5EA) : Colors.transparent;
     final handleColor = isLight ? Colors.black26 : ExodoColors.textPrimary.withValues(alpha: 0.3);
-    final dividerColor = isLight ? const Color(0xFFE2DDD2) : Colors.transparent;
+    final dividerColor = isLight ? const Color(0xFFE5E5EA) : Colors.transparent;
 
     showModalBottomSheet(
       context: context,
@@ -1177,7 +1177,7 @@ class _ClaudeAccountModal {
     final isLight = Theme.of(context).brightness == Brightness.light;
     final bgColor = isLight ? Colors.white : ExodoColors.background;
     final cardBg = isLight ? ExodoColors.textPrimary : ExodoColors.composerBg;
-    final borderColor = isLight ? const Color(0xFFE8E0D8) : Colors.transparent;
+    final borderColor = isLight ? const Color(0xFFE5E5EA) : Colors.transparent;
     final textPrimary = isLight ? const Color(0xFF191919) : ExodoColors.textPrimary;
     final textSecondary = isLight ? const Color(0xFF191919) : ExodoColors.textPrimary;
 

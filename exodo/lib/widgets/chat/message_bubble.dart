@@ -226,7 +226,7 @@ class MessageBubble extends StatelessWidget {
                       : const Color(0xFF212121),
                   borderRadius: BorderRadius.circular(20),
                   border: Border.all(
-                    color: isLight ? const Color(0xFFE8E0D8) : Colors.transparent,
+                    color: isLight ? const Color(0xFFE5E5EA) : Colors.transparent,
                     width: 1.0,
                   ),
                 ),
@@ -332,7 +332,7 @@ class MessageBubble extends StatelessWidget {
                         ? const Color(0xFFF5F5F5)
                         : ExodoColors.surface,
                     color: isLight
-                        ? const Color(0xFFB85A35)
+                        ? const Color(0xFF2C2C2E)
                         : ExodoColors.amber,
                   ),
                   codeblockDecoration: const BoxDecoration(),
@@ -519,7 +519,7 @@ class _SourcesSheet extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
         decoration: BoxDecoration(
-          color: isLight ? const Color(0xFFEAE7DF) : const Color(0xFF222224),
+          color: isLight ? const Color(0xFFF2F2F7) : const Color(0xFF222224),
           borderRadius: BorderRadius.circular(30),
           border: Border.all(
             color: isLight ? Colors.black12 : const Color(0xFF333336),
@@ -560,7 +560,7 @@ class _SourcesSheet extends StatelessWidget {
                               shape: BoxShape.circle,
                               border: Border.all(
                                 color: isLight
-                                    ? const Color(0xFFEAE7DF)
+                                    ? const Color(0xFFF2F2F7)
                                     : const Color(0xFF222224),
                                 width: 1.5,
                               ),
@@ -956,7 +956,7 @@ class _InteractiveCodeBlockState extends State<_InteractiveCodeBlock> {
     final bg = widget.isLight ? const Color(0xFFF5F5F5) : ExodoColors.surface;
     final headerBg = widget.isLight ? const Color(0xFFE8E8E8) : ExodoColors.surface;
     final borderCol = widget.isLight ? const Color(0xFFDDDDDD) : ExodoColors.border;
-    final textCol = widget.isLight ? const Color(0xFFB85A35) : ExodoColors.amber;
+    final textCol = widget.isLight ? const Color(0xFF2C2C2E) : ExodoColors.amber;
 
     return Container(
       width: double.infinity,

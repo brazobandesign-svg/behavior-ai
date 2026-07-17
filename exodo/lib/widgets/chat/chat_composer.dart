@@ -428,7 +428,7 @@ class _ChatComposerState extends State<ChatComposer>
     bool isNetworkOffline,
     bool isLight,
   ) {
-    final softBlack = const Color(0xFF2A2622);
+    final softBlack = const Color(0xFF1C1C1E);
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 12),
       child: Column(
@@ -692,7 +692,7 @@ class _ChatComposerState extends State<ChatComposer>
                           decoration: InputDecoration(
                             hintText: _getPlaceholder(context),
                             hintStyle: GoogleFonts.inter(
-                              color: const Color(0xFF7B7872),
+                              color: const Color(0xFF8E8E93),
                               fontSize: 16,
                             ),
                             border: InputBorder.none,
