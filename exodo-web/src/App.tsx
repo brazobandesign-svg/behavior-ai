@@ -12,7 +12,8 @@ import {
   Search,
   Download,
   Pin,
-  Lock
+  Lock,
+  ChevronDown
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -33,7 +34,7 @@ export default function App() {
   const [showAuthModal, setShowAuthModal] = useState(false);
 
   // Estados de interfaz exacta a móvil
-  const [theme, setTheme] = useState<'dark' | 'light'>('dark');
+  const [theme, setTheme] = useState<'dark' | 'light'>(() => (localStorage.getItem('exodo_theme') as 'dark' | 'light') || 'dark');
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [isIncognito, setIsIncognito] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -75,14 +76,34 @@ export default function App() {
       created_at: new Date().toISOString()
     }
   ]);
-  const [input, setInput] = useState('');
+  const [isInitializing, setIsInitializing] = useState(true);
+  const [input, setInput] = useState(() => localStorage.getItem('exodo_web_draft_input') || '');
   const [isStreaming, setIsStreaming] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesListRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const [showScrollDown, setShowScrollDown] = useState(false);
+
+  const handleScroll = () => {
+    if (messagesListRef.current) {
+      const { scrollTop, scrollHeight, clientHeight } = messagesListRef.current;
+      setShowScrollDown(scrollHeight - scrollTop - clientHeight > 80);
+    }
+  };
+
+  useEffect(() => {
+    localStorage.setItem('exodo_web_draft_input', input);
+    if (textareaRef.current) {
+      textareaRef.current.style.height = '0px';
+      textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 300)}px`;
+    }
+  }, [input]);
 
   // Sincronización de tema
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('exodo_theme', theme);
   }, [theme]);
 
   // Sincronización de sesión y Realtime
@@ -150,7 +171,9 @@ export default function App() {
 
   useEffect(() => {
     if (activeConvId && !activeConvId.startsWith('conv-') && activeConvId !== 'initial') {
-      fetchMessages(activeConvId);
+      fetchMessages(activeConvId).finally(() => setIsInitializing(false));
+    } else {
+      setIsInitializing(false);
     }
   }, [activeConvId]);
 
@@ -440,6 +463,7 @@ export default function App() {
           }}
         >
           <textarea
+            ref={textareaRef}
             className="composer-input"
             placeholder="Habla con Éxodo..."
             value={input}
@@ -978,7 +1002,9 @@ export default function App() {
           </div>
         </header>
 
-        {!messages.some((m) => m.role === 'user') ? (
+        {isInitializing ? (
+          <div style={{ flex: 1 }} />
+        ) : !messages.some((m) => m.role === 'user') ? (
           <div className="welcome-center">
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14, marginBottom: 36 }}>
               {!isIncognito && (
@@ -1010,20 +1036,48 @@ export default function App() {
           </div>
         ) : (
           <>
-            <div className="messages-list">
+            <div className="messages-list" ref={messagesListRef} onScroll={handleScroll}>
               <div className="messages-wrapper">
                 {messages.map((msg) => (
                   <div key={msg.id} className={`msg-row ${msg.role}`}>
-                    <div className="msg-bubble markdown-body">
-                      {msg.isThinking ? (
-                        <div className="thinking-pulse">
-                          <div style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--amber-exodo)' }} />
-                          <span>{msg.content}</span>
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: msg.role === 'user' ? 'flex-end' : 'flex-start', maxWidth: '100%', width: msg.role === 'assistant' ? '100%' : 'auto' }}>
+                      <div className="msg-bubble markdown-body">
+                        {msg.isThinking ? (
+                          <div className="thinking-pulse">
+                            <div style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--amber-exodo)' }} />
+                            <span>{msg.content}</span>
+                          </div>
+                        ) : (
+                          <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                            {msg.content}
+                          </ReactMarkdown>
+                        )}
+                      </div>
+                      
+                      {msg.role === 'user' && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', color: 'var(--text-secondary)', marginTop: '4px', opacity: 0.7, paddingRight: '6px', fontFamily: 'Inter, sans-serif' }}>
+                          <button style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', color: 'inherit' }} onClick={() => navigator.clipboard.writeText(msg.content)} title="Copiar">
+                            <div style={{ width: 14, height: 14, backgroundColor: 'currentColor', WebkitMaskImage: 'url(/copy-2-svgrepo-com.png)', WebkitMaskSize: 'contain', WebkitMaskRepeat: 'no-repeat', maskImage: 'url(/copy-2-svgrepo-com.png)', maskSize: 'contain', maskRepeat: 'no-repeat' }} />
+                          </button>
+                          <span>{new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                         </div>
-                      ) : (
-                        <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                          {msg.content}
-                        </ReactMarkdown>
+                      )}
+
+                      {msg.role === 'assistant' && !msg.isThinking && msg.id !== 'welcome-1' && (
+                        <div className="ai-actions-bar" style={{ display: 'flex', gap: '8px', marginTop: '8px', paddingLeft: '4px', opacity: 0.7 }}>
+                          <button className="action-btn" onClick={() => navigator.clipboard.writeText(msg.content)} title="Copiar">
+                            <div style={{ width: 16, height: 16, backgroundColor: 'var(--text-secondary)', WebkitMaskImage: 'url(/copy-2-svgrepo-com.png)', WebkitMaskSize: 'contain', WebkitMaskRepeat: 'no-repeat', maskImage: 'url(/copy-2-svgrepo-com.png)', maskSize: 'contain', maskRepeat: 'no-repeat' }} />
+                          </button>
+                          <button className="action-btn" title="Me gusta">
+                            <div style={{ width: 16, height: 16, backgroundColor: 'var(--text-secondary)', WebkitMaskImage: 'url(/like-1-svgrepo-com.png)', WebkitMaskSize: 'contain', WebkitMaskRepeat: 'no-repeat', maskImage: 'url(/like-1-svgrepo-com.png)', maskSize: 'contain', maskRepeat: 'no-repeat' }} />
+                          </button>
+                          <button className="action-btn" title="No me gusta">
+                            <div style={{ width: 16, height: 16, backgroundColor: 'var(--text-secondary)', WebkitMaskImage: 'url(/like-1-svgrepo-com.png)', WebkitMaskSize: 'contain', WebkitMaskRepeat: 'no-repeat', maskImage: 'url(/like-1-svgrepo-com.png)', maskSize: 'contain', maskRepeat: 'no-repeat', transform: 'scaleY(-1)' }} />
+                          </button>
+                          <button className="action-btn" title="Compartir">
+                            <div style={{ width: 16, height: 16, backgroundColor: 'var(--text-secondary)', WebkitMaskImage: 'url(/share-svgrepo-com.png)', WebkitMaskSize: 'contain', WebkitMaskRepeat: 'no-repeat', maskImage: 'url(/share-svgrepo-com.png)', maskSize: 'contain', maskRepeat: 'no-repeat' }} />
+                          </button>
+                        </div>
                       )}
                     </div>
                   </div>
@@ -1031,6 +1085,30 @@ export default function App() {
                 <div ref={messagesEndRef} />
               </div>
             </div>
+
+            {showScrollDown && (
+              <button
+                onClick={scrollToBottom}
+                style={{
+                  position: 'absolute',
+                  bottom: '90px',
+                  right: '24px',
+                  width: '40px',
+                  height: '40px',
+                  borderRadius: '20px',
+                  backgroundColor: theme === 'light' ? '#F5F2EB' : 'var(--surface-input)',
+                  border: theme === 'light' ? '1px solid #EAE5D9' : 'none',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  zIndex: 20,
+                  boxShadow: theme === 'light' ? '0 2px 8px rgba(0,0,0,0.1)' : '0 2px 8px rgba(0,0,0,0.45)'
+                }}
+              >
+                <ChevronDown size={24} color="var(--amber-exodo)" />
+              </button>
+            )}
 
             {/* 4. Composer Pinned Exacto al Móvil (#252525) */}
             <div className="composer-pinned" style={{ width: '100%', display: 'flex', justifyContent: 'center' }}>

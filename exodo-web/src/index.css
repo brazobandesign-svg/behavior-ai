@@ -110,14 +110,18 @@ body, html, #root {
 }
 
 ::-webkit-scrollbar {
-  width: 5px;
+  width: 6px;
+  height: 6px;
 }
 ::-webkit-scrollbar-track {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: var(--surface-input);
+  background: #505050;
   border-radius: 99px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #606060;
 }
 
 .app-container {
@@ -223,7 +227,9 @@ body, html, #root {
   background: rgba(201, 147, 58, 0.15);
   border: 1px dashed var(--amber-exodo);
   border-radius: 10px;
-  padding: 10px 12px;
+  padding: 8px 12px;
+  z-index: 1000;
+  white-space: nowrap;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -506,14 +512,26 @@ body, html, #root {
 }
 
 .msg-row.user .msg-bubble {
-  background: var(--surface-input);
+  background: #212121;
   color: var(--text-primary);
-  border: 1px solid var(--border-color);
-  border-bottom-right-radius: 4px;
+  border: 1px solid transparent;
 }
 
 [data-theme="light"] .msg-row.user .msg-bubble {
+  background: #F5F2EB;
   border: 1px solid transparent;
+  color: #171615;
+}
+
+/* Tipografía estricta para la burbuja del usuario (AnthropicSans, 15px) igual a Flutter */
+.msg-row.user .msg-bubble,
+.msg-row.user .markdown-body p,
+.msg-row.user .markdown-body ul,
+.msg-row.user .markdown-body ol,
+.msg-row.user .markdown-body li {
+  font-family: 'AnthropicSans', -apple-system, sans-serif !important;
+  font-size: 15px !important;
+  color: inherit;
 }
 
 .msg-row.assistant .msg-bubble {
@@ -637,7 +655,7 @@ body, html, #root {
   position: absolute;
   bottom: 0;
   left: 0;
-  right: 0;
+  right: 6px;
   padding: 4px 16px 4px 16px;
   background: linear-gradient(0deg, var(--bg-chat-main) 70%, transparent 100%);
   display: flex;
@@ -676,10 +694,11 @@ body, html, #root {
   font-family: var(--font-sans);
   font-size: 0.96rem;
   resize: none;
-  max-height: 140px;
+  max-height: 300px;
   min-height: 24px;
   line-height: 1.4;
   padding: 4px 0;
+  overflow-y: auto;
 }
 
 .composer-input:focus {
@@ -720,4 +739,21 @@ body, html, #root {
 @keyframes fadeIn {
   from { opacity: 0; }
   to { opacity: 1; }
+}
+
+.action-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+.action-btn:hover {
+  background: rgba(150, 150, 150, 0.15);
+  color: var(--text-primary);
 }
