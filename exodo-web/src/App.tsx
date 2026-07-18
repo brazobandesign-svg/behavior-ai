@@ -1,6 +1,8 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useLayoutEffect } from 'react';
 import { 
   ChevronRight, 
+  ChevronUp,
+  ChevronDown,
   Sun, 
   Moon, 
   ArrowUp, 
@@ -84,6 +86,7 @@ export default function App() {
   const messagesListRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [showScrollDown, setShowScrollDown] = useState(false);
+  const [isComposerScrollable, setIsComposerScrollable] = useState(false);
 
   const handleScroll = () => {
     if (messagesListRef.current) {
@@ -94,9 +97,17 @@ export default function App() {
 
   useEffect(() => {
     localStorage.setItem('exodo_web_draft_input', input);
+  }, [input]);
+
+  useLayoutEffect(() => {
     if (textareaRef.current) {
       textareaRef.current.style.height = '0px';
-      textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 300)}px`;
+      const scrollHeight = textareaRef.current.scrollHeight;
+      textareaRef.current.style.height = `${Math.min(scrollHeight, 300)}px`;
+      
+      const scrollable = scrollHeight > 300;
+      textareaRef.current.style.overflowY = scrollable ? 'auto' : 'hidden';
+      setIsComposerScrollable(scrollable);
     }
   }, [input]);
 
@@ -462,33 +473,58 @@ export default function App() {
             transition: 'background 0.25s ease, box-shadow 0.25s ease'
           }}
         >
-          <textarea
-            ref={textareaRef}
-            className="composer-input"
-            placeholder="Habla con Éxodo..."
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                handleSendMessage();
-              }
-            }}
-            rows={2}
-            style={{
-              width: '100%',
-              background: 'transparent',
-              border: 'none',
-              outline: 'none',
-              boxShadow: 'none',
-              color: 'var(--text-primary)',
-              fontSize: '16px',
-              fontFamily: 'var(--font-sans)',
-              resize: 'none',
-              minHeight: '52px',
-              padding: '4px 6px 16px 6px'
-            }}
-          />
+          <div style={{ position: 'relative', width: '100%', display: 'flex' }}>
+            <textarea
+              ref={textareaRef}
+              className="composer-input"
+              placeholder="Habla con Éxodo..."
+              value={input}
+              onChange={(e) => {
+                setInput(e.target.value);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  handleSendMessage();
+                }
+              }}
+              rows={1}
+              style={{
+                width: '100%',
+                background: 'transparent',
+                border: 'none',
+                outline: 'none',
+                boxShadow: 'none',
+                color: 'var(--text-primary)',
+                fontSize: '16px',
+                fontFamily: 'var(--font-sans)',
+                resize: 'none',
+                padding: '10px 6px',
+                paddingRight: isComposerScrollable ? '26px' : '6px',
+                overflowY: 'auto'
+              }}
+            />
+            {isComposerScrollable && (
+              <div style={{ position: 'absolute', right: 8, top: 4, bottom: 4, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', alignItems: 'center', pointerEvents: 'none', zIndex: 10 }}>
+                <button
+                  type="button"
+                  onClick={() => textareaRef.current?.scrollTo({ top: 0, behavior: 'smooth' })}
+                  style={{ pointerEvents: 'auto', width: 22, height: 22, background: 'var(--surface-input)', border: '1px solid #505050', borderRadius: '50%', color: '#505050', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+                  title="Ir al inicio"
+                >
+                  <ChevronUp size={14} />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => textareaRef.current?.scrollTo({ top: textareaRef.current.scrollHeight, behavior: 'smooth' })}
+                  style={{ pointerEvents: 'auto', width: 22, height: 22, background: 'var(--surface-input)', border: '1px solid #505050', borderRadius: '50%', color: '#505050', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+                  title="Ir al final"
+                >
+                  <ChevronDown size={14} />
+                </button>
+              </div>
+            )}
+          </div>
 
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -499,7 +535,7 @@ export default function App() {
                 title="Adjuntar archivos"
                 onClick={() => alert('Selector de adjuntos sincronizado con nube')}
               >
-                <Plus size={20} color="var(--text-primary)" />
+                <Plus size={20} color="var(--chip-icon-color)" />
               </button>
 
               <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
@@ -518,7 +554,7 @@ export default function App() {
                     alignItems: 'center',
                     gap: 6,
                     cursor: isModelLocked ? 'default' : 'pointer',
-                    color: 'var(--text-primary)'
+                    color: 'var(--chip-icon-color)'
                   }}
                   title={isModelLocked ? (!session?.user ? "En invitado no se puede elegir modelos, solo G1.1" : "Modelo bloqueado en Modo Incógnito") : "Seleccionar Modelo"}
                 >
@@ -526,9 +562,9 @@ export default function App() {
                     {displayModelTitle}
                   </span>
                   {isModelLocked ? (
-                    <Lock size={13} color="var(--text-secondary)" />
+                    <Lock size={13} color="var(--chip-icon-color)" />
                   ) : (
-                    <ChevronRight size={15} color="var(--text-secondary)" style={{ transform: showModelSelector ? 'rotate(-90deg)' : 'rotate(90deg)', transition: 'transform 0.2s ease' }} />
+                    <ChevronRight size={15} color="var(--chip-icon-color)" style={{ transform: showModelSelector ? 'rotate(-90deg)' : 'rotate(90deg)', transition: 'transform 0.2s ease' }} />
                   )}
                 </button>
 
