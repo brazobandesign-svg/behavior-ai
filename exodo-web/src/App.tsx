@@ -499,22 +499,22 @@ export default function App() {
               }}
             />
             {isComposerScrollable && (
-              <div style={{ position: 'absolute', right: 8, top: 4, bottom: 4, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', alignItems: 'center', pointerEvents: 'none', zIndex: 10 }}>
+              <div style={{ position: 'absolute', right: -5, top: 4, bottom: 4, width: 16, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', alignItems: 'center', pointerEvents: 'none', zIndex: 10 }}>
                 <button
                   type="button"
                   onClick={() => textareaRef.current?.scrollTo({ top: 0, behavior: 'smooth' })}
-                  style={{ pointerEvents: 'auto', width: 22, height: 22, background: 'var(--surface-input)', border: '1px solid #505050', borderRadius: '50%', color: '#505050', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+                  style={{ pointerEvents: 'auto', width: 16, height: 16, background: 'var(--surface-input)', border: 'none', borderRadius: '4px', color: '#505050', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', opacity: 0.9 }}
                   title="Ir al inicio"
                 >
-                  <ChevronUp size={14} />
+                  <ChevronUp size={16} />
                 </button>
                 <button
                   type="button"
                   onClick={() => textareaRef.current?.scrollTo({ top: textareaRef.current.scrollHeight, behavior: 'smooth' })}
-                  style={{ pointerEvents: 'auto', width: 22, height: 22, background: 'var(--surface-input)', border: '1px solid #505050', borderRadius: '50%', color: '#505050', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+                  style={{ pointerEvents: 'auto', width: 16, height: 16, background: 'var(--surface-input)', border: 'none', borderRadius: '4px', color: '#505050', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', opacity: 0.9 }}
                   title="Ir al final"
                 >
-                  <ChevronDown size={14} />
+                  <ChevronDown size={16} />
                 </button>
               </div>
             )}
