@@ -85,8 +85,10 @@ export default function App() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesListRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const composerPinnedRef = useRef<HTMLDivElement>(null);
   const [showScrollDown, setShowScrollDown] = useState(false);
   const [isComposerScrollable, setIsComposerScrollable] = useState(false);
+  const [composerHeight, setComposerHeight] = useState(140);
 
   const handleScroll = () => {
     if (messagesListRef.current) {
@@ -98,6 +100,17 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem('exodo_web_draft_input', input);
   }, [input]);
+
+  useLayoutEffect(() => {
+    if (!composerPinnedRef.current) return;
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        setComposerHeight(entry.target.getBoundingClientRect().height);
+      }
+    });
+    observer.observe(composerPinnedRef.current);
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => {
     localStorage.setItem('exodo_web_draft_input', input);
@@ -1066,7 +1079,7 @@ export default function App() {
           </div>
         ) : (
           <>
-            <div className="messages-list" ref={messagesListRef} onScroll={handleScroll}>
+            <div className="messages-list" ref={messagesListRef} onScroll={handleScroll} style={{ paddingBottom: composerHeight + 24 }}>
               <div className="messages-wrapper">
                 {messages.map((msg) => (
                   <div key={msg.id} className={`msg-row ${msg.role}`}>
@@ -1140,8 +1153,7 @@ export default function App() {
               </button>
             )}
 
-            {/* 4. Composer Pinned Exacto al Móvil (#252525) */}
-            <div className="composer-pinned" style={{ width: '100%', display: 'flex', justifyContent: 'center' }}>
+            <div className="composer-pinned" ref={composerPinnedRef} style={{ width: '100%', display: 'flex', justifyContent: 'center' }}>
               {renderChatComposer(true)}
             </div>
           </>
