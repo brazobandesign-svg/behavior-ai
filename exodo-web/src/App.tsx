@@ -1095,7 +1095,7 @@ export default function App() {
           </div>
         ) : (
           <>
-            <div className="messages-list" ref={messagesListRef} onScroll={handleScroll} style={{ paddingBottom: composerHeight + 24 }}>
+            <div className="messages-list" ref={messagesListRef} onScroll={handleScroll}>
               <div className="messages-wrapper">
                 {messages.map((msg) => (
                   <div key={msg.id} className={`msg-row ${msg.role}`}>
@@ -1141,6 +1141,7 @@ export default function App() {
                     </div>
                   </div>
                 ))}
+                <div style={{ height: composerHeight + 16, flexShrink: 0, width: '100%' }} />
                 <div ref={messagesEndRef} />
               </div>
             </div>
