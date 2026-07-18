@@ -50,8 +50,22 @@ export default function App() {
   const [showUpgradeBanner, setShowUpgradeBanner] = useState(true);
 
   // Estados de conversación
-  const [conversations, setConversations] = useState<Conversation[]>([]);
-  const [activeConvId, setActiveConvId] = useState<string | null>(null);
+  const [conversations, setConversations] = useState<Conversation[]>(() => {
+    try {
+      const temp = localStorage.getItem('exodo_web_temp_conv');
+      if (temp) {
+        const parsed = JSON.parse(temp);
+        if (parsed && parsed.id && parsed.id.startsWith('conv-')) {
+          return [parsed];
+        }
+      }
+    } catch (_) {}
+    return [];
+  });
+  const [activeConvId, setActiveConvId] = useState<string | null>(() => {
+    const saved = localStorage.getItem('exodo_web_active_conv');
+    return saved && saved !== 'null' && saved !== 'new' ? saved : null;
+  });
   const [messages, setMessages] = useState<Message[]>([
     {
       id: 'welcome-1',
@@ -134,6 +148,12 @@ export default function App() {
     };
   }, []);
 
+  useEffect(() => {
+    if (activeConvId && !activeConvId.startsWith('conv-') && activeConvId !== 'initial') {
+      fetchMessages(activeConvId);
+    }
+  }, [activeConvId]);
+
   async function fetchProfile(userId: string) {
     try {
       const { data } = await supabase
@@ -154,11 +174,12 @@ export default function App() {
         .select('*')
         .order('updated_at', { ascending: false });
       if (!error && data) {
-        setConversations(data);
-        if (data.length > 0 && !activeConvId) {
-          setActiveConvId(data[0].id);
-          fetchMessages(data[0].id);
-        }
+        setConversations((prev) => {
+          // Preservar el chat temporal ('conv-...') de New Chat para que no se borre al sincronizar al volver de otra ventana
+          const unsaved = prev.filter((c) => c.id.startsWith('conv-'));
+          const dataIds = new Set(data.map((d) => d.id));
+          return [...unsaved.filter((u) => !dataIds.has(u.id)), ...data];
+        });
       }
     } catch (e) {
       console.warn('Error fetching conversations:', e);
@@ -194,8 +215,13 @@ export default function App() {
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
     };
-    setConversations([newConv, ...conversations]);
+    setConversations((prev) => {
+      const filtered = prev.filter((c) => !c.id.startsWith('conv-'));
+      return [newConv, ...filtered];
+    });
     setActiveConvId(newConvId);
+    localStorage.setItem('exodo_web_active_conv', newConvId);
+    localStorage.setItem('exodo_web_temp_conv', JSON.stringify(newConv));
     setMessages([
       {
         id: `sys-${Date.now()}`,
@@ -743,6 +769,8 @@ export default function App() {
               className={`conv-item ${activeConvId === conv.id ? 'active' : ''}`}
               onClick={() => {
                 setActiveConvId(conv.id);
+                localStorage.setItem('exodo_web_active_conv', conv.id);
+                localStorage.removeItem('exodo_web_temp_conv');
                 fetchMessages(conv.id);
                 setDrawerOpen(false);
               }}
@@ -778,6 +806,8 @@ export default function App() {
               className={`conv-item ${activeConvId === conv.id ? 'active' : ''}`}
               onClick={() => {
                 setActiveConvId(conv.id);
+                localStorage.setItem('exodo_web_active_conv', conv.id);
+                localStorage.removeItem('exodo_web_temp_conv');
                 fetchMessages(conv.id);
                 setDrawerOpen(false);
               }}

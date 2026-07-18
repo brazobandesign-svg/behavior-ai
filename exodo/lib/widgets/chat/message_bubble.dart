@@ -31,6 +31,8 @@ String _formatTime(BuildContext context, DateTime dt) {
   return '$hour:$minute';
 }
 
+/// [Fix pantalla roja markdown] Sanea el texto antes de pasarlo a MarkdownBody
+
 // Regla 9: Burbuja de "razonando" mientras la IA piensa.
 // FIX v1.2.3: Se quita el Container con padding/decoration porque se
 // renderizaba como una caja visible. Ahora es un Row directo sin
@@ -283,9 +285,19 @@ class MessageBubble extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          MarkdownBody(
-            data: message.content,
-            onTapLink: (text, href, title) {
+          (isLastAssistant && context.select<AppState, bool>((s) => s.isGenerating))
+              ? SelectableText(
+                  message.content,
+                  style: TextStyle(
+                    fontFamily: 'AnthropicSerif',
+                    fontSize: 15.5,
+                    color: isLight ? const Color(0xFF171615) : ExodoColors.textPrimary,
+                    height: 1.45,
+                  ),
+                )
+              : MarkdownBody(
+                  data: message.content,
+                  onTapLink: (text, href, title) {
               if (href != null) {
                 final uri = Uri.tryParse(href);
                 if (uri != null) launchUrl(uri, mode: LaunchMode.externalApplication);
