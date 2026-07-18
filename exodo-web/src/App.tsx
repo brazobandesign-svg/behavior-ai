@@ -120,8 +120,8 @@ export default function App() {
         const { scrollTop, scrollHeight, clientHeight } = messagesListRef.current;
         const oldDistanceToBottom = (scrollHeight - delta) - scrollTop - clientHeight;
         
-        if (oldDistanceToBottom < 50) {
-          messagesListRef.current.scrollTop += delta;
+        if (oldDistanceToBottom < 150) {
+          messagesEndRef.current?.scrollIntoView({ behavior: 'auto', block: 'end' });
         }
       }
     }
