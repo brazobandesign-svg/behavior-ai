@@ -55,8 +55,9 @@
   --shadow-composer: 0 10px 30px rgba(0, 0, 0, 0.45);
   --border-composer: transparent;
   --model-chip-bg: #141414;
-  --send-btn-bg: #F5F2EB;
-  --send-btn-color: #141210;
+  --chip-icon-color: #F5F2EB;
+  --send-btn-bg: var(--model-chip-bg);
+  --send-btn-color: var(--chip-icon-color);
   --send-btn-disabled: #252525;
   --banner-bg: #F5F2EB;
   --banner-text: #0E0C0A;
@@ -76,9 +77,10 @@
   --text-secondary: #191919;
   --shadow-composer: 0 12px 36px rgba(0, 0, 0, 0.22), 0 4px 12px rgba(0, 0, 0, 0.10);
   --border-composer: transparent;
-  --model-chip-bg: #FFFFFF;
-  --send-btn-bg: #191919;
-  --send-btn-color: #F5F2EB;
+  --model-chip-bg: #252525;
+  --chip-icon-color: #F5F2EB;
+  --send-btn-bg: var(--model-chip-bg);
+  --send-btn-color: var(--chip-icon-color);
   --send-btn-disabled: #FFFFFF;
   --banner-bg: #252525;
   --banner-text: #F5F2EB;
@@ -685,7 +687,7 @@ body, html, #root {
 }
 
 .composer-input {
-  flex: 1;
+  width: 100%;
   background: transparent;
   border: none !important;
   outline: none !important;
