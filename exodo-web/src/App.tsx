@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef, useLayoutEffect } from 'react';
 import { 
   ChevronRight, 
   ChevronUp,
-  ChevronDown,
   Sun, 
   Moon, 
   ArrowUp, 
@@ -19,6 +18,7 @@ import {
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import TextareaAutosize from 'react-textarea-autosize';
 import { supabase, type Conversation, type Message } from './lib/supabase';
 import { AuthModal } from './components/AuthModal';
 
@@ -99,16 +99,8 @@ export default function App() {
     localStorage.setItem('exodo_web_draft_input', input);
   }, [input]);
 
-  useLayoutEffect(() => {
-    if (textareaRef.current) {
-      textareaRef.current.style.height = '0px';
-      const scrollHeight = textareaRef.current.scrollHeight;
-      textareaRef.current.style.height = `${Math.min(scrollHeight, 300)}px`;
-      
-      const scrollable = scrollHeight > 300;
-      textareaRef.current.style.overflowY = scrollable ? 'auto' : 'hidden';
-      setIsComposerScrollable(scrollable);
-    }
+  useEffect(() => {
+    localStorage.setItem('exodo_web_draft_input', input);
   }, [input]);
 
   // Sincronización de tema
@@ -474,21 +466,23 @@ export default function App() {
           }}
         >
           <div style={{ position: 'relative', width: '100%', display: 'flex' }}>
-            <textarea
-              ref={textareaRef}
+            <TextareaAutosize
+              ref={textareaRef as any}
               className="composer-input"
               placeholder="Habla con Éxodo..."
               value={input}
-              onChange={(e) => {
-                setInput(e.target.value);
-              }}
+              onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && !e.shiftKey) {
                   e.preventDefault();
                   handleSendMessage();
                 }
               }}
-              rows={1}
+              minRows={1}
+              maxRows={12}
+              onHeightChange={(height) => {
+                setIsComposerScrollable(height >= 260);
+              }}
               style={{
                 width: '100%',
                 background: 'transparent',
@@ -501,7 +495,7 @@ export default function App() {
                 resize: 'none',
                 padding: '10px 6px',
                 paddingRight: isComposerScrollable ? '26px' : '6px',
-                overflowY: 'auto'
+                overflowY: isComposerScrollable ? 'auto' : 'hidden'
               }}
             />
             {isComposerScrollable && (
