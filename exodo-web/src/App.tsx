@@ -83,12 +83,11 @@ export default function App() {
   const [isStreaming, setIsStreaming] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
   const messagesListRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const composerPinnedRef = useRef<HTMLDivElement>(null);
   const [showScrollDown, setShowScrollDown] = useState(false);
   const [isComposerScrollable, setIsComposerScrollable] = useState(false);
-  const [composerHeight, setComposerHeight] = useState(140);
 
   const handleScroll = () => {
     if (messagesListRef.current) {
@@ -96,37 +95,6 @@ export default function App() {
       setShowScrollDown(scrollHeight - scrollTop - clientHeight > 80);
     }
   };
-
-  useEffect(() => {
-    localStorage.setItem('exodo_web_draft_input', input);
-  }, [input]);
-
-  useLayoutEffect(() => {
-    if (!composerPinnedRef.current) return;
-    const observer = new ResizeObserver((entries) => {
-      for (const entry of entries) {
-        setComposerHeight(entry.target.getBoundingClientRect().height);
-      }
-    });
-    observer.observe(composerPinnedRef.current);
-    return () => observer.disconnect();
-  }, []);
-
-  const prevComposerHeight = useRef(composerHeight);
-  useLayoutEffect(() => {
-    if (messagesListRef.current) {
-      const delta = composerHeight - prevComposerHeight.current;
-      if (delta !== 0) {
-        const { scrollTop, scrollHeight, clientHeight } = messagesListRef.current;
-        const oldDistanceToBottom = (scrollHeight - delta) - scrollTop - clientHeight;
-        
-        if (oldDistanceToBottom < 150) {
-          messagesEndRef.current?.scrollIntoView({ behavior: 'auto', block: 'end' });
-        }
-      }
-    }
-    prevComposerHeight.current = composerHeight;
-  }, [composerHeight]);
 
   useEffect(() => {
     localStorage.setItem('exodo_web_draft_input', input);
@@ -511,6 +479,12 @@ export default function App() {
               maxRows={12}
               onHeightChange={(height) => {
                 setIsComposerScrollable(height >= 260);
+                if (messagesListRef.current) {
+                  const { scrollTop, scrollHeight, clientHeight } = messagesListRef.current;
+                  if (scrollHeight - scrollTop - clientHeight < 150) {
+                    messagesEndRef.current?.scrollIntoView({ behavior: 'auto', block: 'end' });
+                  }
+                }
               }}
               style={{
                 width: '100%',
@@ -1141,7 +1115,6 @@ export default function App() {
                     </div>
                   </div>
                 ))}
-                <div style={{ height: composerHeight + 16, flexShrink: 0, width: '100%' }} />
                 <div ref={messagesEndRef} />
               </div>
             </div>
@@ -1170,7 +1143,7 @@ export default function App() {
               </button>
             )}
 
-            <div className="composer-pinned" ref={composerPinnedRef} style={{ width: '100%', display: 'flex', justifyContent: 'center' }}>
+            <div className="composer-pinned" style={{ width: '100%', display: 'flex', justifyContent: 'center' }}>
               {renderChatComposer(true)}
             </div>
           </>
