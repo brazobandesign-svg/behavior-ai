@@ -703,6 +703,18 @@ body, html, #root {
   overflow-y: auto;
 }
 
+.composer-input::-webkit-scrollbar-button:vertical:start:decrement,
+.composer-input::-webkit-scrollbar-button:vertical:end:increment {
+  display: block;
+  height: 24px;
+  background-color: transparent;
+}
+
+.composer-input::-webkit-scrollbar-button:vertical:start:increment,
+.composer-input::-webkit-scrollbar-button:vertical:end:decrement {
+  display: none;
+}
+
 .composer-input:focus {
   border: none !important;
   outline: none !important;
