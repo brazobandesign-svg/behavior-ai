@@ -112,6 +112,22 @@ export default function App() {
     return () => observer.disconnect();
   }, []);
 
+  const prevComposerHeight = useRef(composerHeight);
+  useLayoutEffect(() => {
+    if (messagesListRef.current) {
+      const delta = composerHeight - prevComposerHeight.current;
+      if (delta !== 0) {
+        const { scrollTop, scrollHeight, clientHeight } = messagesListRef.current;
+        const oldDistanceToBottom = (scrollHeight - delta) - scrollTop - clientHeight;
+        
+        if (oldDistanceToBottom < 50) {
+          messagesListRef.current.scrollTop += delta;
+        }
+      }
+    }
+    prevComposerHeight.current = composerHeight;
+  }, [composerHeight]);
+
   useEffect(() => {
     localStorage.setItem('exodo_web_draft_input', input);
   }, [input]);
