@@ -114,13 +114,16 @@ body, html, #root {
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
+  cursor: default;
 }
 ::-webkit-scrollbar-track {
   background: transparent;
+  cursor: default;
 }
 ::-webkit-scrollbar-thumb {
   background: #505050;
   border-radius: 99px;
+  cursor: default;
 }
 ::-webkit-scrollbar-thumb:hover {
   background: #606060;
