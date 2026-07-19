@@ -28,7 +28,7 @@ import {
   Globe,
   CircleDollarSign,
   Smartphone,
-  ShieldAlert
+  Zap
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -77,7 +77,9 @@ export default function App() {
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [showLanguageMenu, setShowLanguageMenu] = useState(false);
   const [showBillingMenu, setShowBillingMenu] = useState(false);
+  const [showPlansModal, setShowPlansModal] = useState(false);
   const [showModelSelector, setShowModelSelector] = useState(false);
+  const [isAnnualPlan, setIsAnnualPlan] = useState(false);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [hoveredConvId, setHoveredConvId] = useState<string | null>(null);
   const [selectedModel, setSelectedModel] = useState({
@@ -1701,7 +1703,7 @@ export default function App() {
                     Cancel Subscription
                   </button>
                 ) : (
-                  <button type="button" style={{ 
+                  <button type="button" onClick={() => { setShowBillingMenu(false); setShowPlansModal(true); }} style={{ 
                     width: '100%', 
                     background: 'var(--amber-exodo)', 
                     color: '#000000', 
@@ -1719,6 +1721,232 @@ export default function App() {
               </div>
 
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Plans Page (Full Screen) */}
+      {showPlansModal && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'var(--bg-color)', display: 'flex', flexDirection: 'column', overflowY: 'auto' }}>
+          
+          <div style={{ padding: '24px', display: 'flex', alignItems: 'center' }}>
+            <button 
+              type="button" 
+              onClick={() => setShowPlansModal(false)}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+            >
+              <ArrowLeft size={24} color="var(--text-primary)" />
+            </button>
+          </div>
+
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '0 24px 64px' }}>
+            
+            <h2 style={{ fontSize: '2.5rem', fontWeight: 700, fontFamily: 'Syne, sans-serif', color: 'var(--text-primary)', marginBottom: '32px', textAlign: 'center' }}>
+              Planes que crecen contigo
+            </h2>
+
+            {/* Monthly / Annual Toggle */}
+            <div style={{ 
+              display: 'flex', 
+              background: 'var(--surface-input)', 
+              borderRadius: 24, 
+              padding: 4, 
+              marginBottom: 48,
+              border: '1px solid var(--border-color)'
+            }}>
+              <button 
+                type="button" 
+                onClick={() => setIsAnnualPlan(false)}
+                style={{ 
+                  background: !isAnnualPlan ? 'var(--surface-card)' : 'transparent',
+                  color: !isAnnualPlan ? 'var(--text-primary)' : 'var(--text-secondary)',
+                  border: 'none',
+                  borderRadius: 20,
+                  padding: '10px 24px',
+                  fontSize: '0.9rem',
+                  fontWeight: 600,
+                  fontFamily: 'Inter, sans-serif',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s'
+                }}
+              >
+                Mensual
+              </button>
+              <button 
+                type="button" 
+                onClick={() => setIsAnnualPlan(true)}
+                style={{ 
+                  background: isAnnualPlan ? 'var(--surface-card)' : 'transparent',
+                  color: isAnnualPlan ? 'var(--text-primary)' : 'var(--text-secondary)',
+                  border: 'none',
+                  borderRadius: 20,
+                  padding: '10px 24px',
+                  fontSize: '0.9rem',
+                  fontWeight: 600,
+                  fontFamily: 'Inter, sans-serif',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  transition: 'all 0.2s'
+                }}
+              >
+                Anual
+                <span style={{ color: 'var(--amber-exodo)', fontSize: '0.75rem', fontWeight: 700 }}>Ahorra 16%</span>
+              </button>
+            </div>
+
+            {/* Cards Container */}
+            <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap', justifyContent: 'center', maxWidth: 1000, width: '100%' }}>
+              
+              {/* Free Card */}
+              <div style={{ 
+                flex: '1 1 320px',
+                maxWidth: 360,
+                background: 'var(--surface-card)',
+                borderRadius: 24,
+                border: '1px solid var(--border-color)',
+                padding: '32px',
+                display: 'flex',
+                flexDirection: 'column'
+              }}>
+                <div style={{ marginBottom: 24 }}>
+                  <Globe size={32} color="var(--text-primary)" style={{ marginBottom: 16 }} />
+                  <h3 style={{ fontSize: '1.5rem', fontWeight: 700, fontFamily: 'Syne, sans-serif', color: 'var(--text-primary)', margin: '0 0 8px 0' }}>
+                    Free
+                  </h3>
+                  <span style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', fontFamily: 'Inter, sans-serif' }}>
+                    Conoce a Exodo
+                  </span>
+                </div>
+
+                <div style={{ marginBottom: 24 }}>
+                  <span style={{ fontSize: '2.5rem', fontWeight: 700, fontFamily: 'AnthropicSans, sans-serif', color: 'var(--text-primary)' }}>
+                    $0
+                  </span>
+                </div>
+
+                <button type="button" style={{ 
+                  width: '100%', 
+                  background: 'transparent',
+                  color: 'var(--text-primary)',
+                  border: '1px solid var(--border-color)',
+                  borderRadius: 12,
+                  padding: '12px',
+                  fontSize: '0.95rem',
+                  fontWeight: 600,
+                  fontFamily: 'Inter, sans-serif',
+                  cursor: 'pointer',
+                  marginBottom: 32
+                }}>
+                  Usa Exodo gratis
+                </button>
+
+                <div style={{ height: 1, background: 'var(--border-color)', marginBottom: 24 }} />
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                  {[
+                    'Chatea en web, iOS, Android',
+                    'Generar código y visualizar datos',
+                    'Modelos estándar de IA',
+                    'Búsqueda web integrada'
+                  ].map((feat, i) => (
+                    <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+                      <Check size={18} color="var(--text-secondary)" style={{ marginTop: 2, flexShrink: 0 }} />
+                      <span style={{ fontSize: '0.9rem', color: 'var(--text-primary)', fontFamily: 'Inter, sans-serif' }}>
+                        {feat}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Pro Card */}
+              <div style={{ 
+                flex: '1 1 320px',
+                maxWidth: 360,
+                background: 'var(--surface-input)',
+                borderRadius: 24,
+                border: '1.5px solid var(--amber-exodo)',
+                padding: '32px',
+                display: 'flex',
+                flexDirection: 'column',
+                position: 'relative'
+              }}>
+                <div style={{ position: 'absolute', top: -12, left: '50%', transform: 'translateX(-50%)', background: 'var(--amber-exodo)', color: '#000', padding: '4px 12px', borderRadius: 12, fontSize: '0.75rem', fontWeight: 700, fontFamily: 'Inter, sans-serif' }}>
+                  RECOMENDADO
+                </div>
+
+                <div style={{ marginBottom: 24 }}>
+                  <Zap size={32} color="var(--amber-exodo)" style={{ marginBottom: 16 }} />
+                  <h3 style={{ fontSize: '1.5rem', fontWeight: 700, fontFamily: 'Syne, sans-serif', color: 'var(--text-primary)', margin: '0 0 8px 0' }}>
+                    XPi PRO
+                  </h3>
+                  <span style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', fontFamily: 'Inter, sans-serif' }}>
+                    Investiga, programa y organiza
+                  </span>
+                </div>
+
+                <div style={{ marginBottom: 24, display: 'flex', alignItems: 'baseline', gap: 8 }}>
+                  <span style={{ fontSize: '2.5rem', fontWeight: 700, fontFamily: 'AnthropicSans, sans-serif', color: 'var(--text-primary)' }}>
+                    ${isAnnualPlan ? '49.99' : '4.99'}
+                  </span>
+                  <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', fontFamily: 'Inter, sans-serif' }}>
+                    / {isAnnualPlan ? 'año' : 'mes'}
+                  </span>
+                </div>
+
+                <button type="button" style={{ 
+                  width: '100%', 
+                  background: 'var(--amber-exodo)',
+                  color: '#000000',
+                  border: 'none',
+                  borderRadius: 12,
+                  padding: '12px',
+                  fontSize: '0.95rem',
+                  fontWeight: 700,
+                  fontFamily: 'Inter, sans-serif',
+                  cursor: 'pointer',
+                  marginBottom: 8
+                }}>
+                  Obtener Plan Pro
+                </button>
+                <span style={{ textAlign: 'center', fontSize: '0.75rem', color: 'var(--text-secondary)', fontFamily: 'Inter, sans-serif', marginBottom: 32 }}>
+                  Sin compromiso · Cancela cuando quieras
+                </span>
+
+                <div style={{ height: 1, background: 'var(--border-color)', marginBottom: 24 }} />
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                  <span style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-primary)', fontFamily: 'Inter, sans-serif' }}>
+                    Todo lo de Free y:
+                  </span>
+                  {[
+                    'Acceso a todos los modelos de Claude e IA avanzada',
+                    'Límites de uso más altos (hasta 20x)',
+                    'Acceso prioritario en momentos de alto tráfico',
+                    'Memoria que se mantiene entre conversaciones',
+                    'Avanza rápidamente en tus tareas con Cowork',
+                    'Acceso anticipado a funciones avanzadas'
+                  ].map((feat, i) => (
+                    <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+                      <Check size={18} color="var(--amber-exodo)" style={{ marginTop: 2, flexShrink: 0 }} />
+                      <span style={{ fontSize: '0.9rem', color: 'var(--text-primary)', fontFamily: 'Inter, sans-serif' }}>
+                        {feat}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+            </div>
+
+            <div style={{ marginTop: 48, textAlign: 'center' }}>
+              <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', fontFamily: 'Inter, sans-serif' }}>
+                *Se aplican límites de uso. Los precios y planes están sujetos a cambios.
+              </span>
+            </div>
+
           </div>
         </div>
       )}
