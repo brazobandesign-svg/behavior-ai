@@ -27,6 +27,7 @@ class AppState extends ChangeNotifier {
 
 
 
+  int tokensUsed = 0;
   int get tokensLimit => isPro ? 150000 : 200;
   DateTime? tokensResetTime;
   bool get isPro => profile?.plan == 'hazak';
