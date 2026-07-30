@@ -3,14 +3,14 @@
 const PLANS = {
   genesis: {
     name: 'Genesis G1.1',
-    tokensPerDay: 200,
+    tokensPerDay: 1000,
     historyDays: 7,
     imagesPerMonth: 0,
     filesEnabled: false,
   },
   hazak: {
     name: 'Hazak J1.9',
-    tokensPerDay: 150000,
+    tokensPerDay: 100000,
     historyDays: null, // ilimitado
     imagesPerMonth: 30,
     filesEnabled: true,
