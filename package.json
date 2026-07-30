@@ -1,0 +1,9 @@
+{
+  "name": "exodo-root",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "postinstall": "cd exodo-backend && npm install",
+    "start": "cd exodo-backend && node src/index.js"
+  }
+}
