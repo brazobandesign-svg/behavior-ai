@@ -168,7 +168,7 @@ class _ChatComposerState extends State<ChatComposer>
                       child: Icon(
                         Icons.close,
                         size: 13,
-                        color: isLight ? Colors.white : const Color(0xFF141210),
+                        color: isLight ? Colors.white : const Color(0xFF141414),
                       ),
                     ),
                   ),
@@ -958,7 +958,7 @@ class _ChatComposerState extends State<ChatComposer>
                                             size: isGenerating ? 22 : 19,
                                             color: isLight
                                                 ? Colors.white
-                                                : const Color(0xFF141210),
+                                                : const Color(0xFF141414),
                                           ),
                                         ),
                                       ),

@@ -282,7 +282,7 @@ class _DrawerMenuState extends State<DrawerMenu> {
                       ),
 
                       const SizedBox(height: 6),
-                      Divider(color: isLight ? const Color(0xFFE2DDD2) : const Color(0xFF212121), height: 1),
+                      Divider(color: isLight ? const Color(0xFFE0E0E0) : const Color(0xFF212121), height: 1),
                       const SizedBox(height: 8),
                     ],
                   ),
@@ -298,15 +298,15 @@ class _DrawerMenuState extends State<DrawerMenu> {
                             child: Column(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                // Ícono suave amber con glow sutil.
+                                // Ícono neutro con borde sutil.
                                 Container(
                                   width: 56,
                                   height: 56,
                                   decoration: BoxDecoration(
-                                    color: ExodoColors.amber.withValues(alpha: 0.08),
+                                    color: isLight ? const Color(0xFFF0F0F0) : const Color(0xFF252525),
                                     shape: BoxShape.circle,
                                     border: Border.all(
-                                      color: ExodoColors.amber.withValues(alpha: 0.25),
+                                      color: isLight ? const Color(0xFFE0E0E0) : const Color(0xFF333333),
                                       width: 1,
                                     ),
                                   ),
@@ -315,7 +315,7 @@ class _DrawerMenuState extends State<DrawerMenu> {
                                         ? Icons.chat_bubble_outline_rounded
                                         : Icons.search_off_rounded,
                                     size: 26,
-                                    color: ExodoColors.amber.withValues(alpha: 0.7),
+                                    color: ExodoColors.amber,
                                   ),
                                 ),
                                 const SizedBox(height: 16),
@@ -396,7 +396,7 @@ class _DrawerMenuState extends State<DrawerMenu> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Divider(color: isLight ? const Color(0xFFE2DDD2) : const Color(0xFF212121), height: 1),
+                    Divider(color: isLight ? const Color(0xFFE0E0E0) : const Color(0xFF212121), height: 1),
                     GestureDetector(
                       behavior: HitTestBehavior.opaque,
                       onTap: () => _ClaudeAccountModal.show(context, state),
@@ -437,7 +437,7 @@ class _DrawerMenuState extends State<DrawerMenu> {
                             Image.asset(
                               'assets/images/bybehavior_text.png',
                               height: bybehaviorH,
-                              color: isLight ? const Color(0xFF66605A) : ExodoColors.textSecondary,
+                              color: isLight ? const Color(0xFF757575) : ExodoColors.textSecondary,
                             ),
                           ],
                         ),
@@ -569,7 +569,7 @@ void _showAddWidgetSheet(BuildContext context) {
                     decoration: BoxDecoration(
                       color: const Color(0xFFF5F2EB),
                       borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: const Color(0xFFE0DDD6)),
+                      border: Border.all(color: const Color(0xFFE0E0E0)),
                     ),
                     child: Row(
                       children: [
@@ -577,7 +577,7 @@ void _showAddWidgetSheet(BuildContext context) {
                           width: 40,
                           height: 40,
                           decoration: BoxDecoration(
-                            color: const Color(0xFFEBE7DE),
+                            color: const Color(0xFFF0F0F0),
                             borderRadius: BorderRadius.circular(10),
                             border: Border.all(color: ExodoColors.amber),
                           ),
@@ -596,7 +596,7 @@ void _showAddWidgetSheet(BuildContext context) {
                               const SizedBox(height: 2),
                               Text(
                                 "Estilo Yeso / Hueso luminoso",
-                                style: GoogleFonts.inter(fontSize: 12, color: const Color(0xFF6B655B)),
+                                style: GoogleFonts.inter(fontSize: 12, color: const Color(0xFF757575)),
                               ),
                             ],
                           ),
@@ -626,7 +626,7 @@ void _showAddWidgetSheet(BuildContext context) {
         dense: true,
         contentPadding: EdgeInsets.symmetric(horizontal: s(12)),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        tileColor: active ? (isLight ? const Color(0xFFEBE7DE) : const Color(0xFF212121)) : Colors.transparent,
+        tileColor: active ? (isLight ? const Color(0xFFF0F0F0) : const Color(0xFF212121)) : Colors.transparent,
         onTap: () {
           state.selectConversation(conv);
           Navigator.pop(context);
