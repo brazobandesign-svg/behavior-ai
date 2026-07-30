@@ -21,7 +21,16 @@ function getEffectiveModel(plan, intent, modelOverride, imageDataUris) {
 
   // 2. Si hay override de modelo explícito enviado por el cliente
   if (modelOverride) {
-    return modelOverride;
+    if (MODEL_TO_PROVIDER[modelOverride]) {
+      return modelOverride;
+    }
+    // Mapeo defensivo para modelos legacy no reconocidos
+    if (modelOverride.includes('nemotron') || modelOverride.includes('origo')) {
+      return 'gpt-4o-mini';
+    }
+    if (modelOverride.includes('deepseek') || modelOverride.includes('ehyeh') || modelOverride.includes('hazak')) {
+      return 'deepseek-chat';
+    }
   }
 
   // 3. Matriz estándar por intención y plan

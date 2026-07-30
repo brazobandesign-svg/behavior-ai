@@ -214,7 +214,7 @@ class ExodoModelOption {
 const List<ExodoModelOption> exodoModels = [
   ExodoModelOption(
     id: 'origo',
-    modelId: 'nim-nemotron-3-ultra',
+    modelId: 'gpt-4o-mini',
     title: 'G1.1',
     subtitle: 'Origo',
     plan: 'genesis',
@@ -223,7 +223,7 @@ const List<ExodoModelOption> exodoModels = [
   ),
   ExodoModelOption(
     id: 'ehyeh',
-    modelId: 'nim-deepseek-v4-pro',
+    modelId: 'deepseek-chat',
     title: 'XPi',
     subtitle: 'Ehyeh',
     plan: 'hazak',

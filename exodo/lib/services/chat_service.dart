@@ -19,18 +19,14 @@ class ChatService {
         if (!list.contains(url)) list.add(url);
       }
     }
-    // Siempre añadir URL de producción en Railway para garantizar conexión ininterrumpida
+    // Priorizar LAN IP y servidor local para desarrollo instantáneo en dispositivo físico
+    list.add('http://192.168.8.224:3000/api/chat');
+    list.add('http://localhost:3000/api/chat');
+    list.add('http://10.0.2.2:3000/api/chat');
+
+    // URL de producción en Railway
     const prodUrl = 'https://behavior-ai-production.up.railway.app/api/chat';
     if (!list.contains(prodUrl)) list.add(prodUrl);
-
-    if (kDebugMode) {
-      if (!kIsWeb &&
-          (defaultTargetPlatform == TargetPlatform.android ||
-              defaultTargetPlatform == TargetPlatform.iOS)) {
-        list.add('http://localhost:3000/api/chat');
-        list.add('http://10.0.2.2:3000/api/chat');
-      }
-    }
     return list;
   }
 
@@ -109,11 +105,15 @@ class ChatService {
           final resp = await reqClient
               .send(request)
               .timeout(timeoutDuration);
-          client = reqClient;
-          _activeClient = client;
-          response = resp;
-          _workingUrl = url;
-          break;
+          if (resp.statusCode == 200) {
+            client = reqClient;
+            _activeClient = client;
+            response = resp;
+            _workingUrl = url;
+            break;
+          } else {
+            reqClient.close();
+          }
         } catch (_) {}
       }
 
