@@ -3,7 +3,7 @@
 const PLANS = {
   genesis: {
     name: 'Genesis G1.1',
-    tokensPerDay: 15000,
+    tokensPerDay: 200,
     historyDays: 7,
     imagesPerMonth: 0,
     filesEnabled: false,

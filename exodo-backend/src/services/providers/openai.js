@@ -43,7 +43,7 @@ async function call(modelId, messages, systemPrompt, imageDataUris) {
       model: modelId || 'gpt-4o-mini',
       messages: finalMessages,
       temperature: 0.7,
-      max_tokens: 4096,
+      max_tokens: 200,
     })
   });
 
@@ -102,7 +102,7 @@ async function callStream(modelId, messages, systemPrompt, onChunk, imageDataUri
       model: modelId || 'gpt-4o-mini',
       messages: finalMessages,
       temperature: 0.7,
-      max_tokens: 4096,
+      max_tokens: 200,
       stream: true,
     })
   });
