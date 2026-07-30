@@ -1,4 +1,4 @@
-// Constantes de modelos, proveedores y límites — alineado a Bible sección 04 y 05
+// Constantes de modelos, proveedores y límites — Backend limpio
 
 const PLANS = {
   genesis: {
@@ -17,32 +17,28 @@ const PLANS = {
   },
 };
 
-// Modelo real por intención y plan
-// Genesis G1.1 -> Mistral directo (mistral-small-2506 + pixtral para visión) y Groq en fallback
-// Hazak XPi -> DeepSeek directo del proveedor original (o Anthropic cuando se active)
+// Mapa temporal. El usuario definirá las reglas más adelante.
+// Por ahora mapeamos a los únicos dos sobrevivientes.
 const MODEL_MAP = {
   SIMPLE: {
-    genesis: 'mistral-small-2506',
+    genesis: 'gpt-4o-mini',
     hazak:   'deepseek-chat',
   },
   REDACCION: {
-    genesis: 'codestral-2508',
+    genesis: 'gpt-4o-mini',
     hazak:   'deepseek-chat',
   },
   RAZONAMIENTO: {
-    genesis: 'mistral-large-2512',
+    genesis: 'gpt-4o-mini',
     hazak:   'deepseek-reasoner',
   },
   DOCUMENTO: {
-    genesis: 'mistral-large-2512',
+    genesis: 'gpt-4o-mini',
     hazak:   'deepseek-chat',
   },
-  // [Fix visión] Categoría determinística para cuando hay imágenes adjuntas.
-  // Como Gemini fue reemplazado por Mistral en G1.1 y DeepSeek en XPi,
-  // enrutamos directamente a pixtral-12b-2409 (Mistral Visión) en ambos planes.
   VISION: {
-    genesis: 'pixtral-12b-2409',
-    hazak:   'pixtral-12b-2409',
+    genesis: 'gpt-4o-mini', // gpt-4o-mini es multimodal
+    hazak:   'gpt-4o-mini', // deepseek no ve, apoyamos en gpt-4o-mini
   },
   IMAGEN: {
     genesis: null,
@@ -50,37 +46,15 @@ const MODEL_MAP = {
   },
 };
 
-// Cadena de fallback para Genesis G1.1 Free (orden táctico: colchón Mistral primero, luego Scout/70B/Qwen en Groq)
-const GENESIS_FALLBACK_CHAIN = [
-  'codestral-2508',
-  'mistral-small-2506',
-  'meta-llama/llama-4-scout-17b-16e-instruct',
-  'llama-3.3-70b-versatile',
-  'qwen/qwen3.6-27b',
-];
+// Cadenas de fallback vacías por el momento, hasta nuevas reglas.
+const GENESIS_FALLBACK_CHAIN = [];
+const XPI_FALLBACK_CHAIN = [];
 
-// Cadena de fallback para XPi / Plan Hazak Pro
-const XPI_FALLBACK_CHAIN = [
-  'deepseek-chat',
-  'deepseek-reasoner',
-];
-
-// Mapeo modelo → proveedor para saber qué archivo de provider usar
+// Mapeo modelo → proveedor
 const MODEL_TO_PROVIDER = {
-  'mistral-small-2506':                        'mistral',
-  'codestral-2508':                            'mistral',
-  'mistral-large-2512':                        'mistral',
-  'devstral-2512':                             'mistral',
-  'pixtral-12b-2409':                          'mistral',
-  'qwen/qwen3.6-27b':                          'groq',
-  'meta-llama/llama-4-scout-17b-16e-instruct': 'groq',
-  'llama-3.3-70b-versatile':                   'groq',
-  'gemini-2.0-flash':                          'gemini',
-  'gemini-1.5-flash':                          'gemini',
-  'deepseek-chat':                             'deepseek',
-  'deepseek-reasoner':                         'deepseek',
-  'claude-3-5-sonnet':                         'anthropic',
-  'claude-3-haiku':                            'anthropic',
+  'deepseek-chat':     'deepseek',
+  'deepseek-reasoner': 'deepseek',
+  'gpt-4o-mini':       'openai',
 };
 
 module.exports = {
