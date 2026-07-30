@@ -1,4 +1,4 @@
-// Constantes de modelos, proveedores y límites — Matriz Éxodo v2
+// Constantes de modelos, proveedores y límites — Matriz Éxodo v2 (Pruebas Free con DeepSeek)
 
 const PLANS = {
   genesis: {
@@ -17,22 +17,23 @@ const PLANS = {
   },
 };
 
-// Modelo principal por intención y plan (Texto puro)
+// Modelo principal por intención y plan
+// Plan Genesis (Free) usando deepseek-chat para pruebas de consumo de tokens
 const MODEL_MAP = {
   SIMPLE: {
-    genesis: 'gpt-4o-mini',
+    genesis: 'deepseek-chat',
     hazak:   'deepseek-chat',
   },
   REDACCION: {
-    genesis: 'gpt-4o-mini',
+    genesis: 'deepseek-chat',
     hazak:   'deepseek-chat',
   },
   RAZONAMIENTO: {
-    genesis: 'gpt-4o-mini',
+    genesis: 'deepseek-chat',
     hazak:   'deepseek-reasoner',
   },
   DOCUMENTO: {
-    genesis: 'gpt-4o-mini',
+    genesis: 'deepseek-chat',
     hazak:   'deepseek-chat',
   },
   VISION: {
