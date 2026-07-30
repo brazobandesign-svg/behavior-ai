@@ -80,23 +80,14 @@ app.listen(PORT, HOST, () => {
 function runStartupChecks() {
   const checks = [];
 
-  if (!process.env.MISTRAL_API_KEY) {
-    checks.push('⚠️  MISTRAL_API_KEY no configurada — Genesis G1.1 (Mistral) no disponible.');
-  }
-  if (!process.env.GROQ_API_KEY) {
-    checks.push('⚠️  GROQ_API_KEY no configurada — fallbacks de Groq no disponibles.');
+  if (!process.env.OPENAI_API_KEY) {
+    checks.push('⚠️  OPENAI_API_KEY no configurada — Genesis G1.1 y Visión no disponibles.');
   }
   if (!process.env.DEEPSEEK_API_KEY) {
-    checks.push('⚠️  DEEPSEEK_API_KEY no configurada — modelos DeepSeek de XPi no disponibles.');
-  }
-  if (!process.env.GOOGLE_AI_API_KEY) {
-    checks.push('⚠️  GOOGLE_AI_API_KEY no configurada — el clasificador de intención usará fallback local (keyword-based).');
+    checks.push('⚠️  DEEPSEEK_API_KEY no configurada — Hazak Pro y tareas de backend no disponibles.');
   }
   if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_KEY) {
     checks.push('⚠️  SUPABASE_URL o SUPABASE_SERVICE_KEY no configurados — auth y DB deshabilitados.');
-  }
-  if (!process.env.ANTHROPIC_API_KEY) {
-    checks.push('⚠️  ANTHROPIC_API_KEY no configurada — Claude Sonnet no disponible para Hazak.');
   }
 
   if (checks.length > 0) {

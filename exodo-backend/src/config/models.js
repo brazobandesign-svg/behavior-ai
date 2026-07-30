@@ -1,4 +1,4 @@
-// Constantes de modelos, proveedores y límites — Backend limpio
+// Constantes de modelos, proveedores y límites — Matriz Éxodo v2
 
 const PLANS = {
   genesis: {
@@ -17,8 +17,7 @@ const PLANS = {
   },
 };
 
-// Mapa temporal. El usuario definirá las reglas más adelante.
-// Por ahora mapeamos a los únicos dos sobrevivientes.
+// Modelo principal por intención y plan (Texto puro)
 const MODEL_MAP = {
   SIMPLE: {
     genesis: 'gpt-4o-mini',
@@ -37,8 +36,8 @@ const MODEL_MAP = {
     hazak:   'deepseek-chat',
   },
   VISION: {
-    genesis: 'gpt-4o-mini', // gpt-4o-mini es multimodal
-    hazak:   'gpt-4o-mini', // deepseek no ve, apoyamos en gpt-4o-mini
+    genesis: 'gpt-4o-mini',
+    hazak:   'gpt-4o-mini',
   },
   IMAGEN: {
     genesis: null,
@@ -46,11 +45,9 @@ const MODEL_MAP = {
   },
 };
 
-// Cadenas de fallback vacías por el momento, hasta nuevas reglas.
 const GENESIS_FALLBACK_CHAIN = [];
 const XPI_FALLBACK_CHAIN = [];
 
-// Mapeo modelo → proveedor
 const MODEL_TO_PROVIDER = {
   'deepseek-chat':     'deepseek',
   'deepseek-reasoner': 'deepseek',
