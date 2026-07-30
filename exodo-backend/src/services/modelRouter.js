@@ -24,18 +24,19 @@ function getEffectiveModel(plan, intent, modelOverride, imageDataUris) {
     if (MODEL_TO_PROVIDER[modelOverride]) {
       return modelOverride;
     }
-    // Mapeo defensivo para modelos legacy no reconocidos
+    // Mapeo defensivo para modelos legacy no reconocidos -> usar deepseek-chat
     if (modelOverride.includes('nemotron') || modelOverride.includes('origo')) {
-      return 'gpt-4o-mini';
+      return 'deepseek-chat';
     }
     if (modelOverride.includes('deepseek') || modelOverride.includes('ehyeh') || modelOverride.includes('hazak')) {
       return 'deepseek-chat';
     }
+    return 'deepseek-chat';
   }
 
   // 3. Matriz estándar por intención y plan
   const mapped = MODEL_MAP[intent]?.[plan];
-  return mapped || (plan === 'hazak' ? 'deepseek-chat' : 'gpt-4o-mini');
+  return mapped || 'deepseek-chat';
 }
 
 async function routeMessage(plan, intent, messages, systemPrompt, modelOverride, imageDataUris) {
