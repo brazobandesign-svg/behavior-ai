@@ -123,21 +123,32 @@ async function saveMessage(conversationId, role, content, metadata = {}) {
   if (!conversationId || !supabase) return null;
 
   try {
-    const { data, error } = await supabase
+    const insertPayload = {
+      conversation_id: conversationId,
+      role,
+      content,
+      intent_detected: metadata.intent || null,
+      model_called: metadata.model || null,
+      tokens_input: metadata.tokensInput || null,
+      tokens_output: metadata.tokensOutput || null,
+    };
+
+    if (metadata.sources && metadata.sources.length > 0) {
+      insertPayload.sources = metadata.sources;
+    }
+
+    let { data, error } = await supabase
       .from('messages')
-      .insert({
-        conversation_id: conversationId,
-        role,
-        content,
-        intent_detected: metadata.intent || null,
-        model_called: metadata.model || null,
-        tokens_input: metadata.tokensInput || null,
-        tokens_output: metadata.tokensOutput || null,
-        // [Punto 00] Sources como JSONB para que persistan entre sesiones.
-        sources: metadata.sources && metadata.sources.length > 0 ? metadata.sources : null,
-      })
+      .insert(insertPayload)
       .select()
       .single();
+
+    if (error && error.message && error.message.includes('sources')) {
+      delete insertPayload.sources;
+      const retry = await supabase.from('messages').insert(insertPayload).select().single();
+      data = retry.data;
+      error = retry.error;
+    }
 
     if (error) {
       console.error('[historyManager] Error guardando mensaje:', error.message);

@@ -542,7 +542,6 @@ class _ChatComposerState extends State<ChatComposer>
     // Selectores finos para evitar repintado durante streaming de chat
     final isGenerating = context.select<AppState, bool>((s) => s.isGenerating);
     final isOnline = context.select<AppState, bool>((s) => s.isOnline);
-    final guestIsBlocked = context.select<AppState, bool>((s) => s.guestIsBlocked);
     final showTab2Banner = context.select<AppState, bool>((s) => s.showTab2Banner);
     final isIncognito = context.select<AppState, bool>((s) => s.isIncognito);
     final isPro = context.select<AppState, bool>((s) => s.isPro);
@@ -656,12 +655,10 @@ class _ChatComposerState extends State<ChatComposer>
                       ]
                     : null,
               ),
-              padding: (guestIsBlocked || !isOnline)
+              padding: !isOnline
                   ? const EdgeInsets.symmetric(horizontal: 16, vertical: 6)
                   : const EdgeInsets.fromLTRB(20, 8, 18, 8),
-              child: guestIsBlocked
-                  ? _buildOfflineInsideCapsule(context, false, isLight)
-                  : !isOnline
+              child: !isOnline
                   ? _buildOfflineInsideCapsule(context, true, isLight)
                   : Column(
                       mainAxisSize: MainAxisSize.min,

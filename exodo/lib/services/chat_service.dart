@@ -19,14 +19,18 @@ class ChatService {
         if (!list.contains(url)) list.add(url);
       }
     }
-    // Priorizar LAN IP y servidor local para desarrollo instantáneo en dispositivo físico
-    list.add('http://192.168.8.224:3000/api/chat');
-    list.add('http://localhost:3000/api/chat');
+    list.add('http://192.168.8.223:3000/api/chat');
     list.add('http://10.0.2.2:3000/api/chat');
+    list.add('http://localhost:3000/api/chat');
 
-    // URL de producción en Railway
+    // URL de producción en Railway (siempre, al final como fallback)
     const prodUrl = 'https://behavior-ai-production.up.railway.app/api/chat';
     if (!list.contains(prodUrl)) list.add(prodUrl);
+    // En release, Railway va primero
+    if (!kDebugMode) {
+      list.remove(prodUrl);
+      list.insert(0, prodUrl);
+    }
     return list;
   }
 
@@ -41,12 +45,41 @@ class ChatService {
     _activeClient = null;
   }
 
+  /// Consulta el estado y consumo de cuota diaria del usuario desde /api/user/usage
+  static Future<Map<String, dynamic>?> getUserUsage() async {
+    final session = SupabaseService.client.auth.currentSession;
+    final jwt = session?.accessToken;
+
+    for (final candidate in _candidateUrls) {
+      final base = candidate.replaceAll('/api/chat', '');
+      final uri = Uri.parse('$base/api/user/usage');
+      try {
+        final response = await http.get(
+          uri,
+          headers: {
+            'Content-Type': 'application/json',
+            if (jwt != null) 'Authorization': 'Bearer $jwt',
+          },
+        ).timeout(const Duration(seconds: 4));
+
+        if (response.statusCode == 200) {
+          _workingUrl = candidate;
+          return jsonDecode(response.body) as Map<String, dynamic>;
+        }
+      } catch (_) {
+        continue;
+      }
+    }
+    return null;
+  }
+
   static Future<void> sendMessageStream({
     required String message,
     String? conversationId,
     List<Map<String, dynamic>>? history,
     String? modelOverride,
     List<Attachment>? attachments, // [Punto 40] archivos para multimodal
+    void Function(Map<String, dynamic> meta)? onMeta,
     required void Function(String chunk) onChunk,
     required void Function(String fullText, List<Source> sources) onComplete,
     required void Function(String error) onError,
@@ -152,7 +185,11 @@ class ChatService {
                 try {
                   final data = jsonDecode(dataStr);
                   final type = data['type'];
-                  if (type == 'heartbeat') {
+                  if (type == 'meta') {
+                    if (onMeta != null && data is Map<String, dynamic>) {
+                      onMeta(data);
+                    }
+                  } else if (type == 'heartbeat') {
                     // [Punto 41+42] Heartbeat del backend para mantener viva la conexión SSE.
                   } else if (type == 'chunk') {
                     final content = data['content'] as String?;

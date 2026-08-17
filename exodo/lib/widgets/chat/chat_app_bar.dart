@@ -15,7 +15,6 @@ class ChatAppBar extends StatelessWidget {
     // Selectores específicos y escucha del estado del chat
     final isDarkMode = context.select<AppState, bool>((s) => s.isDarkMode);
     final isIncognito = context.select<AppState, bool>((s) => s.isIncognito);
-    final isGuestUser = context.select<AppState, bool>((s) => s.isGuestUser);
     final isLight = !isDarkMode && !isIncognito;
     final state = context.watch<AppState>();
 
@@ -75,21 +74,8 @@ class ChatAppBar extends StatelessWidget {
             ),
           ),
 
-          // Regla 4: Contador de tokens reubicado al header entre menú e iconos de la derecha
-          if (!isIncognito && !isGuestUser)
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 6),
-                child: _HeaderTokenBar(
-                  used: state.tokensUsed,
-                  limit: state.tokensLimit,
-                  resetTime: state.tokensResetTime,
-                  isPro: state.isPro,
-                ),
-              ),
-            )
-          else
-            const Spacer(),
+          // Header limpio sin barra de progreso de tokens (disponible en Perfil/Ajustes)
+          const Spacer(),
 
           // En modo incógnito quitar iconos New Chat y Dark Mode
           if (!isIncognito) ...[

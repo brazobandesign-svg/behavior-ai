@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const auth = require('../middleware/auth');
-const planGuard = require('../middleware/planGuard');
+const { planGuard } = require('../middleware/planGuard');
 const { classifyIntent } = require('../services/intentClassifier');
 const { routeMessage, routeMessageStream } = require('../services/modelRouter');
 const { getHistory, saveMessage } = require('../services/historyManager');
@@ -177,16 +177,25 @@ router.post('/', auth, planGuard, async (req, res) => {
     // la promesa reqClient.send(request) al instante sin caer por timeout.
     sendSse({ type: 'heartbeat', status: 'connected' });
 
-    // 1 & 2. Paralelizar historial e intención para reducir latencia en servidor.
-    // [Fix visión] Si hay imágenes adjuntas, la intención NO depende de
-    // interpretar texto (que puede fallar y caer en DOCUMENTO/SIMPLE, ambos
-    // enrutados a modelos sin capacidad de visión). Es un hecho binario:
-    // hay imagen o no la hay. Forzamos 'VISION' de forma determinística.
+    // 1 & 2. Paralelizar historial e intención.
+    // Para Guests: Cero consultas a Supabase (historial viene en payload o vacío).
+    const isGuest = !!req.user?.isGuest;
     const hasImages = imageDataUris && imageDataUris.length > 0;
-    const [history, intent] = await Promise.all([
-      getHistory(conversationId, 10),
-      hasImages ? Promise.resolve('VISION') : classifyIntent(enhancedMessage),
-    ]);
+
+    let history = [];
+    let intent = 'SIMPLE';
+
+    if (isGuest) {
+      history = (Array.isArray(req.body.history) ? req.body.history.slice(-6) : []);
+      intent = hasImages ? 'VISION' : 'SIMPLE';
+    } else {
+      const [dbHistory, detectedIntent] = await Promise.all([
+        getHistory(conversationId, 10),
+        hasImages ? Promise.resolve('VISION') : classifyIntent(enhancedMessage),
+      ]);
+      history = dbHistory;
+      intent = detectedIntent;
+    }
 
     // 3. Construir mensajes con contexto
     const messages = [
@@ -194,22 +203,42 @@ router.post('/', auth, planGuard, async (req, res) => {
       { role: 'user', content: enhancedMessage },
     ];
 
-    // 4. Streamear respuesta del modelo (cada chunk sale al cliente al instante).
-    // [Punto 4+42] Heartbeat: durante operaciones largas (visión, PDF, cold start),
-    // enviamos un SSE cada 5s (antes 15s) para que la red no corte la conexión.
+    // 4. Streamear respuesta del modelo
     const heartbeatInterval = setInterval(() => {
       if (clientConnected) {
         sendSse({ type: 'heartbeat' });
       }
     }, 5000);
 
+    // [Metadatos SSE Neutros]: Solo flags de estado del sistema (isGuest, savedToCloud, isDegraded)
+    const isDegraded = !!req.user.isDegraded;
+    const savedToCloud = !isGuest && !anonymous && !!conversationId;
+
+    sendSse({
+      type: 'meta',
+      isGuest: isGuest,
+      isDegraded: isDegraded,
+      savedToCloud: savedToCloud,
+    });
+
     let fullText = '';
-    const result = await routeMessageStream(plan, intent, messages, EXODO_SYSTEM_PROMPT, (chunk) => {
-      // Si el cliente se fue, dejamos de acumular texto y de enviar chunks.
-      if (!clientConnected) return;
-      fullText += chunk;
-      sendSse({ type: 'chunk', content: chunk });
-    }, model_override, imageDataUris); // [Punto 42] imageDataUris
+    const result = await routeMessageStream(
+      plan,
+      intent,
+      messages,
+      EXODO_SYSTEM_PROMPT,
+      (chunk) => {
+        // Si el cliente se fue, dejamos de acumular texto y de enviar chunks.
+        if (!clientConnected) return;
+        fullText += chunk;
+        sendSse({ type: 'chunk', content: chunk });
+      },
+      model_override,
+      imageDataUris,
+      req.body.taskType,
+      isDegraded,
+      isGuest
+    );
 
     clearInterval(heartbeatInterval);
 
@@ -227,19 +256,12 @@ router.post('/', auth, planGuard, async (req, res) => {
       return;
     }
 
-    // 5. [Fix race condition real] Guardar en DB ANTES de cerrar el stream.
-    // El `await` anterior (Fix A) no era suficiente: aunque protegía el ORDEN
-    // de las escrituras dentro del servidor, el cliente recibía res.end() y
-    // quedaba libre para mandar el siguiente mensaje MIENTRAS el guardado
-    // seguía en curso en el servidor. Ahora el cliente no ve 'done' hasta
-    // que ambos turnos (user + assistant) ya están persistidos en Supabase,
-    // garantizando que getHistory() del siguiente mensaje los encuentre.
+    // 5. Persistir en DB: SOLO para usuarios registrados autenticados (NUNCA para guests)
     const sources = extractSourcesFromText(fullText, result.sources);
 
-    if (conversationId && !anonymous) {
+    if (conversationId && !isGuest && !anonymous) {
       try {
         await saveMessage(conversationId, 'user', enhancedMessage, { intent });
-        // [Punto 00] Persistir sources para que sobrevivan al cierre de la app.
         await saveMessage(conversationId, 'assistant', fullText, {
           intent,
           model: result.model,
@@ -255,14 +277,13 @@ router.post('/', auth, planGuard, async (req, res) => {
     sendSse({ type: 'done', content: fullText, sources });
     res.end();
 
-    // 6. Background: contar tokens. Esto SÍ puede quedar fire-and-forget
-    // porque no afecta la memoria conversacional del siguiente mensaje.
-    const totalTokens = (result.tokensInput || 0) + (result.tokensOutput || 0);
-    const userIdSafe = req.usage?.id;
-    const tokensUsedSoFar = req.usage?.tokens_used || 0;
+    // 6. Contabilidad de tokens: SOLO para usuarios registrados autenticados
+    if (req.user?.userId && !isGuest && !anonymous) {
+      const measuredTokens = (result.tokensInput || 0) + (result.tokensOutput || 0);
+      const estimatedTokens = estimateTokens(enhancedMessage) + estimateTokens(fullText);
+      const totalTokens = measuredTokens > 0 ? measuredTokens : estimatedTokens;
 
-    if (userIdSafe && !anonymous) {
-      updateTokenUsage(userIdSafe, tokensUsedSoFar, totalTokens).catch((e) =>
+      updateTokenUsage(req.user.userId, totalTokens, hasImages, req.usage).catch((e) =>
         console.error('[chat] updateTokenUsage falló:', e.message)
       );
     }

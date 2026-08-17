@@ -1,86 +1,160 @@
 const supabase = require('../config/supabase');
-const { PLANS } = require('../config/models');
+const { PLAN_CONFIG } = require('../config/models');
 
-/**
- * Middleware de guardia de plan.
- * Verifica tokens diarios disponibles ANTES de llamar a cualquier API.
- * Bible sección 03: límite por tokens diarios, no por mensajes.
- * Período = fecha del día (se resetea a medianoche).
- */
-async function planGuard(req, res, next) {
-  const { userId, plan, anonymous } = req.user;
+const _memUsage = new Map();
 
-  // Usuarios anónimos (desarrollo) pasan sin restricción
-  if (anonymous || !supabase) {
-    return next();
-  }
-
-  // Usar zona horaria AST (UTC-4) para que el reset sea a medianoche local
+function getAstDates() {
   const now = new Date();
   const astOffset = 4 * 60 * 60 * 1000; // UTC-4
   const astDate = new Date(now.getTime() - astOffset);
-  const today = astDate.toISOString().split('T')[0]; // '2026-06-25'
-  const planConfig = PLANS[plan] || PLANS.genesis;
+  const currentDate = astDate.toISOString().split('T')[0];
+  const currentMonth = currentDate.substring(0, 7);
+  return { currentDate, currentMonth };
+}
 
+/**
+ * Middleware de Guardia de Plan con Blindaje Total para Cuentas Guest.
+ * 
+ * Regla de Oro:
+ * - Cuentas Guest / Anónimas -> Forzadas a Groq Modo Eco ($0.00).
+ * - Cuentas Registradas Free -> 6,000 tokens diarios en DeepSeek V4 Flash.
+ * - Cuentas Registradas Pro -> 50,000 tokens diarios en DeepSeek V4 Pro.
+ */
+async function planGuard(req, res, next) {
+  const { userId, plan, isGuest } = req.user;
+
+  // 1. BLINDAJE DE GUESTS: Modo Eco directo sin tocar base de datos ni saldo de DeepSeek
+  if (isGuest || plan === 'guest' || !userId) {
+    req.user.isGuest = true;
+    req.user.isDegraded = false;
+    req.usage = {
+      isGuest: true,
+      dailyTokensUsed: 0,
+      dailyTokensLimit: 0,
+      monthlyVisionUsed: 0,
+      monthlyVisionLimit: 1,
+      isDegraded: false,
+    };
+    return next();
+  }
+
+  const isPro = (plan === 'pro' || plan === 'hazak');
+  const planKey = isPro ? 'pro' : 'free';
+  const config = PLAN_CONFIG[planKey];
+  const { currentDate, currentMonth } = getAstDates();
+
+  // 2. Revisar memoria para usuarios registrados
+  let mem = _memUsage.get(userId);
+  if (mem) {
+    if (mem.lastTokenReset !== currentDate) {
+      mem.dailyTokensUsed = 0;
+      mem.lastTokenReset = currentDate;
+    }
+    if (mem.lastVisionReset !== currentMonth) {
+      mem.monthlyVisionUsed = 0;
+      mem.lastVisionReset = currentMonth;
+    }
+
+    const isDegraded = !isPro && (mem.dailyTokensUsed >= config.dailyTokensLimit);
+    req.user.isDegraded = isDegraded;
+    req.usage = {
+      id: mem.id || null,
+      isGuest: false,
+      dailyTokensUsed: mem.dailyTokensUsed,
+      dailyTokensLimit: config.dailyTokensLimit,
+      monthlyVisionUsed: mem.monthlyVisionUsed,
+      monthlyVisionLimit: config.monthlyVisionLimit,
+      isDegraded,
+      _memMode: true,
+      _userId: userId,
+    };
+    return next();
+  }
+
+  // 3. Consultar / sincronizar DB para usuarios registrados
   try {
-    // Buscar o crear registro de uso para hoy
     let { data: usage, error } = await supabase
       .from('user_usage')
-      .select('id, tokens_used, tokens_limit')
+      .select('*')
       .eq('user_id', userId)
-      .eq('period', today)
       .single();
 
     if (error && error.code === 'PGRST116') {
-      // No existe registro para hoy → crear uno nuevo (reseteo diario automático)
-      const { data: newUsage, error: insErr } = await supabase
+      const insertPayload = {
+        user_id: userId,
+        tokens_used: 0,
+        tokens_limit: config.dailyTokensLimit,
+        period: currentDate,
+      };
+
+      const { data: created } = await supabase
         .from('user_usage')
-        .insert({
-          user_id: userId,
-          tokens_used: 0,
-          tokens_limit: planConfig.tokensPerDay,
-          period: today,
-        })
+        .insert(insertPayload)
         .select()
         .single();
-      if (insErr || !newUsage) {
-        console.warn(`[planGuard] No se pudo crear user_usage en DB (${insErr?.message || 'null'}). Fallback a memoria.`);
-        req.usage = { id: null, tokens_used: 0, tokens_limit: planConfig.tokensPerDay };
-        return next();
-      }
-      usage = newUsage;
+
+      usage = created || { id: null, tokens_used: 0, tokens_limit: config.dailyTokensLimit, period: currentDate };
     } else if (error || !usage) {
-      console.warn(`[planGuard] Error consultando user_usage (${error?.message || 'null'}). Fallback a memoria para no bloquear chat.`);
-      req.usage = { id: null, tokens_used: 0, tokens_limit: planConfig.tokensPerDay };
-      return next();
+      usage = { id: null, tokens_used: 0, tokens_limit: config.dailyTokensLimit, period: currentDate };
     }
 
-    if (usage.tokens_used >= usage.tokens_limit) {
-      return res.status(403).json({
-        error: 'limite_alcanzado',
-        message: 'Alcanzaste tu capacidad de hoy. Se reinicia mañana a las 12:00 AM.',
-        upgrade_message: plan === 'genesis'
-          ? 'Activa Hazak para continuar ahora sin interrupciones.'
-          : null,
-        reset_at: today + 'T04:00:00Z', // medianoche AST (UTC-4)
-        tokens_used: usage.tokens_used,
-        tokens_limit: usage.tokens_limit,
-      });
+    let dailyTokensUsed = usage.tokens_used || 0;
+    let monthlyVisionUsed = usage.images_used || 0;
+    let lastTokenReset = usage.period || currentDate;
+    let lastVisionReset = (usage.period || currentDate).substring(0, 7);
+
+    if (lastTokenReset !== currentDate) {
+      dailyTokensUsed = 0;
+      lastTokenReset = currentDate;
+      await supabase.from('user_usage').update({ tokens_used: 0, period: currentDate }).eq('user_id', userId);
     }
 
-    // Adjuntar datos de uso al request para tokenCounter
-    req.usage = {
-      id: usage.id,
-      tokens_used: usage.tokens_used,
-      tokens_limit: usage.tokens_limit,
+    if (lastVisionReset !== currentMonth) {
+      monthlyVisionUsed = 0;
+      lastVisionReset = currentMonth;
+      await supabase.from('user_usage').update({ images_used: 0 }).eq('user_id', userId);
+    }
+
+    const isDegraded = !isPro && (dailyTokensUsed >= config.dailyTokensLimit);
+    req.user.isDegraded = isDegraded;
+
+    const userState = {
+      id: usage.id || null,
+      isGuest: false,
+      dailyTokensUsed,
+      dailyTokensLimit: config.dailyTokensLimit,
+      monthlyVisionUsed,
+      monthlyVisionLimit: config.monthlyVisionLimit,
+      lastTokenReset,
+      lastVisionReset,
+      isDegraded,
     };
+
+    _memUsage.set(userId, userState);
+    req.usage = userState;
 
     next();
   } catch (err) {
     console.warn('[planGuard] Excepción en planGuard:', err.message);
-    req.usage = { id: null, tokens_used: 0, tokens_limit: planConfig.tokensPerDay };
+    req.user.isDegraded = false;
+    req.usage = {
+      id: null,
+      isGuest: false,
+      dailyTokensUsed: 0,
+      dailyTokensLimit: config.dailyTokensLimit,
+      monthlyVisionUsed: 0,
+      monthlyVisionLimit: config.monthlyVisionLimit,
+      isDegraded: false,
+    };
     return next();
   }
 }
 
-module.exports = planGuard;
+function getMemUsageMap() {
+  return _memUsage;
+}
+
+module.exports = {
+  planGuard,
+  getMemUsageMap,
+};

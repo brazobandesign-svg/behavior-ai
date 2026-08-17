@@ -21,21 +21,20 @@ class AppState extends ChangeNotifier {
   bool isIncognito = false;
   bool showTab2Banner = true;
   bool isDarkMode = true;
-  bool guestIsBlocked = false;
+  bool guestIsBlocked = false; // Sin bloqueo para guests: acceso ilimitado a Groq $0
   ExodoModelOption selectedModel = exodoModels[0]; // Origo (G1.1)
   double? currentTempC;
 
 
 
   int tokensUsed = 0;
-  int get tokensLimit => isPro ? 100000 : 1000;
+  int get tokensLimit => isPro ? 50000 : 6000;
   DateTime? tokensResetTime;
   bool get isPro => profile?.plan == 'hazak';
   bool isThinking = false;
   bool isGenerating = false;
   String? errorMessage;
   int guestMessagesSessionCount = 0;
-  final Set<String> _preLimitWarnedConversations = {};
 
   // [Punto 43] Conectividad: la app detecta si hay internet en tiempo real.
   bool _isOnline = true;
@@ -167,18 +166,17 @@ class AppState extends ChangeNotifier {
     notifyListeners(); // ¡Abre el chat en pantalla inmediatamente!
 
     // 2. BACKGROUND SYNC: Consultar la nube de Supabase en segundo plano sin bloquear.
-    Future.wait([
+    Future.wait<dynamic>([
       SupabaseService.getProfile().catchError((_) => null),
       (isGuestUser || isIncognito)
           ? Future.value(<Conversation>[])
           : SupabaseService.getConversations().catchError((_) => <Conversation>[]),
       SupabaseService.getTodayUsage().catchError((_) => null),
-      isGuestUser ? _checkHardwareBlocked().catchError((_) => false) : Future.value(false),
     ]).then((results) {
       final fetchedProfile = results[0] as UserProfile?;
       final fetchedConvs = results[1] as List<Conversation>;
       final usage = results[2] as Map<String, dynamic>?;
-      guestIsBlocked = results[3] as bool;
+      guestIsBlocked = false;
 
       if (fetchedProfile != null) {
         profile = fetchedProfile;
@@ -494,13 +492,7 @@ class AppState extends ChangeNotifier {
     if (currentMessages.isEmpty) return;
 
     final isGuest = isGuestUser;
-    if (isGuest) {
-      if (guestIsBlocked || guestMessagesSessionCount >= 3) {
-        guestIsBlocked = true;
-        notifyListeners();
-        return;
-      }
-    } else {
+    if (!isGuest) {
       if (tokensUsed >= tokensLimit) {
         final limitMsg = isPro
             ? AppI18n.instance.t('limit.pro_msg')
@@ -606,13 +598,6 @@ class AppState extends ChangeNotifier {
         if (!isGuestUser) {
           tokensUsed += (fullText.length ~/ 3) + 35;
           if (tokensUsed > tokensLimit) tokensUsed = tokensLimit;
-        } else {
-          guestMessagesSessionCount++;
-          _recordHardwareMessage();
-          SupabaseService.recordGuestIpMessage();
-          if (guestMessagesSessionCount >= 3) {
-            guestIsBlocked = true;
-          }
         }
         final idx = currentMessages.indexWhere((m) => m.id == thinkingId);
         if (idx == -1) return;
@@ -641,65 +626,6 @@ class AppState extends ChangeNotifier {
   }) async {
     if (text.trim().isEmpty && (attachments == null || attachments.isEmpty)) return;
     final isGuest = isGuestUser;
-    if (isGuest) {
-      if (guestIsBlocked || guestMessagesSessionCount >= 3) {
-        guestIsBlocked = true;
-        notifyListeners();
-        return;
-      }
-    } else {
-      final estNew = tokensUsed + (text.length ~/ 3) + 15;
-      final convKey = activeConversation?.id ?? 'free';
-      if (tokensUsed >= tokensLimit || estNew > tokensLimit) {
-        final limitMsg = isPro
-            ? AppI18n.instance.t('limit.pro_msg')
-            : AppI18n.instance.t('limit.free_msg');
-        currentMessages.add(
-          ChatMessage(
-            id: 'limit-${DateTime.now().microsecondsSinceEpoch}',
-            conversationId: convKey,
-            role: 'assistant',
-            content: limitMsg,
-            createdAt: DateTime.now(),
-          ),
-        );
-        notifyListeners();
-        return;
-      }
-
-      // [Alerta Preventiva pre-límite]: si el usuario está al >= 82% del límite o quedan <= 3000 tokens
-      // pausamos para avisarle que solicite su documento HTML de respaldo antes de que se agote.
-      if (tokensUsed < tokensLimit &&
-          estNew <= tokensLimit &&
-          (tokensUsed >= tokensLimit * 0.82 || (tokensLimit - tokensUsed) <= 3000) &&
-          !_preLimitWarnedConversations.contains(convKey)) {
-        _preLimitWarnedConversations.add(convKey);
-        HapticFeedback.vibrate();
-        final preLimitText =
-            '⚠️ **Alerta de Límite Próximo: Respaldo de Contexto Recomendado**\n\n'
-            'Estás a punto de alcanzar la capacidad máxima de memoria para este chat '
-            '(te quedan aprox. **${tokensLimit - tokensUsed} tokens**, alrededor de 1 o 2 turnos).\n\n'
-            'Para evitar que te quedes sin tokens a mitad del trabajo sin poder exportar la información, '
-            '**hemos hecho un paro preventivo** para que puedas decidir:\n\n'
-            '1️⃣ Si deseas conservar tu progreso, **pídeme ahora mismo un documento HTML** '
-            'completo con todos los códigos, explicaciones e historial de este chat para descargarlo y guardarlo.\n'
-            '2️⃣ Si solo estás haciendo pruebas rápidas o no necesitas conservar este historial, '
-            '**puedes continuar escribiendo** y te responderé con normalidad hasta que se agoten tus tokens.\n\n'
-            '*(Este aviso es solo preventivo y no gasta tokens de tu límite. Si deseas continuar sin exportar, envía tu mensaje de nuevo).*';
-        currentMessages.add(
-          ChatMessage(
-            id: 'prelimit-${DateTime.now().microsecondsSinceEpoch}',
-            conversationId: convKey,
-            role: 'assistant',
-            content: preLimitText,
-            createdAt: DateTime.now(),
-          ),
-        );
-        notifyListeners();
-        return;
-      }
-    }
-
     errorMessage = null;
 
     final shouldSaveHistory = !isIncognito && !isGuest;
@@ -800,6 +726,7 @@ class AppState extends ChangeNotifier {
     try {
       final msgId = 'asst-${DateTime.now().microsecondsSinceEpoch}';
       bool firstChunk = true;
+      bool msgIsDegraded = false;
 
       await ChatService.sendMessageStream(
         message: text,
@@ -813,6 +740,24 @@ class AppState extends ChangeNotifier {
         modelOverride: selectedModel.modelId,
         attachments:
             attachments, // [Punto 40] adjuntos con bytes para multimodal
+        onMeta: (meta) {
+          if (meta['isDegraded'] == true) {
+            msgIsDegraded = true;
+            final idx = currentMessages.indexWhere((m) => m.id == msgId);
+            if (idx != -1) {
+              currentMessages[idx] = ChatMessage(
+                id: msgId,
+                conversationId: currentMessages[idx].conversationId,
+                role: 'assistant',
+                content: currentMessages[idx].content,
+                sources: currentMessages[idx].sources,
+                createdAt: currentMessages[idx].createdAt,
+                isDegraded: true,
+              );
+              notifyListeners();
+            }
+          }
+        },
         onChunk: (chunk) {
           if (firstChunk) {
             firstChunk = false;
@@ -825,6 +770,7 @@ class AppState extends ChangeNotifier {
                 role: 'assistant',
                 content: chunk,
                 createdAt: DateTime.now(),
+                isDegraded: msgIsDegraded,
               ),
             );
           } else {
@@ -837,22 +783,17 @@ class AppState extends ChangeNotifier {
                 content: currentMessages[idx].content + chunk,
                 sources: currentMessages[idx].sources,
                 createdAt: currentMessages[idx].createdAt,
+                isDegraded: msgIsDegraded,
               );
-              final currentEst =
-                  tokensUsed + (currentMessages[idx].content.length ~/ 3) + 35;
-              if (!isGuestUser && currentEst >= tokensLimit) {
-                tokensUsed = tokensLimit;
-                // [Punto 36 aviso] _cancelGeneration sin mensaje stopped.
-                _cancelGeneration();
-                return;
-              }
             }
           }
           notifyListeners();
         },
         onComplete: (fullText, sources) async {
           isGenerating = false;
-          tokensUsed += (fullText.length ~/ 3) + 35;
+          if (!isGuestUser) {
+            tokensUsed += (fullText.length ~/ 3) + 35;
+          }
           final idx = currentMessages.indexWhere((m) => m.id == msgId);
           if (idx != -1) {
             currentMessages[idx] = ChatMessage(
@@ -862,6 +803,7 @@ class AppState extends ChangeNotifier {
               content: fullText,
               sources: sources,
               createdAt: currentMessages[idx].createdAt,
+              isDegraded: msgIsDegraded,
             );
           } else if (firstChunk) {
             currentMessages.removeWhere((m) => m.isThinking);
@@ -874,10 +816,11 @@ class AppState extends ChangeNotifier {
                 content: fullText,
                 sources: sources,
                 createdAt: DateTime.now(),
+                isDegraded: msgIsDegraded,
               ),
             );
           }
-          if (shouldSaveHistory && activeConversation != null) {
+          if (shouldSaveHistory && activeConversation != null && !isGuest) {
             final sourcesJson = sources.isNotEmpty
                 ? jsonEncode(sources.map((s) => s.toJson()).toList())
                 : null;
@@ -900,14 +843,6 @@ class AppState extends ChangeNotifier {
                   'content': contentToSave,
                 });
               } catch (_) {}
-            }
-          }
-          if (isGuest) {
-            guestMessagesSessionCount++;
-            _recordHardwareMessage();
-            SupabaseService.recordGuestIpMessage();
-            if (guestMessagesSessionCount >= 3) {
-              guestIsBlocked = true;
             }
           }
           HapticFeedback.vibrate();
@@ -1041,41 +976,4 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
-  // --- CANDADO PERSISTENTE DE HARDWARE VIA SHARED PREFERENCES (24H EXACTAS DESDE EL 1ER MENSAJE) ---
-  Future<bool> _checkHardwareBlocked() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final firstMsgStr = prefs.getString('exodo_guest_first_msg_time');
-      if (firstMsgStr != null) {
-        final firstTime = DateTime.tryParse(firstMsgStr);
-        if (firstTime != null &&
-            DateTime.now().difference(firstTime).inHours >= 24) {
-          await prefs.remove('exodo_guest_first_msg_time');
-          await prefs.remove('exodo_guest_hw_count');
-          guestMessagesSessionCount = 0;
-          return false;
-        }
-      }
-      final count = prefs.getInt('exodo_guest_hw_count') ?? 0;
-      guestMessagesSessionCount = count;
-      return count >= 3;
-    } catch (_) {
-      return false;
-    }
-  }
-
-  Future<void> _recordHardwareMessage() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final firstMsgStr = prefs.getString('exodo_guest_first_msg_time');
-      if (firstMsgStr == null ||
-          (prefs.getInt('exodo_guest_hw_count') ?? 0) == 0) {
-        await prefs.setString(
-          'exodo_guest_first_msg_time',
-          DateTime.now().toIso8601String(),
-        );
-      }
-      await prefs.setInt('exodo_guest_hw_count', guestMessagesSessionCount);
-    } catch (_) {}
-  }
 }

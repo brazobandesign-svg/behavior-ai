@@ -13,6 +13,7 @@ import '../../services/app_state.dart';
 import '../../services/supabase_service.dart';
 import '../../theme/exodo_theme.dart';
 import '../../l10n/app_i18n.dart';
+import 'model_selector.dart';
 
 bool _isDeviceEnglish(BuildContext context) {
   return AppI18n.of(context).localeCode == 'en';
@@ -351,6 +352,10 @@ class MessageBubble extends StatelessWidget {
                   codeblockPadding: EdgeInsets.zero,
                 ),
           ),
+          if (message.isDegraded) ...[
+            const SizedBox(height: 8),
+            _EcoModeNotice(isLight: isLight),
+          ],
           if (message.intentDetected != null) ...[
             const SizedBox(height: 8),
             Text(
@@ -1043,6 +1048,49 @@ class _InteractiveCodeBlockState extends State<_InteractiveCodeBlock> {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Pie sutil de aviso de Modo Eco en línea (estilo GPT sin modales intermedios).
+class _EcoModeNotice extends StatelessWidget {
+  final bool isLight;
+  const _EcoModeNotice({required this.isLight});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 8.0),
+      child: GestureDetector(
+        onTap: () {
+          HapticFeedback.lightImpact();
+          UpgradeModal.show(context);
+        },
+        behavior: HitTestBehavior.opaque,
+        child: Text.rich(
+          TextSpan(
+            text: 'Has alcanzado tu límite diario. Continuando en modo eco, Se reinicia a las 00:00 AST. ',
+            style: TextStyle(
+              fontFamily: 'AnthropicSans',
+              fontSize: 11,
+              fontWeight: FontWeight.normal,
+              color: ExodoColors.textSecondary,
+              height: 1.35,
+            ),
+            children: [
+              TextSpan(
+                text: '[Subir a Pro]',
+                style: TextStyle(
+                  fontFamily: 'AnthropicSans',
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: ExodoColors.amber,
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

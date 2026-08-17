@@ -2,6 +2,8 @@ require('dotenv').config({ override: true });
 const express = require('express');
 const cors = require('cors');
 const chatRoutes = require('./routes/chat');
+const stripeRoutes = require('./routes/stripe');
+const userRoutes = require('./routes/user');
 const errorHandler = require('./middleware/errorHandler');
 const { chatRateLimiter } = require('./middleware/rateLimiter');
 const { HOST, PORT, NODE_ENV, corsOrigins } = require('./config/network');
@@ -14,7 +16,7 @@ app.use(cors({
   origin: corsOrigins || true, // true = cualquiera (dev); array = whitelist (prod)
   credentials: true,
 }));
-app.use(express.json({ limit: '10mb' }));
+app.use(express.json({ limit: '20mb' }));
 
 // Rate limiter global en /api/* (se aplica antes de auth)
 app.use((req, res, next) => {
@@ -28,6 +30,8 @@ app.use('/api/', chatRateLimiter);
 
 // Rutas
 app.use('/api/chat', chatRoutes);
+app.use('/api/stripe', stripeRoutes);
+app.use('/api/user', userRoutes);
 
 // Health check — Bible: verificar que el servidor está vivo
 app.get('/health', (req, res) => {
@@ -80,11 +84,11 @@ app.listen(PORT, HOST, () => {
 function runStartupChecks() {
   const checks = [];
 
-  if (!process.env.OPENAI_API_KEY) {
-    checks.push('⚠️  OPENAI_API_KEY no configurada — Genesis G1.1 y Visión no disponibles.');
-  }
   if (!process.env.DEEPSEEK_API_KEY) {
-    checks.push('⚠️  DEEPSEEK_API_KEY no configurada — Hazak Pro y tareas de backend no disponibles.');
+    checks.push('⚠️  DEEPSEEK_API_KEY no configurada — Texto y código primario no disponibles.');
+  }
+  if (!process.env.GEMINI_API_KEY && !process.env.GOOGLE_API_KEY) {
+    checks.push('⚠️  GEMINI_API_KEY / GOOGLE_API_KEY no configurada — Visión y Fallback no disponibles.');
   }
   if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_KEY) {
     checks.push('⚠️  SUPABASE_URL o SUPABASE_SERVICE_KEY no configurados — auth y DB deshabilitados.');

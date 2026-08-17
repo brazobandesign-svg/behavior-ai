@@ -1,92 +1,161 @@
-const { MODEL_MAP, MODEL_TO_PROVIDER } = require('../config/models');
+const { PLAN_CONFIG, MODEL_MAP, ECO_MODELS } = require('../config/models');
+const deepseekProvider = require('./providers/deepseekProvider');
+const geminiProvider = require('./providers/geminiProvider');
+const groqProvider = require('./providers/groqProvider');
 
 /**
- * Model Router — Matriz de Enrutamiento Inteligente Éxodo
+ * Model Router — Matriz de Enrutamiento Inteligente Éxodo v4.2
  * 
- * Regla de Oro:
- * 1. Detección Multimodal Primero: Si hay imágenes adjuntas, FORZAR gpt-4o-mini
- *    sin importar el plan (G1.1 o Hazak), ya que DeepSeek no procesa imágenes.
- * 2. Texto Puro:
- *    - Plan G1.1 (Free): gpt-4o-mini (OpenAI)
- *    - Plan Hazak (Pro): deepseek-chat (DeepSeek V3)
- *    - Modo Razonamiento Profundo (Hazak): deepseek-reasoner (DeepSeek R1)
+ * Reglas:
+ * 1. Cuentas Guest / Anónimas O Free Degrado (cuota diaria agotada):
+ *    ├── ¿Hay imagen/archivo? -> Groq Visión (qwen/qwen3.6-27b)
+ *    └── ¿Solo texto/código? -> Groq Texto (llama-3.3-70b-versatile, max_tokens: 4096, respuesta natural)
+ *    ==> CERO consumo en DeepSeek ($0.00 USD).
+ * 
+ * 2. Cuentas Registradas Free (< 6,000 tokens diarios):
+ *    ├── ¿Hay imagen/archivo? -> Gemini 2.5 Flash-Lite
+ *    └── ¿Solo texto/código? -> DeepSeek V4 Flash (deepseek-chat)
+ * 
+ * 3. Cuentas Registradas Pro (Hazak $4.99 / 50,000 tokens diarios):
+ *    ├── ¿Hay imagen/archivo? -> Gemini 2.5 Flash-Lite
+ *    └── ¿Solo texto/código? -> DeepSeek V4 Pro (deepseek-reasoner)
  */
 
-function getEffectiveModel(plan, intent, modelOverride, imageDataUris) {
-  // 1. Regla de Oro: Detección Multimodal Primero.
-  // Si hay imagen, forzar gpt-4o-mini sin importar el plan o intención.
-  if (imageDataUris && imageDataUris.length > 0) {
-    return 'gpt-4o-mini';
+function getEffectiveModel(plan, intent, modelOverride, imageDataUris, taskType, isDegraded = false, isGuest = false) {
+  const isPro = (plan === 'pro' || plan === 'hazak');
+  const hasImages = imageDataUris && imageDataUris.length > 0;
+
+  // CASO 1: GUEST O MODO ECO (Costo $0.00 en Groq — Limpio y sin cortes artificiales)
+  if (isGuest || plan === 'guest' || (isDegraded && !isPro)) {
+    if (hasImages) {
+      return {
+        provider: 'groq',
+        modelId: ECO_MODELS.vision,
+        isEco: true,
+        maxTokens: PLAN_CONFIG.free.ecoMaxOutputTokens, // 4096
+      };
+    }
+    return {
+      provider: 'groq',
+      modelId: ECO_MODELS.text,
+      isEco: true,
+      maxTokens: PLAN_CONFIG.free.ecoMaxOutputTokens, // 4096
+    };
   }
 
-  // 2. Si hay override de modelo explícito enviado por el cliente
+  // CASO 2: USUARIOS REGISTRADOS DENTRO DE CUOTA O PRO
+
+  // A. Multimodal Primero
+  if (hasImages) {
+    return {
+      provider: 'gemini',
+      modelId: 'gemini-flash-lite-latest',
+      isEco: false,
+      maxTokens: isPro ? PLAN_CONFIG.pro.maxOutputTokens : PLAN_CONFIG.free.maxOutputTokensNormal,
+    };
+  }
+
+  // B. Override explícito del cliente
   if (modelOverride) {
-    if (MODEL_TO_PROVIDER[modelOverride]) {
-      return modelOverride;
+    const override = String(modelOverride).toLowerCase();
+    if (override.includes('gemini')) {
+      return { provider: 'gemini', modelId: 'gemini-flash-lite-latest', isEco: false, maxTokens: isPro ? 4096 : 1500 };
     }
-    // Mapeo defensivo para modelos legacy no reconocidos -> usar deepseek-chat
-    if (modelOverride.includes('nemotron') || modelOverride.includes('origo')) {
-      return 'deepseek-chat';
+    if (override.includes('xpi') || override.includes('ehyeh') || override.includes('hazak') || override.includes('reasoner') || override.includes('pro') || override.includes('r1')) {
+      return { provider: 'deepseek', modelId: 'deepseek-reasoner', isEco: false, maxTokens: PLAN_CONFIG.pro.maxOutputTokens };
     }
-    if (modelOverride.includes('deepseek') || modelOverride.includes('ehyeh') || modelOverride.includes('hazak')) {
-      return 'deepseek-chat';
+    if (override.includes('g1.1') || override.includes('origo') || override.includes('flash') || override.includes('genesis') || override.includes('chat')) {
+      return { provider: 'deepseek', modelId: 'deepseek-chat', isEco: false, maxTokens: PLAN_CONFIG.free.maxOutputTokensNormal };
     }
-    return 'deepseek-chat';
   }
 
-  // 3. Matriz estándar por intención y plan
-  const mapped = MODEL_MAP[intent]?.[plan];
-  return mapped || 'deepseek-chat';
-}
-
-async function routeMessage(plan, intent, messages, systemPrompt, modelOverride, imageDataUris) {
-  const effectiveModelId = getEffectiveModel(plan, intent, modelOverride, imageDataUris);
-
-  if (!effectiveModelId) {
+  // C. Plan Pro (Hazak): Llamada exclusiva a DeepSeek Reasoner V4 Pro
+  if (isPro) {
     return {
-      error: 'feature_not_available',
-      message: 'Esta función no está disponible en tu plan actual.',
-      plan_required: 'hazak',
+      provider: 'deepseek',
+      modelId: 'deepseek-reasoner',
+      isEco: false,
+      maxTokens: PLAN_CONFIG.pro.maxOutputTokens,
     };
   }
 
-  return await callProvider(effectiveModelId, messages, systemPrompt, imageDataUris);
-}
-
-async function routeMessageStream(plan, intent, messages, systemPrompt, onChunk, modelOverride, imageDataUris) {
-  const effectiveModelId = getEffectiveModel(plan, intent, modelOverride, imageDataUris);
-
-  if (!effectiveModelId) {
+  // D. Tareas de razonamiento explícito
+  if (taskType === 'reasoning' || taskType === 'code_analysis' || intent === 'RAZONAMIENTO') {
     return {
-      error: 'feature_not_available',
-      message: 'Esta función no está disponible en tu plan actual.',
-      plan_required: 'hazak',
-      text: '',
-      tokensInput: 0,
-      tokensOutput: 0,
+      provider: 'deepseek',
+      modelId: 'deepseek-reasoner',
+      isEco: false,
+      maxTokens: 2500,
     };
   }
 
-  return await callProviderStream(effectiveModelId, messages, systemPrompt, onChunk, imageDataUris);
+  // E. Plan Free Registrado dentro de cuota: DeepSeek V4 Flash
+  return {
+    provider: 'deepseek',
+    modelId: 'deepseek-chat',
+    isEco: false,
+    maxTokens: PLAN_CONFIG.free.maxOutputTokensNormal,
+  };
 }
 
-async function callProvider(modelId, messages, systemPrompt, imageDataUris) {
-  const providerName = MODEL_TO_PROVIDER[modelId] || 'openai';
-  const provider = require(`./providers/${providerName}`);
-  return await provider.call(modelId, messages, systemPrompt, imageDataUris);
-}
+/**
+ * Llamada estándar con fallback
+ */
+async function routeMessage(plan, intent, messages, systemPrompt, modelOverride, imageDataUris, taskType, isDegraded = false, isGuest = false) {
+  const target = getEffectiveModel(plan, intent, modelOverride, imageDataUris, taskType, isDegraded, isGuest);
+  const options = { max_tokens: target.maxTokens };
 
-async function callProviderStream(modelId, messages, systemPrompt, onChunk, imageDataUris) {
-  const providerName = MODEL_TO_PROVIDER[modelId] || 'openai';
-  const provider = require(`./providers/${providerName}`);
-
-  if (typeof provider.callStream === 'function') {
-    return await provider.callStream(modelId, messages, systemPrompt, onChunk, imageDataUris);
+  if (target.provider === 'groq') {
+    return await groqProvider.call(target.modelId, messages, systemPrompt, imageDataUris, options);
   }
 
-  const result = await provider.call(modelId, messages, systemPrompt, imageDataUris);
-  if (result && result.text) onChunk(result.text);
-  return result;
+  if (target.provider === 'gemini') {
+    return await geminiProvider.call(target.modelId, messages, systemPrompt, imageDataUris, options);
+  }
+
+  try {
+    return await deepseekProvider.call(target.modelId, messages, systemPrompt, options);
+  } catch (error) {
+    console.warn(`[ModelRouter Fallback] DeepSeek falló (${error.message}). Reintentando con Gemini Flash-Lite...`);
+    try {
+      return await geminiProvider.call('gemini-flash-lite-latest', messages, systemPrompt, imageDataUris, options);
+    } catch (geminiError) {
+      console.warn(`[ModelRouter Fallback] Gemini falló. Reintentando con Groq Eco...`);
+      return await groqProvider.call(ECO_MODELS.text, messages, systemPrompt, imageDataUris, options);
+    }
+  }
 }
 
-module.exports = { routeMessage, routeMessageStream, getEffectiveModel };
+/**
+ * Llamada Streaming SSE con fallback
+ */
+async function routeMessageStream(plan, intent, messages, systemPrompt, onChunk, modelOverride, imageDataUris, taskType, isDegraded = false, isGuest = false) {
+  const target = getEffectiveModel(plan, intent, modelOverride, imageDataUris, taskType, isDegraded, isGuest);
+  const options = { max_tokens: target.maxTokens };
+
+  if (target.provider === 'groq') {
+    return await groqProvider.callStream(target.modelId, messages, systemPrompt, onChunk, imageDataUris, options);
+  }
+
+  if (target.provider === 'gemini') {
+    return await geminiProvider.callStream(target.modelId, messages, systemPrompt, onChunk, imageDataUris, options);
+  }
+
+  try {
+    return await deepseekProvider.callStream(target.modelId, messages, systemPrompt, onChunk, options);
+  } catch (error) {
+    console.warn(`[ModelRouter Fallback] DeepSeek Stream falló (${error.message}). Reintentando con Gemini Flash-Lite...`);
+    try {
+      return await geminiProvider.callStream('gemini-flash-lite-latest', messages, systemPrompt, onChunk, imageDataUris, options);
+    } catch (geminiError) {
+      console.warn(`[ModelRouter Fallback] Gemini Stream falló. Reintentando con Groq Eco...`);
+      return await groqProvider.callStream(ECO_MODELS.text, messages, systemPrompt, onChunk, imageDataUris, options);
+    }
+  }
+}
+
+module.exports = {
+  routeMessage,
+  routeMessageStream,
+  getEffectiveModel,
+};

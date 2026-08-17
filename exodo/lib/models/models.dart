@@ -81,6 +81,7 @@ class ChatMessage {
   final List<Attachment> attachments;
   final DateTime createdAt;
   final bool isThinking;
+  final bool isDegraded;
 
   ChatMessage({
     required this.id,
@@ -93,6 +94,7 @@ class ChatMessage {
     this.attachments = const [],
     required this.createdAt,
     this.isThinking = false,
+    this.isDegraded = false,
   });
 
   factory ChatMessage.fromJson(Map<String, dynamic> json) {
@@ -160,6 +162,7 @@ class ChatMessage {
       sources: sourcesList,
       attachments: attachmentsList,
       createdAt: json['created_at'] != null ? DateTime.parse(json['created_at'] as String) : DateTime.now(),
+      isDegraded: json['is_degraded'] as bool? ?? json['isDegraded'] as bool? ?? false,
     );
   }
 }

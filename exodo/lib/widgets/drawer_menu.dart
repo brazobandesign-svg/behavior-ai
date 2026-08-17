@@ -2,14 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../models/models.dart';
 import '../services/app_state.dart';
 import '../services/supabase_service.dart';
+import '../services/stripe_service.dart';
 import '../services/widget_service.dart';
 import '../theme/exodo_theme.dart';
 import '../l10n/app_i18n.dart';
 import '../l10n/app_translations.dart';
 import '../screens/profile_screen.dart';
+import 'billing/token_progress_bar.dart';
 
 /// Item de menú reutilizable con padding responsive.
 class _DrawerItem extends StatelessWidget {
@@ -130,6 +133,8 @@ class _DrawerMenuState extends State<DrawerMenu> {
                                           'assets/images/Logo_behavior.png',
                                           height: logoH,
                                           color: ExodoColors.amber,
+                                          filterQuality: FilterQuality.medium,
+                                          isAntiAlias: true,
                                         ),
                                         SizedBox(width: s(10)),
                                         Flexible(
@@ -138,6 +143,8 @@ class _DrawerMenuState extends State<DrawerMenu> {
                                             height: exodoTextH,
                                             color: textCol,
                                             fit: BoxFit.scaleDown,
+                                            filterQuality: FilterQuality.medium,
+                                            isAntiAlias: true,
                                           ),
                                         ),
                                       ],
@@ -1193,7 +1200,21 @@ class _ClaudeAccountModal {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(AppI18n.of(context).t('settings.billing'), style: TextStyle(fontFamily: 'Syne', fontSize: 20, fontWeight: FontWeight.bold, color: textPrimary)),
+              Text(
+                AppI18n.of(context).t('settings.billing'),
+                style: GoogleFonts.inter(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: textPrimary,
+                ),
+              ),
+              const SizedBox(height: 16),
+              TokenProgressBar(
+                used: state.tokensUsed,
+                limit: state.tokensLimit,
+                resetTime: state.tokensResetTime,
+                isPro: isPro,
+              ),
               const SizedBox(height: 16),
               Container(
                 padding: const EdgeInsets.all(16),
@@ -1259,9 +1280,19 @@ class _ClaudeAccountModal {
                   width: double.infinity,
                   child: OutlinedButton(
                     style: OutlinedButton.styleFrom(side: const BorderSide(color: Color(0xFFE57373)), padding: const EdgeInsets.symmetric(vertical: 14)),
-                    onPressed: () {
-                      state.cancelProPlan();
-                      Navigator.pop(ctx);
+                    onPressed: () async {
+                      try {
+                        final url = await StripeService.createPortalSession();
+                        if (url != null && ctx.mounted) {
+                          await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+                        }
+                      } catch (e) {
+                        if (ctx.mounted) {
+                          ScaffoldMessenger.of(ctx).showSnackBar(
+                            SnackBar(content: Text(e.toString().replaceFirst('Exception: ', ''))),
+                          );
+                        }
+                      }
                     },
                     child: Text(AppI18n.of(context).t('billing.cancel_btn'), style: GoogleFonts.inter(color: const Color(0xFFE57373), fontWeight: FontWeight.bold)),
                   ),
@@ -1271,7 +1302,21 @@ class _ClaudeAccountModal {
                   width: double.infinity,
                   child: ElevatedButton(
                     style: ElevatedButton.styleFrom(backgroundColor: ExodoColors.amber, foregroundColor: Colors.black, padding: const EdgeInsets.symmetric(vertical: 14)),
-                    onPressed: () => Navigator.pop(ctx),
+                    onPressed: () async {
+                      Navigator.pop(ctx);
+                      try {
+                        final url = await StripeService.createCheckoutSession();
+                        if (url != null && ctx.mounted) {
+                          await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+                        }
+                      } catch (e) {
+                        if (ctx.mounted) {
+                          ScaffoldMessenger.of(ctx).showSnackBar(
+                            SnackBar(content: Text(e.toString().replaceFirst('Exception: ', ''))),
+                          );
+                        }
+                      }
+                    },
                     child: Text(AppI18n.of(context).t('billing.upgrade_btn'), style: GoogleFonts.inter(fontWeight: FontWeight.bold)),
                   ),
                 ),

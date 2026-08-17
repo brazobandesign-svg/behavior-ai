@@ -1,39 +1,81 @@
 const supabase = require('../config/supabase');
+const { getMemUsageMap } = require('../middleware/planGuard');
 
 /**
- * Token Counter — Bible sección 07.
- * Cuenta tokens input/output y actualiza user_usage en Supabase.
- * Los tokens se cuentan por día (período diario, reseteo automático).
+ * Token Counter
+ * Cuenta tokens input/output y actualiza user_usage en Supabase y memoria.
  */
 
-/**
- * Estima tokens de un texto (aproximación: 1 token ≈ 4 caracteres en español).
- * Para producción se reemplazaría con tiktoken o la respuesta de uso del provider.
- */
 function estimateTokens(text) {
   if (!text) return 0;
   return Math.ceil(text.length / 4);
 }
 
+function getAstDates() {
+  const now = new Date();
+  const astOffset = 4 * 60 * 60 * 1000;
+  const astDate = new Date(now.getTime() - astOffset);
+  const currentDate = astDate.toISOString().split('T')[0];
+  const currentMonth = currentDate.substring(0, 7);
+  return { currentDate, currentMonth };
+}
+
 /**
- * Actualiza el contador de tokens del usuario para hoy.
- * @param {string} usageId - ID del registro user_usage de hoy
- * @param {number} tokensUsed - Tokens actuales ya usados
- * @param {number} newTokens - Tokens adicionales de esta llamada (input + output)
+ * Actualiza el contador de tokens y visión del usuario.
  */
-async function updateTokenUsage(usageId, tokensUsed, newTokens) {
-  if (!usageId || !supabase) return;
+async function updateTokenUsage(userId, newTokens, hasImage = false, currentUsage = {}) {
+  if (!userId) return;
+
+  const { currentDate, currentMonth } = getAstDates();
+  const memMap = getMemUsageMap();
+  let mem = memMap.get(userId);
+
+  const tokensToAdd = Math.max(1, newTokens);
+  const imagesToAdd = hasImage ? 1 : 0;
+
+  if (mem) {
+    if (mem.lastTokenReset !== currentDate) {
+      mem.dailyTokensUsed = tokensToAdd;
+      mem.lastTokenReset = currentDate;
+    } else {
+      mem.dailyTokensUsed += tokensToAdd;
+    }
+
+    if (mem.lastVisionReset !== currentMonth) {
+      mem.monthlyVisionUsed = imagesToAdd;
+      mem.lastVisionReset = currentMonth;
+    } else {
+      mem.monthlyVisionUsed += imagesToAdd;
+    }
+  } else {
+    mem = {
+      dailyTokensUsed: (currentUsage.dailyTokensUsed || 0) + tokensToAdd,
+      dailyTokensLimit: currentUsage.dailyTokensLimit || 6000,
+      monthlyVisionUsed: (currentUsage.monthlyVisionUsed || 0) + imagesToAdd,
+      monthlyVisionLimit: currentUsage.monthlyVisionLimit || 3,
+      lastTokenReset: currentDate,
+      lastVisionReset: currentMonth,
+    };
+    memMap.set(userId, mem);
+  }
+
+  // 2. Actualizar en Supabase
+  if (!supabase) return;
 
   try {
+    const updatePayload = {
+      tokens_used: mem.dailyTokensUsed,
+      images_used: mem.monthlyVisionUsed,
+      period: currentDate,
+      updated_at: new Date().toISOString(),
+    };
+
     await supabase
       .from('user_usage')
-      .update({
-        tokens_used: tokensUsed + newTokens,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', usageId);
+      .update(updatePayload)
+      .eq('user_id', userId);
   } catch (err) {
-    console.error('[tokenCounter] Error actualizando uso:', err.message);
+    console.error('[tokenCounter] Error actualizando uso en DB:', err.message);
   }
 }
 
