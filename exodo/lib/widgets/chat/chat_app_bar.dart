@@ -341,20 +341,20 @@ class _HeaderTokenBarState extends State<_HeaderTokenBar> {
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           _infoPill(
-                            'Consumido',
+                            'Used',
                             '${widget.used} ($pct%)',
                             isLight,
                             false,
                           ),
                           if (widget.isPro)
                             _infoPill(
-                              'Disponible',
+                              'Available',
                               '$remaining tk',
                               isLight,
                               false,
                             ),
                           _infoPill(
-                            'Reinicio en',
+                            'Resets in',
                             _getCountdown(),
                             isLight,
                             true,

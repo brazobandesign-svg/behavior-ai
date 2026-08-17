@@ -1053,7 +1053,7 @@ class _InteractiveCodeBlockState extends State<_InteractiveCodeBlock> {
   }
 }
 
-/// Pie sutil de aviso de Modo Eco en línea (estilo GPT sin modales intermedios).
+/// Subtle inline Eco Mode notice (GPT style without intermediate modals).
 class _EcoModeNotice extends StatelessWidget {
   final bool isLight;
   const _EcoModeNotice({required this.isLight});
@@ -1070,7 +1070,7 @@ class _EcoModeNotice extends StatelessWidget {
         behavior: HitTestBehavior.opaque,
         child: Text.rich(
           TextSpan(
-            text: 'Has alcanzado tu límite diario. Continuando en modo eco, Se reinicia a las 00:00 AST. ',
+            text: "You've reached your daily limit. Continuing in eco mode, resets at 00:00 AST. ",
             style: TextStyle(
               fontFamily: 'AnthropicSans',
               fontSize: 11,
@@ -1080,7 +1080,7 @@ class _EcoModeNotice extends StatelessWidget {
             ),
             children: [
               TextSpan(
-                text: '[Subir a Pro]',
+                text: '[Upgrade]',
                 style: TextStyle(
                   fontFamily: 'AnthropicSans',
                   fontSize: 11,

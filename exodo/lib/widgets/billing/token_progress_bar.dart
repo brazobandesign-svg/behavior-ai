@@ -177,20 +177,20 @@ class _TokenProgressBarState extends State<TokenProgressBar> with SingleTickerPr
                   mainAxisAlignment: MainAxisAlignment.spaceAround,
                   children: [
                     _infoPill(
-                      'Consumido',
+                      'Used',
                       '${widget.used} ($pct%)',
                       isLight,
                       false,
                     ),
                     if (widget.isPro)
                       _infoPill(
-                        'Disponible',
+                        'Available',
                         '$remaining tk',
                         isLight,
                         false,
                       ),
                     _infoPill(
-                      'Reinicio en',
+                      'Resets in',
                       _getCountdown(),
                       isLight,
                       true,
