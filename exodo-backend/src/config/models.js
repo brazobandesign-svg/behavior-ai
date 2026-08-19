@@ -8,7 +8,7 @@ const PLAN_CONFIG = {
     monthlyVisionLimit: 3,           // Análisis de imagen al mes (Gemini Flash-Lite)
     allowThinking: false,
     // Configuración Groq (Guests y Modo Eco sin restricciones artificiales)
-    ecoModel: 'llama-3.3-70b-versatile',
+    ecoModel: 'openai/gpt-oss-120b',
     ecoMaxOutputTokens: 4096,        // Extensión y capacidad natural completa
   },
   pro: {
@@ -93,6 +93,8 @@ const MODEL_TO_PROVIDER = {
   'deepseek-chat':             'deepseek',
   'deepseek-reasoner':         'deepseek',
   'gemini-flash-lite-latest': 'gemini',
+  'openai/gpt-oss-120b':       'groq',
+  'openai/gpt-oss-20b':        'groq',
   'llama-3.3-70b-versatile':   'groq',
   'qwen/qwen3.6-27b':          'groq',
 };

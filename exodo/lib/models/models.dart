@@ -68,6 +68,17 @@ class Conversation {
       updatedAt: json['updated_at'] != null ? DateTime.tryParse(json['updated_at'] as String) : null,
     );
   }
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'user_id': userId,
+    'title': title,
+    'model_plan': modelPlan,
+    'is_incognito': isIncognito,
+    'is_starred': isStarred,
+    'created_at': createdAt.toIso8601String(),
+    if (updatedAt != null) 'updated_at': updatedAt!.toIso8601String(),
+  };
 }
 
 class ChatMessage {
@@ -97,14 +108,28 @@ class ChatMessage {
     this.isDegraded = false,
   });
 
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'conversation_id': conversationId,
+    'role': role,
+    'content': content,
+    if (intentDetected != null) 'intent_detected': intentDetected,
+    if (modelCalled != null) 'model_called': modelCalled,
+    'sources': sources.map((s) => s.toJson()).toList(),
+    'attachments': attachments.map((a) => a.toJson()).toList(),
+    'created_at': createdAt.toIso8601String(),
+    'is_thinking': isThinking,
+    'is_degraded': isDegraded,
+  };
+
   factory ChatMessage.fromJson(Map<String, dynamic> json) {
     String contentStr = json['content'] as String? ?? '';
     List<Source> sourcesList = [];
     final rawSources = json['sources'];
     if (rawSources is List && rawSources.isNotEmpty) {
       sourcesList = rawSources
-          .where((s) => s is Map)
-          .map((s) => Source.fromJson(Map<String, dynamic>.from(s as Map)))
+          .whereType<Map>()
+          .map((s) => Source.fromJson(Map<String, dynamic>.from(s)))
           .toList();
     } else {
       const marker = '<!-- SOURCES: ';
@@ -117,8 +142,8 @@ class ChatMessage {
             final decoded = jsonDecode(jsonStr);
             if (decoded is List) {
               sourcesList = decoded
-                  .where((s) => s is Map)
-                  .map((s) => Source.fromJson(Map<String, dynamic>.from(s as Map)))
+                  .whereType<Map>()
+                  .map((s) => Source.fromJson(Map<String, dynamic>.from(s)))
                   .toList();
             }
           } catch (_) {}
@@ -137,8 +162,8 @@ class ChatMessage {
           final decoded = jsonDecode(jsonStr);
           if (decoded is List) {
             attachmentsList = decoded
-                .where((s) => s is Map)
-                .map((s) => Attachment.fromJson(Map<String, dynamic>.from(s as Map)))
+                .whereType<Map>()
+                .map((s) => Attachment.fromJson(Map<String, dynamic>.from(s)))
                 .toList();
           }
         } catch (_) {}
@@ -147,8 +172,8 @@ class ChatMessage {
     } else if (json['attachments'] is List && (json['attachments'] as List).isNotEmpty) {
       try {
         attachmentsList = (json['attachments'] as List)
-            .where((s) => s is Map)
-            .map((s) => Attachment.fromJson(Map<String, dynamic>.from(s as Map)))
+            .whereType<Map>()
+            .map((s) => Attachment.fromJson(Map<String, dynamic>.from(s)))
             .toList();
       } catch (_) {}
     }
@@ -162,6 +187,7 @@ class ChatMessage {
       sources: sourcesList,
       attachments: attachmentsList,
       createdAt: json['created_at'] != null ? DateTime.parse(json['created_at'] as String) : DateTime.now(),
+      isThinking: json['is_thinking'] as bool? ?? false,
       isDegraded: json['is_degraded'] as bool? ?? json['isDegraded'] as bool? ?? false,
     );
   }

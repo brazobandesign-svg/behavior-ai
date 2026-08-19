@@ -4,6 +4,8 @@ const cors = require('cors');
 const chatRoutes = require('./routes/chat');
 const stripeRoutes = require('./routes/stripe');
 const userRoutes = require('./routes/user');
+const artifactsRoutes = require('./routes/artifacts');
+const expedientesRoutes = require('./routes/expedientes');
 const errorHandler = require('./middleware/errorHandler');
 const { chatRateLimiter } = require('./middleware/rateLimiter');
 const { HOST, PORT, NODE_ENV, corsOrigins } = require('./config/network');
@@ -32,6 +34,8 @@ app.use('/api/', chatRateLimiter);
 app.use('/api/chat', chatRoutes);
 app.use('/api/stripe', stripeRoutes);
 app.use('/api/user', userRoutes);
+app.use('/api/artifacts', artifactsRoutes);
+app.use('/api/expedientes', expedientesRoutes);
 
 // Health check — Bible: verificar que el servidor está vivo
 app.get('/health', (req, res) => {

@@ -45,6 +45,7 @@ async function auth(req, res, next) {
 
     req.user = {
       userId: user.id,
+      email: user.email || null,
       plan: isGuest ? 'guest' : (profile?.plan || 'genesis'),
       fullName: profile?.full_name || (isGuest ? 'Invitado Éxodo' : null),
       onboarding: profile?.onboarding || null,

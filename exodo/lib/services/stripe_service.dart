@@ -1,5 +1,9 @@
 import 'dart:convert';
+import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:url_launcher/url_launcher.dart';
+import '../theme/exodo_palette.dart';
+import 'chat_service.dart';
 import 'supabase_service.dart';
 
 /// Servicio de Stripe para Éxodo.
@@ -7,21 +11,13 @@ import 'supabase_service.dart';
 class StripeService {
   /// URL base del backend — reutiliza la misma lógica que ChatService.
   static String get _backendBase {
-    const env1 = String.fromEnvironment('BACKEND_URL');
-    const env2 = String.fromEnvironment('EXODO_BACKEND_URL');
-    for (final env in [env1, env2]) {
-      if (env.isNotEmpty) {
-        final base = env.endsWith('/api/chat')
-            ? env.replaceAll('/api/chat', '')
-            : (env.endsWith('/api') ? env.substring(0, env.length - 4) : env);
-        return base;
-      }
-    }
-    return 'http://192.168.8.223:3000';
+    return ChatService.backendUrl
+        .replaceAll('/api/chat', '')
+        .replaceAll('/chat', '')
+        .replaceAll(RegExp(r'/+$'), '');
   }
 
-  /// Crea una sesión de Stripe Checkout y abre la URL en el navegador.
-  /// Retorna la URL de checkout, o null si hay error.
+  /// Crea una sesión de Stripe Checkout y retorna la URL generada.
   static Future<String?> createCheckoutSession() async {
     final session = SupabaseService.client.auth.currentSession;
     final jwt = session?.accessToken;
@@ -47,6 +43,54 @@ class StripeService {
     } else {
       final data = jsonDecode(response.body);
       throw Exception(data['error'] ?? 'Error al crear sesión de pago');
+    }
+  }
+
+  /// Inicia el flujo de checkout de Stripe en el navegador externo con feedback visual.
+  static Future<bool> startCheckoutSession(BuildContext context) async {
+    try {
+      final session = SupabaseService.client.auth.currentSession;
+      final jwt = session?.accessToken;
+
+      if (jwt == null) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Debes iniciar sesión con tu cuenta para adquirir una suscripción.'),
+              backgroundColor: ExodoPalette.danger,
+            ),
+          );
+        }
+        return false;
+      }
+
+      final url = await createCheckoutSession();
+      if (url != null && url.isNotEmpty) {
+        final uri = Uri.parse(url);
+        final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
+        return launched;
+      } else {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('No se pudo generar el enlace de pago de Stripe. Intenta más tarde.'),
+              backgroundColor: ExodoPalette.danger,
+            ),
+          );
+        }
+        return false;
+      }
+    } catch (e) {
+      if (context.mounted) {
+        final cleanMsg = e.toString().replaceAll('Exception: ', '');
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error de suscripción: $cleanMsg'),
+            backgroundColor: ExodoPalette.danger,
+          ),
+        );
+      }
+      return false;
     }
   }
 

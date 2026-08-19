@@ -47,11 +47,9 @@ class _CodeBlockWidgetState extends State<CodeBlockWidget> {
 
   @override
   Widget build(BuildContext context) {
-    // Fondo tipo "terminal" — siempre oscuro para que el código se lea bien
-    // independientemente del theme de la app.
-    final bgColor = ExodoColors.surface;
-    final borderColor = ExodoColors.border;
-    final textColor = Colors.white;
+    const bgColor = Color(0xFF0E0C0A); // Warm black #0E0C0A
+    const borderColor = Color(0xFF2A2520);
+    const textColor = Colors.white;
 
     final i18n = AppI18n.of(context);
 
@@ -62,16 +60,16 @@ class _CodeBlockWidgetState extends State<CodeBlockWidget> {
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: borderColor),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+      clipBehavior: Clip.hardEdge,
+      child: Stack(
         children: [
-          // Header: lenguaje + botón copiar.
-          Padding(
-            padding: const EdgeInsets.fromLTRB(14, 8, 6, 0),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Row(
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Header: lenguaje
+              Padding(
+                padding: const EdgeInsets.fromLTRB(14, 10, 70, 0),
+                child: Row(
                   children: [
                     Icon(
                       Icons.code_rounded,
@@ -81,7 +79,8 @@ class _CodeBlockWidgetState extends State<CodeBlockWidget> {
                     const SizedBox(width: 6),
                     Text(
                       (widget.language ?? 'code').toUpperCase(),
-                      style: TextStyle(fontFamily: 'AnthropicSans', 
+                      style: const TextStyle(
+                        fontFamily: 'AnthropicSans',
                         fontSize: 10,
                         fontWeight: FontWeight.w600,
                         color: ExodoColors.textSecondary,
@@ -90,58 +89,79 @@ class _CodeBlockWidgetState extends State<CodeBlockWidget> {
                     ),
                   ],
                 ),
-                Material(
-                  color: Colors.transparent,
-                  child: InkWell(
-                    onTap: _copy,
-                    borderRadius: BorderRadius.circular(6),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            _copied ? Icons.check_rounded : Icons.copy_rounded,
-                            size: 13,
-                            color: _copied ? ExodoColors.amber : ExodoColors.textSecondary,
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            _copied
-                                ? i18n.t('code.copied')
-                                : i18n.t('code.copy'),
-                            style: TextStyle(fontFamily: 'AnthropicSans', 
-                              fontSize: 10,
-                              fontWeight: FontWeight.w600,
-                              color: _copied ? ExodoColors.amber : ExodoColors.textSecondary,
-                            ),
-                          ),
-                        ],
+              ),
+              // Línea separadora sutil.
+              Container(
+                height: 1,
+                color: borderColor,
+                margin: const EdgeInsets.only(top: 8),
+              ),
+              // Código con scroll horizontal unconstrained.
+              Padding(
+                padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: IntrinsicWidth(
+                    child: SelectableText(
+                      widget.code,
+                      style: const TextStyle(
+                        fontFamily: 'AnthropicSans',
+                        fontSize: 13,
+                        color: textColor,
+                        height: 1.5,
                       ),
                     ),
                   ),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
-          // Línea separadora sutil.
-          Container(height: 1, color: borderColor, margin: const EdgeInsets.only(top: 8)),
-          // Código.
-          Padding(
-            padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
-            child: SelectableText(
-              widget.code,
-              style: TextStyle(fontFamily: 'AnthropicSans', 
-                fontSize: 13,
-                color: textColor,
-                height: 1.5,
+          // Botón "Copiar" fijado permanentemente en la esquina superior derecha
+          Positioned(
+            top: 8,
+            right: 8,
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: _copy,
+                borderRadius: BorderRadius.circular(6),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: _copied
+                        ? Colors.green.withValues(alpha: 0.2)
+                        : Colors.white.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(
+                      color: _copied ? Colors.green.withValues(alpha: 0.5) : Colors.white12,
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        _copied ? Icons.check_rounded : Icons.copy_rounded,
+                        size: 13,
+                        color: _copied ? Colors.green : ExodoColors.textSecondary,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        _copied
+                            ? i18n.t('code.copied')
+                            : i18n.t('code.copy'),
+                        style: TextStyle(
+                          fontFamily: 'AnthropicSans',
+                          fontSize: 10,
+                          fontWeight: FontWeight.w600,
+                          color: _copied ? Colors.green : ExodoColors.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ),
             ),
           ),
-          // (Removido: Positioned.fill era inválido dentro de un Column.
-          // Causaba "Incorrect use of ParentDataWidget" → cuadro rojo de
-          // Flutter cuando la IA generaba código. Si en el futuro queremos
-          // un overlay, hay que envolver TODO el Column en un Stack.)
         ],
       ),
     );

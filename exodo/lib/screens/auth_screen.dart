@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:provider/provider.dart';
+import '../services/app_state.dart';
 import '../services/supabase_service.dart';
 import '../theme/exodo_theme.dart';
 import '../l10n/app_i18n.dart';
@@ -15,15 +17,17 @@ class AuthScreen extends StatefulWidget {
 class _AuthScreenState extends State<AuthScreen> {
   bool isLoading = false;
 
-  // Nueva función para manejar el acceso como invitado
+  // Manejar el acceso como invitado
   Future<void> _signInAsGuest() async {
     setState(() => isLoading = true);
     try {
-      await SupabaseService.signInAnonymously();
-    } catch (e) {
-      // Error silencioso — sin SnackBar
+      await SupabaseService.signInAnonymously().timeout(const Duration(seconds: 2));
+    } catch (_) {
     } finally {
-      if (mounted) setState(() => isLoading = false);
+      if (mounted) {
+        context.read<AppState>().continueAsGuest();
+        setState(() => isLoading = false);
+      }
     }
   }
 

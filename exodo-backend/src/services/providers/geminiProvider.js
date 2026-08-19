@@ -105,11 +105,28 @@ async function call(modelId, messages, systemPrompt, imageDataUris = [], options
     };
   }
 
-  const response = await ai.models.generateContent({
+  if (options.signal && options.signal.aborted) {
+    throw new Error('AbortError');
+  }
+
+  let response;
+  const generatePromise = ai.models.generateContent({
     model: TARGET_MODEL,
     contents: contents,
     config: config,
   });
+
+  if (options.signal) {
+    const abortPromise = new Promise((_, reject) => {
+      const onAbort = () => reject(new Error('AbortError'));
+      options.signal.addEventListener('abort', onAbort);
+      // Clean up the event listener when generatePromise completes
+      generatePromise.finally(() => options.signal.removeEventListener('abort', onAbort)).catch(() => {});
+    });
+    response = await Promise.race([generatePromise, abortPromise]);
+  } else {
+    response = await generatePromise;
+  }
 
   const text = response.text || '';
   const usage = response.usageMetadata || {};
@@ -151,6 +168,7 @@ async function callStream(modelId, messages, systemPrompt, onChunk, imageDataUri
   let usage = {};
 
   for await (const chunk of responseStream) {
+    if (options.signal && options.signal.aborted) break;
     if (chunk.text) {
       fullText += chunk.text;
       onChunk(chunk.text);

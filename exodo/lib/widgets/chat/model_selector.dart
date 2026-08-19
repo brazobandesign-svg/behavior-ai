@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../models/models.dart';
 import '../../services/app_state.dart';
+import '../../services/stripe_service.dart';
 import '../../theme/exodo_theme.dart';
 import '../../l10n/app_i18n.dart';
 
@@ -212,6 +213,7 @@ class UpgradeModal {
   static void show(BuildContext context) {
     HapticFeedback.vibrate();
     bool isAnnual = false;
+    bool isLoadingCheckout = false;
     final isLight = Theme.of(context).brightness == Brightness.light;
     final bgColor = isLight ? Colors.white : ExodoColors.background;
     final planSelectedBg = isLight
@@ -477,18 +479,34 @@ class UpgradeModal {
                               borderRadius: BorderRadius.circular(14),
                             ),
                           ),
-                          onPressed: () {
-                            HapticFeedback.mediumImpact();
-                            Navigator.pop(context);
-                            // Pago no disponible aún — silencioso
-                          },
-                          child: Text(
-                            AppI18n.of(context).t('billing.get_pro'),
-                            style: GoogleFonts.inter(
-                              fontSize: 15,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
+                          onPressed: isLoadingCheckout
+                              ? null
+                              : () async {
+                                  HapticFeedback.mediumImpact();
+                                  setModalState(() => isLoadingCheckout = true);
+                                  final success = await StripeService.startCheckoutSession(context);
+                                  if (context.mounted && success) {
+                                    Navigator.pop(ctx);
+                                  } else if (context.mounted) {
+                                    setModalState(() => isLoadingCheckout = false);
+                                  }
+                                },
+                          child: isLoadingCheckout
+                              ? SizedBox(
+                                  width: 22,
+                                  height: 22,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2.5,
+                                    color: buttonFg,
+                                  ),
+                                )
+                              : Text(
+                                  AppI18n.of(context).t('billing.get_pro'),
+                                  style: GoogleFonts.inter(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
                         ),
                       ),
                       const SizedBox(height: 8),

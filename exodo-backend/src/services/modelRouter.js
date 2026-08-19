@@ -101,9 +101,9 @@ function getEffectiveModel(plan, intent, modelOverride, imageDataUris, taskType,
 /**
  * Llamada estándar con fallback
  */
-async function routeMessage(plan, intent, messages, systemPrompt, modelOverride, imageDataUris, taskType, isDegraded = false, isGuest = false) {
+async function routeMessage(plan, intent, messages, systemPrompt, modelOverride, imageDataUris, taskType, isDegraded = false, isGuest = false, signal = null) {
   const target = getEffectiveModel(plan, intent, modelOverride, imageDataUris, taskType, isDegraded, isGuest);
-  const options = { max_tokens: target.maxTokens };
+  const options = { max_tokens: target.maxTokens, signal };
 
   if (target.provider === 'groq') {
     return await groqProvider.call(target.modelId, messages, systemPrompt, imageDataUris, options);
@@ -129,9 +129,9 @@ async function routeMessage(plan, intent, messages, systemPrompt, modelOverride,
 /**
  * Llamada Streaming SSE con fallback
  */
-async function routeMessageStream(plan, intent, messages, systemPrompt, onChunk, modelOverride, imageDataUris, taskType, isDegraded = false, isGuest = false) {
+async function routeMessageStream(plan, intent, messages, systemPrompt, onChunk, modelOverride, imageDataUris, taskType, isDegraded = false, isGuest = false, signal = null) {
   const target = getEffectiveModel(plan, intent, modelOverride, imageDataUris, taskType, isDegraded, isGuest);
-  const options = { max_tokens: target.maxTokens };
+  const options = { max_tokens: target.maxTokens, signal };
 
   if (target.provider === 'groq') {
     return await groqProvider.callStream(target.modelId, messages, systemPrompt, onChunk, imageDataUris, options);

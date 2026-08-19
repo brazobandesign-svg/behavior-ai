@@ -11,6 +11,7 @@ import '../widgets/chat/chat_stage.dart';
 import '../widgets/chat/chat_composer.dart';
 import '../widgets/chat/message_bubble.dart';
 import '../widgets/chat/model_selector.dart';
+import '../services/chat_service.dart';
 import '../theme/exodo_theme.dart';
 
 class ChatScreen extends StatefulWidget {
@@ -27,8 +28,6 @@ class _ChatScreenState extends State<ChatScreen>
   late AnimationController _thinkingAnimCtrl;
   late AnimationController _ambientBgCtrl;
   late AnimationController _pulseCtrl;
-  int _lastMessageCount = 0;
-  bool _followStreamingBottom = true;
 
   @override
   void initState() {
@@ -81,6 +80,7 @@ class _ChatScreenState extends State<ChatScreen>
 
   @override
   void dispose() {
+    ChatService.cancelStream();
     WidgetsBinding.instance.removeObserver(this);
     _inputCtrl.dispose();
     _scrollCtrl.dispose();
@@ -88,18 +88,6 @@ class _ChatScreenState extends State<ChatScreen>
     _ambientBgCtrl.dispose();
     _pulseCtrl.dispose();
     super.dispose();
-  }
-
-  void _scrollToBottom() {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (_scrollCtrl.hasClients) {
-        _scrollCtrl.animateTo(
-          _scrollCtrl.position.maxScrollExtent,
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeOut,
-        );
-      }
-    });
   }
 
   void _showModelSheet() {
@@ -159,9 +147,6 @@ class _ChatScreenState extends State<ChatScreen>
                       scrollCtrl: _scrollCtrl,
                       pulseAnim: _pulseCtrl,
                       isLight: isLight,
-                      onFollowBottomChanged: (value) {
-                        _followStreamingBottom = value;
-                      },
                     ),
                     // Degradado inferior (borrado suave para que el texto fluya sin corte brusco)
                     Positioned(
@@ -250,7 +235,7 @@ class _ChatScreenState extends State<ChatScreen>
 }
 
 /// [Fix rendimiento streaming] Widget aislado que contiene TODO lo que
-/// depende de currentMessages y isGenerating. Su propio context.watch<AppState>()
+/// depende de currentMessages y isGenerating. Su propio `context.watch<AppState>()`
 /// vive aquí, no en _ChatScreenState.build(), así que cuando llega un chunk SSE
 /// solo ESTE subárbol se reconstruye — ChatAppBar, el degradado, el botón de
 /// scroll y el composer del padre quedan intactos y no repintan nada de más.
@@ -258,14 +243,12 @@ class ChatMessagesList extends StatefulWidget {
   final ScrollController scrollCtrl;
   final AnimationController pulseAnim;
   final bool isLight;
-  final ValueChanged<bool> onFollowBottomChanged;
 
   const ChatMessagesList({
     super.key,
     required this.scrollCtrl,
     required this.pulseAnim,
     required this.isLight,
-    required this.onFollowBottomChanged,
   });
 
   @override
@@ -278,7 +261,6 @@ class _ChatMessagesListState extends State<ChatMessagesList> {
 
   void _scrollToBottom() {
     _followStreamingBottom = true;
-    widget.onFollowBottomChanged(true);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (widget.scrollCtrl.hasClients) {
         widget.scrollCtrl.animateTo(
@@ -299,7 +281,6 @@ class _ChatMessagesListState extends State<ChatMessagesList> {
     if (state.currentMessages.length > _lastMessageCount) {
       _lastMessageCount = state.currentMessages.length;
       _followStreamingBottom = true;
-      widget.onFollowBottomChanged(true);
       _scrollToBottom();
     } else {
       _lastMessageCount = state.currentMessages.length;
@@ -359,16 +340,13 @@ class _ChatMessagesListState extends State<ChatMessagesList> {
         if (notification is ScrollStartNotification &&
             notification.dragDetails != null) {
           _followStreamingBottom = false;
-          widget.onFollowBottomChanged(false);
         } else if (notification is ScrollUpdateNotification &&
             notification.dragDetails != null) {
           _followStreamingBottom = false;
-          widget.onFollowBottomChanged(false);
         } else if (notification is UserScrollNotification &&
             notification.direction != ScrollDirection.idle &&
             widget.scrollCtrl.position.isScrollingNotifier.value) {
           _followStreamingBottom = false;
-          widget.onFollowBottomChanged(false);
         }
         return false;
       },
@@ -409,10 +387,8 @@ class _ChatMessagesListState extends State<ChatMessagesList> {
 /// al padre (_ChatScreenState) a reconstruirse en cada chunk.
 class _ScrollToBottomHostSelector extends StatelessWidget {
   final ScrollController controller;
-  final VoidCallback? onPressed;
   const _ScrollToBottomHostSelector({
     required this.controller,
-    this.onPressed,
   });
 
   @override
@@ -423,7 +399,6 @@ class _ScrollToBottomHostSelector extends StatelessWidget {
     return ScrollToBottomButton(
       controller: controller,
       messagesCount: messagesCount,
-      onPressed: onPressed,
     );
   }
 }

@@ -1,0 +1,69 @@
+import 'package:drift/drift.dart';
+import '../app_database.dart';
+import '../tables/messages.dart';
+
+part 'messages_dao.g.dart';
+
+@DriftAccessor(tables: [LocalMessages])
+class MessagesDao extends DatabaseAccessor<AppDatabase> with _$MessagesDaoMixin {
+  MessagesDao(super.db);
+
+  /// Stream reactivo de mensajes de una conversación, ordenados por fecha ascendente.
+  Stream<List<LocalMessage>> watchByConversation(String conversationId) {
+    return (select(localMessages)
+          ..where((tbl) => tbl.conversationId.equals(conversationId))
+          ..orderBy([(t) => OrderingTerm(expression: t.createdAt, mode: OrderingMode.asc)]))
+        .watch();
+  }
+
+  /// Obtiene los mensajes de una conversación en una consulta puntual.
+  Future<List<LocalMessage>> getByConversation(String conversationId) {
+    return (select(localMessages)
+          ..where((tbl) => tbl.conversationId.equals(conversationId))
+          ..orderBy([(t) => OrderingTerm(expression: t.createdAt, mode: OrderingMode.asc)]))
+        .get();
+  }
+
+  /// Inserta o actualiza un mensaje local.
+  Future<void> upsert(LocalMessagesCompanion entry) {
+    return into(localMessages).insertOnConflictUpdate(entry);
+  }
+
+  /// Inserta o actualiza un lote de mensajes.
+  Future<void> upsertAll(List<LocalMessagesCompanion> entries) async {
+    await batch((b) {
+      b.insertAllOnConflictUpdate(localMessages, entries);
+    });
+  }
+
+  /// Actualiza el contenido de un mensaje existente (por ejemplo durante streaming o respuesta final).
+  Future<void> updateContent(
+    String id,
+    String content, {
+    bool? isThinking,
+    bool? isDegraded,
+    String? sourcesJson,
+    String? attachmentsJson,
+  }) {
+    return (update(localMessages)..where((t) => t.id.equals(id))).write(
+      LocalMessagesCompanion(
+        content: Value(content),
+        isThinking: isThinking != null ? Value(isThinking) : const Value.absent(),
+        isDegraded: isDegraded != null ? Value(isDegraded) : const Value.absent(),
+        sourcesJson: sourcesJson != null ? Value(sourcesJson) : const Value.absent(),
+        attachmentsJson: attachmentsJson != null ? Value(attachmentsJson) : const Value.absent(),
+        updatedAt: Value(DateTime.now()),
+      ),
+    );
+  }
+
+  /// Elimina los mensajes de una conversación específica.
+  Future<void> deleteByConversation(String conversationId) {
+    return (delete(localMessages)..where((t) => t.conversationId.equals(conversationId))).go();
+  }
+
+  /// Elimina todos los mensajes locales.
+  Future<void> deleteAll() {
+    return delete(localMessages).go();
+  }
+}

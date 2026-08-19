@@ -13,6 +13,9 @@ import '../../services/app_state.dart';
 import '../../services/supabase_service.dart';
 import '../../theme/exodo_theme.dart';
 import '../../l10n/app_i18n.dart';
+import '../../data/artifacts/artifact.dart';
+import '../../data/artifacts/artifact_parser.dart';
+import '../artifacts/artifact_card.dart';
 import 'model_selector.dart';
 
 bool _isDeviceEnglish(BuildContext context) {
@@ -234,12 +237,15 @@ class MessageBubble extends StatelessWidget {
                   ),
                 ),
                 child: MarkdownBody(
-                  data: message.content,
+                  data: _AssistantContentWithArtifacts._sanitizeMarkdown(message.content),
                   onTapLink: (text, href, title) {
                     if (href != null) {
                       final uri = Uri.tryParse(href);
                       if (uri != null) launchUrl(uri, mode: LaunchMode.externalApplication);
                     }
+                  },
+                  builders: {
+                    'table': _TableElementBuilder(isLight),
                   },
                   styleSheet: MarkdownStyleSheet.fromTheme(Theme.of(context))
                       .copyWith(
@@ -296,62 +302,12 @@ class MessageBubble extends StatelessWidget {
                     height: 1.45,
                   ),
                 )
-              : MarkdownBody(
-                  data: message.content,
-                  onTapLink: (text, href, title) {
-              if (href != null) {
-                final uri = Uri.tryParse(href);
-                if (uri != null) launchUrl(uri, mode: LaunchMode.externalApplication);
-              }
-            },
-            builders: {
-              'pre': _PreElementBuilder(context, isLight, copyLabel, copiedLabel),
-            },
-            styleSheet: MarkdownStyleSheet.fromTheme(Theme.of(context))
-                .copyWith(
-                  p: TextStyle(
-                    fontFamily: 'AnthropicSerif',
-                    fontSize: 15.5,
-                    color: isLight
-                        ? const Color(0xFF171615)
-                        : ExodoColors.textPrimary,
-                    height: 1.45,
-                  ),
-                  h1: TextStyle(
-                    fontFamily: 'AnthropicSerif',
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold,
-                    color: isLight ? const Color(0xFF171615) : ExodoColors.textPrimary,
-                  ),
-                  h2: TextStyle(
-                    fontFamily: 'AnthropicSerif',
-                    fontSize: 19,
-                    fontWeight: FontWeight.bold,
-                    color: isLight ? const Color(0xFF171615) : ExodoColors.textPrimary,
-                  ),
-                  h3: TextStyle(
-                    fontFamily: 'AnthropicSerif',
-                    fontSize: 17,
-                    fontWeight: FontWeight.bold,
-                    color: isLight ? const Color(0xFF171615) : ExodoColors.textPrimary,
-                  ),
-                  listBullet: TextStyle(
-                    fontFamily: 'AnthropicSerif',
-                    fontSize: 15.5,
-                    color: isLight ? const Color(0xFF171615) : ExodoColors.textPrimary,
-                  ),
-                  code: TextStyle(fontFamily: 'AnthropicSans', 
-                    backgroundColor: isLight
-                        ? const Color(0xFFFFFFFF)
-                        : ExodoColors.surface,
-                    color: isLight
-                        ? const Color(0xFF191919)
-                        : ExodoColors.amber,
-                  ),
-                  codeblockDecoration: const BoxDecoration(),
-                  codeblockPadding: EdgeInsets.zero,
+              : _AssistantContentWithArtifacts(
+                  message: message,
+                  isLight: isLight,
+                  copyLabel: copyLabel,
+                  copiedLabel: copiedLabel,
                 ),
-          ),
           if (message.isDegraded) ...[
             const SizedBox(height: 8),
             _EcoModeNotice(isLight: isLight),
@@ -905,12 +861,145 @@ class _SmartCopyButtonState extends State<_SmartCopyButton> {
 
 
 
+class _TableElementBuilder extends MarkdownElementBuilder {
+  final bool isLight;
+  _TableElementBuilder(this.isLight);
+
+  @override
+  bool visitElementBefore(md.Element element) {
+    return false;
+  }
+
+  @override
+  Widget? visitElementAfter(md.Element element, TextStyle? preferredStyle) {
+    try {
+      final rows = <List<Widget>>[];
+      final isHeaderRow = <bool>[];
+      int maxCols = 0;
+
+      void extractRows(md.Node node) {
+        if (node is! md.Element) return;
+        if (node.tag == 'tr') {
+          final cells = <Widget>[];
+          final isHead = node.children?.any((c) => c is md.Element && c.tag == 'th') ?? false;
+          for (final cellNode in node.children ?? []) {
+            if (cellNode is md.Element && (cellNode.tag == 'th' || cellNode.tag == 'td')) {
+              final isTh = cellNode.tag == 'th';
+              final cellText = cellNode.textContent.trim();
+              cells.add(
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  child: Text(
+                    cellText,
+                    style: TextStyle(
+                      fontFamily: 'AnthropicSans',
+                      fontSize: 13,
+                      fontWeight: isTh ? FontWeight.w600 : FontWeight.normal,
+                      color: isTh
+                          ? (isLight ? const Color(0xFF191919) : const Color(0xFFF5F2EB))
+                          : (isLight ? const Color(0xFF333333) : const Color(0xFFD1D1D6)),
+                    ),
+                  ),
+                ),
+              );
+            }
+          }
+          if (cells.isNotEmpty) {
+            if (cells.length > maxCols) maxCols = cells.length;
+            rows.add(cells);
+            isHeaderRow.add(isHead);
+          }
+        } else {
+          for (final child in node.children ?? []) {
+            extractRows(child);
+          }
+        }
+      }
+
+      extractRows(element);
+
+      if (rows.isEmpty || maxCols == 0) return const SizedBox.shrink();
+
+      // Row normalization: Every TableRow must have the exact same number of children.
+      final tableRows = <TableRow>[];
+      for (int i = 0; i < rows.length; i++) {
+        final rowCells = rows[i];
+        while (rowCells.length < maxCols) {
+          rowCells.add(
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              child: SizedBox.shrink(),
+            ),
+          );
+        }
+        final isHead = isHeaderRow[i];
+        tableRows.add(
+          TableRow(
+            decoration: BoxDecoration(
+              color: isHead
+                  ? (isLight ? const Color(0x0A000000) : const Color(0x0FFFFFFF))
+                  : Colors.transparent,
+            ),
+            children: rowCells,
+          ),
+        );
+      }
+
+      final borderColor = isLight
+          ? const Color(0x1F000000)
+          : const Color(0x14FFFFFF); // subtle 1px rgba(255,255,255,0.08)
+
+      return Container(
+        margin: const EdgeInsets.symmetric(vertical: 8),
+        child: SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: IntrinsicWidth(
+            child: Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: borderColor, width: 1.0),
+              ),
+              clipBehavior: Clip.hardEdge,
+              child: Table(
+                defaultColumnWidth: const IntrinsicColumnWidth(),
+                defaultVerticalAlignment: TableCellVerticalAlignment.middle,
+                border: TableBorder.symmetric(
+                  inside: BorderSide(color: borderColor, width: 1.0),
+                ),
+                children: tableRows,
+              ),
+            ),
+          ),
+        ),
+      );
+    } catch (e, stack) {
+      debugPrint('[TableElementBuilder] Layout error prevented: $e\n$stack');
+      return SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Text(
+          element.textContent,
+          style: const TextStyle(
+            fontFamily: 'AnthropicSans',
+            fontSize: 12,
+            color: Color(0xFF8E8E93),
+          ),
+        ),
+      );
+    }
+  }
+}
+
 class _PreElementBuilder extends MarkdownElementBuilder {
   final BuildContext context;
   final bool isLight;
   final String copyLabel;
   final String copiedLabel;
   _PreElementBuilder(this.context, this.isLight, this.copyLabel, this.copiedLabel);
+
+  @override
+  bool visitElementBefore(md.Element element) {
+    return false;
+  }
 
   @override
   Widget? visitElementAfter(md.Element element, TextStyle? preferredStyle) {
@@ -970,79 +1059,116 @@ class _InteractiveCodeBlockState extends State<_InteractiveCodeBlock> {
 
   @override
   Widget build(BuildContext context) {
-    final bg = widget.isLight ? const Color(0xFFFFFFFF) : ExodoColors.surface;
-    final headerBg = widget.isLight ? const Color(0xFFFFFFFF) : ExodoColors.surface;
-    final borderCol = widget.isLight ? Colors.black12 : ExodoColors.border;
-    final textCol = widget.isLight ? const Color(0xFF191919) : ExodoColors.amber;
+    final isDark = !widget.isLight;
+    final bg = isDark ? const Color(0xFF1E1E1E) : const Color(0xFFF4F2EB);
+    final borderColor = isDark ? const Color(0xFF2E2E2E) : const Color(0x14000000);
+    final textCol = isDark ? const Color(0xFFF5F2EB) : const Color(0xFF191919);
+    final langCol = isDark ? const Color(0xFFD4A843) : const Color(0xFF996B00);
 
     return Container(
       width: double.infinity,
-      margin: const EdgeInsets.symmetric(vertical: 8),
+      margin: const EdgeInsets.symmetric(vertical: 12),
       decoration: BoxDecoration(
         color: bg,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: borderCol),
+        border: Border.all(color: borderColor, width: 1.0),
       ),
-      clipBehavior: Clip.hardEdge,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+      clipBehavior: Clip.antiAlias,
+      child: Stack(
         children: [
-          // Header FIJO y PERMANENTE para el Artefacto (visible siempre al tope del bloque)
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-            color: headerBg,
-            child: Row(
-              children: [
-                Icon(
-                  Icons.code_rounded,
-                  size: 16,
-                  color: textCol,
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Header permanente con indicador de lenguaje
+              Container(
+                padding: const EdgeInsets.fromLTRB(14, 10, 80, 10),
+                decoration: BoxDecoration(
+                  border: Border(bottom: BorderSide(color: borderColor, width: 1.0)),
                 ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    widget.language,
-                    style: TextStyle(fontFamily: 'AnthropicSans', 
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: textCol,
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.code_rounded,
+                      size: 15,
+                      color: langCol,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        widget.language.toUpperCase(),
+                        style: TextStyle(
+                          fontFamily: 'AnthropicSans',
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: langCol,
+                          letterSpacing: 0.4,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              // Contenido con scroll vertical + scroll horizontal unconstrained para evitar texto aplastado
+              Container(
+                constraints: const BoxConstraints(maxHeight: 450),
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.vertical,
+                  padding: const EdgeInsets.all(14),
+                  child: SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: IntrinsicWidth(
+                      child: SelectableText(
+                        widget.code,
+                        style: TextStyle(
+                          fontFamily: 'AnthropicSans',
+                          fontSize: 13,
+                          color: textCol,
+                          height: 1.45,
+                        ),
+                      ),
                     ),
                   ),
                 ),
-                GestureDetector(
-                  onTap: _copy,
-                  behavior: HitTestBehavior.opaque,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
-                    decoration: BoxDecoration(
-                      color: _copied
-                          ? Colors.green.withValues(alpha: 0.15)
-                          : widget.isLight
-                              ? Colors.black.withValues(alpha: 0.05)
-                              : Colors.white.withValues(alpha: 0.08),
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: Icon(
-                      _copied ? Icons.check_rounded : Icons.copy_rounded,
-                      size: 14,
-                      color: _copied ? Colors.green : (widget.isLight ? Colors.black87 : ExodoColors.textPrimary),
-                    ),
-                  ),
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
-          // Contenido del artefacto con altura máxima y scroll propio para mantener el botón SIEMPRE en pantalla
-          Container(
-            constraints: const BoxConstraints(maxHeight: 450),
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(14),
-              child: SelectableText(
-                widget.code,
-                style: TextStyle(fontFamily: 'AnthropicSans', 
-                  fontSize: 13,
-                  color: widget.isLight ? const Color(0xFF171615) : ExodoColors.textPrimary,
-                  height: 1.4,
+          // Botón "Copiar" fijado permanentemente en la esquina superior derecha
+          Positioned(
+            top: 8,
+            right: 8,
+            child: GestureDetector(
+              onTap: _copy,
+              behavior: HitTestBehavior.opaque,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: _copied
+                      ? Colors.green.withValues(alpha: 0.2)
+                      : Colors.white.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(
+                    color: _copied ? Colors.green.withValues(alpha: 0.5) : Colors.white12,
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      _copied ? Icons.check_rounded : Icons.copy_rounded,
+                      size: 13,
+                      color: _copied ? Colors.green : ExodoColors.textPrimary,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      _copied ? widget.copiedLabel : widget.copyLabel,
+                      style: TextStyle(
+                        fontFamily: 'AnthropicSans',
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.w600,
+                        color: _copied ? Colors.green : ExodoColors.textPrimary,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
@@ -1095,3 +1221,212 @@ class _EcoModeNotice extends StatelessWidget {
     );
   }
 }
+
+class _AssistantContentWithArtifacts extends StatelessWidget {
+  final ChatMessage message;
+  final bool isLight;
+  final String copyLabel;
+  final String copiedLabel;
+
+  const _AssistantContentWithArtifacts({
+    required this.message,
+    required this.isLight,
+    required this.copyLabel,
+    required this.copiedLabel,
+  });
+
+  static String _sanitizeMarkdown(String input) {
+    if (input.trim().isEmpty) return '';
+    var s = input;
+    // 1. Purge HTML comments
+    s = s.replaceAll(RegExp(r'<!--[\s\S]*?-->'), '');
+    // 2. Purge DOCTYPE, scripts, and styles
+    s = s.replaceAll(RegExp(r'<!DOCTYPE[^>]*>', caseSensitive: false), '');
+    s = s.replaceAll(RegExp(r'<script[\s\S]*?<\/script>', caseSensitive: false), '');
+    s = s.replaceAll(RegExp(r'<style[\s\S]*?<\/style>', caseSensitive: false), '');
+    // 3. Purge raw HTML open/close/self-closing tags so flutter_markdown AST inline stack is 100% clean
+    s = s.replaceAll(RegExp(r'<\/?([a-zA-Z0-9_-]+)(?:\s+[^>]*)?\/?>'), '');
+    return s;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    try {
+      final parser = ArtifactParser();
+      final parseResult = parser.parse(
+        messageId: message.id,
+        conversationId: message.conversationId,
+        content: message.content,
+      );
+
+      final allArtifacts = <String, Artifact>{
+        for (final a in parseResult.artifacts) a.id: a,
+        for (final t in parseResult.tables) t.artifact.id: t.artifact,
+      };
+
+      final artifactRegex = RegExp(r'<!-- artifact:(art-[a-zA-Z0-9_\-]+) -->');
+      final segments = <Widget>[];
+      int lastEnd = 0;
+
+      for (final match in artifactRegex.allMatches(parseResult.cleanedMarkdown)) {
+        if (match.start > lastEnd) {
+          final text = parseResult.cleanedMarkdown.substring(lastEnd, match.start).trim();
+          if (text.isNotEmpty) {
+            segments.add(_buildMarkdown(context, text));
+          }
+        }
+        final artId = match.group(1);
+        final artifact = allArtifacts[artId];
+        if (artifact != null) {
+          segments.add(_SafeArtifactCard(artifact: artifact, isLight: isLight));
+        }
+        lastEnd = match.end;
+      }
+
+      if (lastEnd < parseResult.cleanedMarkdown.length) {
+        final remaining = parseResult.cleanedMarkdown.substring(lastEnd).trim();
+        if (remaining.isNotEmpty) {
+          segments.add(_buildMarkdown(context, remaining));
+        }
+      }
+
+      if (segments.isEmpty) {
+        return _buildMarkdown(context, message.content);
+      }
+
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: segments,
+      );
+    } catch (e, stack) {
+      debugPrint('[AssistantContentWithArtifacts] Parsing error: $e\n$stack');
+      return SelectableText(
+        message.content,
+        style: TextStyle(
+          fontFamily: 'AnthropicSerif',
+          fontSize: 15.5,
+          color: isLight ? const Color(0xFF171615) : ExodoColors.textPrimary,
+          height: 1.45,
+        ),
+      );
+    }
+  }
+
+  Widget _buildMarkdown(BuildContext context, String rawContent) {
+    final content = _sanitizeMarkdown(rawContent);
+    if (content.trim().isEmpty) return const SizedBox.shrink();
+
+    try {
+      return MarkdownBody(
+        data: content,
+        onTapLink: (text, href, title) {
+          if (href != null) {
+            final uri = Uri.tryParse(href);
+            if (uri != null) launchUrl(uri, mode: LaunchMode.externalApplication);
+          }
+        },
+        builders: {
+          'pre': _PreElementBuilder(context, isLight, copyLabel, copiedLabel),
+          'table': _TableElementBuilder(isLight),
+        },
+        styleSheet: MarkdownStyleSheet.fromTheme(Theme.of(context)).copyWith(
+          blockSpacing: 12.0,
+          horizontalRuleDecoration: BoxDecoration(
+            border: Border(
+              top: BorderSide(
+                color: isLight ? const Color(0x14000000) : const Color(0x14FFFFFF),
+                width: 1.0,
+              ),
+            ),
+          ),
+          p: TextStyle(
+            fontFamily: 'AnthropicSerif',
+            fontSize: 15.5,
+            color: isLight ? const Color(0xFF171615) : ExodoColors.textPrimary,
+            height: 1.45,
+          ),
+          h1: TextStyle(
+            fontFamily: 'AnthropicSerif',
+            fontSize: 22,
+            fontWeight: FontWeight.bold,
+            color: isLight ? const Color(0xFF171615) : ExodoColors.textPrimary,
+          ),
+          h2: TextStyle(
+            fontFamily: 'AnthropicSerif',
+            fontSize: 19,
+            fontWeight: FontWeight.bold,
+            color: isLight ? const Color(0xFF171615) : ExodoColors.textPrimary,
+          ),
+          h3: TextStyle(
+            fontFamily: 'AnthropicSerif',
+            fontSize: 17,
+            fontWeight: FontWeight.bold,
+            color: isLight ? const Color(0xFF171615) : ExodoColors.textPrimary,
+          ),
+          listBullet: TextStyle(
+            fontFamily: 'AnthropicSerif',
+            fontSize: 15.5,
+            color: isLight ? const Color(0xFF171615) : ExodoColors.textPrimary,
+          ),
+          code: TextStyle(
+            fontFamily: 'AnthropicSans',
+            backgroundColor: isLight ? const Color(0xFFFFFFFF) : ExodoColors.surface,
+            color: isLight ? const Color(0xFF191919) : ExodoColors.amber,
+          ),
+          codeblockDecoration: const BoxDecoration(),
+          codeblockPadding: EdgeInsets.zero,
+        ),
+      );
+    } catch (e, stack) {
+      debugPrint('[AssistantContentWithArtifacts] MarkdownBody error: $e\n$stack');
+      return SelectableText(
+        content,
+        style: TextStyle(
+          fontFamily: 'AnthropicSerif',
+          fontSize: 15.5,
+          color: isLight ? const Color(0xFF171615) : ExodoColors.textPrimary,
+          height: 1.45,
+        ),
+      );
+    }
+  }
+}
+
+class _SafeArtifactCard extends StatelessWidget {
+  final Artifact artifact;
+  final bool isLight;
+
+  const _SafeArtifactCard({
+    required this.artifact,
+    required this.isLight,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    try {
+      return ArtifactCard(artifact: artifact);
+    } catch (e, stack) {
+      debugPrint('[SafeArtifactCard] Fallback error: $e\n$stack');
+      final cardBg = isLight ? const Color(0xFFF4F2EB) : const Color(0xFF1E1E1E);
+      final borderColor = isLight ? const Color(0x14000000) : const Color(0xFF2E2E2E);
+      return Container(
+        margin: const EdgeInsets.symmetric(vertical: 8),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: cardBg,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: borderColor, width: 1.0),
+        ),
+        child: SelectableText(
+          artifact.sourceCode,
+          style: TextStyle(
+            fontFamily: 'monospace',
+            fontSize: 12,
+            color: isLight ? const Color(0xFF191919) : const Color(0xFFF5F2EB),
+          ),
+        ),
+      );
+    }
+  }
+}
+

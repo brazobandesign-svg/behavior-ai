@@ -12,6 +12,7 @@ import '../theme/exodo_theme.dart';
 import '../l10n/app_i18n.dart';
 import '../l10n/app_translations.dart';
 import '../screens/profile_screen.dart';
+import '../screens/artifacts/expedientes_screen.dart';
 import 'billing/token_progress_bar.dart';
 
 /// Item de menú reutilizable con padding responsive.
@@ -213,6 +214,29 @@ class _DrawerMenuState extends State<DrawerMenu> {
                               onTap: () {
                                 HapticFeedback.vibrate();
                                 state.toggleIncognito();
+                              },
+                            ),
+                            _DrawerItem(
+                              horizontalPad: hPad,
+                              icon: Icon(Icons.folder_copy_outlined, size: s(20), color: textCol),
+                              title: Text(
+                                AppI18n.of(context).t('drawer.shared_artifacts'),
+                                style: TextStyle(
+                                  fontFamily: 'AnthropicSans',
+                                  fontSize: s(14),
+                                  color: textCol,
+                                  fontWeight: FontWeight.w600,
+                                  letterSpacing: -0.2,
+                                ),
+                              ),
+                              onTap: () {
+                                Navigator.pop(context);
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => const ExpedientesScreen(),
+                                  ),
+                                );
                               },
                             ),
                           ],

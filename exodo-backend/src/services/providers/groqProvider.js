@@ -73,7 +73,7 @@ function buildMessages(messages, systemPrompt, imageDataUris = []) {
 async function call(modelId, messages, systemPrompt, imageDataUris = [], options = {}) {
   const client = getClient();
   const hasImages = imageDataUris && imageDataUris.length > 0;
-  const targetModel = hasImages ? 'qwen/qwen3.6-27b' : (modelId || 'llama-3.3-70b-versatile');
+  const targetModel = hasImages ? 'qwen/qwen3.6-27b' : (modelId || 'openai/gpt-oss-120b');
   const formattedMessages = buildMessages(messages, systemPrompt, imageDataUris);
 
   const maxTokens = options.max_tokens || 4096;
@@ -83,7 +83,7 @@ async function call(modelId, messages, systemPrompt, imageDataUris = [], options
     messages: formattedMessages,
     max_tokens: maxTokens,
     temperature: 0.7,
-  });
+  }, { signal: options.signal || null });
 
   const choice = response.choices && response.choices[0];
   const text = choice && choice.message ? choice.message.content : '';
@@ -104,7 +104,7 @@ async function call(modelId, messages, systemPrompt, imageDataUris = [], options
 async function callStream(modelId, messages, systemPrompt, onChunk, imageDataUris = [], options = {}) {
   const client = getClient();
   const hasImages = imageDataUris && imageDataUris.length > 0;
-  const targetModel = hasImages ? 'qwen/qwen3.6-27b' : (modelId || 'llama-3.3-70b-versatile');
+  const targetModel = hasImages ? 'qwen/qwen3.6-27b' : (modelId || 'openai/gpt-oss-120b');
   const formattedMessages = buildMessages(messages, systemPrompt, imageDataUris);
 
   const maxTokens = options.max_tokens || 4096;
@@ -115,7 +115,7 @@ async function callStream(modelId, messages, systemPrompt, onChunk, imageDataUri
     max_tokens: maxTokens,
     stream: true,
     temperature: 0.7,
-  });
+  }, { signal: options.signal || null });
 
   let fullText = '';
 

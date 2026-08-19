@@ -38,59 +38,43 @@ router.post('/checkout', auth, async (req, res) => {
     return res.status(503).json({ error: 'Precio de Stripe no configurado' });
   }
 
-  // URLs de retorno — el frontend pasa el origin para redirigir correctamente
-  const origin = req.headers.origin || req.body?.origin || 'https://behavior-ai-production.up.railway.app';
-  const successUrl = `${origin}/#/checkout/success`;
-  const cancelUrl = `${origin}/#/checkout/cancel`;
+  // Resolver email del usuario autenticado si no venía en req.user
+  if (!req.user.email) {
+    try {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('email')
+        .eq('id', userId)
+        .single();
+      if (profile?.email) req.user.email = profile.email;
+    } catch (_) {}
+  }
+  if (!req.user.email && typeof req.body?.email === 'string' && req.body.email.includes('@')) {
+    req.user.email = req.body.email;
+  }
 
   try {
-    // Buscar si ya existe un customer en Stripe para este usuario
-    const { data: existingSub } = await supabase
-      .from('subscriptions')
-      .select('provider_sub_id')
-      .eq('user_id', userId)
-      .eq('provider', 'stripe')
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .single();
-
-    let customerId;
-    if (existingSub?.provider_sub_id) {
-      try {
-        const sub = await stripe.subscriptions.retrieve(existingSub.provider_sub_id);
-        customerId = sub.customer;
-      } catch {
-        // Suscripción vieja/cancelada, crear customer nuevo
-      }
-    }
-
-    // Crear Checkout Session
     const session = await stripe.checkout.sessions.create({
+      payment_method_types: ['card'],
+      line_items: [{ price: process.env.STRIPE_PRICE_ID, quantity: 1 }],
       mode: 'subscription',
-      line_items: [{ price: priceId, quantity: 1 }],
-      success_url: successUrl,
-      cancel_url: cancelUrl,
-      client_reference_id: userId,
-      ...(customerId ? { customer: customerId } : {}),
-      metadata: {
-        user_id: userId,
-      },
+      success_url: `${process.env.PUBLIC_BASE_URL || 'https://exodo.app'}/billing/success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${process.env.PUBLIC_BASE_URL || 'https://exodo.app'}/billing/cancel`,
+      client_reference_id: req.user.userId,
+      customer_email: req.user.email || undefined,
     });
 
-    res.json({ url: session.url });
+    return res.json({ url: session.url });
   } catch (err) {
     console.error('[stripe] Error creando checkout session:', err.message);
-    res.status(500).json({ error: 'Error al crear la sesión de pago' });
+    return res.status(500).json({ error: 'Error al crear la sesión de pago' });
   }
 });
 
 /**
  * POST /api/stripe/webhook
- * Recibe webhooks de Stripe. NO usa express.json (usa raw body para validar firma).
- * Actualiza profiles.plan a 'hazak' y registra en subscriptions.
+ * Recibe webhooks de Stripe. Valida firma raw para idempotencia y actualización de suscripciones.
  */
-// Este router se monta con express.json() global, pero Stripe necesita raw body.
-// Se maneja con un middleware especial en index.js que captura el raw body para esta ruta.
 router.post('/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
   const stripe = getStripe();
   if (!stripe) {
@@ -104,7 +88,6 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
 
   let event;
   try {
-    // Si el body ya fue parseado por express.json(), usarlo directamente
     const payload = Buffer.isBuffer(req.body) ? req.body : JSON.stringify(req.body);
     const sig = req.headers['stripe-signature'];
     event = stripe.webhooks.constructEvent(payload, sig, webhookSecret);
@@ -135,7 +118,7 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
               status: 'active',
               provider: 'stripe',
               provider_sub_id: session.subscription,
-              current_period_end: null, // Se actualiza en invoice.paid
+              current_period_end: null,
             });
         }
         break;
@@ -150,7 +133,6 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
                        sub.status;
 
         if (supabase) {
-          // Actualizar estado de la suscripción en DB
           await supabase
             .from('subscriptions')
             .update({
@@ -161,7 +143,6 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
             })
             .eq('provider_sub_id', sub.id);
 
-          // Si se canceló, bajar plan a genesis
           if (sub.status === 'canceled') {
             const userId = sub.metadata?.user_id;
             if (userId) {
@@ -193,14 +174,13 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
       }
 
       default:
-        // Evento no manejado, pero responder 200 para que Stripe no reintente
         break;
     }
 
-    res.json({ received: true });
+    return res.json({ received: true });
   } catch (err) {
     console.error('[stripe] Error procesando webhook:', err.message);
-    res.status(500).json({ error: 'Error interno procesando webhook' });
+    return res.status(500).json({ error: 'Error interno procesando webhook' });
   }
 });
 
@@ -220,7 +200,6 @@ router.post('/portal', auth, async (req, res) => {
   }
 
   try {
-    // Buscar subscription del usuario
     const { data: sub } = await supabase
       .from('subscriptions')
       .select('provider_sub_id')
@@ -243,10 +222,10 @@ router.post('/portal', auth, async (req, res) => {
       return_url: origin,
     });
 
-    res.json({ url: portalSession.url });
+    return res.json({ url: portalSession.url });
   } catch (err) {
     console.error('[stripe] Error creando portal session:', err.message);
-    res.status(500).json({ error: 'Error al abrir el portal de gestión' });
+    return res.status(500).json({ error: 'Error al abrir el portal de gestión' });
   }
 });
 

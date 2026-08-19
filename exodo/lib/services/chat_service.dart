@@ -204,10 +204,10 @@ class ChatService {
                     final rawSources = data['sources'];
                     if (rawSources is List) {
                       sources = rawSources
-                          .where((s) => s is Map)
+                          .whereType<Map>()
                           .map(
                             (s) => Source.fromJson(
-                              Map<String, dynamic>.from(s as Map),
+                              Map<String, dynamic>.from(s),
                             ),
                           )
                           .toList();

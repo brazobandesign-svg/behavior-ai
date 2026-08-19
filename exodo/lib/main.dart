@@ -1,48 +1,67 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'app/bootstrap.dart';
+import 'app/root_switcher.dart';
 import 'l10n/app_i18n.dart';
 import 'l10n/app_translations.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import 'services/supabase_service.dart';
 import 'services/app_state.dart';
 import 'theme/exodo_theme.dart';
-import 'screens/auth_screen.dart';
-import 'screens/chat_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  // [Sprint 0] Permitir descarga HTTP de Google Fonts mientras no están bundled.
+  // Permitir descarga HTTP de Google Fonts mientras no están bundled.
   GoogleFonts.config.allowRuntimeFetching = true;
 
-  // 1. Carga ultra-rápida de SharedPreferences antes del primer frame (~5ms, sin red)
-  final prefs = await SharedPreferences.getInstance();
-  final hasCachedToken = prefs.getKeys().any(
-    (k) => k.startsWith('sb-') && k.contains('auth-token'),
-  );
-  final savedModelId = prefs.getString('exodo_selected_model');
-  final savedProfileJson = prefs.getString('exodo_cached_profile');
+  // 1. CAPA SÍNCRONA (0–15 ms, sin red)
+  // Lectura síncrona de SharedPreferences antes del primer frame en el frame 0.
+  // NO toca red ni bloquea la interfaz.
+  final bootstrap = await Bootstrap.readSync();
 
-  // 2. Supabase sigue inicializando en paralelo en background sin bloquear
+  // 2. CAPA ASÍNCRONA (fire-and-forget)
+  // Supabase se inicializa en background en paralelo sin bloquear el arranque.
   final initFuture = SupabaseService.initialize();
+
+  // Global Error Boundary Fallback: prevent red debug error boxes
+  ErrorWidget.builder = (FlutterErrorDetails details) {
+    debugPrint('[ErrorWidget.builder] CAUGHT WIDGET CRASH: ${details.exception}\n${details.stack}');
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFF191919),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: const Text(
+        'Content rendering error',
+        style: TextStyle(
+          fontFamily: 'AnthropicSans',
+          color: Color(0xFF8E8E93),
+          fontSize: 12,
+        ),
+      ),
+    );
+  };
 
   runApp(
     MultiProvider(
       providers: [
         ChangeNotifierProvider(
-          create: (_) => AppState(
-            savedModelId: savedModelId,
-            savedProfileJson: savedProfileJson,
-          ),
+          create: (_) {
+            final state = AppState(bootstrap: bootstrap);
+            // Cuando la inicialización de Supabase culmine en background,
+            // conectamos los listeners de sincronización en tiempo real y perfil.
+            initFuture.then((_) {
+              state.initAfterSupabase();
+            });
+            return state;
+          },
         ),
       ],
       child: AppI18nProvider(
         child: ExodoApp(
-          initFuture: initFuture,
-          initialHasSession: hasCachedToken,
+          initialHasSession: bootstrap.hasAuthToken,
         ),
       ),
     ),
@@ -50,11 +69,10 @@ void main() async {
 }
 
 class ExodoApp extends StatelessWidget {
-  final Future<void> initFuture;
   final bool initialHasSession;
+
   const ExodoApp({
     super.key,
-    required this.initFuture,
     this.initialHasSession = false,
   });
 
@@ -105,13 +123,11 @@ class ExodoApp extends StatelessWidget {
         }
         return const Locale('es', '');
       },
-      home: _RootSwitcher(
-        initFuture: initFuture,
+      home: RootSwitcher(
         initialHasSession: initialHasSession,
       ),
       onUnknownRoute: (settings) => MaterialPageRoute(
-        builder: (_) => _RootSwitcher(
-          initFuture: initFuture,
+        builder: (_) => RootSwitcher(
           initialHasSession: initialHasSession,
         ),
       ),
@@ -124,113 +140,4 @@ Locale? _resolveLocale(String? appLocale) {
   if (!kAppLocales.any((l) => l.code == appLocale)) return null;
   final parts = appLocale.split('_');
   return parts.length > 1 ? Locale(parts[0], parts[1]) : Locale(parts[0], '');
-}
-
-class _RootSwitcher extends StatefulWidget {
-  final Future<void> initFuture;
-  final bool initialHasSession;
-  const _RootSwitcher({
-    super.key,
-    required this.initFuture,
-    this.initialHasSession = false,
-  });
-
-  @override
-  State<_RootSwitcher> createState() => _RootSwitcherState();
-}
-
-class _RootSwitcherState extends State<_RootSwitcher> {
-  // [Punto 1 Fix real] Ya no bloqueamos el primer frame con un while(true)
-  // esperando a Supabase. Leemos SharedPreferences directo (0-5ms, sin red)
-  // para saber si HABÍA sesión guardada, y pintamos la pantalla correcta
-  // de inmediato. Supabase.initialize() sigue corriendo en background y,
-  // si la sesión resultó inválida/expirada, AppState reacciona al
-  // authStateChange y navega a AuthScreen sin que el usuario note el salto.
-  bool _hasCachedSession = false;
-  bool _checkedCache = false;
-  StreamSubscription<AuthState>? _authSub;
-
-  @override
-  void initState() {
-    super.initState();
-    // Al haber pre-leído SharedPreferences en main(), ya sabemos la sesión en el frame 0.
-    _hasCachedSession = widget.initialHasSession;
-    _checkedCache = true;
-    _checkCachedSessionFast();
-    // Supabase sigue inicializando en paralelo, no lo esperamos.
-    widget.initFuture.then((_) {
-      if (!mounted) return;
-      context.read<AppState>().initAfterSupabase();
-      // [Fix D] La variable de caché solo sirve para el primer frame.
-      // A partir de aquí, cualquier cambio REAL de sesión (login,
-      // logout, expiración) debe sincronizarla, o el build() sigue
-      // devolviendo la pantalla vieja aunque AppState ya se haya
-      // actualizado correctamente por dentro.
-      _authSub = SupabaseService.client.auth.onAuthStateChange.listen((data) {
-        if (!mounted) return;
-        final hasSession = data.session != null;
-        if (hasSession != _hasCachedSession) {
-          setState(() => _hasCachedSession = hasSession);
-        }
-      });
-    });
-  }
-
-  @override
-  void dispose() {
-    _authSub?.cancel();
-    super.dispose();
-  }
-
-  Future<void> _checkCachedSessionFast() async {
-    // Supabase persiste la sesión bajo esta clave en SharedPreferences.
-    // Leerla es I/O local (sin red) y toma unos pocos milisegundos.
-    final prefs = await SharedPreferences.getInstance();
-    final hasToken = prefs.getKeys().any(
-      (k) => k.startsWith('sb-') && k.contains('auth-token'),
-    );
-    if (!mounted) return;
-    setState(() {
-      _hasCachedSession = hasToken;
-      _checkedCache = true;
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    // Dependencia de AppState para rediseñar al iniciar o cerrar sesión.
-    context.watch<AppState>();
-    // Dependencia de _I18nScope: fuerza rebuild en cambio de idioma sin perder estado.
-    context.currentLocaleCode;
-
-    if (!_checkedCache) {
-      return Scaffold(
-        backgroundColor: ExodoColors.background,
-        body: Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Image.asset(
-                'assets/images/Logo_behavior.png',
-                width: 64,
-                height: 64,
-              ),
-              const SizedBox(height: 16),
-              Image.asset(
-                'assets/images/exodo_text.png',
-                width: 110,
-                color: ExodoColors.textPrimary,
-              ),
-            ],
-          ),
-        ),
-      );
-    }
-
-    // Pintamos ChatScreen/AuthScreen de inmediato según lo que había en
-    // caché. Si Supabase determina en background que la sesión ya no es
-    // válida, el listener de authStateChange en AppState debe forzar
-    // la navegación a AuthScreen (verificar que ese listener exista).
-    return _hasCachedSession ? const ChatScreen() : const AuthScreen();
-  }
 }

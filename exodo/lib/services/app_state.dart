@@ -1,18 +1,21 @@
 import 'dart:convert';
 import 'dart:async';
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/models.dart';
+import '../app/bootstrap.dart';
+import '../data/repositories/local_chat_repository.dart';
 import 'supabase_service.dart';
 import 'chat_service.dart';
 import 'connectivity_service.dart';
 import '../l10n/app_i18n.dart';
 
 class AppState extends ChangeNotifier {
+  final LocalChatRepository localChatRepo = LocalChatRepository();
+
   UserProfile? profile;
   List<Conversation> conversations = [];
   Conversation? activeConversation;
@@ -24,8 +27,6 @@ class AppState extends ChangeNotifier {
   bool guestIsBlocked = false; // Sin bloqueo para guests: acceso ilimitado a Groq $0
   ExodoModelOption selectedModel = exodoModels[0]; // Origo (G1.1)
   double? currentTempC;
-
-
 
   int tokensUsed = 0;
   int get tokensLimit => isPro ? 50000 : 6000;
@@ -42,30 +43,79 @@ class AppState extends ChangeNotifier {
   StreamSubscription<bool>? _connectivitySub;
   StreamSubscription<AuthState>? _authSub;
 
+  bool? _hasCachedSession;
+  bool get hasSession {
+    final u = SupabaseService.currentUser;
+    if (u != null) return true;
+    return _hasCachedSession ?? false;
+  }
+
   bool get isGuestUser {
     final u = SupabaseService.currentUser;
-    if (u == null) return false;
+    if (u == null) return _hasCachedSession == true;
     return u.isAnonymous == true ||
         (u.email == null || u.email!.trim().isEmpty);
   }
 
+  void continueAsGuest() {
+    _hasCachedSession = true;
+    notifyListeners();
+  }
+
   bool _initializedSupabase = false;
 
-  AppState({String? savedModelId, String? savedProfileJson}) {
-    // Carga Cache-First instantánea en el milisegundo 0 para el primer frame
-    if (savedModelId != null) {
-      final found = exodoModels.where((m) => m.id == savedModelId);
-      if (found.isNotEmpty) {
-        selectedModel = found.first;
+  AppState({
+    String? savedModelId,
+    String? savedProfileJson,
+    Bootstrap? bootstrap,
+  }) {
+    if (bootstrap != null) {
+      _hasCachedSession = bootstrap.hasAuthToken;
+      if (bootstrap.selectedModelId != null) {
+        final found = exodoModels.where((m) => m.id == bootstrap.selectedModelId);
+        if (found.isNotEmpty) selectedModel = found.first;
       }
-    }
-    if (savedProfileJson != null) {
-      try {
-        profile = UserProfile.fromJson(jsonDecode(savedProfileJson));
-        if (savedModelId == null) {
+      if (bootstrap.cachedProfile != null) {
+        profile = bootstrap.cachedProfile;
+        if (bootstrap.selectedModelId == null) {
           selectedModel = profile?.plan == 'hazak' ? exodoModels[1] : exodoModels[0];
         }
-      } catch (_) {}
+      }
+      if (bootstrap.cachedConversations.isNotEmpty) {
+        conversations = List.from(bootstrap.cachedConversations);
+      }
+      if (bootstrap.cachedLastMessages.isNotEmpty) {
+        currentMessages = List.from(bootstrap.cachedLastMessages);
+      }
+      if (bootstrap.cachedTheme != null) {
+        isDarkMode = bootstrap.cachedTheme != 'light';
+      }
+      if (bootstrap.cachedTokensUsed != null) {
+        tokensUsed = bootstrap.cachedTokensUsed!;
+      }
+      if (bootstrap.lastConversationId != null && conversations.isNotEmpty) {
+        try {
+          activeConversation = conversations.firstWhere(
+            (c) => c.id == bootstrap.lastConversationId,
+          );
+        } catch (_) {}
+      }
+    } else {
+      // Carga Cache-First instantánea en el milisegundo 0 para el primer frame
+      if (savedModelId != null) {
+        final found = exodoModels.where((m) => m.id == savedModelId);
+        if (found.isNotEmpty) {
+          selectedModel = found.first;
+        }
+      }
+      if (savedProfileJson != null) {
+        try {
+          profile = UserProfile.fromJson(jsonDecode(savedProfileJson));
+          if (savedModelId == null) {
+            selectedModel = profile?.plan == 'hazak' ? exodoModels[1] : exodoModels[0];
+          }
+        } catch (_) {}
+      }
     }
   }
 
@@ -122,13 +172,25 @@ class AppState extends ChangeNotifier {
         activeConversation = null;
         currentMessages = [];
         tokensUsed = 0;
+        tokensResetTime = null;
         selectedModel = exodoModels[0];
         isThinking = false;
         isGenerating = false;
-        // [Sprint 0 fix] Limpiar modelo persistido al cerrar sesión.
-        SharedPreferences.getInstance().then(
-          (prefs) => prefs.remove('exodo_selected_model'),
-        );
+        guestMessagesSessionCount = 0;
+        // Forzar que RootSwitcher redirija a AuthScreen inmediatamente.
+        _hasCachedSession = false;
+        // Limpiar base de datos local Drift para evitar fugas de datos entre cuentas.
+        localChatRepo.clearAll().catchError((_) {});
+        // Limpiar toda la caché de SharedPreferences para un arranque limpio.
+        SharedPreferences.getInstance().then((prefs) {
+          prefs.remove('exodo_selected_model');
+          prefs.remove('exodo_cached_profile');
+          prefs.remove('exodo_cached_conversations');
+          prefs.remove('exodo_cached_last_messages');
+          prefs.remove('exodo_last_conversation_id');
+          prefs.remove('exodo_tokens_used');
+          prefs.remove('exodo_theme');
+        });
         notifyListeners();
       }
     });
@@ -160,6 +222,15 @@ class AppState extends ChangeNotifier {
           selectedModel = profile?.plan == 'hazak' ? exodoModels[1] : exodoModels[0];
         }
       } catch (_) {}
+    }
+
+    final currentUserId = SupabaseService.currentUser?.id;
+    if (currentUserId != null) {
+      final localConvs = await localChatRepo.getConversations(userId: currentUserId);
+      if (localConvs.isNotEmpty) {
+        conversations = localConvs;
+        notifyListeners();
+      }
     }
 
     startNewChat();
@@ -194,10 +265,9 @@ class AppState extends ChangeNotifier {
       if (activeConversation != null && !fetchedConvs.any((c) => c.id == activeConversation!.id)) {
         fetchedConvs.insert(0, activeConversation!);
       }
-      if (activeConversation != null && !fetchedConvs.any((c) => c.id == activeConversation!.id)) {
-        fetchedConvs.insert(0, activeConversation!);
-      }
       conversations = fetchedConvs;
+      localChatRepo.saveConversations(fetchedConvs);
+      Bootstrap.saveSnapshot(conversations: conversations);
 
       final currentUserEmail = SupabaseService.currentUser?.email;
       if (currentUserEmail != null &&
@@ -249,10 +319,11 @@ class AppState extends ChangeNotifier {
     // [Sprint 0] Ownership check: verificar que la conversación pertenece al usuario actual.
     final currentUserId = SupabaseService.currentUser?.id;
     if (currentUserId != null && conv.userId != currentUserId) {
-      if (kDebugMode)
+      if (kDebugMode) {
         debugPrint(
           '[AppState] selectConversation bloqueado: conv.userId=${conv.userId} != currentUserId=$currentUserId',
         );
+      }
       return;
     }
     if (isIncognito) {
@@ -261,15 +332,23 @@ class AppState extends ChangeNotifier {
     activeConversation = conv;
     isIncognito = false;
 
-    // Guardar el ID de la conversación que estamos cargando para detectar
-    // si el usuario cambió de chat o envió un mensaje mientras esperábamos.
+    // 1. Carga instantánea desde SQLite local (0 ms)
+    final localMsgs = await localChatRepo.getMessages(conv.id);
+    if (activeConversation?.id == conv.id && !isGenerating && localMsgs.isNotEmpty) {
+      currentMessages = localMsgs;
+      notifyListeners();
+    }
+
+    // 2. Sincronización en segundo plano con Supabase
     final loadingConvId = conv.id;
     final fetchedMessages = await SupabaseService.getMessages(conv.id);
-
-    // Solo aplicar si el usuario NO envió un mensaje (isGenerating)
-    // y NO cambió a otra conversación durante la espera de red.
     if (activeConversation?.id == loadingConvId && !isGenerating) {
       currentMessages = fetchedMessages;
+      localChatRepo.saveMessages(conv.id, fetchedMessages);
+      Bootstrap.saveSnapshot(
+        lastConversationId: activeConversation?.id,
+        lastMessages: currentMessages,
+      );
       notifyListeners();
     }
   }
@@ -280,6 +359,10 @@ class AppState extends ChangeNotifier {
     }
     activeConversation = null;
     currentMessages = [];
+    Bootstrap.saveSnapshot(
+      lastConversationId: '',
+      lastMessages: [],
+    );
     notifyListeners();
   }
 
@@ -299,7 +382,9 @@ class AppState extends ChangeNotifier {
       if (activeConversation?.id == convId) {
         activeConversation = conversations[idx];
       }
+      localChatRepo.renameConversation(convId, newTitle);
       SupabaseService.updateConversationTitle(convId, newTitle);
+      Bootstrap.saveSnapshot(conversations: conversations);
       notifyListeners();
     }
   }
@@ -321,7 +406,9 @@ class AppState extends ChangeNotifier {
       if (activeConversation?.id == convId) {
         activeConversation = conversations[idx];
       }
+      localChatRepo.toggleStarred(convId, newStarred);
       SupabaseService.toggleConversationStarred(convId, newStarred);
+      Bootstrap.saveSnapshot(conversations: conversations);
       notifyListeners();
     }
   }
@@ -329,6 +416,8 @@ class AppState extends ChangeNotifier {
   Future<void> deleteConversation(String convId) async {
     final wasActive = activeConversation?.id == convId;
     conversations.removeWhere((c) => c.id == convId);
+    localChatRepo.deleteConversation(convId);
+    Bootstrap.saveSnapshot(conversations: conversations);
     if (wasActive) {
       // Fase 3: continuidad tras borrado.
       // Si quedan conversaciones, saltar a la más reciente (conversations ya viene
@@ -355,6 +444,7 @@ class AppState extends ChangeNotifier {
 
   void toggleTheme() {
     isDarkMode = !isDarkMode;
+    Bootstrap.saveSnapshot(theme: isDarkMode ? 'dark' : 'light');
     notifyListeners();
   }
 
@@ -377,10 +467,7 @@ class AppState extends ChangeNotifier {
       return;
     }
     selectedModel = option;
-    // [Sprint 0] Persistir selección de modelo para que sobreviva reinicios.
-    SharedPreferences.getInstance().then((prefs) {
-      prefs.setString('exodo_selected_model', option.id);
-    });
+    Bootstrap.saveSnapshot(selectedModelId: option.id);
     notifyListeners();
   }
 
@@ -447,6 +534,8 @@ class AppState extends ChangeNotifier {
       } catch (_) {}
     }
     profile = null;
+    _hasCachedSession = false;
+    localChatRepo.clearAll().catchError((_) {});
     await SupabaseService.signOut();
     notifyListeners();
   }
@@ -465,6 +554,13 @@ class AppState extends ChangeNotifier {
     conversations = [];
     activeConversation = null;
     currentMessages = [];
+    // Limpiar la base de datos local y la caché de arranque.
+    localChatRepo.clearAll().catchError((_) {});
+    Bootstrap.saveSnapshot(
+      conversations: [],
+      lastMessages: [],
+      lastConversationId: '',
+    );
     notifyListeners();
   }
 
@@ -672,6 +768,7 @@ class AppState extends ChangeNotifier {
           false,
         );
         conversations.insert(0, activeConversation!);
+        localChatRepo.saveConversation(activeConversation!);
         for (int i = 0; i < currentMessages.length; i++) {
           if (currentMessages[i].conversationId == 'guest' ||
               currentMessages[i].conversationId == 'incognito' ||
@@ -692,8 +789,9 @@ class AppState extends ChangeNotifier {
       } catch (_) {}
     }
 
-    // 3. GUARDAR MENSAJE DE USUARIO EN BD EN SEGUNDO PLANO
+    // 3. GUARDAR MENSAJE DE USUARIO EN BD LOCAL Y NUBE EN SEGUNDO PLANO
     if (shouldSaveHistory && activeConversation != null) {
+      localChatRepo.saveMessage(userMsg);
       String contentToSave = text.trim();
       if (attachments != null && attachments.isNotEmpty) {
         try {
@@ -821,6 +919,17 @@ class AppState extends ChangeNotifier {
             );
           }
           if (shouldSaveHistory && activeConversation != null && !isGuest) {
+            final assistantMsg = ChatMessage(
+              id: msgId,
+              conversationId: activeConversation!.id,
+              role: 'assistant',
+              content: fullText,
+              sources: sources,
+              createdAt: DateTime.now(),
+              isDegraded: msgIsDegraded,
+            );
+            localChatRepo.saveMessage(assistantMsg);
+
             final sourcesJson = sources.isNotEmpty
                 ? jsonEncode(sources.map((s) => s.toJson()).toList())
                 : null;

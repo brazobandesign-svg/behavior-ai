@@ -63,7 +63,7 @@ async function call(modelId, messages, systemPrompt, options = {}) {
     messages: formattedMessages,
     max_tokens: maxTokens,
     temperature: targetModel === 'deepseek-reasoner' ? undefined : 0.7,
-  });
+  }, { signal: options.signal || null });
 
   const choice = response.choices && response.choices[0];
   const text = choice && choice.message ? choice.message.content : '';
@@ -95,7 +95,7 @@ async function callStream(modelId, messages, systemPrompt, onChunk, options = {}
     max_tokens: maxTokens,
     stream: true,
     temperature: targetModel === 'deepseek-reasoner' ? undefined : 0.7,
-  });
+  }, { signal: options.signal || null });
 
   let fullText = '';
   let fullReasoning = '';

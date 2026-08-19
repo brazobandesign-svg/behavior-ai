@@ -23,8 +23,14 @@
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
     "express-rate-limit": "^8.5.2",
+    "mammoth": "1.8.0",
+    "nanoid": "^3.3.18",
     "openai": "^7.4.0",
-    "pdf-parse": "^2.4.5",
-    "stripe": "^22.4.0"
+    "pdf-parse": "1.1.1",
+    "pg": "^8.23.0",
+    "sanitize-html": "^2.17.7",
+    "stripe": "^22.4.0",
+    "xlsx": "0.18.5",
+    "zod": "^3.25.76"
   }
 }

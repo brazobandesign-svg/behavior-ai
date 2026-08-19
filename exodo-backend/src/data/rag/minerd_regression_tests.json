@@ -1,0 +1,826 @@
+{
+  "$comment": "Éxodo by Behavior — Dataset de regresión RAG MINERD. 30 casos reales. Versión 1.0.0. Formato: cada caso tiene id, categoria, contexto (nivel/ciclo/grado/area/competencia), query, must_cite (códigos de fuente que DEBEN aparecer), expected_keywords, must_not_claim (cosas que Éxodo NO debe inventar) y expected_response (respuesta benchmark).",
+  "metadata": {
+    "version": "1.0.0",
+    "total_cases": 30,
+    "categories": [
+      "planificacion",
+      "evaluacion",
+      "rubrica",
+      "normativa",
+      "inclusion",
+      "contenido",
+      "indicador",
+      "proyecto",
+      "integracion",
+      "formacion"
+    ],
+    "generated_at": "2026-08-18",
+    "judge_prompt_reference": "Sección 5 de este documento"
+  },
+  "cases": [
+    {
+      "id": "R-01",
+      "categoria": "normativa",
+      "nivel": "transversal",
+      "ciclo": "N/A",
+      "grado": null,
+      "area": "transversal",
+      "competencia_fundamental": null,
+      "query": "¿Cuáles son las competencias fundamentales del currículo dominicano actualizado?",
+      "must_cite": [
+        "ORD-1-2021"
+      ],
+      "expected_keywords": [
+        "Comunicación",
+        "Pensamiento Lógico, Creativo y Crítico",
+        "Resolución de Problemas",
+        "Científica y Tecnológica",
+        "Ciudadana",
+        "Cultural y Artística",
+        "Emocional y Afectiva"
+      ],
+      "must_not_claim": [
+        "que son 6 u 8 competencias",
+        "que la lista cambió en 2024",
+        "que Emocional y Afectiva se llama Desarrollo Personal en TODOS los documentos sin matizar"
+      ],
+      "expected_response": "Son siete competencias fundamentales, según la Actualización y Adecuación Curricular vigente: Comunicación; Pensamiento Lógico, Creativo y Crítico; Resolución de Problemas; Científica y Tecnológica; Ciudadana; Cultural y Artística; y Emocional y Afectiva. Son transversales: aparecen en todas las áreas y niveles, y se desarrollan a lo largo de toda la escolaridad. [Fuente: ORD-1-2021; DC-PRIM-1C-2021, sección sobre competencias fundamentales]"
+    },
+    {
+      "id": "R-02",
+      "categoria": "planificacion",
+      "nivel": "primario",
+      "ciclo": "1er_ciclo",
+      "grado": "2",
+      "area": "Matemáticas",
+      "competencia_fundamental": [
+        "Pensamiento Lógico, Creativo y Crítico"
+      ],
+      "query": "Necesito hacer una planificación diaria de matemáticas para 2.° grado. ¿Qué estructura debe tener según el modelo por competencias?",
+      "must_cite": [
+        "GPD-2021",
+        "DC-PRIM-1C-2021"
+      ],
+      "expected_keywords": [
+        "competencia específica",
+        "indicador de logro",
+        "situación de aprendizaje",
+        "eje temático",
+        "evaluación formativa"
+      ],
+      "must_not_claim": [
+        "que la planificación es un tema o lista de ejercicios",
+        "que debe durar 90 minutos siempre",
+        "que no se permite la evaluación formativa"
+      ],
+      "expected_response": "En el modelo por competencias, la planificación diaria no se organiza por 'tema + ejercicios', sino alrededor de una situación de aprendizaje que moviliza una competencia específica y se evalúa con indicadores de logro. Estructura sugerida: 1. Datos generales: área, grado, sección, fecha, duración. 2. Competencia específica y competencia(s) fundamental(es) que moviliza. 3. Indicadores de logro observables. 4. Eje temático y contenidos conceptuales/procedimentales/actitudinales. 5. Situación de aprendizaje (problema auténtico, cercano al contexto del estudiante). 6. Secuencia de actividades: inicio, desarrollo, cierre. 7. Evaluación formativa: técnica, instrumento, criterios, momento. 8. Evidencias esperadas. 9. Recursos y bibliografía del docente. [Fuente: GPD-2021; DC-PRIM-1C-2021]"
+    },
+    {
+      "id": "R-03",
+      "categoria": "indicador",
+      "nivel": "primario",
+      "ciclo": "1er_ciclo",
+      "grado": "3",
+      "area": "Matemáticas",
+      "competencia_fundamental": [
+        "Pensamiento Lógico, Creativo y Crítico",
+        "Resolución de Problemas"
+      ],
+      "query": "¿Cuáles son los indicadores de logro de 3.° de Matemáticas en el eje Numeración?",
+      "must_cite": [
+        "DC-PRIM-1C-2021"
+      ],
+      "expected_keywords": [
+        "Numeración",
+        "indicador de logro",
+        "números naturales",
+        "operaciones"
+      ],
+      "must_not_claim": [
+        "indicadores literales inventados que no estén en el documento",
+        "que los indicadores de 3.° incluyen números decimales complejos (que son de 5.° o 6.°)"
+      ],
+      "expected_response": "Para 3.° de Primaria en el eje Numeración, el diseño curricular vigente propone indicadores de logro centrados en lectura y escritura de números naturales hasta el rango correspondiente al grado; descomposición aditiva y valor posicional; resolución de problemas aditivos y multiplicativos sencillos con enunciado verbal; estimación de resultados; y justificación oral o escrita de los procedimientos usados. Te recomiendo abrir el documento DC-PRIM-1C-2021 en la sección 'Eje Numeración, 3.°' para el listado literal y numerado de los indicadores, que es la versión que aplica a tu planificación. [Fuente: DC-PRIM-1C-2021, Eje Numeración, 3.°]"
+    },
+    {
+      "id": "R-04",
+      "categoria": "planificacion",
+      "nivel": "primario",
+      "ciclo": "2do_ciclo",
+      "grado": "5",
+      "area": "Lengua Española",
+      "competencia_fundamental": [
+        "Comunicación"
+      ],
+      "query": "¿Cómo redacto una situación de aprendizaje significativa para una clase de Lengua Española de 5.°?",
+      "must_cite": [
+        "DC-PRIM-2C-2021",
+        "GPD-2021"
+      ],
+      "expected_keywords": [
+        "situación de aprendizaje",
+        "auténtica",
+        "contexto",
+        "problema",
+        "evidencia"
+      ],
+      "must_not_claim": [
+        "que la situación de aprendizaje es un tema con preguntas",
+        "que no importa el contexto real del estudiante",
+        "que la rúbrica se comparte al final (debe ser al inicio)"
+      ],
+      "expected_response": "Una situación de aprendizaje no es un tema, es un problema auténtico que el estudiante enfrenta con el lenguaje. Para 5.° de Lengua Española, una estructura sólida es: 1. Contexto real cercano al estudiante. 2. Reto comunicativo claro (ej. escribir una carta al director, producir un podcast sobre un problema del entorno, entrevistar a un abuelo para reconstruir una historia familiar). 3. Producto comunicativo definido y público (texto, audio, vídeo, presentación). 4. Competencia específica que se moviliza. 5. Indicadores de logro observables y medibles. 6. Criterios de evaluación desde el inicio (la rúbrica se comparte antes de la producción). 7. Reflexión metacognitiva al cierre. El foco es que el estudiante use el lenguaje para algo real, no que 'vea' el contenido. [Fuente: GPD-2021; DC-PRIM-2C-2021]"
+    },
+    {
+      "id": "R-05",
+      "categoria": "evaluacion",
+      "nivel": "transversal",
+      "ciclo": "N/A",
+      "grado": null,
+      "area": "transversal",
+      "competencia_fundamental": null,
+      "query": "¿Cuál es la diferencia entre evaluación formativa y sumativa en el modelo MINERD?",
+      "must_cite": [
+        "GEA-2018",
+        "ORD-1-2021"
+      ],
+      "expected_keywords": [
+        "formativa",
+        "sumativa",
+        "proceso",
+        "retroalimentación",
+        "calificación"
+      ],
+      "must_not_claim": [
+        "que la formativa no se califica (sí puede, pero su fin es la retroalimentación)",
+        "que la sumativa no aporta al aprendizaje (cierra el ciclo)"
+      ],
+      "expected_response": "En el modelo MINERD vigente: la evaluación formativa ocurre durante el proceso de aprendizaje. Su fin es regular: dar retroalimentación al estudiante y al docente para ajustar la enseñanza. No siempre se califica con nota; lo central es el feedback y la toma de decisiones pedagógicas. Técnicas: observación, preguntas orales, bitácora, portafolio, rúbrica procesual. La evaluación sumativa ocurre al final de una unidad, período o año. Su fin es certificar el nivel de logro alcanzado respecto a los indicadores. Se traduce en calificación y se registra en el boletín. Técnicas: prueba escrita, proyecto final, examen de período. No son opuestas: la formativa alimenta a la sumativa. [Fuente: GEA-2018; ORD-1-2021]"
+    },
+    {
+      "id": "R-06",
+      "categoria": "rubrica",
+      "nivel": "secundario",
+      "ciclo": "1er_ciclo",
+      "grado": "2",
+      "area": "Ciencias Sociales",
+      "competencia_fundamental": [
+        "Ciudadana",
+        "Pensamiento Lógico, Creativo y Crítico"
+      ],
+      "query": "Necesito una rúbrica de evaluación para un proyecto de investigación en Ciencias Sociales de 2.° de secundaria. ¿Me la puedes armar?",
+      "must_cite": [
+        "GEA-2018",
+        "DC-SEC-1C-2021"
+      ],
+      "expected_keywords": [
+        "rúbrica analítica",
+        "criterios",
+        "niveles de logro",
+        "evidencia"
+      ],
+      "must_not_claim": [
+        "que la rúbrica debe ser solo cualitativa o solo cuantitativa (puede ser mixta)",
+        "que los criterios son iguales para todas las áreas (varían por competencia)"
+      ],
+      "expected_response": "Te propongo una rúbrica analítica (evalúa cada criterio por separado, no da una nota global). Criterios sugeridos: 1. Planteamiento del problema: pregunta clara, delimitada y relevante (Excelente: 4 / Bueno: 3 / En desarrollo: 2 / Inicio: 1). 2. Uso de fuentes: diversas, confiables, citadas correctamente. 3. Análisis crítico: contrasta posturas, identifica sesgos, argumenta con evidencia. 4. Comunicación escrita: texto coherente, cohesionado, sin errores significativos. 5. Producto final: responde a la audiencia, es claro y creativo. Suma / 20 = calificación. Cada nivel describe lo que el estudiante demuestra, no lo que 'es'. Esta estructura sigue la Guía de Evaluación del MINERD. [Fuente: GEA-2018]"
+    },
+    {
+      "id": "R-07",
+      "categoria": "inclusion",
+      "nivel": "primario",
+      "ciclo": "1er_ciclo",
+      "grado": "1",
+      "area": "transversal",
+      "competencia_fundamental": null,
+      "query": "Tengo un aula multigrado con 1.° y 2.° en una escuela rural. ¿Qué estrategias me recomienda el MINERD?",
+      "must_cite": [
+        "GAD-2019",
+        "DC-PRIM-1C-2021"
+      ],
+      "expected_keywords": [
+        "atención a la diversidad",
+        "adecuación curricular",
+        "diferenciación",
+        "multigrado"
+      ],
+      "must_not_claim": [
+        "que el MINERD prohíbe aulas multigrado (al contrario, las apoya)",
+        "que la tutoría entre pares no es válida pedagógicamente"
+      ],
+      "expected_response": "Para aulas multigrado la estrategia central es la diferenciación pedagógica combinada con adecuaciones curriculares no significativas. Recomendaciones operativas: 1. Planificar por situación de aprendizaje, no por tema aislado: una misma situación puede tener distintos niveles de exigencia para 1.° y 2.°. 2. Trabajo por estaciones rotativas. 3. Tutoría entre pares. 4. Agrupamientos flexibles por interés o nivel. 5. Evaluación diferenciada con los mismos indicadores pero aceptando distintos niveles de desempeño. 6. Uso de rincones de aprendizaje con materiales concretos. La Guía de Atención a la Diversidad del MINERD es tu referencia directa. [Fuente: GAD-2019; DC-PRIM-1C-2021]"
+    },
+    {
+      "id": "R-08",
+      "categoria": "integracion",
+      "nivel": "primario",
+      "ciclo": "1er_ciclo",
+      "grado": "3",
+      "area": "Ciencias de la Naturaleza",
+      "competencia_fundamental": [
+        "Científica y Tecnológica"
+      ],
+      "query": "¿Cómo integro las TIC en una clase de Ciencias de la Naturaleza si no tengo computadoras ni proyector?",
+      "must_cite": [
+        "DC-PRIM-1C-2021"
+      ],
+      "expected_keywords": [
+        "TIC",
+        "didáctica",
+        "observación directa",
+        "recursos",
+        "alternativos"
+      ],
+      "must_not_claim": [
+        "que las TIC son obligatorias",
+        "que sin tecnología no se puede enseñar bien"
+      ],
+      "expected_response": "Las TIC son un medio, no un fin. Sin tecnología puedes seguir enseñando Ciencias de la Naturaleza con calidad si usas: observación directa del entorno, experiencias sencillas con materiales de bajo costo, bitácora o cuaderno científico del estudiante con dibujo y descripción, simulaciones analógicas, visitas escolares y entrevistas a personas de la comunidad. Cuando haya acceso, integra tecnología progresivamente. Lo que nunca debe perderse es la indagación: que el estudiante observe, pregunte, proponga, registre. [Fuente: DC-PRIM-1C-2021, área Ciencias de la Naturaleza]"
+    },
+    {
+      "id": "R-09",
+      "categoria": "normativa",
+      "nivel": "transversal",
+      "ciclo": "N/A",
+      "grado": null,
+      "area": "transversal",
+      "competencia_fundamental": null,
+      "query": "¿Qué dice la Ordenanza 1-2021 sobre la evaluación de los aprendizajes?",
+      "must_cite": [
+        "ORD-1-2021"
+      ],
+      "expected_keywords": [
+        "evaluación",
+        "formativa",
+        "indicadores de logro",
+        "cualitativa",
+        "cuantitativa"
+      ],
+      "must_not_claim": [
+        "contenidos inventados de la ordenanza que no estén en el documento",
+        "rangos numéricos específicos de calificación sin citarlos del documento"
+      ],
+      "expected_response": "La Ordenanza 1-2021, que rige la Actualización y Adecuación Curricular, sitúa la evaluación como parte del proceso de aprendizaje, no como un evento aislado. Los ejes que la ordenanza y sus documentos derivados reconocen son: evaluación cualitativa y cuantitativa conviviendo; indicadores de logro como referente; retroalimentación continua como mecanismo central; diversificación de instrumentos (rúbricas, portafolios, proyectos, pruebas, observación); participación del estudiante en su evaluación. Para los rangos de calificación, escala y periodicidad exactos, revisa la sección correspondiente de la ORD-1-2021 y la normativa complementaria vigente. [Fuente: ORD-1-2021]"
+    },
+    {
+      "id": "R-10",
+      "categoria": "normativa",
+      "nivel": "transversal",
+      "ciclo": "N/A",
+      "grado": null,
+      "area": "transversal",
+      "competencia_fundamental": null,
+      "query": "¿Cómo se articulan las competencias fundamentales con las específicas en el diseño curricular?",
+      "must_cite": [
+        "ORD-1-2021",
+        "DC-PRIM-1C-2021"
+      ],
+      "expected_keywords": [
+        "competencia fundamental",
+        "competencia específica",
+        "movilización",
+        "eje",
+        "área"
+      ],
+      "must_not_claim": [
+        "que las CE son independientes de las CF",
+        "que una CF solo se trabaja en un área"
+      ],
+      "expected_response": "Las competencias fundamentales (CF) son el norte formativo transversal: aplican a todas las áreas y se desarrollan durante toda la escolaridad. Las competencias específicas (CE) son las que movilizan una o más CF al interior de un área curricular y un grado concreto. La CE es, por decirlo así, la CF puesta en acción en el contexto del área. Ejemplo: la CF Comunicación se moviliza a través de CE distintas según el área (producción de textos en Lengua Española, comunicación de procedimientos en Matemáticas, interpretación de fuentes en Ciencias Sociales). Cada CE se desglosa en indicadores de logro observables. [Fuente: ORD-1-2021; DC-PRIM-1C-2021]"
+    },
+    {
+      "id": "R-11",
+      "categoria": "contenido",
+      "nivel": "primario",
+      "ciclo": "1er_ciclo",
+      "grado": "1",
+      "area": "Lengua Española",
+      "competencia_fundamental": [
+        "Comunicación"
+      ],
+      "query": "¿Qué contenidos actitudinales debo trabajar en 1.° para desarrollar la competencia Comunicación?",
+      "must_cite": [
+        "DC-PRIM-1C-2021"
+      ],
+      "expected_keywords": [
+        "actitudinal",
+        "valor",
+        "actitud",
+        "respeto",
+        "escucha",
+        "turno"
+      ],
+      "must_not_claim": [
+        "contenidos de 2.° o 3.° aplicados a 1.°",
+        "que los actitudinales son opcionales"
+      ],
+      "expected_response": "En 1.° de Primaria, los contenidos actitudinales asociados a la competencia Comunicación suelen organizarse alrededor de tres ejes: respeto a los turnos de habla y a la palabra del otro; valoración de la diversidad lingüística y cultural del entorno dominicano; curiosidad e interés por la lectura y por los textos orales del entorno (cuentos, canciones, retahílas); disposición a comunicar ideas y emociones con distintos formatos. Para el listado literal y numerado correspondiente a 1.°, consulta la sección de contenidos actitudinales de Lengua Española en DC-PRIM-1C-2021. [Fuente: DC-PRIM-1C-2021, Lengua Española 1.°]"
+    },
+    {
+      "id": "R-12",
+      "categoria": "evaluacion",
+      "nivel": "secundario",
+      "ciclo": "2do_ciclo",
+      "grado": "4",
+      "area": "Lengua Española",
+      "competencia_fundamental": [
+        "Comunicación",
+        "Pensamiento Lógico, Creativo y Crítico"
+      ],
+      "query": "¿Cómo evalúo el pensamiento crítico de mis estudiantes de 4.° cuando escriben un texto argumentativo?",
+      "must_cite": [
+        "GEA-2018",
+        "DC-SEC-2C-2021-A"
+      ],
+      "expected_keywords": [
+        "pensamiento crítico",
+        "argumentación",
+        "evidencia",
+        "rúbrica",
+        "criterio"
+      ],
+      "must_not_claim": [
+        "que se puede evaluar pensamiento crítico con una sola pregunta de opción múltiple",
+        "que la rúbrica se comparte al final"
+      ],
+      "expected_response": "Evaluar pensamiento crítico en argumentación no es evaluar que el texto exista, sino qué calidad de razonamiento muestra. Te propongo criterios operables: 1. Tesis explícita y debatible. 2. Calidad de los argumentos. 3. Uso de evidencia. 4. Reconocimiento de contraargumentos. 5. Conclusión que cierra el razonamiento. Tradúcelos a una rúbrica analítica con 4 niveles, comparte la rúbrica con el estudiante antes de la producción, y úsala para retroalimentar (formativa) y para calificar (sumativa). [Fuente: GEA-2018]"
+    },
+    {
+      "id": "R-13",
+      "categoria": "inclusion",
+      "nivel": "transversal",
+      "ciclo": "N/A",
+      "grado": null,
+      "area": "transversal",
+      "competencia_fundamental": null,
+      "query": "¿Qué diferencia hay entre adecuación curricular y adaptación curricular?",
+      "must_cite": [
+        "GAD-2019",
+        "ORD-1-2021"
+      ],
+      "expected_keywords": [
+        "adecuación",
+        "adaptación",
+        "significativa",
+        "no significativa",
+        "acceso"
+      ],
+      "must_not_claim": [
+        "que son sinónimos",
+        "que la adecuación curricular cambia objetivos de aprendizaje"
+      ],
+      "expected_response": "Distinción operativa que usa el MINERD: Adecuación curricular (no significativa): ajustes de acceso al currículo sin modificar los objetivos de aprendizaje (tiempo extra, formato de la evaluación, recursos de apoyo, organización de la clase, acompañamiento). Adecuación curricular significativa / Adaptación curricular: modificación de los objetivos de aprendizaje (indicadores de logro, contenidos, criterios de evaluación). Se aplica a estudiantes con NEE (Necesidades Educativas Especiales) documentadas, con apoyo del equipo de orientación. Si la adecuación la decides tú en el aula, generalmente es no significativa. Si involucra un cambio en el nivel de logro esperado, requiere proceso formal, equipo multidisciplinario y registro. [Fuente: GAD-2019]"
+    },
+    {
+      "id": "R-14",
+      "categoria": "planificacion",
+      "nivel": "primario",
+      "ciclo": "1er_ciclo",
+      "grado": "3",
+      "area": "Ciencias de la Naturaleza",
+      "competencia_fundamental": [
+        "Científica y Tecnológica"
+      ],
+      "query": "¿Cómo planifico una secuencia didáctica de 5 clases sobre el eje 'Seres vivos' para 3.° de Ciencias de la Naturaleza?",
+      "must_cite": [
+        "GPD-2021",
+        "DC-PRIM-1C-2021"
+      ],
+      "expected_keywords": [
+        "secuencia didáctica",
+        "indagación",
+        "seres vivos",
+        "evidencia"
+      ],
+      "must_not_claim": [
+        "que 5 sesiones son pocas para el contenido",
+        "que se debe memorizar la clasificación taxonómica"
+      ],
+      "expected_response": "Estructura sugerida para 5 sesiones (≈ 45 min c/u) sobre Seres vivos en 3.°: Sesión 1 — Indagación inicial: ¿Qué es un ser vivo? Lluvia de ideas, exploración del patio. Evidencia: dibujo + lista de características. Sesión 2 — Clasificación: agrupar seres vivos del entorno según criterios observables. Evidencia: tabla de clasificación. Sesión 3 — Profundización: comparar plantas y animales (alimentación, reproducción, relación con el entorno). Evidencia: cuadro comparativo. Sesión 4 — Indagación experimental: ¿las plantas necesitan luz? Germinación de semillas con y sin luz. Evidencia: bitácora con registros semanales. Sesión 5 — Comunicación: presentar hallazgos. Evidencia: presentación oral + cartel. Cada sesión cierra con un indicador de logro observable y un momento de metacognición. [Fuente: GPD-2021; DC-PRIM-1C-2021, Ciencias de la Naturaleza 3.°]"
+    },
+    {
+      "id": "R-15",
+      "categoria": "evaluacion",
+      "nivel": "transversal",
+      "ciclo": "N/A",
+      "grado": null,
+      "area": "transversal",
+      "competencia_fundamental": null,
+      "query": "¿Qué instrumentos de evaluación cualitativa son válidos en el modelo MINERD?",
+      "must_cite": [
+        "GEA-2018"
+      ],
+      "expected_keywords": [
+        "rúbrica",
+        "portafolio",
+        "observación",
+        "registro anecdótico",
+        "escala de estimación"
+      ],
+      "must_not_claim": [
+        "que solo se permite la prueba escrita",
+        "que la rúbrica y la lista de cotejo son sinónimos"
+      ],
+      "expected_response": "El MINERD reconoce un conjunto de instrumentos cualitativos con plena validez: rúbrica (analítica u holística), portafolio de evidencias, registro anecdótico, escala de estimación / Likert, lista de cotejo, diario de clase o bitácora, guía de observación, mapa conceptual evaluado con criterios. La elección depende del tipo de aprendizaje a evaluar y de la evidencia esperada. Lo que no es válido: usar un solo instrumento para todas las áreas y todos los indicadores. [Fuente: GEA-2018]"
+    },
+    {
+      "id": "R-16",
+      "categoria": "evaluacion",
+      "nivel": "transversal",
+      "ciclo": "N/A",
+      "grado": null,
+      "area": "transversal",
+      "competencia_fundamental": null,
+      "query": "¿Cómo documento los logros del estudiante para el boletín de calificaciones?",
+      "must_cite": [
+        "GEA-2018",
+        "ORD-1-2021"
+      ],
+      "expected_keywords": [
+        "calificación",
+        "logro",
+        "indicador",
+        "período",
+        "retroalimentación"
+      ],
+      "must_not_claim": [
+        "rangos numéricos fijos sin citarlos del documento",
+        "que se puede omitir el comentario cualitativo"
+      ],
+      "expected_response": "El boletín es el registro oficial del nivel de logro alcanzado por período. Para documentarlo bien: 1. Recoge evidencias durante todo el período. 2. Vincula cada calificación con indicadores de logro del área y el grado. Sin esa trazabilidad, la nota no se sostiene técnicamente. 3. Usa la escala de calificación vigente definida por el MINERD (verifica el rango y la conversión cuali-cuantitativa en la normativa vigente, porque pueden actualizarse). 4. Acompaña la nota de un comentario cualitativo: una o dos líneas por área, referidas a fortalezas y aspectos a mejorar. 5. Comunica al estudiante y la familia, no solo al sistema. [Fuente: GEA-2018; ORD-1-2021]"
+    },
+    {
+      "id": "R-17",
+      "categoria": "planificacion",
+      "nivel": "transversal",
+      "ciclo": "N/A",
+      "grado": null,
+      "area": "transversal",
+      "competencia_fundamental": null,
+      "query": "¿Cuál es el rol del docente como mediador en el modelo por competencias?",
+      "must_cite": [
+        "ORD-1-2021",
+        "GPD-2021"
+      ],
+      "expected_keywords": [
+        "mediador",
+        "acompañamiento",
+        "andamiaje",
+        "retroalimentación"
+      ],
+      "must_not_claim": [
+        "que el docente solo expone contenido y evalúa",
+        "que el andamiaje es permanente"
+      ],
+      "expected_response": "En el modelo por competencias, el docente deja de ser transmisor de información y pasa a ser mediador del aprendizaje. Sus funciones operativas: diseña situaciones retadoras y auténticas; ofrece andamiaje (apoyos temporales que se retiran a medida que el estudiante gana autonomía); pregunta más de lo que explica; observa sistemáticamente para tomar decisiones; retroalimenta con criterio (descriptivo, específico, accionable); favorece la metacognición. Este rol requiere planificación previa sólida porque la mediación se improvisa muy mal. [Fuente: GPD-2021; ORD-1-2021]"
+    },
+    {
+      "id": "R-18",
+      "categoria": "inclusion",
+      "nivel": "primario",
+      "ciclo": "1er_ciclo",
+      "grado": "1",
+      "area": "transversal",
+      "competencia_fundamental": null,
+      "query": "En mi sección de 1.° hay estudiantes que ya leen y otros que apenas reconocen letras. ¿Cómo manejo esa diferencia sin dejar a nadie atrás?",
+      "must_cite": [
+        "GAD-2019",
+        "DC-PRIM-1C-2021"
+      ],
+      "expected_keywords": [
+        "diferenciación",
+        "adecuación no significativa",
+        "agrupamiento",
+        "nivel",
+        "rincón"
+      ],
+      "must_not_claim": [
+        "que la solución es separar a los estudiantes en grupos permanentes",
+        "que los avanzados deben esperar a los demás"
+      ],
+      "expected_response": "Esa heterogeneidad es la regla, sobre todo en 1.er ciclo. Estrategia combinada: 1. No igualar el punto de partida: diseña la misma situación con distintos niveles de apoyo. 2. Agrupamientos flexibles por nivel durante momentos específicos. 3. Rincón de lectura con libros graduados. 4. Tutoría entre pares con criterio (empareja un lector emergente con uno fluido). 5. Evaluación diferenciada con los mismos indicadores pero aceptando distintos niveles. 6. Comunicación con la familia: que entiendan que cada niño tiene su ritmo. Esto es adecuación curricular no significativa: no cambias lo que el niño debe aprender, sí cómo accede a ello. [Fuente: GAD-2019; DC-PRIM-1C-2021]"
+    },
+    {
+      "id": "R-19",
+      "categoria": "contenido",
+      "nivel": "primario",
+      "ciclo": "2do_ciclo",
+      "grado": "6",
+      "area": "Lengua Española",
+      "competencia_fundamental": [
+        "Comunicación"
+      ],
+      "query": "¿Qué dice el currículo sobre la lectura comprensiva en Lengua Española para 6.° grado?",
+      "must_cite": [
+        "DC-PRIM-2C-2021"
+      ],
+      "expected_keywords": [
+        "lectura comprensiva",
+        "niveles",
+        "literal",
+        "inferencial",
+        "crítica",
+        "texto"
+      ],
+      "must_not_claim": [
+        "que en 6.° solo se trabaja comprensión literal (es todo lo contrario)",
+        "que la lectura crítica es para secundaria únicamente"
+      ],
+      "expected_response": "El diseño curricular de 6.° de Lengua Española espera que el estudiante comprenda, interprete y produzca textos cada vez más complejos. En lectura, esto implica trabajar con tres niveles de comprensión: literal (recuperación de información explícita), inferencial (deducción de información no dicha) y crítica (valoración, relación con otros textos, con la realidad, con la experiencia). A los 6.° se espera que el estudiante avance de la predominancia literal hacia la comprensión inferencial y crítica, con textos narrativos, informativos y argumentativos. Los indicadores literalizados para 6.° están en DC-PRIM-2C-2021. [Fuente: DC-PRIM-2C-2021, Lengua Española 6.°]"
+    },
+    {
+      "id": "R-20",
+      "categoria": "evaluacion",
+      "nivel": "transversal",
+      "ciclo": "N/A",
+      "grado": null,
+      "area": "transversal",
+      "competencia_fundamental": null,
+      "query": "¿Cómo diseño una evaluación diagnóstica al inicio del año escolar?",
+      "must_cite": [
+        "GEA-2018",
+        "GPD-2021"
+      ],
+      "expected_keywords": [
+        "diagnóstica",
+        "saberes previos",
+        "inicio",
+        "información",
+        "planificación"
+      ],
+      "must_not_claim": [
+        "que la diagnóstica se califica con nota",
+        "que se debe aplicar el primer día de clase"
+      ],
+      "expected_response": "La evaluación diagnóstica no califica: informa la planificación. Se aplica al inicio del año y tiene tres metas: 1. Identificar saberes previos. 2. Detectar brechas y agrupar para la diferenciación. 3. Ajustar la planificación del docente a la realidad del aula. Formatos recomendados: preguntas abiertas por área, producción breve, conversación diagnóstica con el estudiante, revisión del cuaderno del año previo. No recomendado: prueba escrita de 30 ítems con nota numérica, porque convierte un diagnóstico en sumativa sin querer. [Fuente: GEA-2018; GPD-2021]"
+    },
+    {
+      "id": "R-21",
+      "categoria": "proyecto",
+      "nivel": "transversal",
+      "ciclo": "N/A",
+      "grado": null,
+      "area": "transversal",
+      "competencia_fundamental": null,
+      "query": "¿Qué proyectos transversales propone el MINERD?",
+      "must_cite": [
+        "ORD-1-2021",
+        "PEI"
+      ],
+      "expected_keywords": [
+        "transversal",
+        "proyecto",
+        "medio ambiente",
+        "lectura",
+        "valores"
+      ],
+      "must_not_claim": [
+        "que los proyectos son opcionales",
+        "que se hacen una sola vez al año"
+      ],
+      "expected_response": "El MINERD promueve proyectos transversales que articulan varias áreas en torno a un tema común. Los más institucionalizados: Proyecto de Lectura, Proyecto de Educación Ambiental y Desarrollo Sostenible, Proyecto de Valores y Convivencia Escolar, Proyecto de Salud Integral, Proyecto de Seguridad Vial, Proyecto de Identidad Cultural Dominicana. Cada centro decide cuáles prioriza en su PEC, con cronograma y responsable. Lo importante es que el proyecto no quede en una actividad suelta: debe integrarse al menos a 2–3 áreas con productos verificables. [Fuente: PEI; ORD-1-2021]"
+    },
+    {
+      "id": "R-22",
+      "categoria": "formacion",
+      "nivel": "transversal",
+      "ciclo": "N/A",
+      "grado": null,
+      "area": "transversal",
+      "competencia_fundamental": null,
+      "query": "¿Cómo se estructura el periodo de práctica docente en la carrera de educación?",
+      "must_cite": [
+        "RI-2021"
+      ],
+      "expected_keywords": [
+        "práctica",
+        "docente",
+        "formación",
+        "inicial",
+        "centro asociado"
+      ],
+      "must_not_claim": [
+        "detalles específicos de universidades que no estén en la normativa",
+        "que la práctica es idéntica en todas las instituciones"
+      ],
+      "expected_response": "La práctica docente en las carreras de educación en RD se estructura generalmente en tres fases (orientación general, observación acompañada e intervención progresiva), con horas de presencia en aula que varían según la universidad y la modalidad de carrera. Cada universidad, junto al MINERD a través de las Direcciones Regionales, firma acuerdos para que los practicantes tengan centros asociados. Los lineamientos generales están en la normativa vigente de formación inicial docente; los detalles operativos (duración exacta, productos, rúbrica de la práctica) dependen de cada universidad. [Fuente: RI-2021; normativa de formación inicial vigente]"
+    },
+    {
+      "id": "R-23",
+      "categoria": "indicador",
+      "nivel": "primario",
+      "ciclo": "1er_ciclo",
+      "grado": "1",
+      "area": "Matemáticas",
+      "competencia_fundamental": [
+        "Pensamiento Lógico, Creativo y Crítico"
+      ],
+      "query": "¿Qué indicadores de logro se esperan en Pensamiento Lógico para 1.° de Primaria?",
+      "must_cite": [
+        "DC-PRIM-1C-2021"
+      ],
+      "expected_keywords": [
+        "indicador de logro",
+        "Pensamiento Lógico",
+        "1.°",
+        "clasificación",
+        "seriación",
+        "patrón"
+      ],
+      "must_not_claim": [
+        "indicadores literales inventados",
+        "que 1.° incluye números mayores a 20 (eso es de 2.° o 3.°)"
+      ],
+      "expected_response": "En 1.° de Primaria, los indicadores asociados al desarrollo del Pensamiento Lógico en Matemáticas suelen incluir capacidades como: clasificar objetos según un criterio, identificar y continuar patrones sencillos, comparar colecciones por cantidad o tamaño con expresiones 'más que', 'menos que', 'igual que', describir atributos de los objetos y justificar la clasificación, resolver problemas sencillos de la vida cotidiana usando estrategias propias. Los indicadores literalizados están en DC-PRIM-1C-2021, Matemáticas 1.°. [Fuente: DC-PRIM-1C-2021, Matemáticas 1.°]"
+    },
+    {
+      "id": "R-24",
+      "categoria": "integracion",
+      "nivel": "secundario",
+      "ciclo": "1er_ciclo",
+      "grado": null,
+      "area": "Ciencias Sociales",
+      "competencia_fundamental": [
+        "Ciudadana"
+      ],
+      "query": "¿Cómo integro el enfoque de género y equidad en una clase de Ciencias Sociales?",
+      "must_cite": [
+        "ORD-1-2021",
+        "DC-SEC-1C-2021"
+      ],
+      "expected_keywords": [
+        "género",
+        "equidad",
+        "perspectiva",
+        "historia",
+        "participación",
+        "diversidad"
+      ],
+      "must_not_claim": [
+        "que el enfoque de género significa enseñar solo sobre mujeres",
+        "que se debe evitar hablar de diferencias biológicas"
+      ],
+      "expected_response": "El enfoque de género en Ciencias Sociales implica tres movimientos concretos: 1. Visibilizar: analizar el papel de mujeres, hombres y diversidades en los hechos sociales. 2. Cuestionar: problematizar las relaciones de poder que explican esa distribución. 3. Proyectar: conectar el pasado con el presente de los estudiantes para reconocer discriminaciones actuales y pensar cómo actuar. Operativamente: sustituye la pregunta '¿qué pasó?' por '¿a quiénes incluyó y a quiénes excluyó esta historia? ¿qué intereses sirvió?'. [Fuente: ORD-1-2021, enfoque de derechos; DC-SEC-1C-2021]"
+    },
+    {
+      "id": "R-25",
+      "categoria": "contenido",
+      "nivel": "secundario",
+      "ciclo": "1er_ciclo",
+      "grado": "2",
+      "area": "Lengua Española",
+      "competencia_fundamental": [
+        "Comunicación",
+        "Emocional y Afectiva"
+      ],
+      "query": "¿Qué estrategias de animación a la lectura funcionan mejor en 2.° de secundaria?",
+      "must_cite": [
+        "DC-SEC-1C-2021"
+      ],
+      "expected_keywords": [
+        "lectura",
+        "animación",
+        "tertulia",
+        "cápsula",
+        "elección",
+        "voluntad"
+      ],
+      "must_not_claim": [
+        "que se debe obligar a leer un clásico completo con prueba escrita",
+        "que la animación a la lectura es solo para primaria"
+      ],
+      "expected_response": "A los 13–14 años la clave es devolverle al estudiante la elección. Lo que mejor funciona: 1. Biblioteca libre en el aula con mezcla de géneros. 2. Rincón de recomendación: cada 2 semanas un estudiante recomienda un texto. 3. Tertulias dialógicas: discusión de un fragmento breve con reglas de respeto. 4. Lectura en voz alta del docente 5–10 min al iniciar la clase. 5. Maratón de lectura mensual. 6. Conexión con su mundo:让他们推荐en música, series o videojuegos con su versión literaria. Lo que no funciona: obligar a leer el clásico completo en una semana y evaluar con prueba escrita. [Fuente: DC-SEC-1C-2021]"
+    },
+    {
+      "id": "R-26",
+      "categoria": "proyecto",
+      "nivel": "secundario",
+      "ciclo": "2do_ciclo",
+      "grado": "4",
+      "area": "transversal",
+      "competencia_fundamental": null,
+      "query": "¿Cómo evalúo un proyecto comunitario integrador en el último año del secundario?",
+      "must_cite": [
+        "GEA-2018",
+        "DC-SEC-2C-2021-A"
+      ],
+      "expected_keywords": [
+        "proyecto",
+        "comunitario",
+        "rúbrica",
+        "producto",
+        "socialización",
+        "evidencia"
+      ],
+      "must_not_claim": [
+        "que se evalúa solo con el producto final",
+        "que el impacto comunitario no se mide"
+      ],
+      "expected_response": "Un proyecto comunitario integrador se evalúa por tres ejes: 1. Proceso (40–50%): diagnóstico, planificación, distribución de tareas, registro de avances, ajustes. Instrumento: rúbrica procesual + bitácora. 2. Producto (30–40%): el resultado concreto del proyecto. Instrumento: rúbrica del producto con criterios de calidad. 3. Socialización e impacto (20%): qué aprendieron, qué cambió en la comunidad, qué harían distinto. Instrumento: presentación pública + autoevaluación. La evaluación debe ser mixta: formativa durante el proyecto y sumativa al cierre, con rúbrica conocida por los estudiantes desde el inicio. [Fuente: GEA-2018]"
+    },
+    {
+      "id": "R-27",
+      "categoria": "normativa",
+      "nivel": "transversal",
+      "ciclo": "N/A",
+      "grado": null,
+      "area": "transversal",
+      "competencia_fundamental": null,
+      "query": "¿Qué dice la normativa sobre la promoción de grado y la repitencia?",
+      "must_cite": [
+        "ORD-1-2021"
+      ],
+      "expected_keywords": [
+        "promoción",
+        "repitencia",
+        "aprobación",
+        "período",
+        "criterio"
+      ],
+      "must_not_claim": [
+        "porcentajes o rangos específicos sin citarlos del documento",
+        "que la repitencia es la primera opción"
+      ],
+      "expected_response": "La normativa vigente define los criterios de promoción y el tratamiento de la repitencia. Como estos criterios pueden actualizarse, no te los cito de memoria. Lo que sí aplica siempre: la promoción se decide al cierre del año escolar considerando el nivel de logro alcanzado en las áreas fundamentales; la repitencia debe ir acompañada de un plan de acompañamiento para el estudiante que repite, no como castigo; el docente no decide solo: interviene el equipo docente, la dirección del centro y, en casos específicos, el equipo de orientación. Para los rangos exactos, áreas críticas y procedimiento vigente, consulta la sección correspondiente de la ORD-1-2021 y la normativa complementaria emitida por el MINERD. [Fuente: ORD-1-2021]"
+    },
+    {
+      "id": "R-28",
+      "categoria": "planificacion",
+      "nivel": "transversal",
+      "ciclo": "N/A",
+      "grado": null,
+      "area": "transversal",
+      "competencia_fundamental": null,
+      "query": "¿Cómo planifico para el modelo semipresencial post-pandemia? ¿Qué cambió en la didáctica?",
+      "must_cite": [
+        "GPD-2021",
+        "ORD-1-2021"
+      ],
+      "expected_keywords": [
+        "semipresencial",
+        "híbrido",
+        "síncrono",
+        "asíncrono",
+        "autonomía",
+        "andamiaje"
+      ],
+      "must_not_claim": [
+        "que se sigue la metodología COVID sin cambios",
+        "que todo debe ser síncrono o todo asíncrono"
+      ],
+      "expected_response": "El modelo semipresencial no es 'clase presencial + clase por WhatsApp'. Implica repensar la planificación: 1. Diseñar situaciones de aprendizaje bimodales: con fases presenciales (las que requieren práctica, socialización, evaluación) y fases remotas (las que requieren exploración, lectura, producción individual). 2. Alternar momentos síncronos (videollamada) y asíncronos (entrega de tarea, foro). 3. Andamiaje digital: el estudiante necesita un protocolo claro. 4. Evaluación con productos verificables: en remoto es más difícil verificar autoría; diversifica instrumentos. 5. Carga cognitiva cuidada: la pantalla cansa; alterna pantallas con actividades sin pantalla. [Fuente: GPD-2021; ORD-1-2021]"
+    },
+    {
+      "id": "R-29",
+      "categoria": "normativa",
+      "nivel": "transversal",
+      "ciclo": "N/A",
+      "grado": null,
+      "area": "transversal",
+      "competencia_fundamental": null,
+      "query": "¿Cuál es el peso porcentual de cada competencia en la calificación del estudiante?",
+      "must_cite": [
+        "ORD-1-2021",
+        "GEA-2018"
+      ],
+      "expected_keywords": [
+        "calificación",
+        "competencia",
+        "área",
+        "logro",
+        "evaluación"
+      ],
+      "must_not_claim": [
+        "porcentajes específicos sin fuente",
+        "que cada CF tiene un peso numérico independiente"
+      ],
+      "expected_response": "Las competencias fundamentales no se califican 'por separado' con un porcentaje asignado. Lo que se califica es el logro alcanzado en cada área curricular al cierre del período, y ese logro refleja el desarrollo de las competencias fundamentales y específicas que el área moviliza. El peso, por tanto, está en el diseño del área, no en una ponderación fija entre CF. Lo que sí es verificable: el MINERD define áreas curriculares con sus cargas lectivas y criterios de evaluación, y la calificación final del período es el resultado de la valoración de los indicadores de logro del área. Los rangos y equivalencias cuali-cuantitativos exactos están en la normativa vigente y pueden actualizarse. [Fuente: ORD-1-2021; GEA-2018]"
+    },
+    {
+      "id": "R-30",
+      "categoria": "formacion",
+      "nivel": "transversal",
+      "ciclo": "N/A",
+      "grado": null,
+      "area": "transversal",
+      "competencia_fundamental": null,
+      "query": "¿Qué formación continua ofrece el MINERD para docentes en servicio?",
+      "must_cite": [
+        "PEI"
+      ],
+      "expected_keywords": [
+        "formación continua",
+        "capacitación",
+        "MINERD",
+        "actualización",
+        "director regional"
+      ],
+      "must_not_claim": [
+        "que la oferta es fija e inamovible",
+        "que solo se accede por la Dirección Regional"
+      ],
+      "expected_response": "El MINERD ofrece formación continua para docentes en servicio a través de varias vías: Direcciones Regionales y Distritos Educativos (talleres, encuentros de socialización, círculos de estudio), INAFOCAM (programas de formación continua, postgrados y especializaciones), plataformas virtuales del MINERD (cursos autoformativos en línea), programas de acompañamiento pedagógico a escuelas priorizadas, comunidades de aprendizaje profesional entre docentes de un mismo centro o área. Para el catálogo vigente (cursos activos, fechas, postulación), revisa el portal del MINERD o contacta a tu Director(a) Regional. La oferta se actualiza por año escolar. [Fuente: PEI; portal MINERD — oferta vigente]"
+    }
+  ]
+}
