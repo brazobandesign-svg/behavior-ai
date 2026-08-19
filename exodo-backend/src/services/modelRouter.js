@@ -25,9 +25,9 @@ function getEffectiveModel(plan, intent, modelOverride, imageDataUris, taskType,
   const isPro = (plan === 'pro' || plan === 'hazak');
   const hasImages = imageDataUris && imageDataUris.length > 0;
 
-  // CASO 1: GUEST O MODO ECO (Costo $0.00 en Groq — Limpio y sin cortes artificiales)
-  if (isGuest || plan === 'guest' || (isDegraded && !isPro)) {
-    if (hasImages) {
+  // A. Multimodal Primero si hay imágenes
+  if (hasImages) {
+    if (isGuest || plan === 'guest' || (isDegraded && !isPro)) {
       return {
         provider: 'groq',
         modelId: ECO_MODELS.vision,
@@ -35,6 +35,33 @@ function getEffectiveModel(plan, intent, modelOverride, imageDataUris, taskType,
         maxTokens: PLAN_CONFIG.free.ecoMaxOutputTokens, // 4096
       };
     }
+    return {
+      provider: 'gemini',
+      modelId: 'gemini-flash-lite-latest',
+      isEco: false,
+      maxTokens: isPro ? PLAN_CONFIG.pro.maxOutputTokens : PLAN_CONFIG.free.maxOutputTokensNormal,
+    };
+  }
+
+  // B. Override explícito del cliente (prioridad absoluta para pruebas o selección específica)
+  if (modelOverride) {
+    const override = String(modelOverride).toLowerCase();
+    if (override.includes('gemini')) {
+      return { provider: 'gemini', modelId: 'gemini-flash-lite-latest', isEco: false, maxTokens: isPro ? 4096 : 1500 };
+    }
+    if (override.includes('groq') || override.includes('llama')) {
+      return { provider: 'groq', modelId: ECO_MODELS.text, isEco: true, maxTokens: PLAN_CONFIG.free.ecoMaxOutputTokens };
+    }
+    if (override.includes('xpi') || override.includes('ehyeh') || override.includes('hazak') || override.includes('reasoner') || override.includes('pro') || override.includes('r1')) {
+      return { provider: 'deepseek', modelId: 'deepseek-reasoner', isEco: false, maxTokens: PLAN_CONFIG.pro.maxOutputTokens };
+    }
+    if (override.includes('g1.1') || override.includes('origo') || override.includes('flash') || override.includes('genesis') || override.includes('chat') || override.includes('alibaba') || override.includes('qwen')) {
+      return { provider: 'deepseek', modelId: process.env.ALIBABA_MODEL || 'deepseek-chat', isEco: false, maxTokens: PLAN_CONFIG.free.maxOutputTokensNormal };
+    }
+  }
+
+  // CASO 1: GUEST O MODO ECO (Costo $0.00 en Groq — Limpio y sin cortes artificiales)
+  if (isGuest || plan === 'guest' || (isDegraded && !isPro)) {
     return {
       provider: 'groq',
       modelId: ECO_MODELS.text,
@@ -44,30 +71,6 @@ function getEffectiveModel(plan, intent, modelOverride, imageDataUris, taskType,
   }
 
   // CASO 2: USUARIOS REGISTRADOS DENTRO DE CUOTA O PRO
-
-  // A. Multimodal Primero
-  if (hasImages) {
-    return {
-      provider: 'gemini',
-      modelId: 'gemini-flash-lite-latest',
-      isEco: false,
-      maxTokens: isPro ? PLAN_CONFIG.pro.maxOutputTokens : PLAN_CONFIG.free.maxOutputTokensNormal,
-    };
-  }
-
-  // B. Override explícito del cliente
-  if (modelOverride) {
-    const override = String(modelOverride).toLowerCase();
-    if (override.includes('gemini')) {
-      return { provider: 'gemini', modelId: 'gemini-flash-lite-latest', isEco: false, maxTokens: isPro ? 4096 : 1500 };
-    }
-    if (override.includes('xpi') || override.includes('ehyeh') || override.includes('hazak') || override.includes('reasoner') || override.includes('pro') || override.includes('r1')) {
-      return { provider: 'deepseek', modelId: 'deepseek-reasoner', isEco: false, maxTokens: PLAN_CONFIG.pro.maxOutputTokens };
-    }
-    if (override.includes('g1.1') || override.includes('origo') || override.includes('flash') || override.includes('genesis') || override.includes('chat')) {
-      return { provider: 'deepseek', modelId: 'deepseek-chat', isEco: false, maxTokens: PLAN_CONFIG.free.maxOutputTokensNormal };
-    }
-  }
 
   // C. Plan Pro (Hazak): Llamada exclusiva a DeepSeek Reasoner V4 Pro
   if (isPro) {
@@ -89,10 +92,10 @@ function getEffectiveModel(plan, intent, modelOverride, imageDataUris, taskType,
     };
   }
 
-  // E. Plan Free Registrado dentro de cuota: DeepSeek V4 Flash
+  // E. Plan Free Registrado dentro de cuota: DeepSeek V4 Flash / Alibaba Qwen
   return {
     provider: 'deepseek',
-    modelId: 'deepseek-chat',
+    modelId: process.env.ALIBABA_MODEL || 'deepseek-chat',
     isEco: false,
     maxTokens: PLAN_CONFIG.free.maxOutputTokensNormal,
   };
@@ -116,7 +119,7 @@ async function routeMessage(plan, intent, messages, systemPrompt, modelOverride,
   try {
     return await deepseekProvider.call(target.modelId, messages, systemPrompt, options);
   } catch (error) {
-    console.warn(`[ModelRouter Fallback] DeepSeek falló (${error.message}). Reintentando con Gemini Flash-Lite...`);
+    console.warn(`[ModelRouter Fallback] Proveedor primario falló (${error.message}). Reintentando con Gemini Flash-Lite...`);
     try {
       return await geminiProvider.call('gemini-flash-lite-latest', messages, systemPrompt, imageDataUris, options);
     } catch (geminiError) {
@@ -144,7 +147,7 @@ async function routeMessageStream(plan, intent, messages, systemPrompt, onChunk,
   try {
     return await deepseekProvider.callStream(target.modelId, messages, systemPrompt, onChunk, options);
   } catch (error) {
-    console.warn(`[ModelRouter Fallback] DeepSeek Stream falló (${error.message}). Reintentando con Gemini Flash-Lite...`);
+    console.warn(`[ModelRouter Fallback] Proveedor primario Stream falló (${error.message}). Reintentando con Gemini Flash-Lite...`);
     try {
       return await geminiProvider.callStream('gemini-flash-lite-latest', messages, systemPrompt, onChunk, imageDataUris, options);
     } catch (geminiError) {

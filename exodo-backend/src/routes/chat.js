@@ -8,6 +8,58 @@ const { getHistory, saveMessage } = require('../services/historyManager');
 const { estimateTokens, updateTokenUsage } = require('../services/tokenCounter');
 const { extractText } = require('../services/documentExtractor');
 const { buildSystemPrompt } = require('../prompts/groundingMinerd');
+const { searchMinerdChunks } = require('../services/minerdRetrievalService');
+
+/**
+ * Heurística ligera para detectar consultas pedagógicas / curriculares del MINERD.
+ * Si hay discernimiento curricular (nivel, ciclo, grado, competencia, indicador,
+ * normativa, planificación, evaluación, etc.) activamos el grounding RAG.
+ */
+const MINERD_KEYWORDS = [
+  'minerd', 'currículo', 'curriculo', 'curricular', 'competencia', 'competencia fundamental',
+  'competencia específica', 'competencia especifica', 'indicador de logro', 'indicadores de logro',
+  'grado', 'nivel inicial', 'nivel primario', 'nivel secundario', 'ciclo',
+  'planificación didáctica', 'planificacion didactica', 'planificación', 'planificacion',
+  'situación de aprendizaje', 'situacion de aprendizaje', 'secuencia didáctica', 'secuencia didactica',
+  'evaluación de los aprendizajes', 'evaluacion de los aprendizajes', 'rúbrica', 'rubrica',
+  'adecuación curricular', 'adecuacion curricular', 'adaptación curricular', 'adaptacion curricular',
+  'atención a la diversidad', 'atencion a la diversidad', 'ordenanza 1-2021', 'ordenanza 1.ª-2021',
+  'ordenanza', 'ley general de educación', 'ley 66-97', 'normativa', 'legislación educativa',
+  'legislacion educativa', 'diseño curricular', 'diseno curricular', 'diseños curriculares',
+  'diseños curriculares', 'eje temático', 'eje tematico', 'área curricular', 'area curricular',
+  'matemáticas', 'matematicas', 'lengua española', 'lengua espanola', 'ciencias sociales',
+  'ciencias naturales', 'educación artística', 'educacion artistica', 'competencia ciudadana',
+  'evaluación diagnóstica', 'evaluacion diagnostica', 'formación integral', 'formacion integral',
+  'transversal', 'docente', 'docentes', 'aula', 'didáctica', 'didactica', 'pedagogía', 'pedagogia',
+];
+
+/**
+ * Determina si un mensaje (o contexto de la conversación) es MINERD/educativo.
+ */
+function isMinerdQuery(...texts) {
+  const haystack = texts.filter((t) => typeof t === 'string' && t)
+    .map((t) => t.toLowerCase())
+    .join(' \n ');
+  if (!haystack) return false;
+  return MINERD_KEYWORDS.some((kw) => haystack.includes(kw));
+}
+
+/**
+ * Adapta los chunks devueltos por searchMinerdChunks (formato del servicio)
+ * al shape que espera buildContextSection de groundingMinerd.js:
+ * { content, short_name, page, section, similarity, ... }.
+ */
+function adaptChunksForPrompt(chunks) {
+  return (Array.isArray(chunks) ? chunks : []).map((c) => ({
+    content: c.content,
+    short_name: c.source?.short_name || c.document_id || 'MINERD',
+    page: c.source?.page ?? null,
+    section: c.source?.section || c.source?.subsection || null,
+    similarity: c.similarity,
+    nivel: c.nivel,
+    area_curricular: c.area_curricular,
+  }));
+}
 
 /**
  * Extrae enlaces markdown [Título](URL) y URLs en texto plano del contenido.
@@ -186,11 +238,36 @@ router.post('/', auth, planGuard, async (req, res) => {
       savedToCloud: savedToCloud,
     });
 
-    // Construcción del System Prompt dinámico con grounding MINERD
+    // Construcción del System Prompt dinámico con grounding MINERD.
+    // 1) Si la consulta es educativa/MINERD, intenta recuperar chunks del corpus
+    //    y los inyecta en la sección de CONTEXTO RAG. 2) Fallback robusto: si
+    //    faltan claves de API, Supabase está caído o no hay resultados, se loguea
+    //    un warning leve y se continúa con generación base SIN romper el chat.
+    let contextChunks = [];
+    const minerdContext = enhancedMessage
+      + history.map((h) => h.content).filter(Boolean).join(' \n ');
+
+    if (isMinerdQuery(minerdContext)) {
+      try {
+        const retrieval = await searchMinerdChunks(enhancedMessage, { limit: 3 });
+        contextChunks = adaptChunksForPrompt(retrieval.chunks);
+        if (contextChunks.length > 0) {
+          console.log(`[chat] Grounding MINERD: ${contextChunks.length} chunk(s) recuperado(s) para la consulta educativa`);
+        } else {
+          console.warn('[chat] Grounding MINERD: consulta educativa sin chunks relevantes; se procede con generación base');
+        }
+      } catch (err) {
+        console.warn(
+          `[chat] Retrieval MINERD omitido (${err.code || err.name || 'error'}): ${err.message}. Continuando con generación base.`
+        );
+      }
+    }
+
     const { systemPrompt } = buildSystemPrompt({
       userPlan: plan,
       conversationSubject: subject || req.body.conversationSubject,
       userLocale: 'es',
+      contextChunks,
     });
 
     let fullText = '';

@@ -1,9 +1,10 @@
 const { OpenAI } = require('openai');
 
 /**
- * Provider: DeepSeek V4 (api.deepseek.com)
+ * Provider: DeepSeek / Alibaba Cloud Compatible (OpenAI-compatible SDK)
  * 
  * Modelos soportados:
+ * - Alibaba Cloud Free Tier: qwen3.8-2.4t-a95b
  * - deepseek-chat (DeepSeek V3 / Flash): Texto, código, conversación ágil.
  * - deepseek-reasoner (DeepSeek R1 / Pro): Razonamiento analítico profundo (Thinking Mode).
  * 
@@ -13,13 +14,13 @@ const { OpenAI } = require('openai');
  */
 
 function getClient() {
-  const apiKey = process.env.DEEPSEEK_API_KEY;
+  const apiKey = process.env.ALIBABA_API_KEY || process.env.DEEPSEEK_API_KEY;
   if (!apiKey) {
-    throw new Error('DEEPSEEK_API_KEY no configurada en el entorno');
+    throw new Error('ALIBABA_API_KEY o DEEPSEEK_API_KEY no configurada en el entorno');
   }
 
   return new OpenAI({
-    baseURL: 'https://api.deepseek.com',
+    baseURL: process.env.ALIBABA_BASE_URL || 'https://api.deepseek.com/v1',
     apiKey: apiKey,
     timeout: 30000, // 30s timeout
   });
@@ -53,7 +54,8 @@ function buildMessages(messages, systemPrompt) {
  */
 async function call(modelId, messages, systemPrompt, options = {}) {
   const client = getClient();
-  const targetModel = modelId === 'deepseek-reasoner' ? 'deepseek-reasoner' : 'deepseek-chat';
+  const defaultModel = modelId === 'deepseek-reasoner' ? 'deepseek-reasoner' : 'deepseek-chat';
+  const targetModel = process.env.ALIBABA_MODEL || defaultModel;
   const formattedMessages = buildMessages(messages, systemPrompt);
 
   const maxTokens = options.max_tokens || 2000;
@@ -75,7 +77,7 @@ async function call(modelId, messages, systemPrompt, options = {}) {
     tokensInput: response.usage?.prompt_tokens || 0,
     tokensOutput: response.usage?.completion_tokens || 0,
     model: targetModel,
-    provider: 'deepseek',
+    provider: process.env.ALIBABA_API_KEY ? 'alibaba' : 'deepseek',
   };
 }
 
@@ -84,7 +86,8 @@ async function call(modelId, messages, systemPrompt, options = {}) {
  */
 async function callStream(modelId, messages, systemPrompt, onChunk, options = {}) {
   const client = getClient();
-  const targetModel = modelId === 'deepseek-reasoner' ? 'deepseek-reasoner' : 'deepseek-chat';
+  const defaultModel = modelId === 'deepseek-reasoner' ? 'deepseek-reasoner' : 'deepseek-chat';
+  const targetModel = process.env.ALIBABA_MODEL || defaultModel;
   const formattedMessages = buildMessages(messages, systemPrompt);
 
   const maxTokens = options.max_tokens || 2000;
@@ -121,7 +124,7 @@ async function callStream(modelId, messages, systemPrompt, onChunk, options = {}
     tokensInput: 0,
     tokensOutput: 0,
     model: targetModel,
-    provider: 'deepseek',
+    provider: process.env.ALIBABA_API_KEY ? 'alibaba' : 'deepseek',
   };
 }
 
