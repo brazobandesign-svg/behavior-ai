@@ -204,9 +204,9 @@ class _ArtifactFullscreenState extends State<ArtifactFullscreen>
       body: TabBarView(
         controller: _tab,
         children: [
-          if (a.isExecutable) _SandboxWebView(artifact: a)
-          else
-            _StaticViewer(artifact: a),
+          a.isExecutable
+              ? _SandboxWebView(artifact: a)
+              : _StaticViewer(artifact: a),
           _CodeView(artifact: a),
         ],
       ),
@@ -249,7 +249,6 @@ class _SandboxWebViewState extends State<_SandboxWebView> {
             child: InAppWebView(
               initialData: InAppWebViewInitialData(
                 data: html,
-                baseUrl: WebUri('about:blank'),
                 mimeType: 'text/html',
                 encoding: 'utf-8',
               ),
@@ -259,31 +258,20 @@ class _SandboxWebViewState extends State<_SandboxWebView> {
                 supportZoom: true,
                 useWideViewPort: true,
                 loadWithOverviewMode: true,
-                useShouldOverrideUrlLoading: true,
-                mediaPlaybackRequiresUserGesture: false,
-                javaScriptCanOpenWindowsAutomatically: false,
-                builtInZoomControls: true,
-                displayZoomControls: false,
-                disableContextMenu: false,
-                isInspectable: kDebugMode,
-                cacheEnabled: false,
-                thirdPartyCookiesEnabled: false,
-                hardwareAcceleration: true,
-                allowFileAccess: false,
-                allowFileAccessFromFileURLs: false,
-                allowUniversalAccessFromFileURLs: false,
-                verticalScrollBarEnabled: true,
-                horizontalScrollBarEnabled: true,
               ),
               onWebViewCreated: (controller) {
                 _controller = controller;
+                controller.loadData(
+                  data: html,
+                  mimeType: 'text/html',
+                  encoding: 'utf-8',
+                  baseUrl: WebUri('about:blank'),
+                );
               },
               onLoadStart: (controller, url) {
                 if (mounted) setState(() => _loading = true);
               },
               onLoadStop: (controller, url) async {
-                // CSP meta-injection temporarily disabled for render debugging.
-                // await controller.evaluateJavascript(source: _cspInjectionJs());
                 if (mounted) setState(() => _loading = false);
               },
               onReceivedError: (controller, request, error) {
@@ -293,20 +281,6 @@ class _SandboxWebViewState extends State<_SandboxWebView> {
                 if (kDebugMode) {
                   debugPrint('[Sandbox ${a.kind.name}] ${consoleMessage.message}');
                 }
-              },
-              shouldOverrideUrlLoading: (controller, navigationAction) async {
-                final uri = navigationAction.request.url;
-                if (uri != null &&
-                    (uri.scheme == 'data' ||
-                        uri.scheme == 'about' ||
-                        uri.scheme == 'blob' ||
-                        uri.scheme == 'javascript')) {
-                  return NavigationActionPolicy.ALLOW;
-                }
-                if (kDebugMode && uri != null) {
-                  debugPrint('[Sandbox] Bloqueada navegación a: $uri');
-                }
-                return NavigationActionPolicy.CANCEL;
               },
             ),
           ),
@@ -324,23 +298,6 @@ class _SandboxWebViewState extends State<_SandboxWebView> {
         ],
       ),
     );
-  }
-
-  String _cspInjectionJs() {
-    final csp = SandboxTemplate.cspHeader(allowMermaidCdn: true)
-        .replaceAll('"', r'\"');
-    return '''
-(function() {
-  try {
-    var existing = document.querySelector('meta[http-equiv="Content-Security-Policy"]');
-    if (existing) existing.parentNode.removeChild(existing);
-    var meta = document.createElement('meta');
-    meta.setAttribute('http-equiv', 'Content-Security-Policy');
-    meta.setAttribute('content', "$csp");
-    (document.head || document.documentElement).prepend(meta);
-  } catch (e) { /* silent */ }
-})();
-''';
   }
 }
 

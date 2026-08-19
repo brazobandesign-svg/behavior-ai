@@ -160,15 +160,36 @@ function createSemanticChunks(text, targetSize = CHUNK_SIZE, overlap = CHUNK_OVE
 /**
  * Heurística de extracción de metadatos pedagógicos a partir del texto del chunk.
  */
+function extractGrado(text) {
+  let m = text.match(/grado\s+(\d{1,2})\b/i);
+  if (m) return m[1];
+  m = text.match(/(\d{1,2})\s*[.°]?\s*(?:er|do|ro|to|avo)\s+grado\b/i);
+  if (m) return m[1];
+  m = text.match(/(\d{1,2})\s*[.°]\s+grado\b/i);
+  if (m) return m[1];
+  return null;
+}
+
+function extractSection(text) {
+  const lines = text.split('\n').map((l) => l.trim()).filter(Boolean);
+  for (const line of lines) {
+    if (/^(cap[ií]tulo|art[ií]culo|t[ií]tulo|secci[oó]n|unidad|bloque|eje tem[aá]tico|competencia espec[ií]fica|indicadores? de logro|anexo)\b/i.test(line)) {
+      return line.slice(0, 120);
+    }
+  }
+  return null;
+}
+
 function extractChunkMetadata(text, docShortName) {
   const t = text.toLowerCase();
   const meta = {
     nivel: null,
     ciclo: null,
-    grado: null,
+    grado: extractGrado(text),
     area_curricular: null,
     competencia_fundamental: [],
     confidence_label: 'medium',
+    section: extractSection(text),
   };
 
   // Nivel
@@ -321,9 +342,11 @@ async function processPdfFile(filePath, openaiClient) {
         chunk_index: globalIdx,
         content: chunkContent,
         content_tokens: Math.ceil(chunkContent.length / 4),
-        embedding: embeddings[batchIdx],
+        embedding: JSON.stringify(embeddings[batchIdx]),
         nivel: meta.nivel,
         ciclo: meta.ciclo,
+        grado: meta.grado,
+        section: meta.section,
         area_curricular: meta.area_curricular,
         competencia_fundamental: meta.competencia_fundamental,
         confidence_label: meta.confidence_label,

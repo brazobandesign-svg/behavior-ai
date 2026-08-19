@@ -1,30 +1,38 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
-import '../../services/cloud_artifacts_repository.dart';
+import '../../services/expedientes_repository.dart';
 import '../../services/export/exporters.dart';
 import '../../theme/exodo_palette.dart';
 import '../../l10n/app_i18n.dart';
 
-
-
 /// Filter categories for the Expedientes screen.
 enum _FilterCategory { all, documents, tables, interactive }
 
-/// Returns the filter category for a given artifact kind.
-_FilterCategory _categoryFor(String kind) {
-  switch (kind.toLowerCase()) {
-    case 'html':
-    case 'svg':
-    case 'react':
-    case 'mermaid':
+/// Maps a backend expediente category to the UI filter category.
+_FilterCategory _categoryFor(String category) {
+  switch (category.toLowerCase()) {
+    case 'interactivo':
       return _FilterCategory.interactive;
-    case 'table':
-    case 'json':
-    case 'csv':
+    case 'tabla':
       return _FilterCategory.tables;
+    case 'documento':
     default:
       return _FilterCategory.documents;
+  }
+}
+
+/// Returns the backend category value for a filter category.
+String? _categoryQuery(_FilterCategory filter) {
+  switch (filter) {
+    case _FilterCategory.documents:
+      return 'documento';
+    case _FilterCategory.tables:
+      return 'tabla';
+    case _FilterCategory.interactive:
+      return 'interactivo';
+    case _FilterCategory.all:
+      return null;
   }
 }
 
@@ -40,32 +48,34 @@ class ExpedientesScreen extends StatefulWidget {
 class _ExpedientesScreenState extends State<ExpedientesScreen> {
   bool _isLoading = true;
   String? _errorMessage;
-  List<PublishedArtifactSummary> _artifacts = [];
-  final Set<String> _deletingSlugs = {};
+  List<Expediente> _expedientes = [];
+  final Set<String> _deletingIds = {};
   _FilterCategory _activeFilter = _FilterCategory.all;
 
   @override
   void initState() {
     super.initState();
-    _loadArtifacts();
+    _loadExpedientes();
   }
 
-  List<PublishedArtifactSummary> get _filteredArtifacts {
-    if (_activeFilter == _FilterCategory.all) return _artifacts;
-    return _artifacts.where((a) => _categoryFor(a.kind) == _activeFilter).toList();
+  List<Expediente> get _filteredExpedientes {
+    if (_activeFilter == _FilterCategory.all) return _expedientes;
+    return _expedientes.where((e) => _categoryFor(e.category) == _activeFilter).toList();
   }
 
-  Future<void> _loadArtifacts() async {
+  Future<void> _loadExpedientes() async {
     setState(() {
       _isLoading = true;
       _errorMessage = null;
     });
 
     try {
-      final items = await CloudArtifactsRepository.instance.getMyPublishedArtifacts();
+      final items = await ExpedientesRepository.instance.listExpedientes(
+        category: _categoryQuery(_activeFilter),
+      );
       if (!mounted) return;
       setState(() {
-        _artifacts = items;
+        _expedientes = items;
         _isLoading = false;
       });
     } catch (e) {
@@ -77,9 +87,10 @@ class _ExpedientesScreenState extends State<ExpedientesScreen> {
     }
   }
 
-  Future<void> _copyLink(PublishedArtifactSummary item) async {
+  Future<void> _copyLink(Expediente item) async {
     HapticFeedback.lightImpact();
-    await Clipboard.setData(ClipboardData(text: item.publicUrl));
+    final url = item.metadata['public_url']?.toString() ?? '';
+    await Clipboard.setData(ClipboardData(text: url));
     if (!mounted) return;
     final i18n = AppI18n.of(context);
     ScaffoldMessenger.of(context).showSnackBar(
@@ -88,7 +99,7 @@ class _ExpedientesScreenState extends State<ExpedientesScreen> {
           children: [
             const Icon(Icons.check_circle_rounded, color: Color(0xFFF5F2EB), size: 18),
             const SizedBox(width: 10),
-            Expanded(child: Text('${i18n.t('artifacts.copied')}: ${item.publicUrl}')),
+            Expanded(child: Text('${i18n.t('artifacts.copied')}: $url')),
           ],
         ),
         backgroundColor: ExodoPalette.inkRaised,
@@ -97,24 +108,26 @@ class _ExpedientesScreenState extends State<ExpedientesScreen> {
     );
   }
 
-  Future<void> _shareLink(PublishedArtifactSummary item) async {
+  Future<void> _shareLink(Expediente item) async {
     HapticFeedback.lightImpact();
     final i18n = AppI18n.of(context);
+    final url = item.metadata['public_url']?.toString() ?? '';
     await ShareService.instance.shareText(
-      '${i18n.t('artifacts.share_text')}: ${item.publicUrl}',
+      '${i18n.t('artifacts.share_text')}: $url',
       subject: item.title,
     );
   }
 
-  Future<void> _openFullscreen(PublishedArtifactSummary item) async {
+  Future<void> _openFullscreen(Expediente item) async {
     HapticFeedback.lightImpact();
-    final uri = Uri.tryParse(item.publicUrl);
+    final url = item.metadata['public_url']?.toString() ?? '';
+    final uri = Uri.tryParse(url);
     if (uri != null) {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
     }
   }
 
-  Future<void> _confirmDelete(PublishedArtifactSummary item) async {
+  Future<void> _confirmDelete(Expediente item) async {
     HapticFeedback.mediumImpact();
     final i18n = AppI18n.of(context);
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -179,17 +192,17 @@ class _ExpedientesScreenState extends State<ExpedientesScreen> {
 
     if (shouldDelete != true || !mounted) return;
 
-    setState(() => _deletingSlugs.add(item.slug));
+    setState(() => _deletingIds.add(item.id));
 
-    final success = await CloudArtifactsRepository.instance.deletePublishedArtifact(item.slug);
+    final success = await ExpedientesRepository.instance.deleteExpediente(item.id);
 
     if (!mounted) return;
-    setState(() => _deletingSlugs.remove(item.slug));
+    setState(() => _deletingIds.remove(item.id));
 
     if (success) {
       HapticFeedback.lightImpact();
       setState(() {
-        _artifacts.removeWhere((a) => a.slug == item.slug);
+        _expedientes.removeWhere((e) => e.id == item.id);
       });
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -239,7 +252,7 @@ class _ExpedientesScreenState extends State<ExpedientesScreen> {
           IconButton(
             tooltip: i18n.t('artifacts.refresh'),
             icon: const Icon(Icons.refresh_rounded, color: neutralGray),
-            onPressed: _isLoading ? null : _loadArtifacts,
+            onPressed: _isLoading ? null : _loadExpedientes,
           ),
         ],
       ),
@@ -250,7 +263,10 @@ class _ExpedientesScreenState extends State<ExpedientesScreen> {
             activeFilter: _activeFilter,
             isDark: isDark,
             i18n: i18n,
-            onFilterChanged: (f) => setState(() => _activeFilter = f),
+            onFilterChanged: (f) {
+              setState(() => _activeFilter = f);
+              _loadExpedientes();
+            },
           ),
           // Content body
           Expanded(
@@ -319,7 +335,7 @@ class _ExpedientesScreenState extends State<ExpedientesScreen> {
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                   padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 11),
                 ),
-                onPressed: _loadArtifacts,
+                onPressed: _loadExpedientes,
                 icon: Icon(Icons.refresh_rounded, size: 16, color: primaryTextColor),
                 label: Text(
                   i18n.t('artifacts.retry'),
@@ -336,9 +352,9 @@ class _ExpedientesScreenState extends State<ExpedientesScreen> {
       );
     }
 
-    final filtered = _filteredArtifacts;
+    final filtered = _filteredExpedientes;
 
-    if (_artifacts.isEmpty) {
+    if (_expedientes.isEmpty) {
       return Center(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 32.0),
@@ -432,14 +448,14 @@ class _ExpedientesScreenState extends State<ExpedientesScreen> {
     return RefreshIndicator(
       color: neutralGray,
       backgroundColor: isDark ? ExodoPalette.inkRaised : Colors.white,
-      onRefresh: _loadArtifacts,
+      onRefresh: _loadExpedientes,
       child: ListView.separated(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
         itemCount: filtered.length,
         separatorBuilder: (context, index) => const SizedBox(height: 12),
         itemBuilder: (context, index) {
           final item = filtered[index];
-          final isDeleting = _deletingSlugs.contains(item.slug);
+          final isDeleting = _deletingIds.contains(item.id);
           return _ExpedienteCard(
             item: item,
             isDeleting: isDeleting,
@@ -546,7 +562,7 @@ class _FilterChipsRow extends StatelessWidget {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 class _ExpedienteCard extends StatelessWidget {
-  final PublishedArtifactSummary item;
+  final Expediente item;
   final bool isDeleting;
   final bool isDark;
   final Color chalk;
@@ -583,7 +599,7 @@ class _ExpedienteCard extends StatelessWidget {
 
   /// Build quick-export action chips based on artifact kind category.
   List<Widget> _buildExportActions() {
-    final category = _categoryFor(item.kind);
+    final category = _categoryFor(item.category);
     final chipBg = isDark ? const Color(0xFF1E1E1E) : const Color(0xFFE5E5EA);
     final chipBorder = isDark ? const Color(0xFF333333) : const Color(0xFFD1D1D6);
     final chipText = isDark ? const Color(0xFFC7C7CC) : const Color(0xFF48484A);
@@ -652,7 +668,6 @@ class _ExpedienteCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final cardBg = isDark ? const Color(0xFF252525) : Colors.white;
     final borderColor = isDark ? const Color(0xFF2A2520) : const Color(0xFFE2DDD5);
-    final viewsLabel = item.viewsCount == 1 ? i18n.t('artifacts.view') : i18n.t('artifacts.views');
 
     return Container(
       decoration: BoxDecoration(
@@ -665,35 +680,11 @@ class _ExpedienteCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Header: Kind badge + views counter
+            // Header: Format badge
             Row(
               children: [
-                _KindBadge(kind: item.kind, language: item.language),
+                _FormatBadge(format: item.fileFormat, category: item.category),
                 const Spacer(),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: isDark ? const Color(0xFF191919) : const Color(0xFFF2F2F7),
-                    borderRadius: BorderRadius.circular(6),
-                    border: Border.all(color: borderColor),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.visibility_outlined, size: 13, color: neutralGray),
-                      const SizedBox(width: 5),
-                      Text(
-                        '${item.viewsCount} $viewsLabel',
-                        style: TextStyle(
-                          fontFamily: 'AnthropicSans',
-                          color: neutralGray,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
               ],
             ),
             const SizedBox(height: 12),
@@ -713,9 +704,9 @@ class _ExpedienteCard extends StatelessWidget {
             ),
             const SizedBox(height: 6),
 
-            // Published date
+            // Updated date
             Text(
-              '${i18n.t('artifacts.published')}: ${_formatDate(item.createdAt)}',
+              '${i18n.t('artifacts.published')}: ${_formatDate(item.updatedAt)}',
               style: TextStyle(
                 fontFamily: 'AnthropicSans',
                 color: neutralGray,
@@ -793,32 +784,31 @@ class _ExpedienteCard extends StatelessWidget {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// Kind Badge
+// Format Badge
 // ═══════════════════════════════════════════════════════════════════════════════
 
-class _KindBadge extends StatelessWidget {
-  final String kind;
-  final String? language;
+class _FormatBadge extends StatelessWidget {
+  final String format;
+  final String category;
 
-  const _KindBadge({required this.kind, this.language});
+  const _FormatBadge({required this.format, required this.category});
 
   (IconData, String, Color) _resolveMeta() {
-    switch (kind.toLowerCase()) {
+    switch (format.toLowerCase()) {
       case 'html':
         return (Icons.html_rounded, 'HTML', const Color(0xFFE44D26));
       case 'svg':
         return (Icons.brush_rounded, 'SVG', const Color(0xFFFFB13B));
-      case 'mermaid':
-        return (Icons.account_tree_rounded, 'MERMAID', const Color(0xFF00C853));
-      case 'react':
-        return (Icons.code_rounded, 'REACT', const Color(0xFF61DAFB));
-      case 'table':
-        return (Icons.table_chart_rounded, 'TABLA', const Color(0xFF4CAF50));
-      case 'json':
-        return (Icons.data_object_rounded, 'JSON', const Color(0xFFFF9800));
+      case 'pdf':
+        return (Icons.picture_as_pdf_rounded, 'PDF', const Color(0xFFE53935));
+      case 'docx':
+        return (Icons.description_outlined, 'DOCX', const Color(0xFF2196F3));
+      case 'xlsx':
+        return (Icons.table_chart_rounded, 'XLSX', const Color(0xFF4CAF50));
+      case 'md':
+        return (Icons.article_outlined, 'MD', const Color(0xFF9E9E9E));
       default:
-        final label = (language != null && language!.isNotEmpty) ? language!.toUpperCase() : 'CÓDIGO';
-        return (Icons.code_rounded, label, const Color(0xFF8E8E93));
+        return (Icons.code_rounded, format.toUpperCase(), const Color(0xFF8E8E93));
     }
   }
 

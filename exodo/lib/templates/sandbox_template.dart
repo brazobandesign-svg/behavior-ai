@@ -15,6 +15,14 @@ class SandboxTemplate {
   /// Construye el HTML final con cabecera CSP estricta y metadatos
   /// según el tipo de artefacto.
   static String wrap({required ArtifactKind kind, required String source}) {
+    final trimmed = source.trimLeft().toLowerCase();
+    final isFullDoc =
+        trimmed.startsWith('<!doctype') || trimmed.startsWith('<html');
+
+    if (isFullDoc) {
+      return source;
+    }
+
     final sanitized = sanitize(kind: kind, source: source);
     switch (kind) {
       case ArtifactKind.html:
@@ -145,6 +153,7 @@ $body
 </body>
 </html>''';
   }
+
 
   static String _wrapSvg(String body) {
     var s = body;
