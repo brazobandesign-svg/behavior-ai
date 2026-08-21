@@ -1160,11 +1160,11 @@ class _ShimmeringUpgradeTextState extends State<_ShimmeringUpgradeText>
   @override
   void initState() {
     super.initState();
-    // Ciclo total: ~4.6 segundos. Durante el primer 40% (~1.84s) la luz
-    // cruza suavemente de forma inclinada. El 60% restante permanece en reposo.
+    // Ciclo total: ~6.2 segundos. Durante el primer 45% (~2.8s) la luz
+    // cruza lentamente de forma inclinada. El 55% restante permanece en reposo ámbar.
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 4600),
+      duration: const Duration(milliseconds: 6200),
     )..repeat();
   }
 
@@ -1182,10 +1182,10 @@ class _ShimmeringUpgradeTextState extends State<_ShimmeringUpgradeText>
         final progress = _controller.value;
         double sweep;
 
-        if (progress <= 0.40) {
-          // Fase activa: paso de luz pura inclinado de izquierda a derecha (más lento y suave)
-          final t = progress / 0.40;
-          final curveT = Curves.easeInOutSine.transform(t);
+        if (progress <= 0.45) {
+          // Fase activa: paso de luz pura inclinado de izquierda a derecha (cinemático y pausado)
+          final t = progress / 0.45;
+          final curveT = Curves.easeInOutCubic.transform(t);
           sweep = -2.8 + (5.6 * curveT);
         } else {
           // Fase de reposo: la luz se queda fuera del rango visible
