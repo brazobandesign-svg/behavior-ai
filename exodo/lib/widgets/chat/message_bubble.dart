@@ -12,7 +12,6 @@ import 'package:share_plus/share_plus.dart';
 import '../../models/models.dart';
 import '../../services/app_state.dart';
 import '../../services/supabase_service.dart';
-import '../../services/tts_service.dart';
 import '../../theme/exodo_theme.dart';
 import '../../l10n/app_i18n.dart';
 import '../../data/artifacts/artifact.dart';
@@ -243,6 +242,29 @@ class MessageBubble extends StatelessWidget {
                           fontFamily: 'AnthropicSans',
                           fontSize: 15,
                           color: isLight ? const Color(0xFF171615) : ExodoColors.textPrimary,
+                        ),
+                        blockquotePadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                        blockquoteDecoration: BoxDecoration(
+                          color: isLight ? const Color(0xFFF1F5F9) : const Color(0xFF1E293B),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border(
+                            left: BorderSide(
+                              color: isLight ? const Color(0xFF0284C7) : const Color(0xFF38BDF8),
+                              width: 4,
+                            ),
+                          ),
+                        ),
+                        blockquote: TextStyle(
+                          fontFamily: 'AnthropicSans',
+                          fontSize: 14,
+                          color: isLight ? const Color(0xFF0F172A) : const Color(0xFFE2E8F0),
+                          fontStyle: FontStyle.italic,
+                        ),
+                        code: TextStyle(
+                          fontFamily: 'AnthropicSans',
+                          backgroundColor: isLight ? const Color(0xFFE2E8F0) : const Color(0xFF1E293B),
+                          color: isLight ? const Color(0xFF0F172A) : const Color(0xFF38BDF8),
+                          fontSize: 13.5,
                         ),
                       ),
                 ),
@@ -733,15 +755,6 @@ class _MessageActionBar extends StatelessWidget {
           color: subText,
           copyLabel: copyLabel,
           copiedLabel: copiedLabel,
-        ),
-        _ActionButton(
-          icon: Icons.play_arrow_rounded,
-          tooltip: playLabel,
-          color: subText,
-          onTap: () {
-            HapticFeedback.lightImpact();
-            TtsService.instance.speakWithBackend(message.content);
-          },
         ),
         _ActionButton(
           assetPath: 'assets/images/like-1-svgrepo-com.png',
@@ -1425,6 +1438,24 @@ class _AssistantContentWithArtifacts extends StatelessWidget {
         },
         styleSheet: MarkdownStyleSheet.fromTheme(Theme.of(context)).copyWith(
           blockSpacing: 12.0,
+          blockquotePadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          blockquoteDecoration: BoxDecoration(
+            color: isLight ? const Color(0xFFF1F5F9) : const Color(0xFF1E293B),
+            borderRadius: BorderRadius.circular(8),
+            border: Border(
+              left: BorderSide(
+                color: isLight ? const Color(0xFF0284C7) : const Color(0xFF38BDF8),
+                width: 4,
+              ),
+            ),
+          ),
+          blockquote: TextStyle(
+            fontFamily: 'AnthropicSerif',
+            fontSize: 14.5,
+            color: isLight ? const Color(0xFF0F172A) : const Color(0xFFE2E8F0),
+            fontStyle: FontStyle.italic,
+            height: 1.45,
+          ),
           horizontalRuleDecoration: BoxDecoration(
             border: Border(
               top: BorderSide(
@@ -1464,8 +1495,9 @@ class _AssistantContentWithArtifacts extends StatelessWidget {
           ),
           code: TextStyle(
             fontFamily: 'AnthropicSans',
-            backgroundColor: isLight ? const Color(0xFFFFFFFF) : ExodoColors.surface,
-            color: isLight ? const Color(0xFF191919) : ExodoColors.amber,
+            backgroundColor: isLight ? const Color(0xFFE2E8F0) : const Color(0xFF1E293B),
+            color: isLight ? const Color(0xFF0F172A) : const Color(0xFF38BDF8),
+            fontSize: 13.5,
           ),
           codeblockDecoration: const BoxDecoration(),
           codeblockPadding: EdgeInsets.zero,

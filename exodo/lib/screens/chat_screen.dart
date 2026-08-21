@@ -191,59 +191,6 @@ class _ChatScreenState extends State<ChatScreen>
                         controller: _scrollCtrl,
                       ),
                     ),
-                    // Floating Stop Pill - muestra solo cuando TTS está hablando
-                    Positioned(
-                      bottom: 85,
-                      left: 24,
-                      right: 24,
-                      child: ValueListenableBuilder<bool>(
-                        valueListenable: TtsService.instance.isSpeakingNotifier,
-                        builder: (context, isSpeaking, _) {
-                          if (!isSpeaking) return const SizedBox.shrink();
-                          return Material(
-                            elevation: 12,
-                            borderRadius: BorderRadius.circular(28),
-                            color: const Color(0xFF1B1B1E),
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                              child: Row(
-                                children: [
-                                  const Icon(Icons.volume_up_rounded, color: Colors.amberAccent, size: 22),
-                                  const SizedBox(width: 10),
-                                  const Text(
-                                    'Éxodo hablando...',
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                  const Spacer(),
-                                  GestureDetector(
-                                    onTap: () {
-                                      HapticFeedback.selectionClick();
-                                      TtsService.instance.stop();
-                                    },
-                                    child: Container(
-                                      padding: const EdgeInsets.all(4),
-                                      decoration: const BoxDecoration(
-                                        color: Colors.redAccent,
-                                        shape: BoxShape.circle,
-                                      ),
-                                      child: const Icon(
-                                        Icons.stop_rounded,
-                                        color: Colors.white,
-                                        size: 20,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                    ),
                     // Barra inferior entrelazada del Tab 1 (SIEMPRE en su sitio exacto flotando)
                     Positioned(
                       left: 0,
