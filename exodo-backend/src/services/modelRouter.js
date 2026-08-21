@@ -22,12 +22,10 @@ function getExecutionChain(plan, intent, modelOverride, imageDataUris, taskType)
   const isPro = (plan === 'pro' || plan === 'hazak');
   const hasImages = imageDataUris && imageDataUris.length > 0;
 
-  // A. Visión / Multimodal: Forzar qwen-vl-max como primario absoluto si hay imágenes
+  // A. Visión / Multimodal: Forzar qwen3-vl-plus si hay imágenes
   if (hasImages) {
     return [
-      'qwen-vl-max',
-      'qwen3.5-omni-plus',
-      'qwen3-vl-plus',
+      ALIBABA_CONFIG.models.hazakVision,         // qwen3-vl-plus
     ];
   }
 
@@ -36,73 +34,80 @@ function getExecutionChain(plan, intent, modelOverride, imageDataUris, taskType)
     const override = String(modelOverride).toLowerCase();
     if (override.includes('thinking') || override.includes('reasoner') || override.includes('235b')) {
       return [
-        ALIBABA_CONFIG.models.hazakReasoner,
-        ALIBABA_CONFIG.models.hazakReasonerFallback,
-        ALIBABA_CONFIG.models.hazakPrimary,
+        ALIBABA_CONFIG.models.hazakReasoner,          // qwen3-235b-a22b
+        ALIBABA_CONFIG.models.hazakFallback,          // qwen3.6-27b
+        ALIBABA_CONFIG.models.hazakReasonerFallback,  // qwen-plus
       ];
     }
-    if (override.includes('max')) {
+    if (override.includes('coder') || override.includes('code')) {
       return [
-        ALIBABA_CONFIG.models.hazakPrimary,
-        ALIBABA_CONFIG.models.hazakFallback,
-        ALIBABA_CONFIG.models.genesisSimple,
+        ALIBABA_CONFIG.models.hazakCoder,             // qwen3-coder-30b-a3b-instruct
+        ALIBABA_CONFIG.models.genesisCoder,           // qwen3-coder-flash
+        ALIBABA_CONFIG.models.hazakPrimary,           // qwen3-235b-a22b
       ];
     }
     if (override.includes('flash') || override.includes('fast')) {
       return [
-        ALIBABA_CONFIG.models.genesisSimple,
-        ALIBABA_CONFIG.models.genesisSimpleFallback,
-        ALIBABA_CONFIG.models.hazakPrimary,
-      ];
-    }
-    if (override.includes('qwq')) {
-      return [
-        ALIBABA_CONFIG.models.hazakReasonerFallback,
-        ALIBABA_CONFIG.models.hazakReasoner,
-        ALIBABA_CONFIG.models.hazakPrimary,
+        ALIBABA_CONFIG.models.genesisSimple,          // qwen3.6-flash-2026-04-16
+        ALIBABA_CONFIG.models.genesisSimpleFallback,  // qwen3.6-27b
+        ALIBABA_CONFIG.models.hazakPrimary,           // qwen3-235b-a22b
       ];
     }
   }
 
   // C. Plan Pro (Hazak)
   if (isPro) {
-    if (intent === 'RAZONAMIENTO' || taskType === 'reasoning' || taskType === 'code_analysis') {
+    if (intent === 'CODE' || taskType === 'code' || taskType === 'code_analysis') {
       return [
-        ALIBABA_CONFIG.models.hazakReasoner,          // qwen3-235b-a22b-thinking-2507
-        ALIBABA_CONFIG.models.hazakReasonerFallback,  // qwq-plus
-        ALIBABA_CONFIG.models.hazakFallback,          // deepseek-v3.2
-        ALIBABA_CONFIG.models.hazakPrimary,           // qwen3.7-max-2026-06-08
+        ALIBABA_CONFIG.models.hazakCoder,             // qwen3-coder-30b-a3b-instruct
+        ALIBABA_CONFIG.models.genesisCoder,           // qwen3-coder-flash
+        ALIBABA_CONFIG.models.hazakPrimary,           // qwen3-235b-a22b
+      ];
+    }
+    if (intent === 'RAZONAMIENTO' || taskType === 'reasoning') {
+      return [
+        ALIBABA_CONFIG.models.hazakReasoner,          // qwen3-235b-a22b
+        ALIBABA_CONFIG.models.hazakFallback,          // qwen3.6-27b
+        ALIBABA_CONFIG.models.hazakReasonerFallback,  // qwen-plus
       ];
     }
     return [
-      ALIBABA_CONFIG.models.hazakPrimary,             // qwen3.7-max-2026-06-08
-      ALIBABA_CONFIG.models.hazakFallback,            // deepseek-v3.2
-      ALIBABA_CONFIG.models.hazakReasoner,            // qwen3-235b-a22b-thinking-2507
-      ALIBABA_CONFIG.models.genesisSimple,            // qwen3.7-flash
+      ALIBABA_CONFIG.models.hazakPrimary,             // qwen3-235b-a22b
+      ALIBABA_CONFIG.models.hazakCoder,               // qwen3-coder-30b-a3b-instruct
+      ALIBABA_CONFIG.models.hazakFallback,            // qwen3.6-27b
+      ALIBABA_CONFIG.models.genesisSimple,            // qwen3.6-flash-2026-04-16
     ];
   }
 
   // D. Plan Free (Genesis G1.1)
+  if (intent === 'CODE' || taskType === 'code') {
+    return [
+      ALIBABA_CONFIG.models.genesisCoder,             // qwen3-coder-flash
+      ALIBABA_CONFIG.models.genesisSimple,            // qwen3.6-flash-2026-04-16
+      ALIBABA_CONFIG.models.genesisRedaccion,         // qwen3.6-27b
+    ];
+  }
+
   if (intent === 'REDACCION' || taskType === 'writing') {
     return [
-      ALIBABA_CONFIG.models.genesisRedaccion,         // qwen3.6-plus
-      ALIBABA_CONFIG.models.genesisRedaccionFallback, // qwen3.5-plus
-      ALIBABA_CONFIG.models.genesisSimple,           // qwen3.7-flash
+      ALIBABA_CONFIG.models.genesisRedaccion,         // qwen3.6-27b
+      ALIBABA_CONFIG.models.genesisRedaccionFallback, // qwen-plus
+      ALIBABA_CONFIG.models.genesisSimple,           // qwen3.6-flash-2026-04-16
     ];
   }
 
   if (intent === 'RAZONAMIENTO' || taskType === 'reasoning') {
     return [
-      ALIBABA_CONFIG.models.genesisReasoner,         // qwen3.7-flash
-      ALIBABA_CONFIG.models.genesisReasonerFallback, // qwen3.6-27b
-      ALIBABA_CONFIG.models.genesisSimpleFallback,   // qwen3.6-plus
+      ALIBABA_CONFIG.models.genesisReasoner,         // qwen3.6-27b
+      ALIBABA_CONFIG.models.genesisReasonerFallback, // qwen-turbo
+      ALIBABA_CONFIG.models.genesisSimple,           // qwen3.6-flash-2026-04-16
     ];
   }
 
   return [
-    ALIBABA_CONFIG.models.genesisSimple,             // qwen3.7-flash
-    ALIBABA_CONFIG.models.genesisSimpleFallback,     // qwen3.6-plus
-    ALIBABA_CONFIG.models.genesisRedaccionFallback,  // qwen3.5-plus
+    ALIBABA_CONFIG.models.genesisSimple,             // qwen3.6-flash-2026-04-16
+    ALIBABA_CONFIG.models.genesisSimpleFallback,     // qwen3.6-27b
+    ALIBABA_CONFIG.models.genesisRedaccionFallback,  // qwen-plus
   ];
 }
 
