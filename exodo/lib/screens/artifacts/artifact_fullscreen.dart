@@ -12,8 +12,10 @@ import 'package:share_plus/share_plus.dart';
 
 import '../../data/artifacts/artifact.dart';
 import '../../services/artifacts_service.dart';
+import '../../services/expedientes_repository.dart';
 import '../../services/export/exporters.dart';
 import '../../theme/exodo_palette.dart';
+import 'expedientes_screen.dart';
 
 import '../../templates/sandbox_template.dart';
 
@@ -118,6 +120,92 @@ class _ArtifactFullscreenState extends State<ArtifactFullscreen>
     }
   }
 
+  bool _savingExpediente = false;
+
+  Future<void> _saveToExpedientes() async {
+    if (_savingExpediente) return;
+    final a = widget.artifact;
+    setState(() => _savingExpediente = true);
+
+    try {
+      String category = 'documento';
+      String fileFormat = 'md';
+
+      if (a.kind == ArtifactKind.table) {
+        category = 'tabla';
+        fileFormat = 'xlsx';
+      } else if (a.kind == ArtifactKind.html || a.kind == ArtifactKind.react) {
+        category = 'interactivo';
+        fileFormat = 'html';
+      } else if (a.kind == ArtifactKind.svg) {
+        category = 'interactivo';
+        fileFormat = 'svg';
+      }
+
+      final title = (a.title != null && a.title!.trim().isNotEmpty)
+          ? a.title!.trim()
+          : (a.language.isNotEmpty
+              ? 'Artefacto ${a.language.toUpperCase()}'
+              : 'Expediente Éxodo');
+
+      final expediente = await ExpedientesRepository.instance.createExpediente(
+        title: title,
+        category: category,
+        fileFormat: fileFormat,
+        contentPayload: a.sourceCode,
+        metadata: a.meta,
+      );
+
+      if (!mounted) return;
+
+      if (expediente != null) {
+        HapticFeedback.lightImpact();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Row(
+              children: [
+                Icon(Icons.check_circle_rounded, color: Color(0xFFF5F2EB), size: 18),
+                SizedBox(width: 10),
+                Expanded(child: Text('Guardado en tus Expedientes')),
+              ],
+            ),
+            backgroundColor: ExodoPalette.inkRaised,
+            duration: const Duration(seconds: 3),
+            action: SnackBarAction(
+              label: 'VER',
+              textColor: ExodoPalette.amber,
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const ExpedientesScreen()),
+                );
+              },
+            ),
+          ),
+        );
+      } else {
+        HapticFeedback.vibrate();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('No se pudo guardar en Expedientes. Inicia sesión primero.'),
+            backgroundColor: ExodoPalette.danger,
+            duration: Duration(seconds: 3),
+          ),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error al guardar: $e'),
+          backgroundColor: ExodoPalette.danger,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _savingExpediente = false);
+    }
+  }
+
   Future<void> _openExportSheet() async {
     final a = widget.artifact;
     if (!mounted) return;
@@ -174,6 +262,20 @@ class _ArtifactFullscreenState extends State<ArtifactFullscreen>
           overflow: TextOverflow.ellipsis,
         ),
         actions: [
+          IconButton(
+            tooltip: 'Guardar en Expedientes',
+            icon: _savingExpediente
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: ExodoPalette.amber,
+                    ),
+                  )
+                : const Icon(Icons.bookmark_add_outlined, color: Color(0xFF8E8E93)),
+            onPressed: _savingExpediente ? null : _saveToExpedientes,
+          ),
           IconButton(
             tooltip: 'Copiar código',
             icon: const Icon(Icons.copy_rounded, color: Color(0xFF8E8E93)),
