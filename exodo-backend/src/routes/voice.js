@@ -159,6 +159,7 @@ router.post('/transcribe', chatRateLimiter, async (req, res, next) => {
       file: fileObj,
       model: GROQ_WHISPER_MODEL,
       response_format: 'json',
+      prompt: DOMINICAN_PROMPT,
     };
 
     // Si el cliente envía un idioma explícito diferente de 'auto', respetarlo.
@@ -170,9 +171,22 @@ router.post('/transcribe', chatRateLimiter, async (req, res, next) => {
 
     const transcription = await client.audio.transcriptions.create(transcriptionParams);
 
-    const text = (transcription && typeof transcription.text === 'string')
+    let text = (transcription && typeof transcription.text === 'string')
       ? transcription.text.trim()
       : '';
+
+    // Filtrar alucinaciones comunes de Whisper generadas en clips con silencio o ruido de fondo leve
+    const SILENCE_HALLUCINATIONS = [
+      /^you$/i,
+      /^thank\s*you\.?$/i,
+      /^thanks\s*for\s*watching\.?$/i,
+      /^subt[íi]tulos\s*por.*$/i,
+      /^amara\.org.*$/i,
+      /^[.\s,;!?-]+$/,
+    ];
+    if (SILENCE_HALLUCINATIONS.some((rx) => rx.test(text))) {
+      text = '';
+    }
 
     const elapsedMs = Date.now() - startedAt;
     console.log(`[voice] Groq Whisper OK: "${text}" (${elapsedMs}ms)`);
