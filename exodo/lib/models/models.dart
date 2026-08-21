@@ -292,10 +292,10 @@ class Attachment {
       }
     } catch (_) {}
     return Attachment(
-      filePath: json['filePath'] as String? ?? '',
-      fileName: json['fileName'] as String? ?? 'file',
+      filePath: json['filePath'] as String? ?? json['file_path'] as String? ?? '',
+      fileName: json['fileName'] as String? ?? json['file_name'] as String? ?? 'file',
       bytes: b,
-      mimeType: json['mimeType'] as String? ?? 'application/octet-stream',
+      mimeType: json['mimeType'] as String? ?? json['mime_type'] as String? ?? 'application/octet-stream',
     );
   }
 

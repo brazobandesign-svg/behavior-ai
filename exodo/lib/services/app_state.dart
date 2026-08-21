@@ -397,22 +397,66 @@ class AppState extends ChangeNotifier {
   }
 
   /// Fusiona los adjuntos de los mensajes locales (SQLite) en las copias
-  /// traídas de Supabase. El emparejamiento es por rol + contenido ya que
-  /// los ids no coinciden: local usa `user-*/asst-*` y la nube usa UUIDs.
-  /// El pool se consume en orden para no asignar el mismo adjunto dos veces
-  /// cuando hay mensajes consecutivos con el mismo texto.
+  /// traídas de Supabase.
+  /// Implementa estrategia de emparejamiento multi-nivel:
+  /// 1. Coincidencia exacta por id.
+  /// 2. Coincidencia por rol + contenido no vacío.
+  /// 3. Coincidencia por rol ('user') con contenido vacío por proximidad temporal.
+  /// 4. Coincidencia posicional para mensajes de usuario restantes.
+  /// 5. Safety Net: si queda algún mensaje local con adjuntos no emparejado
+  ///    (aún no sincronizado en la nube), se inserta en el orden cronológico
+  ///    correcto para NUNCA perder fotos locales.
   List<ChatMessage> _mergeLocalAttachments(
     List<ChatMessage> cloud,
     List<ChatMessage> local,
   ) {
     final pool = local.where((l) => l.attachments.isNotEmpty).toList();
     if (pool.isEmpty) return cloud;
-    return cloud.map((m) {
-      final idx = pool.indexWhere(
-        (l) => l.role == m.role && l.content.trim() == m.content.trim(),
-      );
+
+    int mergedCount = 0;
+    final mergedCloud = cloud.map((m) {
+      if (pool.isEmpty) return m;
+
+      int idx = -1;
+
+      // Nivel 1: Match exacto por id
+      idx = pool.indexWhere((l) => l.id == m.id);
+
+      // Nivel 2: Match por rol + contenido no vacío
+      if (idx == -1 && m.content.trim().isNotEmpty) {
+        idx = pool.indexWhere(
+          (l) => l.role == m.role && l.content.trim() == m.content.trim(),
+        );
+      }
+
+      // Nivel 3: Match para contenido vacío ('') entre mensajes de usuario
+      if (idx == -1 && m.role == 'user' && m.content.trim().isEmpty) {
+        int bestIdx = -1;
+        int minDiffMs = 999999999;
+        for (int i = 0; i < pool.length; i++) {
+          final l = pool[i];
+          if (l.role == 'user' && l.content.trim().isEmpty) {
+            final diff = (l.createdAt.millisecondsSinceEpoch - m.createdAt.millisecondsSinceEpoch).abs();
+            if (diff < minDiffMs) {
+              minDiffMs = diff;
+              bestIdx = i;
+            }
+          }
+        }
+        if (bestIdx != -1) {
+          idx = bestIdx;
+        }
+      }
+
+      // Nivel 4: Match posicional si solo queda un mensaje de usuario
+      if (idx == -1 && m.role == 'user') {
+        idx = pool.indexWhere((l) => l.role == 'user');
+      }
+
       if (idx == -1) return m;
+
       final match = pool.removeAt(idx);
+      mergedCount++;
       return ChatMessage(
         id: m.id,
         conversationId: m.conversationId,
@@ -427,6 +471,27 @@ class AppState extends ChangeNotifier {
         isDegraded: m.isDegraded,
       );
     }).toList();
+
+    // Nivel 5 (Safety Net): Si quedan mensajes locales con adjuntos que no
+    // vinieron en la respuesta de la nube, agregarlos preservando el orden.
+    if (pool.isNotEmpty) {
+      if (kDebugMode) {
+        debugPrint(
+          '[AppState] _mergeLocalAttachments: Reteniendo ${pool.length} adjuntos locales no sincronizados en nube',
+        );
+      }
+      final result = <ChatMessage>[...mergedCloud, ...pool];
+      result.sort((a, b) => a.createdAt.compareTo(b.createdAt));
+      return result;
+    }
+
+    if (kDebugMode && mergedCount > 0) {
+      debugPrint(
+        '[AppState] _mergeLocalAttachments: Fusionados con éxito $mergedCount mensajes con adjuntos locales',
+      );
+    }
+
+    return mergedCloud;
   }
 
   void startNewChat({bool resetIncognito = true}) {
@@ -1040,7 +1105,20 @@ class AppState extends ChangeNotifier {
 
     // 3. GUARDAR MENSAJE DE USUARIO EN BD LOCAL Y NUBE EN SEGUNDO PLANO
     if (shouldSaveHistory && activeConversation != null) {
-      localChatRepo.saveMessage(userMsg);
+      final effectiveUserMsg = ChatMessage(
+        id: userMsg.id,
+        conversationId: activeConversation!.id,
+        role: userMsg.role,
+        content: userMsg.content,
+        intentDetected: userMsg.intentDetected,
+        modelCalled: userMsg.modelCalled,
+        sources: userMsg.sources,
+        attachments: userMsg.attachments,
+        createdAt: userMsg.createdAt,
+        isThinking: userMsg.isThinking,
+        isDegraded: userMsg.isDegraded,
+      );
+      localChatRepo.saveMessage(effectiveUserMsg);
       // FIX (no-mutación 2026-08-19): persistir SOLO el texto original del
       // usuario. No inyectar etiquetas sintéticas "[Imagen: ...]" ni prompts
       // de análisis en el registro de la base de datos; los adjuntos ya viven

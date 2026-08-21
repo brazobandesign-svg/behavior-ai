@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -149,21 +150,7 @@ class MessageBubble extends StatelessWidget {
                                 InteractiveViewer(
                                   child: ClipRRect(
                                     borderRadius: BorderRadius.circular(16),
-                                    // [Fix LG V60 #2] Render del adjunto
-                                    // al hacer tap. Prioriza bytes en memoria
-                                    // (mensaje en sesión); cae al filePath
-                                    // (mensaje recargado desde historial con
-                                    // archivo en disco). Si el archivo se
-                                    // perdió, muestra placeholder.
-                                    child: att.bytes.isNotEmpty
-                                        ? Image.memory(att.bytes)
-                                        : (att.filePath.isNotEmpty &&
-                                                File(att.filePath)
-                                                    .existsSync())
-                                            ? Image.file(File(att.filePath))
-                                            : _MissingAttachmentPlaceholder(
-                                                fileName: att.fileName,
-                                              ),
+                                    child: _buildAttachmentFullScreen(att),
                                   ),
                                 ),
                                 IconButton(
@@ -181,26 +168,7 @@ class MessageBubble extends StatelessWidget {
                       },
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(14),
-                        // [Fix LG V60 #2] Thumbnail del adjunto en la
-                        // burbuja del usuario. Mismo orden de prioridad:
-                        // 1) bytes (sesión activa / base64-decoded), 2)
-                        // filePath válido en disco, 3) placeholder.
-                        child: att.bytes.isNotEmpty
-                            ? Image.memory(
-                                att.bytes,
-                                fit: BoxFit.cover,
-                                height: 140,
-                              )
-                            : (att.filePath.isNotEmpty &&
-                                    File(att.filePath).existsSync())
-                                ? Image.file(
-                                    File(att.filePath),
-                                    fit: BoxFit.cover,
-                                    height: 140,
-                                  )
-                                : _MissingAttachmentPlaceholder(
-                                    fileName: att.fileName,
-                                  ),
+                        child: _buildAttachmentThumbnail(att),
                       ),
                     ),
                   )
@@ -843,6 +811,48 @@ class _ActionButton extends StatelessWidget {
       ),
     );
   }
+}
+
+Widget _buildAttachmentThumbnail(Attachment att) {
+  if (att.bytes.isNotEmpty) {
+    return Image.memory(
+      att.bytes,
+      fit: BoxFit.cover,
+      height: 140,
+    );
+  }
+  if (att.filePath.isNotEmpty) {
+    final file = File(att.filePath);
+    if (file.existsSync()) {
+      return Image.file(
+        file,
+        fit: BoxFit.cover,
+        height: 140,
+      );
+    } else if (kDebugMode) {
+      debugPrint('[MessageBubble] Thumbnail file not found on disk: ${att.filePath}');
+    }
+  }
+  return _MissingAttachmentPlaceholder(
+    fileName: att.fileName,
+  );
+}
+
+Widget _buildAttachmentFullScreen(Attachment att) {
+  if (att.bytes.isNotEmpty) {
+    return Image.memory(att.bytes);
+  }
+  if (att.filePath.isNotEmpty) {
+    final file = File(att.filePath);
+    if (file.existsSync()) {
+      return Image.file(file);
+    } else if (kDebugMode) {
+      debugPrint('[MessageBubble] Fullscreen file not found on disk: ${att.filePath}');
+    }
+  }
+  return _MissingAttachmentPlaceholder(
+    fileName: att.fileName,
+  );
 }
 
 /// [Fix LG V60 #2] Placeholder que se muestra cuando un adjunto de imagen

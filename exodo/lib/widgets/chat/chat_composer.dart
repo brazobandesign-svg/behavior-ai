@@ -464,7 +464,9 @@ class _ChatComposerState extends State<ChatComposer>
                     final picker = ImagePicker();
                     final photo = await picker.pickImage(
                       source: ImageSource.camera,
-                      imageQuality: 90,
+                      maxWidth: 1536,
+                      maxHeight: 1536,
+                      imageQuality: 80,
                     );
                     if (photo != null && mounted) {
                       final bytes = await photo.readAsBytes();
@@ -511,7 +513,9 @@ class _ChatComposerState extends State<ChatComposer>
                     final picker = ImagePicker();
                     final media = await picker.pickImage(
                       source: ImageSource.gallery,
-                      imageQuality: 90,
+                      maxWidth: 1536,
+                      maxHeight: 1536,
+                      imageQuality: 80,
                     );
                     if (media != null && mounted) {
                       final bytes = await media.readAsBytes();

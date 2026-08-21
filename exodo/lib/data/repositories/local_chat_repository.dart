@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:drift/drift.dart';
 import '../local/db/app_database.dart';
 import '../local/db/tables/messages.dart'; // Import LocalMessageStatus enum
@@ -90,7 +91,14 @@ class LocalChatRepository {
 
   Future<List<ChatMessage>> getMessages(String conversationId) async {
     final list = await db.messagesDao.getByConversation(conversationId);
-    return list.map(_toDomainMessage).toList();
+    final domain = list.map(_toDomainMessage).toList();
+    if (kDebugMode) {
+      final withAtts = domain.where((m) => m.attachments.isNotEmpty).length;
+      debugPrint(
+        '[LocalChatRepo] getMessages convId=$conversationId returned ${domain.length} msgs ($withAtts with attachments)',
+      );
+    }
+    return domain;
   }
 
   Future<void> saveMessage(ChatMessage msg) async {
@@ -158,6 +166,12 @@ class LocalChatRepository {
         ? jsonEncode(attachmentPayloads)
         : null;
 
+    if (kDebugMode) {
+      debugPrint(
+        '[LocalChatRepo] saveMessage id=${msg.id} convId=${msg.conversationId} role=${msg.role} atts=${msg.attachments.length} attachments_json=$attachmentsJson',
+      );
+    }
+
     await db.messagesDao.upsert(
       LocalMessagesCompanion(
         id: Value(msg.id),
@@ -210,6 +224,12 @@ class LocalChatRepository {
   /// Conserva las filas con status 'queued' del outbox offline (aún no
   /// enviadas a la nube) restaurando su estado tras el reemplazo.
   Future<void> replaceMessages(String conversationId, List<ChatMessage> messages) async {
+    if (kDebugMode) {
+      final attCount = messages.where((m) => m.attachments.isNotEmpty).length;
+      debugPrint(
+        '[LocalChatRepo] replaceMessages convId=$conversationId totalMsgs=${messages.length} msgsWithAttachments=$attCount',
+      );
+    }
     final queuedRows = await db.messagesDao.getQueuedMessages();
     final keptQueued = queuedRows
         .where((q) => q.conversationId == conversationId)
@@ -329,6 +349,12 @@ class LocalChatRepository {
         // Falla silenciosa: si el JSON está corrupto, la burbuja mostrará
         // el nombre del adjunto sin miniatura.
       }
+    }
+
+    if (kDebugMode && attachments.isNotEmpty) {
+      debugPrint(
+        '[LocalChatRepo] _toDomainMessage id=${local.id} convId=${local.conversationId} attsCount=${attachments.length} paths=${attachments.map((a) => a.filePath).toList()}',
+      );
     }
 
     return ChatMessage(

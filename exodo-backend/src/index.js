@@ -21,12 +21,13 @@ app.use(cors({
   credentials: true,
 }));
 app.use(express.json({
-  limit: '20mb',
+  limit: '25mb',
   verify: (req, res, buf) => {
     // Conservar el buffer RAW para la verificación de firma de Stripe.
     req.rawBody = buf;
   },
 }));
+app.use(express.urlencoded({ limit: '25mb', extended: true }));
 
 // Rate limiter global en /api/* (se aplica antes de auth)
 app.use((req, res, next) => {

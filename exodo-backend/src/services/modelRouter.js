@@ -176,7 +176,11 @@ async function routeMessage(plan, intent, messages, systemPrompt, modelOverride,
  */
 async function routeMessageStream(plan, intent, messages, systemPrompt, onChunk, modelOverride, imageDataUris, taskType, isDegraded = false, isGuest = false, signal = null) {
   const chain = getExecutionChain(plan, intent, modelOverride, imageDataUris, taskType);
-  const TTFT_TIMEOUT_MS = 5000;
+  // Vision: el payload multimodal (imágenes base64) alarga el TTFT de qwen-vl
+  // (~1.5-3.0s en carga normal, más con imágenes grandes). 15s evita abortar
+  // intentos sanos y thrashear la cadena de fallback.
+  const hasImages = Array.isArray(imageDataUris) && imageDataUris.length > 0;
+  const TTFT_TIMEOUT_MS = hasImages ? 15000 : 5000;
 
   let lastError = null;
 
