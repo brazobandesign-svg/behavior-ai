@@ -159,14 +159,21 @@ router.post('/transcribe', chatRateLimiter, async (req, res, next) => {
       file: fileObj,
       model: GROQ_WHISPER_MODEL,
       response_format: 'json',
-      prompt: DOMINICAN_PROMPT,
     };
 
     // Si el cliente envía un idioma explícito diferente de 'auto', respetarlo.
-    // Si no se especifica, Whisper auto-detecta el idioma hablado (inglés, español, etc.)
+    // Si no se especifica o es 'auto', Whisper auto-detecta el idioma hablado (inglés, español, francés, etc.)
     // y transcribe fielmente en ese idioma sin traducir.
     if (req.body && req.body.language && req.body.language !== 'auto') {
       transcriptionParams.language = req.body.language;
+    }
+
+    // El prompt en Whisper sesga el vocabulario y el idioma esperado.
+    // Solo inyectar prompt dominicano si se pide explícitamente español, o si el cliente envía un prompt propio.
+    if (req.body && req.body.prompt) {
+      transcriptionParams.prompt = req.body.prompt;
+    } else if (req.body && (req.body.language === 'es' || req.body.language === 'es-DO')) {
+      transcriptionParams.prompt = DOMINICAN_PROMPT;
     }
 
     const transcription = await client.audio.transcriptions.create(transcriptionParams);
