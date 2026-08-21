@@ -19,105 +19,46 @@ function sanitizedErrorResult() {
 }
 
 function getExecutionChain(plan, intent, modelOverride, imageDataUris, taskType) {
-  const isPro = (plan === 'pro' || plan === 'hazak');
   const hasImages = imageDataUris && imageDataUris.length > 0;
 
-  // A. Visión / Multimodal: Forzar qwen-vl-max como primario absoluto si hay imágenes
+  // 1. Visión e Imágenes (1 solo modelo unificado para ambos planes)
   if (hasImages) {
     return [
-      ALIBABA_CONFIG.models.hazakVision,         // qwen-vl-max
-      ALIBABA_CONFIG.models.hazakVisionMoE,      // qwen3-vl-235b-a22b-instruct
-      ALIBABA_CONFIG.models.hazakVisionFallback, // qwen3-vl-plus
+      ALIBABA_CONFIG.models.visionPrimary, // qwen-vl-max
     ];
   }
 
-  // B. Override explícito del cliente
+  // 2. Override explícito si el cliente lo solicita
   if (modelOverride) {
     const override = String(modelOverride).toLowerCase();
-    if (override.includes('thinking') || override.includes('reasoner') || override.includes('qwq')) {
-      return [
-        ALIBABA_CONFIG.models.hazakReasoner,          // qwq-plus
-        ALIBABA_CONFIG.models.hazakThinking,          // qwen3-next-80b-a3b-thinking
-        ALIBABA_CONFIG.models.hazakPrimary,           // qwen3.7-max-2026-05-20
-      ];
+    if (override.includes('qwq') || override.includes('reasoner') || override.includes('thinking')) {
+      return [ALIBABA_CONFIG.models.reasonerPrimary];
     }
-    if (override.includes('coder') || override.includes('code')) {
-      return [
-        ALIBABA_CONFIG.models.hazakCoder,             // qwen3-coder-plus-2025-07-22
-        ALIBABA_CONFIG.models.genesisCoder,           // qwen3-coder-flash
-        ALIBABA_CONFIG.models.hazakPrimary,           // qwen3.7-max-2026-05-20
-      ];
+    if (override.includes('code') || override.includes('coder')) {
+      return [ALIBABA_CONFIG.models.coderPrimary];
     }
-    if (override.includes('max')) {
-      return [
-        ALIBABA_CONFIG.models.hazakPrimary,           // qwen3.7-max-2026-05-20
-        ALIBABA_CONFIG.models.hazakFallback,          // qwen3.7-max-2026-05-17
-        ALIBABA_CONFIG.models.genesisSimple,          // qwen3.6-flash-2026-04-16
-      ];
-    }
-    if (override.includes('flash') || override.includes('fast')) {
-      return [
-        ALIBABA_CONFIG.models.genesisSimple,          // qwen3.6-flash-2026-04-16
-        ALIBABA_CONFIG.models.genesisSimpleFallback,  // qwen3.6-plus-2026-04-02
-        ALIBABA_CONFIG.models.hazakPrimary,           // qwen3.7-max-2026-05-20
-      ];
+    if (override.includes('vision') || override.includes('image')) {
+      return [ALIBABA_CONFIG.models.visionPrimary];
     }
   }
 
-  // C. Plan Pro (Hazak)
-  if (isPro) {
-    if (intent === 'CODE' || taskType === 'code' || taskType === 'code_analysis') {
-      return [
-        ALIBABA_CONFIG.models.hazakCoder,             // qwen3-coder-plus-2025-07-22
-        ALIBABA_CONFIG.models.genesisCoder,           // qwen3-coder-flash
-        ALIBABA_CONFIG.models.hazakPrimary,           // qwen3.7-max-2026-05-20
-      ];
-    }
-    if (intent === 'RAZONAMIENTO' || taskType === 'reasoning') {
-      return [
-        ALIBABA_CONFIG.models.hazakReasoner,          // qwq-plus
-        ALIBABA_CONFIG.models.hazakThinking,          // qwen3-next-80b-a3b-thinking
-        ALIBABA_CONFIG.models.hazakPrimary,           // qwen3.7-max-2026-05-20
-        ALIBABA_CONFIG.models.hazakFallback,          // qwen3.7-max-2026-05-17
-      ];
-    }
+  // 3. Código y Artefactos (1 solo modelo unificado para ambos planes)
+  if (intent === 'CODE' || taskType === 'code' || taskType === 'code_analysis') {
     return [
-      ALIBABA_CONFIG.models.hazakPrimary,             // qwen3.7-max-2026-05-20
-      ALIBABA_CONFIG.models.hazakCoder,               // qwen3-coder-plus-2025-07-22
-      ALIBABA_CONFIG.models.hazakReasoner,            // qwq-plus
-      ALIBABA_CONFIG.models.hazakFallback,            // qwen3.7-max-2026-05-17
+      ALIBABA_CONFIG.models.coderPrimary, // qwen3-coder-plus-2025-07-22
     ];
   }
 
-  // D. Plan Free (Genesis G1.1)
-  if (intent === 'CODE' || taskType === 'code') {
-    return [
-      ALIBABA_CONFIG.models.genesisCoder,             // qwen3-coder-flash
-      ALIBABA_CONFIG.models.genesisSimple,            // qwen3.6-flash-2026-04-16
-      ALIBABA_CONFIG.models.genesisRedaccion,         // qwen3.6-plus-2026-04-02
-    ];
-  }
-
-  if (intent === 'REDACCION' || taskType === 'writing') {
-    return [
-      ALIBABA_CONFIG.models.genesisRedaccion,         // qwen3.6-plus-2026-04-02
-      ALIBABA_CONFIG.models.genesisRedaccionFallback, // qwen3.5-plus
-      ALIBABA_CONFIG.models.genesisSimple,           // qwen3.6-flash-2026-04-16
-    ];
-  }
-
+  // 4. Razonamiento Profundo y Matemáticas (1 solo modelo unificado para ambos planes)
   if (intent === 'RAZONAMIENTO' || taskType === 'reasoning') {
     return [
-      ALIBABA_CONFIG.models.genesisReasoner,         // qwen3.6-27b
-      ALIBABA_CONFIG.models.genesisReasonerFallback, // qwen-plus
-      ALIBABA_CONFIG.models.genesisSimple,           // qwen3.6-flash-2026-04-16
+      ALIBABA_CONFIG.models.reasonerPrimary, // qwq-plus
     ];
   }
 
+  // 5. Texto General, Conversación y Redacción (1 solo modelo unificado para ambos planes)
   return [
-    ALIBABA_CONFIG.models.genesisSimple,             // qwen3.6-flash-2026-04-16
-    ALIBABA_CONFIG.models.genesisSimpleFallback,     // qwen3.6-plus-2026-04-02
-    ALIBABA_CONFIG.models.genesisRedaccionFallback,  // qwen3.5-plus
+    ALIBABA_CONFIG.models.textPrimary, // qwen3.7-max-2026-05-20
   ];
 }
 

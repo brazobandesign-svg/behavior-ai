@@ -10,40 +10,26 @@ const ALIBABA_CONFIG = {
   // index.js avisa y el SDK de OpenAI falla ruidosamente en el primer request.
   apiKey: process.env.DASHSCOPE_API_KEY || process.env.ALIBABA_API_KEY || process.env.ALIBABA_FREE_KEY,
   models: {
-    // Hazak (Pro / Flagship / Reasoner)
-    hazakPrimary: 'qwen3.7-max-2026-05-20',
-    hazakReasoner: 'qwq-plus',
-    hazakThinking: 'qwen3-next-80b-a3b-thinking',
-    hazakMoE: 'qwen3-235b-a22b',
-    hazakCoder: 'qwen3-coder-plus-2025-07-22',
-    hazakVision: 'qwen-vl-max',
-    hazakVisionMoE: 'qwen3-vl-235b-a22b-instruct',
-    hazakOcr: 'qwen-vl-ocr',
-    hazakFallback: 'qwen3.7-max-2026-05-17',
-    hazakReasonerFallback: 'qwen3-next-80b-a3b-thinking',
-    hazakVisionFallback: 'qwen3-vl-plus',
+    // 4 Modelos Principales Unificados por Objetivo (Fase de Pruebas: Free & Pro idénticos)
+    textPrimary: 'qwen3.7-max-2026-05-20',       // Texto, conversación, redacción y asistencia general
+    reasonerPrimary: 'qwq-plus',                 // Razonamiento lógico profundo y matemáticas
+    coderPrimary: 'qwen3-coder-plus-2025-07-22', // Generación de código y artefactos interactivos
+    visionPrimary: 'qwen-vl-max',                // Análisis de imágenes, visión multimodal y OCR
 
-    // Genesis (Free / Fast / Agile)
-    genesisSimple: 'qwen3.6-flash-2026-04-16',
-    genesisRedaccion: 'qwen3.6-plus-2026-04-02',
-    genesisReasoner: 'qwen3.6-27b',
-    genesisCoder: 'qwen3-coder-flash',
-    genesisVision: 'qwen3-vl-plus',
-    genesisSimpleFallback: 'qwen3.6-plus-2026-04-02',
-    genesisRedaccionFallback: 'qwen3.5-plus',
-    genesisReasonerFallback: 'qwen-plus',
-    genesisVisionFallback: 'qwen-vl-max',
-
-    // Audio & Image models
-    sttModel: 'fun-asr-flash-2026-06-15',
-    sttFallback: 'qwen-audio-3.0-asr-flash',
-    ttsModel: 'cosyvoice-v3-plus',
-    ttsFallback: 'cosyvoice-v3-flash',
-    imageModel: 'qwen-image-3.0-pro',
-    imageFallback1: 'qwen-image-2.0-pro',
-    imageFallback2: 'wan2.7-image-pro',
+    // RAG MINERD y Embeddings
     embeddingModel: 'text-embedding-v4',
     rerankModel: 'qwen3-rerank',
+
+    // Compatibilidad de nombres
+    hazakPrimary: 'qwen3.7-max-2026-05-20',
+    hazakReasoner: 'qwq-plus',
+    hazakCoder: 'qwen3-coder-plus-2025-07-22',
+    hazakVision: 'qwen-vl-max',
+    genesisSimple: 'qwen3.7-max-2026-05-20',
+    genesisRedaccion: 'qwen3.7-max-2026-05-20',
+    genesisReasoner: 'qwq-plus',
+    genesisCoder: 'qwen3-coder-plus-2025-07-22',
+    genesisVision: 'qwen-vl-max',
   },
 };
 
@@ -51,17 +37,14 @@ const PLAN_CONFIG = {
   free: {
     name: 'Genesis G1.1',
     dailyTokensLimit: 1000000,        // 1M tokens diarios activos
-    maxOutputTokensNormal: 4096,
+    maxOutputTokensNormal: 8192,
     monthlyVisionLimit: 1000,
     allowThinking: true,
-    primaryModel: 'qwen3.6-flash-2026-04-16',
+    primaryModel: 'qwen3.7-max-2026-05-20',
     fallbackChain: [
-      'qwen3.6-plus-2026-04-02',
-      'qwen3.6-27b',
-      'qwen3.5-plus',
-      'qwen3-coder-flash',
+      'qwen3.7-max-2026-05-20',
     ],
-    visionModels: ['qwen3-vl-plus', 'qwen-vl-max'],
+    visionModels: ['qwen-vl-max'],
     isDegradable: false,
   },
   pro: {
@@ -73,14 +56,9 @@ const PLAN_CONFIG = {
     allowThinking: true,
     primaryModel: 'qwen3.7-max-2026-05-20',
     fallbackChain: [
-      'qwq-plus',
-      'qwen3-coder-plus-2025-07-22',
-      'qwen3-next-80b-a3b-thinking',
-      'qwen3.7-max-2026-05-17',
-      'qwen3-235b-a22b',
-      'qwen3.6-plus-2026-04-02',
+      'qwen3.7-max-2026-05-20',
     ],
-    visionModels: ['qwen-vl-max', 'qwen3-vl-235b-a22b-instruct', 'qwen3-vl-plus'],
+    visionModels: ['qwen-vl-max'],
     isDegradable: false,
   },
 };
