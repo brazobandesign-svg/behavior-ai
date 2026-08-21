@@ -1160,11 +1160,11 @@ class _ShimmeringUpgradeTextState extends State<_ShimmeringUpgradeText>
   @override
   void initState() {
     super.initState();
-    // Ciclo total: ~3.6 segundos. Durante el primer 35% del ciclo (~1.2s)
-    // la luz cruza de izquierda a derecha. El 65% restante permanece en reposo.
+    // Ciclo total: ~4.6 segundos. Durante el primer 40% (~1.84s) la luz
+    // cruza suavemente de forma inclinada. El 60% restante permanece en reposo.
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 3600),
+      duration: const Duration(milliseconds: 4600),
     )..repeat();
   }
 
@@ -1182,22 +1182,22 @@ class _ShimmeringUpgradeTextState extends State<_ShimmeringUpgradeText>
         final progress = _controller.value;
         double sweep;
 
-        if (progress <= 0.35) {
-          // Fase activa: paso de luz pura de izquierda a derecha
-          final t = progress / 0.35;
+        if (progress <= 0.40) {
+          // Fase activa: paso de luz pura inclinado de izquierda a derecha (más lento y suave)
+          final t = progress / 0.40;
           final curveT = Curves.easeInOutSine.transform(t);
-          sweep = -2.5 + (5.0 * curveT);
+          sweep = -2.8 + (5.6 * curveT);
         } else {
           // Fase de reposo: la luz se queda fuera del rango visible
-          sweep = 3.0;
+          sweep = 3.5;
         }
 
         return ShaderMask(
           blendMode: BlendMode.srcIn,
           shaderCallback: (bounds) {
             return LinearGradient(
-              begin: Alignment(sweep - 1.2, 0.0),
-              end: Alignment(sweep + 1.2, 0.0),
+              begin: Alignment(sweep - 1.3, -0.7),
+              end: Alignment(sweep + 1.3, 0.7),
               colors: [
                 widget.baseColor,
                 widget.baseColor,
@@ -1205,7 +1205,7 @@ class _ShimmeringUpgradeTextState extends State<_ShimmeringUpgradeText>
                 widget.baseColor,
                 widget.baseColor,
               ],
-              stops: const [0.0, 0.3, 0.5, 0.7, 1.0],
+              stops: const [0.0, 0.35, 0.5, 0.65, 1.0],
             ).createShader(bounds);
           },
           child: Text(
