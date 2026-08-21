@@ -494,19 +494,19 @@ class _FilterChipsRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final chips = <(_FilterCategory, String, String)>[
-      (_FilterCategory.all, i18n.t('artifacts.filter_all'), '📋'),
-      (_FilterCategory.documents, i18n.t('artifacts.filter_docs'), '📄'),
-      (_FilterCategory.tables, i18n.t('artifacts.filter_tables'), '📊'),
-      (_FilterCategory.interactive, i18n.t('artifacts.filter_interactive'), '🌐'),
+    final chips = <(_FilterCategory, String)>[
+      (_FilterCategory.all, i18n.t('artifacts.filter_all')),
+      (_FilterCategory.documents, i18n.t('artifacts.filter_docs')),
+      (_FilterCategory.tables, i18n.t('artifacts.filter_tables')),
+      (_FilterCategory.interactive, i18n.t('artifacts.filter_interactive')),
     ];
 
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
       child: Row(
         children: chips.map((chip) {
-          final (category, label, emoji) = chip;
+          final (category, label) = chip;
           final isActive = activeFilter == category;
           final activeBg = isDark ? const Color(0xFF2A2520) : const Color(0xFFE8E4DB);
           final inactiveBg = isDark ? const Color(0xFF1E1E1E) : const Color(0xFFF0EDE6);
@@ -525,28 +525,21 @@ class _FilterChipsRow extends StatelessWidget {
               },
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 200),
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
                 decoration: BoxDecoration(
                   color: isActive ? activeBg : inactiveBg,
                   borderRadius: BorderRadius.circular(20),
                   border: Border.all(color: borderColor, width: isActive ? 1.2 : 0.8),
                 ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(emoji, style: const TextStyle(fontSize: 13)),
-                    const SizedBox(width: 5),
-                    Text(
-                      label,
-                      style: TextStyle(
-                        fontFamily: 'AnthropicSans',
-                        fontSize: 12.5,
-                        fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
-                        color: isActive ? activeTextColor : inactiveTextColor,
-                        letterSpacing: -0.1,
-                      ),
-                    ),
-                  ],
+                child: Text(
+                  label,
+                  style: TextStyle(
+                    fontFamily: 'AnthropicSans',
+                    fontSize: 12.5,
+                    fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
+                    color: isActive ? activeTextColor : inactiveTextColor,
+                    letterSpacing: -0.1,
+                  ),
                 ),
               ),
             ),
