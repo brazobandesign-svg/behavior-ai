@@ -32,9 +32,17 @@ const ARTIFACT_GENERATION_RULES = {
   PROHIBIDO: scripts externos (CDN), type="module", import/export, require. Solo vanilla ES6 inline autocontenido.`,
 };
 
+const CITATION_FORMATTING_RULES = `
+- REGLAS DE FORMATO Y CITAS:
+  Cuando cites un texto, versículo, proverbio, definición o pasaje destacado, DEBES envolverlo OBLIGATORIAMENTE dentro de un bloque de cita Markdown utilizando el prefijo '> ' al inicio de cada línea.
+  Ejemplo:
+  > "Texto de la cita o versículo." — Referencia
+  No envíes citas como párrafos de texto plano ni dependas únicamente de comillas.`;
+
 const { buildSystemPrompt } = require('../prompts/groundingMinerd');
 
 module.exports = {
   ARTIFACT_GENERATION_RULES,
+  CITATION_FORMATTING_RULES,
   buildSystemPrompt,
 };
