@@ -248,9 +248,7 @@ class _ChatComposerState extends State<ChatComposer>
         final uri = Uri.parse(candidateUrl);
         final request = http.MultipartRequest('POST', uri)
           ..fields['model'] = 'whisper-large-v3-turbo'
-          ..fields['language'] = 'es'
-          ..fields['prompt'] =
-              'Transcripción en español dominicano y caribeño, términos técnicos y educativos.'
+          ..fields['language'] = 'auto'
           ..fields['response_format'] = 'json'
           ..files.add(
             http.MultipartFile.fromBytes(

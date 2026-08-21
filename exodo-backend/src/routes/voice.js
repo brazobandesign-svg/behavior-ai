@@ -155,20 +155,27 @@ router.post('/transcribe', chatRateLimiter, async (req, res, next) => {
       type: mime === 'application/octet-stream' ? 'audio/m4a' : mime,
     });
 
-    const transcription = await client.audio.transcriptions.create({
+    const transcriptionParams = {
       file: fileObj,
       model: GROQ_WHISPER_MODEL,
-      language: 'es',
-      prompt: DOMINICAN_PROMPT,
       response_format: 'json',
-    });
+    };
+
+    // Si el cliente envía un idioma explícito diferente de 'auto', respetarlo.
+    // Si no se especifica, Whisper auto-detecta el idioma hablado (inglés, español, etc.)
+    // y transcribe fielmente en ese idioma sin traducir.
+    if (req.body && req.body.language && req.body.language !== 'auto') {
+      transcriptionParams.language = req.body.language;
+    }
+
+    const transcription = await client.audio.transcriptions.create(transcriptionParams);
 
     const text = (transcription && typeof transcription.text === 'string')
       ? transcription.text.trim()
       : '';
 
     const elapsedMs = Date.now() - startedAt;
-    console.log(`[voice] Groq Whisper OK: ${text.length} chars en ${elapsedMs}ms`);
+    console.log(`[voice] Groq Whisper OK: "${text}" (${elapsedMs}ms)`);
 
     return res.status(200).json({
       text: text,
