@@ -18,6 +18,7 @@ import '../../data/artifacts/artifact.dart';
 import '../../data/artifacts/artifact_parser.dart';
 import '../artifacts/artifact_card.dart';
 import 'model_selector.dart';
+import 'exodo_thinking_indicator.dart';
 
 bool _isDeviceEnglish(BuildContext context) {
   return AppI18n.of(context).localeCode == 'en';
@@ -45,62 +46,15 @@ String _formatTime(BuildContext context, DateTime dt) {
 // [Punto 30 aviso]: junto al logo flecha, texto localizado vía
 // `chat.thinking_label` (palabra suelta, sin puntos suspensivos).
 // Opacidad fluctuante 25% ↔ 50% sincronizada con el pulseAnim del logo.
+/// Burbuja de pensamiento de Éxodo: renderiza animación 100% en Canvas/CustomPainter,
+/// cronómetro en segundos en tiempo real y transición fluida de fases cognitivas.
 class ThinkingBubble extends StatelessWidget {
   final Animation<double> pulseAnim;
   const ThinkingBubble({super.key, required this.pulseAnim});
 
   @override
   Widget build(BuildContext context) {
-    // Selectores finos para evitar repintado durante streaming de chat
-    final isDarkMode = context.select<AppState, bool>((s) => s.isDarkMode);
-    final isIncognito = context.select<AppState, bool>((s) => s.isIncognito);
-    final isLight = !isDarkMode && !isIncognito;
-    final logoColor = isLight ? ExodoColors.background : ExodoColors.amber;
-    // Localización reactiva: cambia de idioma sin necesidad de reiniciar.
-    final thinkingLabel = AppI18n.of(context).t('chat.thinking_label');
-    return Align(
-      alignment: Alignment.centerLeft,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 12),
-        child: AnimatedBuilder(
-          animation: pulseAnim,
-          builder: (context, _) {
-            final v = pulseAnim.value;
-            return Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Logo flecha: opacidad 40% ↔ 100% (igual que antes).
-                Opacity(
-                  opacity: 0.4 + (v * 0.6).clamp(0.0, 0.6),
-                  child: Image.asset(
-                    'assets/images/exodo_arrow_logo.png',
-                    width: 28,
-                    height: 28,
-                    color: logoColor,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                // Texto localizado con fluctuación de opacidad 25% ↔ 50%
-                // usando la misma curva del pulseAnim (2200ms, repeat reverse).
-                Opacity(
-                  opacity: 0.25 + (v * 0.25), // 0.25 (v=0) → 0.50 (v=1)
-                  child: Text(
-                    thinkingLabel,
-                    style: TextStyle(
-                      color: logoColor,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w500,
-                      fontFamily: 'Inter',
-                      letterSpacing: 0.2,
-                    ),
-                  ),
-                ),
-              ],
-            );
-          },
-        ),
-      ),
-    );
+    return ExodoThinkingIndicator(pulseAnim: pulseAnim);
   }
 }
 

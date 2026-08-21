@@ -41,6 +41,12 @@ class AppState extends ChangeNotifier {
   bool isGenerating = false;
   String? errorMessage;
   int guestMessagesSessionCount = 0;
+  int thinkingAnimationIndex = 0; // 0: Giróscopo, 1: Chispa, 2: Ondas
+
+  void setThinkingAnimationIndex(int idx) {
+    thinkingAnimationIndex = idx % 3;
+    notifyListeners();
+  }
 
   // ── Streaming suavizado (FIX jerky rendering 2026-08-20) ──────────────
   // Los deltas del stream se acumulan en un buffer mutable y se materializan
