@@ -152,7 +152,7 @@ async function call(modelId, messages, systemPrompt, options = {}) {
     model: targetModel,
     messages: formattedMessages,
     max_tokens: maxTokens,
-    temperature: isReasoning ? undefined : 0.7,
+    temperature: isReasoning ? undefined : (opts.temperature !== undefined ? opts.temperature : 0.7),
   };
 
   let response;

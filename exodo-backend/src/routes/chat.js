@@ -467,4 +467,56 @@ router.post('/', auth, planGuard, upload.array('files', 5), async (req, res) => 
   }
 });
 
+/**
+ * POST /api/chat/title
+ * Genera un título ultra-conciso (2 a 4 palabras) usando LLM (qwen3.7-flash)
+ * con temperatura 0.0 y zero-shot.
+ */
+router.post('/title', auth, async (req, res) => {
+  try {
+    const { conversationId, messages } = req.body || {};
+    if (!Array.isArray(messages) || messages.length === 0) {
+      return res.status(400).json({ error: 'messages array is required' });
+    }
+
+    const userMsg = messages.find((m) => m.role === 'user');
+    const asstMsg = messages.find((m) => m.role === 'assistant');
+
+    const userText = (userMsg?.content || '').trim();
+    const asstSnippet = (asstMsg?.content || '').trim().slice(0, 300);
+
+    if (!userText && !asstSnippet) {
+      return res.json({ title: 'Nueva conversación' });
+    }
+
+    const systemPrompt =
+      'Eres un generador de títulos concisos. Genera un título temático de 2 a 4 palabras en español que resuma el núcleo de la conversación. Devuelve ÚNICAMENTE el título limpio, sin comillas, sin formato Markdown y sin punto final.';
+
+    const prompt = `Usuario: ${userText || '(Imagen / archivo adjunto)'}\nAsistente: ${asstSnippet}`;
+
+    const alibaba = require('../services/providers/alibaba');
+    const result = await alibaba.call('qwen3.7-flash', [prompt], systemPrompt, {
+      max_tokens: 30,
+      temperature: 0.0,
+    });
+
+    let rawTitle = (result.text || '').trim();
+    // Limpieza de comillas, markdown y puntuación terminal
+    rawTitle = rawTitle
+      .replace(/^["'«“`]+|["'»”`]+$/g, '')
+      .replace(/[#*_`~]/g, '')
+      .replace(/\.+$/, '')
+      .trim();
+
+    if (!rawTitle || rawTitle.length > 50) {
+      rawTitle = rawTitle.slice(0, 40).trim();
+    }
+
+    return res.json({ title: rawTitle || 'Conversación' });
+  } catch (error) {
+    console.error('[chat/title] Error generando título con LLM:', error.message);
+    return res.status(500).json({ error: 'Failed to generate title', fallback: 'Conversación' });
+  }
+});
+
 module.exports = router;

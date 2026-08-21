@@ -494,104 +494,46 @@ class AppState extends ChangeNotifier {
     return mergedCloud;
   }
 
-  /// Genera un título dinámico contextual de 3 a 5 palabras a partir del
-  /// primer intercambio (pregunta del usuario + respuesta de la IA).
-  /// Elimina fallbacks estáticos como "Análisis visual" o "Nueva conversación".
-  static String extractContextualTitle({
+  /// Genera un título ultra-conciso (2 a 4 palabras) en segundo plano llamando
+  /// al endpoint LLM del backend `/api/chat/title` con qwen3.7-flash.
+  void _requestLLMTitle({
+    required String conversationId,
     required String userText,
     required String assistantText,
-    List<Attachment> attachments = const [],
   }) {
-    // 1. Caso: El usuario escribió un texto significativo
-    final cleanUser = userText
-        .replaceAll(RegExp(r'[#*_`>~\[\]]', multiLine: true), '')
-        .trim();
+    unawaited(() async {
+      try {
+        final generatedTitle = await ChatService.generateTitle(
+          conversationId: conversationId,
+          userText: userText,
+          assistantText: assistantText,
+        );
 
-    if (cleanUser.isNotEmpty) {
-      // Limpiar saludos y muletillas comunes al inicio
-      final stripped = cleanUser.replaceFirst(
-        RegExp(
-          r'^(hola|buenas|buenos días|buenas tardes|buenas noches|oye|por favor|me puedes decir|ayúdame con|cómo|que es|qué es|como|dime|explícame|explicame|genera|crea|haz)\s+([a-záéíóúñ,\s]+)?[:,-]?\s*',
-          caseSensitive: false,
-        ),
-        '',
-      ).trim();
-
-      final sourceText = stripped.isNotEmpty ? stripped : cleanUser;
-      final words = sourceText.split(RegExp(r'\s+')).where((w) => w.isNotEmpty).toList();
-      if (words.isNotEmpty && words.length <= 6 && sourceText.length <= 36) {
-        return _capitalizeTitle(words.join(' '));
-      } else if (words.length > 6) {
-        final candidate = words.take(5).join(' ');
-        if (candidate.length <= 32) {
-          return _capitalizeTitle(candidate);
-        }
-      }
-    }
-
-    // 2. Caso: Consulta con imagen/archivo o texto de usuario vago -> Analizar respuesta de la IA
-    final cleanAsst = assistantText
-        .replaceAll(RegExp(r'[#*_`>~\[\]\(\)]', multiLine: true), ' ')
-        .replaceAll(RegExp(r'\s+'), ' ')
-        .trim();
-
-    if (cleanAsst.isNotEmpty) {
-      // Patrones de apertura comunes en la IA
-      final patterns = [
-        // "Este es el logo de Google..." -> "Logo de Google"
-        RegExp(r'(?:este es|esta es|se trata de|corresponde a|tenemos)\s+(?:un|una|el|la|los|las)?\s*([a-záéíóúñA-ZÁÉÍÓÚÑ0-9\s]{3,35})(?:\.|\,|;|\:|\ses\b|\sque\b|\scon\b|\sde\s[a-z]+|\sconforme|\spara)', caseSensitive: false),
-        // "En la imagen se observa un gato siamés..." -> "Gato siamés"
-        // "La imagen muestra un recibo de luz..." -> "Recibo de luz"
-        RegExp(r'(?:imagen|foto|fotografía|captura|documento|archivo|pantalla)\s+(?:muestra|contiene|presenta|enseña|se observa|se aprecia|se ve)\s+(?:un|una|el|la|los|las)?\s*([a-záéíóúñA-ZÁÉÍÓÚÑ0-9\s]{3,35})(?:\.|\,|;|\:|\ses\b|\sque\b|\scon\b)', caseSensitive: false),
-        // "Se observa una ecuación cuadrática..." -> "Ecuación cuadrática"
-        RegExp(r'(?:se observa|se aprecia|se visualiza|se distingue|puedo ver)\s+(?:un|una|el|la|los|las)?\s*([a-záéíóúñA-ZÁÉÍÓÚÑ0-9\s]{3,35})(?:\.|\,|;|\:|\ses\b|\sque\b|\scon\b)', caseSensitive: false),
-        // Primer encabezado o frase de apertura hasta el primer punto
-        RegExp(r'^([a-záéíóúñA-ZÁÉÍÓÚÑ0-9\s]{4,35})(?:\.|\:|\n|\,)', caseSensitive: false),
-      ];
-
-      for (final p in patterns) {
-        final match = p.firstMatch(cleanAsst);
-        if (match != null && match.groupCount >= 1) {
-          final extracted = (match.group(1) ?? '').trim();
-          final words = extracted.split(RegExp(r'\s+')).where((w) => w.isNotEmpty).toList();
-          if (words.isNotEmpty && extracted.length >= 3 && extracted.length <= 36) {
-            return _capitalizeTitle(words.take(5).join(' '));
+        if (generatedTitle != null && generatedTitle.trim().isNotEmpty) {
+          final cleanTitle = generatedTitle.trim();
+          if (kDebugMode) {
+            debugPrint('[AppState] LLM Title Generated: "$cleanTitle" for conv $conversationId');
           }
+          if (activeConversation?.id == conversationId) {
+            activeConversation = activeConversation!.copyWith(title: cleanTitle);
+          }
+          final idx = conversations.indexWhere((c) => c.id == conversationId);
+          if (idx != -1) {
+            conversations[idx] = conversations[idx].copyWith(title: cleanTitle);
+          }
+          await localChatRepo.updateConversationTitle(conversationId, cleanTitle);
+          if (!isGuestUser && !isIncognito) {
+            SupabaseService.updateConversationTitle(conversationId, cleanTitle).catchError((_) {});
+          }
+          Bootstrap.saveSnapshot(conversations: conversations);
+          notifyListeners();
+        }
+      } catch (e) {
+        if (kDebugMode) {
+          debugPrint('[AppState] LLM titling error: $e');
         }
       }
-
-      // Fallback a las primeras 4-5 palabras de la respuesta de la IA
-      final asstWords = cleanAsst.split(RegExp(r'\s+')).where((w) => w.length > 1).toList();
-      if (asstWords.isNotEmpty) {
-        final candidate = asstWords.take(4).join(' ');
-        if (candidate.length <= 32) {
-          return _capitalizeTitle(candidate);
-        }
-      }
-    }
-
-    // 3. Fallback inteligente por tipo de adjunto si todo lo demás falló
-    if (attachments.isNotEmpty) {
-      final first = attachments.first;
-      if (first.fileName.isNotEmpty && first.fileName != 'file' && !first.fileName.startsWith('image_picker')) {
-        final cleanFileName = first.fileName.replaceAll(RegExp(r'\.[a-zA-Z0-9]+$'), '').replaceAll('_', ' ');
-        if (cleanFileName.length <= 30) {
-          return _capitalizeTitle(cleanFileName);
-        }
-      }
-      return first.isImage ? 'Consulta con imagen' : 'Consulta con archivo';
-    }
-
-    return 'Nueva conversación';
-  }
-
-  static String _capitalizeTitle(String text) {
-    if (text.isEmpty) return text;
-    final trimmed = text.trim();
-    final firstChar = trimmed.substring(0, 1).toUpperCase();
-    final rest = trimmed.length > 1 ? trimmed.substring(1) : '';
-    final result = '$firstChar$rest';
-    return result.length > 36 ? '${result.substring(0, 33)}...' : result;
+    }());
   }
 
   void startNewChat({bool resetIncognito = true}) {
@@ -1303,38 +1245,14 @@ class AppState extends ChangeNotifier {
             );
             localChatRepo.saveMessage(assistantMsg);
 
-            // Titulado Dinámico Contextual: sintetizar título del primer intercambio
+            // Titulado LLM Dinámico en Segundo Plano (unawaited)
             final assistantTurns = currentMessages.where((m) => m.role == 'assistant' && !m.isThinking).length;
             if (assistantTurns <= 1) {
-              final dynamicTitle = extractContextualTitle(
+              _requestLLMTitle(
+                conversationId: activeConversation!.id,
                 userText: text,
                 assistantText: fullText,
-                attachments: attachments ?? const [],
               );
-              if (dynamicTitle.isNotEmpty && dynamicTitle != activeConversation!.title) {
-                if (kDebugMode) {
-                  debugPrint(
-                    '[AppState] Dynamic Title Generated: "${activeConversation!.title}" -> "$dynamicTitle"',
-                  );
-                }
-                final updatedConv = Conversation(
-                  id: activeConversation!.id,
-                  userId: activeConversation!.userId,
-                  title: dynamicTitle,
-                  modelPlan: activeConversation!.modelPlan,
-                  isIncognito: activeConversation!.isIncognito,
-                  isStarred: activeConversation!.isStarred,
-                  createdAt: activeConversation!.createdAt,
-                );
-                activeConversation = updatedConv;
-                final idx = conversations.indexWhere((c) => c.id == updatedConv.id);
-                if (idx != -1) {
-                  conversations[idx] = updatedConv;
-                }
-                localChatRepo.updateConversationTitle(updatedConv.id, dynamicTitle);
-                SupabaseService.updateConversationTitle(updatedConv.id, dynamicTitle).catchError((_) {});
-                Bootstrap.saveSnapshot(conversations: conversations);
-              }
             }
 
             final sourcesJson = sources.isNotEmpty

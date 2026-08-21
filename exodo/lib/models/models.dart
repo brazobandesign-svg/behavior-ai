@@ -69,6 +69,28 @@ class Conversation {
     );
   }
 
+  Conversation copyWith({
+    String? id,
+    String? userId,
+    String? title,
+    String? modelPlan,
+    bool? isIncognito,
+    bool? isStarred,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+  }) {
+    return Conversation(
+      id: id ?? this.id,
+      userId: userId ?? this.userId,
+      title: title ?? this.title,
+      modelPlan: modelPlan ?? this.modelPlan,
+      isIncognito: isIncognito ?? this.isIncognito,
+      isStarred: isStarred ?? this.isStarred,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+    );
+  }
+
   Map<String, dynamic> toJson() => {
     'id': id,
     'user_id': userId,

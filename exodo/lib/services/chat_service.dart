@@ -322,4 +322,54 @@ class ChatService {
     }
     return found;
   }
+
+  /// Genera un título contextual ultra-conciso (2 a 4 palabras) llamando al
+  /// endpoint LLM del backend `/api/chat/title` con qwen3.7-flash.
+  static Future<String?> generateTitle({
+    required String conversationId,
+    required String userText,
+    required String assistantText,
+  }) async {
+    for (final candidate in _candidateUrls) {
+      final titleUrl = candidate.endsWith('/api/chat')
+          ? '$candidate/title'
+          : '${candidate.replaceAll(RegExp(r'/api/chat.*'), '')}/api/chat/title';
+      try {
+        final session = SupabaseService.client.auth.currentSession;
+        final token = session?.accessToken;
+        final headers = {
+          'Content-Type': 'application/json',
+          if (token != null && token.isNotEmpty) 'Authorization': 'Bearer $token',
+        };
+        final body = jsonEncode({
+          'conversationId': conversationId,
+          'messages': [
+            {'role': 'user', 'content': userText},
+            {'role': 'assistant', 'content': assistantText},
+          ],
+        });
+
+        final resp = await _sharedClient
+            .post(
+              Uri.parse(titleUrl),
+              headers: headers,
+              body: body,
+            )
+            .timeout(const Duration(seconds: 8));
+
+        if (resp.statusCode == 200) {
+          final data = jsonDecode(utf8.decode(resp.bodyBytes));
+          if (data is Map && data['title'] is String && (data['title'] as String).trim().isNotEmpty) {
+            _workingUrl = candidate;
+            return (data['title'] as String).trim();
+          }
+        }
+      } catch (e) {
+        if (kDebugMode) {
+          debugPrint('[ChatService] generateTitle failed on $titleUrl: $e');
+        }
+      }
+    }
+    return null;
+  }
 }
