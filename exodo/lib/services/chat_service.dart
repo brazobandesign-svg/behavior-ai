@@ -19,9 +19,11 @@ class ChatService {
         if (!list.contains(url)) list.add(url);
       }
     }
-    list.add('http://192.168.8.223:3000/api/chat');
-    list.add('http://10.0.2.2:3000/api/chat');
+    list.add('http://127.0.0.1:3000/api/chat');
     list.add('http://localhost:3000/api/chat');
+    list.add('http://192.168.8.223:3000/api/chat');
+    list.add('http://192.168.9.244:3000/api/chat');
+    list.add('http://10.0.2.2:3000/api/chat');
 
     // URL de producción en Railway (siempre, al final como fallback)
     const prodUrl = 'https://behavior-ai-production.up.railway.app/api/chat';

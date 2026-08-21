@@ -353,10 +353,6 @@ class AppState extends ChangeNotifier {
       }
       return;
     }
-    // Recent Chats ordering: la conversación seleccionada burbujea al tope
-    // de la lista para que el Drawer siempre presente el chat usado más
-    // recientemente en primer lugar.
-    _bubbleConversationToTop(conv.id);
     if (isIncognito) {
       currentMessages.clear();
     }

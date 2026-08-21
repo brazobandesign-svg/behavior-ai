@@ -12,16 +12,11 @@ const express = require('express');
 const multer = require('multer');
 const { chatRateLimiter } = require('../middleware/rateLimiter');
 const { synthesizeSpeech } = require('../services/ttsService');
-const { ALIBABA_CONFIG } = require('../config/models');
+const { OpenAI, toFile } = require('openai');
 
 const router = express.Router();
 
-const GROQ_API_URL = 'https://api.groq.com/openai/v1/audio/transcriptions';
 const GROQ_WHISPER_MODEL = 'whisper-large-v3-turbo';
-const ALIBABA_ASR_URL = 'https://dashscope-intl.aliyuncs.com/compatible-mode/v1/audio/transcriptions';
-const ALIBABA_ASR_MODEL = ALIBABA_CONFIG.models.sttModel || 'fun-asr-flash-2026-06-15';
-const ALIBABA_ASR_FALLBACK = ALIBABA_CONFIG.models.sttFallback || 'qwen-audio-3.0-asr-flash';
-
 const MAX_AUDIO_BYTES = 25 * 1024 * 1024; // 25 MB
 
 const DOMINICAN_PROMPT =
@@ -38,6 +33,7 @@ const ALLOWED_MIME = new Set([
   'audio/mp3',
   'audio/webm',
   'audio/ogg',
+  'application/octet-stream',
 ]);
 
 const upload = multer({
@@ -48,7 +44,7 @@ const upload = multer({
   },
   fileFilter: (req, file, cb) => {
     const mime = (file.mimetype || '').toLowerCase().split(';')[0].trim();
-    if (ALLOWED_MIME.has(mime)) {
+    if (ALLOWED_MIME.has(mime) || mime.startsWith('audio/')) {
       cb(null, true);
     } else {
       cb(new MulterMimeError(mime));
@@ -94,58 +90,6 @@ function extensionForMime(mime) {
   }
 }
 
-function buildMultipartBody({ buffer, mime, filename, model = GROQ_WHISPER_MODEL }) {
-  const boundary = `----ExodoBoundary${Date.now().toString(16)}${Math.random().toString(16).slice(2, 10)}`;
-  const ext = extensionForMime(mime);
-  const safeName = filename && filename.length < 100 ? filename : `clip.${ext}`;
-
-  const enc = new TextEncoder();
-  const headParts = [
-    `--${boundary}\r\n`,
-    `Content-Disposition: form-data; name="file"; filename="${safeName}"\r\n`,
-    `Content-Type: ${mime || 'audio/m4a'}\r\n`,
-    `\r\n`,
-  ];
-  const head = enc.encode(headParts.join(''));
-
-  const tail = enc.encode(
-    [
-      `\r\n`,
-      `--${boundary}\r\n`,
-      `Content-Disposition: form-data; name="model"\r\n`,
-      `\r\n`,
-      `${model}\r\n`,
-      `--${boundary}\r\n`,
-      `Content-Disposition: form-data; name="language"\r\n`,
-      `\r\n`,
-      `es\r\n`,
-      `--${boundary}\r\n`,
-      `Content-Disposition: form-data; name="prompt"\r\n`,
-      `\r\n`,
-      `${DOMINICAN_PROMPT}\r\n`,
-      `--${boundary}\r\n`,
-      `Content-Disposition: form-data; name="response_format"\r\n`,
-      `\r\n`,
-      `json\r\n`,
-      `--${boundary}--\r\n`,
-    ].join(''),
-  );
-
-  const totalLength = head.byteLength + buffer.byteLength + tail.byteLength;
-  const body = Buffer.allocUnsafe(totalLength);
-  let offset = 0;
-  head.copy(body, offset);
-  offset += head.byteLength;
-  Buffer.from(buffer).copy(body, offset);
-  offset += buffer.byteLength;
-  tail.copy(body, offset);
-
-  return {
-    body,
-    contentType: `multipart/form-data; boundary=${boundary}`,
-  };
-}
-
 function runUploadMiddleware(req, res) {
   return new Promise((resolve, reject) => {
     upload.single('file')(req, res, (err) => {
@@ -158,51 +102,6 @@ function runUploadMiddleware(req, res) {
       return reject(err);
     });
   });
-}
-
-/**
- * Transcribe con Alibaba Cloud DashScope ASR
- */
-async function transcribeWithAlibaba(fileBuffer, mime, filename) {
-  const apiKey = process.env.DASHSCOPE_API_KEY ||
-                 process.env.ALIBABA_API_KEY ||
-                 process.env.ALIBABA_FREE_KEY ||
-                 ALIBABA_CONFIG.apiKey;
-
-  if (!apiKey) throw new Error('DASHSCOPE_API_KEY no configurada para ASR fallback');
-
-  const models = [ALIBABA_ASR_MODEL, ALIBABA_ASR_FALLBACK];
-  for (const model of models) {
-    try {
-      const { body, contentType } = buildMultipartBody({
-        buffer: fileBuffer,
-        mime,
-        filename,
-        model,
-      });
-
-      const res = await fetch(ALIBABA_ASR_URL, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          'Content-Type': contentType,
-          'Content-Length': String(body.length),
-        },
-        body,
-      });
-
-      if (res.ok) {
-        const parsed = await res.json();
-        if (parsed && typeof parsed.text === 'string') {
-          return parsed.text.trim();
-        }
-      }
-    } catch (err) {
-      console.warn(`[voice] Alibaba ASR intento con ${model} falló: ${err.message}`);
-    }
-  }
-
-  throw new Error('Alibaba ASR falló en todos los modelos');
 }
 
 // ---------------------------------------------------------------------------
@@ -236,53 +135,53 @@ router.post('/transcribe', chatRateLimiter, async (req, res, next) => {
     }
 
     const mime = (req.file.mimetype || 'audio/m4a').toLowerCase().split(';')[0].trim();
+    const ext = extensionForMime(mime);
+    const filename = req.file.originalname && req.file.originalname.includes('.')
+      ? req.file.originalname
+      : `clip.${ext}`;
 
-    // 1) Intentar Groq Whisper Large V3 (Primario)
     const groqKey = process.env.GROQ_API_KEY;
-    if (groqKey) {
-      try {
-        const { body, contentType: multipartType } = buildMultipartBody({
-          buffer: req.file.buffer,
-          mime,
-          filename: req.file.originalname || null,
-          model: GROQ_WHISPER_MODEL,
-        });
-
-        const groqRes = await fetch(GROQ_API_URL, {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${groqKey}`,
-            'Content-Type': multipartType,
-            'Content-Length': String(body.length),
-          },
-          body,
-          signal: AbortSignal.timeout(10000), // 10s timeout
-        });
-
-        if (groqRes.ok) {
-          const parsed = await groqRes.json();
-          const text = typeof parsed.text === 'string' ? parsed.text.trim() : '';
-          const elapsedMs = Date.now() - startedAt;
-          console.log(`[voice] Groq transcribe OK: ${text.length} chars en ${elapsedMs}ms`);
-          return res.status(200).json({ text, provider: 'groq' });
-        }
-      } catch (groqErr) {
-        console.warn(`[voice] Groq falló o timeout (${groqErr.message}), pasando a Alibaba ASR...`);
-      }
+    if (!groqKey) {
+      return res.status(500).json({ error: 'groq_api_key_missing' });
     }
 
-    // 2) Fallback a Alibaba Cloud DashScope ASR
-    try {
-      const text = await transcribeWithAlibaba(req.file.buffer, mime, req.file.originalname);
-      const elapsedMs = Date.now() - startedAt;
-      console.log(`[voice] Alibaba ASR transcribe OK: ${text.length} chars en ${elapsedMs}ms`);
-      return res.status(200).json({ text, provider: 'alibaba' });
-    } catch (aliErr) {
-      console.error(`[voice] Todos los proveedores de transcripción fallaron: ${aliErr.message}`);
-      return res.status(502).json({ error: 'voice_transcription_failed' });
-    }
+    const client = new OpenAI({
+      apiKey: groqKey,
+      baseURL: 'https://api.groq.com/openai/v1',
+      timeout: 10000,
+    });
+
+    const fileObj = await toFile(req.file.buffer, filename, {
+      type: mime === 'application/octet-stream' ? 'audio/m4a' : mime,
+    });
+
+    const transcription = await client.audio.transcriptions.create({
+      file: fileObj,
+      model: GROQ_WHISPER_MODEL,
+      language: 'es',
+      prompt: DOMINICAN_PROMPT,
+      response_format: 'json',
+    });
+
+    const text = (transcription && typeof transcription.text === 'string')
+      ? transcription.text.trim()
+      : '';
+
+    const elapsedMs = Date.now() - startedAt;
+    console.log(`[voice] Groq Whisper OK: ${text.length} chars en ${elapsedMs}ms`);
+
+    return res.status(200).json({
+      text: text,
+      provider: 'groq',
+      model: GROQ_WHISPER_MODEL,
+      elapsedMs: elapsedMs,
+    });
   } catch (err) {
-    return next(err);
+    console.error(`[voice] Error en transcripción: ${err.message}`);
+    return res.status(502).json({
+      error: 'voice_transcription_failed',
+      message: err.message,
+    });
   }
 });
 

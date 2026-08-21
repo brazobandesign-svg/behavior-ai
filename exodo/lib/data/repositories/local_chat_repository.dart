@@ -44,7 +44,7 @@ class LocalChatRepository {
         isIncognito: Value(conv.isIncognito),
         isStarred: Value(conv.isStarred),
         createdAt: Value(conv.createdAt),
-        updatedAt: Value(DateTime.now()),
+        updatedAt: Value(conv.updatedAt ?? DateTime.now()),
       ),
     );
   }
@@ -58,7 +58,7 @@ class LocalChatRepository {
       isIncognito: Value(c.isIncognito),
       isStarred: Value(c.isStarred),
       createdAt: Value(c.createdAt),
-      updatedAt: Value(DateTime.now()),
+      updatedAt: Value(c.updatedAt ?? c.createdAt),
     )).toList();
     await db.conversationsDao.upsertAll(companions);
   }
@@ -314,6 +314,7 @@ class LocalChatRepository {
       isIncognito: local.isIncognito,
       isStarred: local.isStarred,
       createdAt: local.createdAt,
+      updatedAt: local.updatedAt,
     );
   }
 

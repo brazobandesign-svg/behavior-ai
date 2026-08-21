@@ -137,7 +137,15 @@ class _ChatComposerState extends State<ChatComposer>
     try {
       final hasPermission = await _audioRecorder.hasPermission();
       if (!hasPermission) {
-        // Permiso denegado: silenciar como pide la spec.
+        debugPrint('[STT] Permiso de micrófono no concedido');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Por favor concede permiso de micrófono para la entrada por voz.'),
+              duration: Duration(seconds: 2),
+            ),
+          );
+        }
         return false;
       }
       final dir = await Directory.systemTemp.createTemp('exodo_voice_');
@@ -156,9 +164,10 @@ class _ChatComposerState extends State<ChatComposer>
       if (mounted) {
         setState(() => _isRecording = true);
       }
+      debugPrint('[STT] Grabación iniciada en: $path');
       return true;
-    } catch (_) {
-      // Cualquier error de permiso/runtime se silencia para no romper la UI.
+    } catch (e) {
+      debugPrint('[STT] Error al iniciar grabación: $e');
       return false;
     }
   }
@@ -166,18 +175,6 @@ class _ChatComposerState extends State<ChatComposer>
   /// Detiene la grabación activa y envía el audio al backend para transcripción.
   /// El texto devuelto se concatena al `widget.controller` en la posición del
   /// cursor (o al final si no hay selección).
-  ///
-  /// [Fix LG V60 #3] Pipeline STT robusto:
-  /// 1) `await _audioRecorder.stop()` devuelve la ruta del archivo AAC/m4a.
-  /// 2) Validamos que el archivo exista y tenga al menos 100 bytes (umbral
-  ///    mínimo para descartar clips vacíos o cancelados a media pulsación).
-  /// 3) Marcamos `_isTranscribing = true` para que el placeholder cambie.
-  /// 4) Enviamos los bytes vía multipart con timeout estricto de 6s por
-  ///    candidato. Si TODOS los candidatos fallan, caemos al motor nativo
-  ///    de Android (`SpeechToText`) para que el usuario NUNCA quede sin
-  ///    transcripción por culpa de un backend caído.
-  /// 5) Insertamos el texto en el `TextEditingController` con el cursor al
-  ///    final para que la pulsación de enviar lo recoja.
   Future<void> _stopAndTranscribe() async {
     if (!_isRecording) return;
     final path = _activeRecordingPath;
@@ -217,17 +214,12 @@ class _ChatComposerState extends State<ChatComposer>
         debugPrint('[STT] Excepción en transcripción: $e');
       }
 
-      // FIX (fast-STT 2026-08-19): SIN fallback nativo bloqueante. Si el
-      // backend falla o hace timeout, se resetea el estado al instante con
-      // haptic ligero, sin congelar la UI ni pedir re-grabación.
-
       if (!mounted) return;
       setState(() => _isTranscribing = false);
 
       if (transcription != null && transcription.isNotEmpty) {
         _appendTranscription(transcription);
       } else {
-        // Feedback no-bloqueante: si todo falló, al menos dejamos rastro.
         HapticFeedback.lightImpact();
       }
     } catch (e) {
@@ -246,18 +238,16 @@ class _ChatComposerState extends State<ChatComposer>
   }
 
   /// Envía los bytes de audio al endpoint de transcripción vía multipart.
-  /// Itera sobre las URLs candidatas del backend (LAN, emulador, localhost, Railway).
-  /// FIX (fast-STT 2026-08-19): timeout ESTRICTO de 3.0 segundos por candidato
-  /// directo a Groq Whisper, sin loops de fallback bloqueantes.
-  /// Devuelve el texto transcrito o `null` si falló.
+  /// Itera sobre las URLs candidatas del backend (127.0.0.1, localhost, LAN, Railway).
   Future<String?> _transcribeAudio(Uint8List bytes) async {
     debugPrint('[STT] Iniciando transcripción de ${bytes.length} bytes...');
-    for (final candidateUrl in ChatService.voiceTranscribeUrls) {
+    final urls = ChatService.voiceTranscribeUrls;
+    for (final candidateUrl in urls) {
       try {
         debugPrint('[STT] Intentando transcribir en: $candidateUrl');
         final uri = Uri.parse(candidateUrl);
         final request = http.MultipartRequest('POST', uri)
-          ..fields['model'] = 'whisper-large-v3'
+          ..fields['model'] = 'whisper-large-v3-turbo'
           ..fields['language'] = 'es'
           ..fields['prompt'] =
               'Transcripción en español dominicano y caribeño, términos técnicos y educativos.'
@@ -272,7 +262,7 @@ class _ChatComposerState extends State<ChatComposer>
           );
 
         final streamed = await request.send().timeout(
-              const Duration(seconds: 3), // Timeout estricto 3.0s por candidato
+              const Duration(seconds: 5),
             );
         final response = await http.Response.fromStream(streamed);
         if (response.statusCode == 200) {
@@ -285,14 +275,14 @@ class _ChatComposerState extends State<ChatComposer>
             }
           }
         } else {
-          debugPrint('[STT] Error HTTP ${response.statusCode} desde $candidateUrl');
+          debugPrint('[STT] Error HTTP ${response.statusCode} desde $candidateUrl: ${response.body}');
         }
       } catch (e) {
         debugPrint('[STT] Fallo al conectar con $candidateUrl: $e');
         continue;
       }
     }
-    debugPrint('[STT] Todos los candidatos del backend fallaron (timeout 3.0s).');
+    debugPrint('[STT] Todos los candidatos del backend fallaron.');
     return null;
   }
 
