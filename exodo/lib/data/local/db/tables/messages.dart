@@ -1,6 +1,6 @@
 import 'package:drift/drift.dart';
 
-enum LocalMessageStatus { pending, sent, failed, sending }
+enum LocalMessageStatus { pending, queued, sending, sent, failed }
 enum LocalMessageSyncStatus { local, syncing, synced, conflict }
 
 @DataClassName('LocalMessage')

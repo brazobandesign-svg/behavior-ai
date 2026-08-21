@@ -11,6 +11,7 @@ import 'package:share_plus/share_plus.dart';
 import '../../models/models.dart';
 import '../../services/app_state.dart';
 import '../../services/supabase_service.dart';
+import '../../services/tts_service.dart';
 import '../../theme/exodo_theme.dart';
 import '../../l10n/app_i18n.dart';
 import '../../data/artifacts/artifact.dart';
@@ -122,6 +123,7 @@ class MessageBubble extends StatelessWidget {
     final likeLabel = AppI18n.of(context).t('act.like');
     final dislikeLabel = AppI18n.of(context).t('act.dislike');
     final shareLabel = AppI18n.of(context).t('act.share');
+    final playLabel = AppI18n.of(context).t('act.play');
 
     if (isUser) {
       return Align(
@@ -147,11 +149,21 @@ class MessageBubble extends StatelessWidget {
                                 InteractiveViewer(
                                   child: ClipRRect(
                                     borderRadius: BorderRadius.circular(16),
+                                    // [Fix LG V60 #2] Render del adjunto
+                                    // al hacer tap. Prioriza bytes en memoria
+                                    // (mensaje en sesión); cae al filePath
+                                    // (mensaje recargado desde historial con
+                                    // archivo en disco). Si el archivo se
+                                    // perdió, muestra placeholder.
                                     child: att.bytes.isNotEmpty
                                         ? Image.memory(att.bytes)
-                                        : (att.filePath.isNotEmpty
+                                        : (att.filePath.isNotEmpty &&
+                                                File(att.filePath)
+                                                    .existsSync())
                                             ? Image.file(File(att.filePath))
-                                            : const SizedBox.shrink()),
+                                            : _MissingAttachmentPlaceholder(
+                                                fileName: att.fileName,
+                                              ),
                                   ),
                                 ),
                                 IconButton(
@@ -169,19 +181,26 @@ class MessageBubble extends StatelessWidget {
                       },
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(14),
+                        // [Fix LG V60 #2] Thumbnail del adjunto en la
+                        // burbuja del usuario. Mismo orden de prioridad:
+                        // 1) bytes (sesión activa / base64-decoded), 2)
+                        // filePath válido en disco, 3) placeholder.
                         child: att.bytes.isNotEmpty
                             ? Image.memory(
                                 att.bytes,
                                 fit: BoxFit.cover,
                                 height: 140,
                               )
-                            : (att.filePath.isNotEmpty
+                            : (att.filePath.isNotEmpty &&
+                                    File(att.filePath).existsSync())
                                 ? Image.file(
                                     File(att.filePath),
                                     fit: BoxFit.cover,
                                     height: 140,
                                   )
-                                : const SizedBox.shrink()),
+                                : _MissingAttachmentPlaceholder(
+                                    fileName: att.fileName,
+                                  ),
                       ),
                     ),
                   )
@@ -219,7 +238,10 @@ class MessageBubble extends StatelessWidget {
                     ),
                   ),
             ],
-            if (message.content.isNotEmpty)
+            // FIX (no-mutación 2026-08-19): si el contenido del usuario está
+            // vacío (o solo espacios) y hay adjuntos, renderizar SOLO la vista
+            // del adjunto sin marco de texto vacío.
+            if (message.content.trim().isNotEmpty)
               Container(
                 constraints: BoxConstraints(
                   maxWidth: MediaQuery.of(context).size.width * 0.82,
@@ -312,16 +334,10 @@ class MessageBubble extends StatelessWidget {
             const SizedBox(height: 8),
             _EcoModeNotice(isLight: isLight),
           ],
-          if (message.intentDetected != null) ...[
-            const SizedBox(height: 8),
-            Text(
-              '${AppI18n.of(context).t('chat.intent')}: ${message.intentDetected}',
-              style: TextStyle(fontFamily: 'AnthropicSans', 
-                fontSize: 10,
-                color: ExodoColors.amber.withValues(alpha: 0.8),
-              ),
-            ),
-          ],
+          // [Fix LG V60 #1] Eliminado: el badge "Intención: VISION" era
+          // un debug leak que mostraba el intent detectado al usuario final.
+          // El intent sigue guardándose en BD/Supabase para analítica interna,
+          // pero NO se renderiza en la burbuja.
           if (message.sources.isNotEmpty) ...[
             const SizedBox(height: 14),
             _SourcesSheet(sources: message.sources),
@@ -334,6 +350,7 @@ class MessageBubble extends StatelessWidget {
             likeLabel: likeLabel,
             dislikeLabel: dislikeLabel,
             shareLabel: shareLabel,
+            playLabel: playLabel,
           ),
           if (isLastAssistant) ...[
             const SizedBox(height: 16),
@@ -574,7 +591,7 @@ String _sourceInitials(Source s) {
 }
 
 /// Barra de acciones al pie de cada respuesta del asistente:
-/// Copy · Share · Like · Dislike.
+/// Copy · Play · Like · Dislike · Share.
 class _MessageActionBar extends StatelessWidget {
   final ChatMessage message;
   final String copyLabel;
@@ -582,6 +599,7 @@ class _MessageActionBar extends StatelessWidget {
   final String likeLabel;
   final String dislikeLabel;
   final String shareLabel;
+  final String playLabel;
   const _MessageActionBar({
     required this.message,
     required this.copyLabel,
@@ -589,6 +607,7 @@ class _MessageActionBar extends StatelessWidget {
     required this.likeLabel,
     required this.dislikeLabel,
     required this.shareLabel,
+    required this.playLabel,
   });
 
   @override
@@ -748,6 +767,15 @@ class _MessageActionBar extends StatelessWidget {
           copiedLabel: copiedLabel,
         ),
         _ActionButton(
+          icon: Icons.play_arrow_rounded,
+          tooltip: playLabel,
+          color: subText,
+          onTap: () {
+            HapticFeedback.lightImpact();
+            TtsService.instance.speakWithBackend(message.content);
+          },
+        ),
+        _ActionButton(
           assetPath: 'assets/images/like-1-svgrepo-com.png',
           tooltip: likeLabel,
           color: subText,
@@ -773,17 +801,22 @@ class _MessageActionBar extends StatelessWidget {
 
 class _ActionButton extends StatelessWidget {
   final String? assetPath;
+  final IconData? icon;
   final String tooltip;
   final Color color;
   final VoidCallback onTap;
   final bool flipVertically;
   const _ActionButton({
     this.assetPath,
+    this.icon,
     required this.tooltip,
     required this.color,
     required this.onTap,
     this.flipVertically = false,
-  });
+  }) : assert(
+          assetPath != null || icon != null,
+          '_ActionButton requiere assetPath o icon',
+        );
 
   @override
   Widget build(BuildContext context) {
@@ -796,7 +829,7 @@ class _ActionButton extends StatelessWidget {
         color: color,
       );
     } else {
-      childWidget = Icon(Icons.circle, size: 18, color: color);
+      childWidget = Icon(icon, size: 18, color: color);
     }
     if (flipVertically) {
       childWidget = Transform.flip(flipY: true, child: childWidget);
@@ -804,7 +837,58 @@ class _ActionButton extends StatelessWidget {
     return InkResponse(
       onTap: onTap,
       radius: 18,
-      child: Padding(padding: const EdgeInsets.all(4), child: childWidget),
+      child: Tooltip(
+        message: tooltip,
+        child: Padding(padding: const EdgeInsets.all(4), child: childWidget),
+      ),
+    );
+  }
+}
+
+/// [Fix LG V60 #2] Placeholder que se muestra cuando un adjunto de imagen
+/// está referenciado en el historial pero sus bytes o su archivo físico ya
+/// no están disponibles (re-instalación, caché limpiada, etc.).
+class _MissingAttachmentPlaceholder extends StatelessWidget {
+  final String fileName;
+  const _MissingAttachmentPlaceholder({required this.fileName});
+
+  @override
+  Widget build(BuildContext context) {
+    final isLight = Theme.of(context).brightness == Brightness.light;
+    return Container(
+      height: 140,
+      width: 140,
+      decoration: BoxDecoration(
+        color: isLight ? Colors.black12 : Colors.white12,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: isLight ? Colors.black26 : Colors.white24,
+          width: 1,
+        ),
+      ),
+      alignment: Alignment.center,
+      padding: const EdgeInsets.all(12),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            Icons.broken_image_outlined,
+            size: 28,
+            color: isLight ? Colors.black54 : Colors.white54,
+          ),
+          const SizedBox(height: 6),
+          Text(
+            fileName.isEmpty ? 'Adjunto' : fileName,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.center,
+            style: GoogleFonts.inter(
+              fontSize: 11,
+              color: isLight ? Colors.black54 : Colors.white54,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

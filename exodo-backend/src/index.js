@@ -6,6 +6,8 @@ const stripeRoutes = require('./routes/stripe');
 const userRoutes = require('./routes/user');
 const artifactsRoutes = require('./routes/artifacts');
 const expedientesRoutes = require('./routes/expedientes');
+const voiceRoutes = require('./routes/voice');
+const imagesRoutes = require('./routes/images');
 const errorHandler = require('./middleware/errorHandler');
 const { chatRateLimiter } = require('./middleware/rateLimiter');
 const { HOST, PORT, NODE_ENV, corsOrigins } = require('./config/network');
@@ -18,7 +20,13 @@ app.use(cors({
   origin: corsOrigins || true, // true = cualquiera (dev); array = whitelist (prod)
   credentials: true,
 }));
-app.use(express.json({ limit: '20mb' }));
+app.use(express.json({
+  limit: '20mb',
+  verify: (req, res, buf) => {
+    // Conservar el buffer RAW para la verificación de firma de Stripe.
+    req.rawBody = buf;
+  },
+}));
 
 // Rate limiter global en /api/* (se aplica antes de auth)
 app.use((req, res, next) => {
@@ -28,7 +36,12 @@ app.use((req, res, next) => {
   });
   next();
 });
-app.use('/api/', chatRateLimiter);
+app.use('/api/', (req, res, next) => {
+  // El webhook de Stripe NO debe pasar por el rate limiter: Stripe envia
+  // rafagas de eventos y un 429 retrasaria activaciones/cancelaciones.
+  if (req.path === '/stripe/webhook') return next();
+  return chatRateLimiter(req, res, next);
+});
 
 // Rutas
 app.use('/api/chat', chatRoutes);
@@ -36,6 +49,8 @@ app.use('/api/stripe', stripeRoutes);
 app.use('/api/user', userRoutes);
 app.use('/api/artifacts', artifactsRoutes);
 app.use('/api/expedientes', expedientesRoutes);
+app.use('/api/voice', voiceRoutes);
+app.use('/api/images', imagesRoutes);
 
 // Health check — Bible: verificar que el servidor está vivo
 app.get('/health', (req, res) => {
@@ -86,13 +101,15 @@ app.listen(PORT, HOST, () => {
  * Revisa que las API keys esenciales estén presentes y alerta si falta alguna.
  */
 function runStartupChecks() {
+  const { ALIBABA_CONFIG } = require('./config/models');
   const checks = [];
 
-  if (!process.env.DEEPSEEK_API_KEY) {
-    checks.push('⚠️  DEEPSEEK_API_KEY no configurada — Texto y código primario no disponibles.');
+  const hasAlibabaKey = process.env.ALIBABA_FREE_KEY || process.env.ALIBABA_API_KEY || ALIBABA_CONFIG.apiKey;
+  if (!hasAlibabaKey) {
+    checks.push('⚠️  ALIBABA_API_KEY / ALIBABA_FREE_KEY no configurada — Modelos Free Tier no disponibles.');
   }
   if (!process.env.GEMINI_API_KEY && !process.env.GOOGLE_API_KEY) {
-    checks.push('⚠️  GEMINI_API_KEY / GOOGLE_API_KEY no configurada — Visión y Fallback no disponibles.');
+    checks.push('⚠️  GEMINI_API_KEY / GOOGLE_API_KEY no configurada — Fallback de emergencia no disponible.');
   }
   if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_KEY) {
     checks.push('⚠️  SUPABASE_URL o SUPABASE_SERVICE_KEY no configurados — auth y DB deshabilitados.');

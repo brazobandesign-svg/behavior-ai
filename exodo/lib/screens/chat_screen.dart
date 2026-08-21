@@ -12,6 +12,7 @@ import '../widgets/chat/chat_composer.dart';
 import '../widgets/chat/message_bubble.dart';
 import '../widgets/chat/model_selector.dart';
 import '../services/chat_service.dart';
+import '../services/tts_service.dart';
 import '../theme/exodo_theme.dart';
 
 class ChatScreen extends StatefulWidget {
@@ -63,8 +64,10 @@ class _ChatScreenState extends State<ChatScreen>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     final appState = context.read<AppState>();
-    if (state == AppLifecycleState.paused) {
-      // [Sprint 0] App minimizada: pausar animaciones para ahorrar batería.
+    if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive) {
+      // [TASK 3] App minimizada o inactiva: cancelar TTS y grabación
+      TtsService.instance.stop();
+      // [Sprint 0] pausar animaciones para ahorrar batería.
       _thinkingAnimCtrl.stop();
       _ambientBgCtrl.stop();
       _pulseCtrl.stop();
@@ -185,6 +188,42 @@ class _ChatScreenState extends State<ChatScreen>
                       bottom: 240,
                       child: _ScrollToBottomHostSelector(
                         controller: _scrollCtrl,
+                      ),
+                    ),
+                    // Floating Stop Pill - muestra solo cuando TTS está hablando
+                    Positioned(
+                      bottom: 85,
+                      left: 24,
+                      right: 24,
+                      child: ValueListenableBuilder<bool>(
+                        valueListenable: TtsService.instance.isSpeakingNotifier,
+                        builder: (context, isSpeaking, _) {
+                          if (!isSpeaking) return const SizedBox.shrink();
+                          return Material(
+                            elevation: 12,
+                            borderRadius: BorderRadius.circular(28),
+                            color: const Color(0xFF1B1B1E),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                              child: Row(
+                                children: [
+                                  const Icon(Icons.graphic_eq_rounded, color: Colors.amberAccent, size: 22),
+                                  const SizedBox(width: 10),
+                                  const Text('Éxodo leyendo...', style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w500)),
+                                  const Spacer(),
+                                  GestureDetector(
+                                    onTap: () => TtsService.instance.stop(),
+                                    child: Container(
+                                      padding: const EdgeInsets.all(4),
+                                      decoration: const BoxDecoration(color: Colors.redAccent, shape: BoxShape.circle),
+                                      child: const Icon(Icons.stop_rounded, color: Colors.white, size: 20),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        },
                       ),
                     ),
                     // Barra inferior entrelazada del Tab 1 (SIEMPRE en su sitio exacto flotando)

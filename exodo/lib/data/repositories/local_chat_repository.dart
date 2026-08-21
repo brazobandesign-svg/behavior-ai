@@ -1,7 +1,11 @@
 import 'dart:convert';
+import 'dart:io';
+
 import 'package:drift/drift.dart';
 import '../local/db/app_database.dart';
+import '../local/db/tables/messages.dart'; // Import LocalMessageStatus enum
 import '../../models/models.dart';
+import 'attachment_storage.dart';
 
 class LocalChatRepository {
   final AppDatabase db;
@@ -110,8 +114,48 @@ class LocalChatRepository {
     final sourcesJson = msg.sources.isNotEmpty
         ? jsonEncode(msg.sources.map((s) => s.toJson()).toList())
         : null;
-    final attachmentsJson = msg.attachments.isNotEmpty
-        ? jsonEncode(msg.attachments.map((a) => a.toJson()).toList())
+
+    // [Fix LG V60 #2] Persistencia robusta de adjuntos:
+    // 1) Si el adjunto trae bytes en memoria, los volcamos a disco en
+    //    `attachments/<msgId>_<fileName>` para no inflar SQLite.
+    // 2) Serializamos el adjunto a JSON conservando metadatos + base64
+    //    como respaldo (así sesiones antiguas o re-instalaciones siguen
+    //    mostrando la imagen aunque el archivo físico se haya perdido).
+    List<Map<String, dynamic>> attachmentPayloads = [];
+    if (msg.attachments.isNotEmpty) {
+      for (final a in msg.attachments) {
+        var stored = a;
+        // Si el composer ya persistió el archivo al momento de la selección
+        // (ruta permanente en `attachments/`) y sigue en disco, se conserva
+        // tal cual: re-escribirlo generaría una segunda copia idéntica y
+        // dejaría la original huérfana sin que ningún cleanup la borre.
+        final hasValidPath = a.filePath.isNotEmpty && File(a.filePath).existsSync();
+        if (!hasValidPath && a.bytes.isNotEmpty) {
+          try {
+            final path = await AttachmentStorage.instance.persistBytes(
+              messageId: msg.id,
+              fileName: a.fileName,
+              bytes: a.bytes,
+            );
+            if (path.isNotEmpty) {
+              stored = Attachment(
+                filePath: path,
+                fileName: a.fileName,
+                bytes: a.bytes,
+                mimeType: a.mimeType,
+              );
+            }
+          } catch (_) {
+            // Si falla el volcado a disco, conservamos el adjunto tal cual
+            // (con sus bytes en memoria) para que al menos funcione en
+            // la sesión actual.
+          }
+        }
+        attachmentPayloads.add(stored.toJson());
+      }
+    }
+    final attachmentsJson = attachmentPayloads.isNotEmpty
+        ? jsonEncode(attachmentPayloads)
         : null;
 
     await db.messagesDao.upsert(
@@ -158,6 +202,32 @@ class LocalChatRepository {
     await db.messagesDao.upsertAll(companions);
   }
 
+  /// Reemplaza todo el historial local de una conversación por [messages]
+  /// (resultado de la sincronización con la nube, ya fusionado con los
+  /// adjuntos locales). A diferencia de [saveMessages], borra primero las
+  /// filas existentes: al diferir los ids (local `user-*`/`asst-*` vs UUID
+  /// de la nube), el upsert simple acumulaba duplicados por mensaje.
+  /// Conserva las filas con status 'queued' del outbox offline (aún no
+  /// enviadas a la nube) restaurando su estado tras el reemplazo.
+  Future<void> replaceMessages(String conversationId, List<ChatMessage> messages) async {
+    final queuedRows = await db.messagesDao.getQueuedMessages();
+    final keptQueued = queuedRows
+        .where((q) => q.conversationId == conversationId)
+        .map(_toDomainMessage)
+        .where((q) => !messages.any((m) => m.id == q.id))
+        .toList();
+    await db.messagesDao.deleteByConversation(conversationId);
+    final all = [...messages, ...keptQueued];
+    if (all.isNotEmpty) {
+      await saveMessages(conversationId, all);
+    }
+    // saveMessages no persiste el status (usa el default 'pending');
+    // restaurar 'queued' para que el flush offline vuelva a encontrarlos.
+    for (final q in keptQueued) {
+      await db.messagesDao.updateStatus(q.id, LocalMessageStatus.queued);
+    }
+  }
+
   Future<void> updateMessageContent(
     String id,
     String content, {
@@ -193,6 +263,21 @@ class LocalChatRepository {
   }
 
   // ---------------------------------------------------------------------------
+  // OUTBOX QUEUE (Offline-first)
+  // ---------------------------------------------------------------------------
+
+  /// Obtiene mensajes pendientes de envío (status = 'queued') ordenados por createdAt ASC.
+  Future<List<ChatMessage>> getQueuedMessages() async {
+    final list = await db.messagesDao.getQueuedMessages();
+    return list.map(_toDomainMessage).toList();
+  }
+
+  /// Actualiza el estado de sincronización de un mensaje.
+  Future<void> updateMessageStatus(String messageId, LocalMessageStatus newStatus) async {
+    await db.messagesDao.updateStatus(messageId, newStatus);
+  }
+
+  // ---------------------------------------------------------------------------
   // MAPPERS
   // ---------------------------------------------------------------------------
 
@@ -222,6 +307,14 @@ class LocalChatRepository {
       } catch (_) {}
     }
 
+    // [Fix LG V60 #2] Hidratación de adjuntos desde historial:
+    // 1) Si el JSON trae `filePath` apuntando a un archivo físico, la
+    //    burbuja usará `Image.file(File(att.filePath))` para renderizar
+    //    (más rápido y libera memoria).
+    // 2) Si no hay filePath válido, recurrimos al `bytes` (base64)
+    //    embebido en el JSON y la burbuja usará `Image.memory`.
+    // 3) Si ambos están vacíos, conservamos el adjunto con `fileName`
+    //    para que el render muestre la fila de archivo.
     List<Attachment> attachments = [];
     if (local.attachmentsJson != null && local.attachmentsJson!.isNotEmpty) {
       try {
@@ -229,10 +322,13 @@ class LocalChatRepository {
         if (decoded is List) {
           attachments = decoded
               .whereType<Map>()
-              .map((a) => Attachment.fromJson(Map<String, dynamic>.from(a)))
+              .map((raw) => Attachment.fromJson(Map<String, dynamic>.from(raw)))
               .toList();
         }
-      } catch (_) {}
+      } catch (_) {
+        // Falla silenciosa: si el JSON está corrupto, la burbuja mostrará
+        // el nombre del adjunto sin miniatura.
+      }
     }
 
     return ChatMessage(

@@ -1,4 +1,5 @@
 const { GoogleGenAI } = require('@google/genai');
+const { logInternalGatewayError } = require('../errorSanitizer');
 
 /**
  * Provider: Google Gemini 2.5 Flash-Lite (@google/genai)
@@ -87,6 +88,22 @@ function buildContents(messages, systemPrompt, imageDataUris = []) {
 }
 
 /**
+ * Normaliza un error upstream: el error re-lanzado NUNCA contiene texto del
+ * vendor. El detalle crudo queda logueado SOLO en la consola del servidor.
+ * Los abortos del cliente se re-lanzan tal cual.
+ */
+function wrapProviderError(err, phase) {
+  const msg = String(err && err.message ? err.message : err);
+  if (msg.includes('AbortError') || msg.includes('aborted')) throw err;
+  logInternalGatewayError(err, { provider: 'gemini', model: TARGET_MODEL, phase });
+  const normalized = new Error('UPSTREAM_PROVIDER_ERROR');
+  normalized.status = typeof err?.status === 'number' ? err.status : undefined;
+  normalized.provider = 'gemini';
+  normalized.isUpstream = true;
+  return normalized;
+}
+
+/**
  * Llamada estándar (no streaming)
  */
 async function call(modelId, messages, systemPrompt, imageDataUris = [], options = {}) {
@@ -116,16 +133,20 @@ async function call(modelId, messages, systemPrompt, imageDataUris = [], options
     config: config,
   });
 
-  if (options.signal) {
-    const abortPromise = new Promise((_, reject) => {
-      const onAbort = () => reject(new Error('AbortError'));
-      options.signal.addEventListener('abort', onAbort);
-      // Clean up the event listener when generatePromise completes
-      generatePromise.finally(() => options.signal.removeEventListener('abort', onAbort)).catch(() => {});
-    });
-    response = await Promise.race([generatePromise, abortPromise]);
-  } else {
-    response = await generatePromise;
+  try {
+    if (options.signal) {
+      const abortPromise = new Promise((_, reject) => {
+        const onAbort = () => reject(new Error('AbortError'));
+        options.signal.addEventListener('abort', onAbort);
+        // Clean up the event listener when generatePromise completes
+        generatePromise.finally(() => options.signal.removeEventListener('abort', onAbort)).catch(() => {});
+      });
+      response = await Promise.race([generatePromise, abortPromise]);
+    } else {
+      response = await generatePromise;
+    }
+  } catch (err) {
+    throw wrapProviderError(err, 'call-request');
   }
 
   const text = response.text || '';
@@ -141,7 +162,7 @@ async function call(modelId, messages, systemPrompt, imageDataUris = [], options
 }
 
 /**
- * Llamada con Streaming
+ * Llamada con Streaming — loop protegido con try/catch estricto.
  */
 async function callStream(modelId, messages, systemPrompt, onChunk, imageDataUris = [], options = {}) {
   const ai = getClient();
@@ -158,24 +179,34 @@ async function callStream(modelId, messages, systemPrompt, onChunk, imageDataUri
     };
   }
 
-  const responseStream = await ai.models.generateContentStream({
-    model: TARGET_MODEL,
-    contents: contents,
-    config: config,
-  });
+  let responseStream;
+  try {
+    responseStream = await ai.models.generateContentStream({
+      model: TARGET_MODEL,
+      contents: contents,
+      config: config,
+    });
+  } catch (err) {
+    throw wrapProviderError(err, 'stream-request');
+  }
 
   let fullText = '';
   let usage = {};
 
-  for await (const chunk of responseStream) {
-    if (options.signal && options.signal.aborted) break;
-    if (chunk.text) {
-      fullText += chunk.text;
-      onChunk(chunk.text);
+  try {
+    for await (const chunk of responseStream) {
+      if (options.signal && options.signal.aborted) break;
+      if (chunk.text) {
+        fullText += chunk.text;
+        onChunk(chunk.text);
+      }
+      if (chunk.usageMetadata) {
+        usage = chunk.usageMetadata;
+      }
     }
-    if (chunk.usageMetadata) {
-      usage = chunk.usageMetadata;
-    }
+  } catch (err) {
+    if (options.signal && options.signal.aborted) throw err;
+    throw wrapProviderError(err, 'stream-loop');
   }
 
   return {

@@ -2,13 +2,26 @@ const express = require('express');
 const router = express.Router();
 const auth = require('../middleware/auth');
 const { planGuard } = require('../middleware/planGuard');
-const { classifyIntent } = require('../services/intentClassifier');
+const { classifyByKeywords } = require('../services/intentClassifier');
 const { routeMessage, routeMessageStream } = require('../services/modelRouter');
 const { getHistory, saveMessage } = require('../services/historyManager');
 const { estimateTokens, updateTokenUsage } = require('../services/tokenCounter');
 const { extractText } = require('../services/documentExtractor');
 const { buildSystemPrompt } = require('../prompts/groundingMinerd');
 const { searchMinerdChunks } = require('../services/minerdRetrievalService');
+const {
+  USER_FACING_ERROR_MESSAGE,
+  handleGatewayError,
+  isClientAbortError,
+  logInternalGatewayError,
+} = require('../services/errorSanitizer');
+
+// Multer: almacenamiento en memoria (15MB) para subidas multipart de documentos.
+const multer = require('multer');
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 15 * 1024 * 1024 },
+});
 
 /**
  * Heurística ligera para detectar consultas pedagógicas / curriculares del MINERD.
@@ -120,22 +133,49 @@ function extractSourcesFromText(text, existingSources = []) {
  *   data: {"type":"done","content":"...","sources":[...]}\n\n
  *   data: {"type":"error","content":"..."}\n\n
  */
-router.post('/', auth, planGuard, async (req, res) => {
+router.post('/', auth, planGuard, upload.array('files', 5), async (req, res) => {
   try {
     const { message, conversationId, model_override, attachments, subject } = req.body;
     const { userId, plan, anonymous } = req.user;
 
-    const hasAttachments = attachments && Array.isArray(attachments) && attachments.length > 0;
+        const multipartFiles = Array.isArray(req.files) ? req.files : [];
+    const hasAttachments =
+      (attachments && Array.isArray(attachments) && attachments.length > 0) ||
+      multipartFiles.length > 0;
     if ((!message || typeof message !== 'string' || message.trim().length === 0) && !hasAttachments) {
       return res.status(400).json({ error: 'El campo "message" es requerido' });
     }
 
     // Construir mensaje enriquecido con adjuntos utilizando documentExtractor multiformato.
     let enhancedMessage = message || '';
-    const imageDataUris = []; // data URIs para modelos con visión
+    const imageDataUris = []; // data URIs para modelos con vision
 
+    const parts = [];
+
+    // 1) Archivos multipart (multer.memoryStorage): buffer en memoria.
+    for (const f of multipartFiles) {
+      const mime = (f.mimetype || '').toLowerCase();
+      const name = f.originalname || 'archivo';
+      if (mime.startsWith('image/')) {
+        parts.push(`[Imagen: ${name}]`);
+        imageDataUris.push(`data:${mime};base64,${f.buffer.toString('base64')}`);
+      } else {
+        try {
+          const result = await extractText(f.buffer, { mimeType: mime, filename: name });
+          if (result.ok && result.text) {
+            const formatLabel = (result.format || 'archivo').toUpperCase();
+            parts.push(`[${formatLabel}: ${name}]\n${result.text}`);
+          } else {
+            parts.push(`[Archivo: ${name} - no se pudo extraer texto]`);
+          }
+        } catch (_) {
+          parts.push(`[Archivo: ${name}]`);
+        }
+      }
+    }
+
+    // 2) Adjuntos Base64 (req.body.attachments).
     if (attachments && Array.isArray(attachments) && attachments.length > 0) {
-      const parts = [];
       for (const att of attachments) {
         const mime = (att.mime_type || '').toLowerCase();
         const name = att.file_name || 'archivo';
@@ -163,29 +203,40 @@ router.post('/', auth, planGuard, async (req, res) => {
           parts.push(`[Archivo: ${name}]`);
         }
       }
-      if (parts.length > 0) {
-        const msgText = (message || '').trim();
-        enhancedMessage = msgText
-          ? parts.join('\n\n') + '\n\n' + msgText
-          : parts.join('\n\n') + '\n\nPor favor analiza y describe detalladamente el contenido y los detalles clave de esta imagen o archivo adjunto para ayudar al usuario.';
-      }
     }
 
-    // Flag para detectar si el cliente se desconectó a mitad de la respuesta.
+    if (parts.length > 0) {
+      const msgText = (message || '').trim();
+      enhancedMessage = msgText
+        ? parts.join('\n\n') + '\n\n' + msgText
+        : parts.join('\n\n') + '\n\nPor favor analiza y describe detalladamente el contenido y los detalles clave de esta imagen o archivo adjunto para ayudar al usuario.';
+    }
+
+// Flag para detectar si el cliente se desconectó a mitad de la respuesta.
     let clientConnected = true;
+    let heartbeatInterval = null; // scope del handler: limpiable desde el catch externo
     const abortController = new AbortController();
-    req.on('close', () => {
-      clientConnected = false;
-      abortController.abort();
+    // FIX (Node 16+ / v24): `req.on('close')` se dispara cuando el CUERPO del
+    // request termina de leerse (post-body), NO cuando el cliente se
+    // desconecta. Usarlo como señal de desconexión marcaba clientConnected=false
+    // antes de streamear el primer chunk y abortaba todas las respuestas.
+    // La señal correcta es `res.on('close')`: si el socket se cierra SIN que
+    // hayamos llamado res.end() (writableEnded=false), el cliente se fue.
+    res.on('close', () => {
+      if (!res.writableEnded) {
+        clientConnected = false;
+        abortController.abort();
+        if (heartbeatInterval) clearInterval(heartbeatInterval);
+      }
     });
 
     // Preparar SSE ANTES de cualquier await para que el cliente vea los
     // headers inmediatamente y empiece a esperar chunks.
     res.setHeader('Content-Type', 'text/event-stream');
-    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Cache-Control', 'no-cache, no-transform');
     res.setHeader('Connection', 'keep-alive');
     res.setHeader('X-Accel-Buffering', 'no'); // nginx: desactiva buffering
-    res.flushHeaders();
+    if (typeof res.flushHeaders === 'function') res.flushHeaders();
 
     // Helper para enviar chunks forzando flush al cliente.
     const sendSse = (payload) => {
@@ -209,7 +260,10 @@ router.post('/', auth, planGuard, async (req, res) => {
     } else {
       const [dbHistory, detectedIntent] = await Promise.all([
         getHistory(conversationId, 10),
-        hasImages ? Promise.resolve('VISION') : classifyIntent(enhancedMessage),
+        // FIX TTFT: clasificación local por keywords (O(1), sin roundtrip a
+        // DeepSeek). El clasificador LLM bloqueaba el inicio del stream 1-5s
+        // en CADA mensaje antes de enrutar el modelo.
+        hasImages ? Promise.resolve('VISION') : Promise.resolve(classifyByKeywords(enhancedMessage)),
       ]);
       history = dbHistory;
       intent = detectedIntent;
@@ -222,7 +276,9 @@ router.post('/', auth, planGuard, async (req, res) => {
     ];
 
     // 4. Streamear respuesta del modelo
-    const heartbeatInterval = setInterval(() => {
+    // heartbeatInterval se declara en el scope del handler (let) para poder
+    // limpiarlo también desde el catch externo si algo falla a mitad de ruta.
+    heartbeatInterval = setInterval(() => {
       if (clientConnected) {
         sendSse({ type: 'heartbeat' });
       }
@@ -270,24 +326,55 @@ router.post('/', auth, planGuard, async (req, res) => {
       contextChunks,
     });
 
+    // CONTEXT PRUNING: Limitar historial a 10 mensajes para evitar latencia de 28s
+    // en conversaciones muy largas (240k+ tokens).
+    const MAX_HISTORY_MESSAGES = 10;
+    const prunedMessages = Array.isArray(messages) ? messages.slice(-MAX_HISTORY_MESSAGES) : [];
+
     let fullText = '';
-    const result = await routeMessageStream(
-      plan,
-      intent,
-      messages,
-      systemPrompt,
-      (chunk) => {
-        if (!clientConnected) return;
-        fullText += chunk;
-        sendSse({ type: 'chunk', content: chunk });
-      },
-      model_override,
-      imageDataUris,
-      req.body.taskType,
-      isDegraded,
-      isGuest,
-      abortController.signal
-    );
+    let result;
+    try {
+      // INTERCEPTOR DE ERRORES DEL STREAM SSE:
+      // Cualquier error upstream (401/413/429/500, timeout, connection reset)
+      // se captura aquí. El modelo nunca escribe texto crudo del vendor al
+      // stream; routeMessageStream ya devuelve un resultado sanitizado, pero
+      // este try/catch es la red de seguridad final (p. ej. abortos no-cliente
+      // o errores de construcción del prompt).
+      result = await routeMessageStream(
+        plan,
+        intent,
+        prunedMessages,
+        systemPrompt,
+        (chunk) => {
+          if (!clientConnected) return;
+          const textChunk = typeof chunk === 'string' ? chunk : (chunk?.content || '');
+          if (textChunk) {
+            fullText += textChunk;
+            sendSse({ type: 'chunk', content: textChunk });
+          }
+        },
+        model_override,
+        imageDataUris,
+        req.body.taskType,
+        isDegraded,
+        isGuest,
+        abortController.signal
+      );
+    } catch (streamErr) {
+      clearInterval(heartbeatInterval);
+      // Aborto del cliente: cerrar en silencio, no hay nadie escuchando.
+      if (isClientAbortError(streamErr) || !clientConnected) {
+        try { res.end(); } catch (_) {}
+        return;
+      }
+      // Log interno completo (stack, vendor, modelo) — SOLO consola del servidor.
+      logInternalGatewayError(streamErr, { provider: 'gateway', model: 'stream-dispatch', phase: 'chat-route-stream' });
+      // Respuesta sanitizada de marca al cliente.
+      sendSse({ type: 'error', content: USER_FACING_ERROR_MESSAGE });
+      sendSse({ type: 'done', content: fullText || '', sources: [] });
+      res.end();
+      return;
+    }
 
     clearInterval(heartbeatInterval);
 
@@ -297,7 +384,14 @@ router.post('/', auth, planGuard, async (req, res) => {
     }
 
     if (result.error) {
-      sendSse({ type: 'error', content: result.message || 'Error procesando tu mensaje' });
+      // El router ya sanitizó el mensaje; jamás confiar en texto crudo.
+      // Doble escudo: si por cualquier razón el mensaje no es el genérico,
+      // se reemplaza por el de marca.
+      const safeMessage = result.message === USER_FACING_ERROR_MESSAGE
+        ? result.message
+        : USER_FACING_ERROR_MESSAGE;
+      sendSse({ type: 'error', content: safeMessage });
+      sendSse({ type: 'done', content: fullText || '', sources: [] });
       res.end();
       return;
     }
@@ -307,7 +401,11 @@ router.post('/', auth, planGuard, async (req, res) => {
 
     if (conversationId && !isGuest && !anonymous) {
       try {
-        await saveMessage(conversationId, 'user', enhancedMessage, { intent });
+        // FIX (no-mutación 2026-08-19): persistir SOLO el texto original que
+        // escribió el usuario. `enhancedMessage` (con etiquetas [Imagen:...] y
+        // el prompt sintético de análisis) se usa ÚNICAMENTE como payload al LLM,
+        // jamás se guarda en el historial ni se muestra en la burbuja del usuario.
+        await saveMessage(conversationId, 'user', message || '', { intent });
         await saveMessage(conversationId, 'assistant', fullText, {
           intent,
           model: result.model,
@@ -334,15 +432,37 @@ router.post('/', auth, planGuard, async (req, res) => {
       );
     }
   } catch (error) {
-    console.error('[chat] Error procesando mensaje:', error);
+    // ========================================================================
+    // SANITIZACIÓN OBLIGATORIA — Fix de vulnerabilidad 2026-08-19
+    // ========================================================================
+    // NUNCA escribir `error.message` crudo al stream o al JSON de respuesta:
+    // los errores upstream (Groq 413/429, etc.) contienen org IDs, URLs de
+    // vendor y tamaños de payload. Se loguea el detalle completo SOLO en la
+    // consola del servidor y se devuelve el mensaje genérico de marca.
+    // ========================================================================
+    if (isClientAbortError(error)) {
+      // El cliente canceló; nada que responder.
+      if (heartbeatInterval) clearInterval(heartbeatInterval);
+      try { res.end(); } catch (_) {}
+      return;
+    }
+
+    if (heartbeatInterval) clearInterval(heartbeatInterval);
+
+    logInternalGatewayError(error, { provider: 'gateway', model: 'chat-route', phase: 'chat-route-outer' });
+
     if (res.headersSent) {
-      res.write(`data: ${JSON.stringify({ type: 'error', content: error.message || 'Error procesando tu mensaje' })}\n\n`);
-      res.end();
+      // Stream SSE ya iniciado: emitir eventos sanitizados y cerrar limpiamente.
+      try {
+        res.write(`data: ${JSON.stringify({ type: 'error', content: USER_FACING_ERROR_MESSAGE })}\n\n`);
+        res.write(`data: ${JSON.stringify({ type: 'done', content: '', sources: [] })}\n\n`);
+        res.end();
+      } catch (_) {
+        // Socket ya cerrado.
+      }
     } else {
-      res.status(500).json({
-        error: 'Error procesando tu mensaje',
-        details: process.env.NODE_ENV !== 'production' ? error.message : undefined,
-      });
+      // Respuesta JSON (pre-stream): mensaje genérico, sin detalles del vendor.
+      res.status(500).json({ error: USER_FACING_ERROR_MESSAGE });
     }
   }
 });

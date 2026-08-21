@@ -1,4 +1,5 @@
 const { OpenAI } = require('openai');
+const { logInternalGatewayError } = require('../errorSanitizer');
 
 /**
  * Provider: Groq (https://api.groq.com/openai/v1)
@@ -68,6 +69,20 @@ function buildMessages(messages, systemPrompt, imageDataUris = []) {
 }
 
 /**
+ * Normaliza un error upstream: el error re-lanzado NUNCA contiene texto del
+ * vendor (org IDs, URLs, tamaños de payload). El detalle crudo queda logueado
+ * SOLO en la consola del servidor vía logInternalGatewayError.
+ */
+function wrapProviderError(err, modelId, phase) {
+  logInternalGatewayError(err, { provider: 'groq', model: modelId, phase });
+  const normalized = new Error('UPSTREAM_PROVIDER_ERROR');
+  normalized.status = typeof err?.status === 'number' ? err.status : undefined;
+  normalized.provider = 'groq';
+  normalized.isUpstream = true;
+  return normalized;
+}
+
+/**
  * Llamada estándar (Limpia, sin restricciones)
  */
 async function call(modelId, messages, systemPrompt, imageDataUris = [], options = {}) {
@@ -78,12 +93,17 @@ async function call(modelId, messages, systemPrompt, imageDataUris = [], options
 
   const maxTokens = options.max_tokens || 4096;
 
-  const response = await client.chat.completions.create({
-    model: targetModel,
-    messages: formattedMessages,
-    max_tokens: maxTokens,
-    temperature: 0.7,
-  }, { signal: options.signal || null });
+  let response;
+  try {
+    response = await client.chat.completions.create({
+      model: targetModel,
+      messages: formattedMessages,
+      max_tokens: maxTokens,
+      temperature: 0.7,
+    }, { signal: options.signal || null });
+  } catch (err) {
+    throw wrapProviderError(err, targetModel, 'call-request');
+  }
 
   const choice = response.choices && response.choices[0];
   const text = choice && choice.message ? choice.message.content : '';
@@ -100,6 +120,9 @@ async function call(modelId, messages, systemPrompt, imageDataUris = [], options
 
 /**
  * Llamada Streaming SSE (Limpia, sin restricciones)
+ * El loop de generación está envuelto en try/catch estricto: si el vendor
+ * lanza a mitad del stream (413/429/500/reset), el error crudo se loguea
+ * internamente y se re-lanza un error normalizado sin datos del vendor.
  */
 async function callStream(modelId, messages, systemPrompt, onChunk, imageDataUris = [], options = {}) {
   const client = getClient();
@@ -109,22 +132,33 @@ async function callStream(modelId, messages, systemPrompt, onChunk, imageDataUri
 
   const maxTokens = options.max_tokens || 4096;
 
-  const stream = await client.chat.completions.create({
-    model: targetModel,
-    messages: formattedMessages,
-    max_tokens: maxTokens,
-    stream: true,
-    temperature: 0.7,
-  }, { signal: options.signal || null });
+  let stream;
+  try {
+    stream = await client.chat.completions.create({
+      model: targetModel,
+      messages: formattedMessages,
+      max_tokens: maxTokens,
+      stream: true,
+      temperature: 0.7,
+    }, { signal: options.signal || null });
+  } catch (err) {
+    throw wrapProviderError(err, targetModel, 'stream-request');
+  }
 
   let fullText = '';
 
-  for await (const chunk of stream) {
-    const delta = chunk.choices && chunk.choices[0] && chunk.choices[0].delta;
-    if (delta && delta.content) {
-      fullText += delta.content;
-      onChunk(delta.content);
+  try {
+    for await (const chunk of stream) {
+      const delta = chunk.choices && chunk.choices[0] && chunk.choices[0].delta;
+      if (delta && delta.content) {
+        fullText += delta.content;
+        onChunk(delta.content);
+      }
     }
+  } catch (err) {
+    // Aborto del cliente: re-lanzar tal cual (el router lo detecta y no hace fallback).
+    if (options.signal && options.signal.aborted) throw err;
+    throw wrapProviderError(err, targetModel, 'stream-loop');
   }
 
   return {

@@ -2,15 +2,21 @@ import 'dart:convert';
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../models/models.dart';
 import '../app/bootstrap.dart';
 import '../data/repositories/local_chat_repository.dart';
+import '../data/local/db/tables/messages.dart'; // Import LocalMessageStatus enum
 import 'supabase_service.dart';
 import 'chat_service.dart';
 import 'connectivity_service.dart';
+import 'stripe_service.dart';
+import 'tts_service.dart';
+import '../theme/exodo_palette.dart';
 import '../l10n/app_i18n.dart';
 
 class AppState extends ChangeNotifier {
@@ -36,6 +42,19 @@ class AppState extends ChangeNotifier {
   bool isGenerating = false;
   String? errorMessage;
   int guestMessagesSessionCount = 0;
+
+  // ── Streaming suavizado (FIX jerky rendering 2026-08-20) ──────────────
+  // Los deltas del stream se acumulan en un buffer mutable y se materializan
+  // en currentMessages a cadencia de frame (~33ms). Antes, CADA token hacía
+  // indexWhere + copia del ChatMessage + notifyListeners(), reconstruyendo
+  // el árbol de widgets a la velocidad de llegada de tokens (10-40/s).
+  final StringBuffer _streamBuffer = StringBuffer();
+  Timer? _streamFlushTimer;
+  String? _streamingMsgId;
+  bool _streamingIsDegraded = false;
+  DateTime? _streamingCreatedAt;
+  bool Function(String content)? _streamGuard;
+  static const Duration _streamFlushInterval = Duration(milliseconds: 33);
 
   // [Punto 43] Conectividad: la app detecta si hay internet en tiempo real.
   bool _isOnline = true;
@@ -146,10 +165,18 @@ class AppState extends ChangeNotifier {
     final connectivity = ConnectivityService();
     connectivity.init();
     _isOnline = connectivity.isOnline;
-    _connectivitySub = connectivity.onConnectivityChanged.listen((online) {
+    _connectivitySub = connectivity.onConnectivityChanged.listen((online) async {
       _isOnline = online;
+      if (online) {
+        await _flushOutboxQueue();
+      }
       notifyListeners();
     });
+
+    // Flush any queued messages on startup if online
+    if (_isOnline) {
+      await _flushOutboxQueue();
+    }
 
     _authSub = SupabaseService.client.auth.onAuthStateChange.listen((data) async {
       final event = data.event;
@@ -198,6 +225,7 @@ class AppState extends ChangeNotifier {
 
   @override
   void dispose() {
+    _streamFlushTimer?.cancel();
     _connectivitySub?.cancel();
     _authSub?.cancel();
     super.dispose();
@@ -316,6 +344,7 @@ class AppState extends ChangeNotifier {
   }
 
   Future<void> selectConversation(Conversation conv) async {
+    TtsService.instance.stop();
     // [Sprint 0] Ownership check: verificar que la conversación pertenece al usuario actual.
     final currentUserId = SupabaseService.currentUser?.id;
     if (currentUserId != null && conv.userId != currentUserId) {
@@ -326,6 +355,10 @@ class AppState extends ChangeNotifier {
       }
       return;
     }
+    // Recent Chats ordering: la conversación seleccionada burbujea al tope
+    // de la lista para que el Drawer siempre presente el chat usado más
+    // recientemente en primer lugar.
+    _bubbleConversationToTop(conv.id);
     if (isIncognito) {
       currentMessages.clear();
     }
@@ -343,8 +376,18 @@ class AppState extends ChangeNotifier {
     final loadingConvId = conv.id;
     final fetchedMessages = await SupabaseService.getMessages(conv.id);
     if (activeConversation?.id == loadingConvId && !isGenerating) {
-      currentMessages = fetchedMessages;
-      localChatRepo.saveMessages(conv.id, fetchedMessages);
+      // [Fix persistencia de fotos] La tabla `messages` de Supabase solo
+      // guarda texto, por lo que las copias traídas de la nube llegan SIN
+      // adjuntos. Antes de reemplazar la UI y el historial local se
+      // fusionan los adjuntos de las filas SQLite; sin este merge, cada
+      // sincronización borraba las fotos del chat al cambiar de
+      // conversación.
+      final merged = _mergeLocalAttachments(fetchedMessages, localMsgs);
+      currentMessages = merged;
+      // Reemplazo atómico del historial local en vez de upsert: los ids de
+      // la nube (UUID) difieren de los locales (`user-*`/`asst-*`) y el
+      // upsert acumulaba filas duplicadas por mensaje.
+      localChatRepo.replaceMessages(conv.id, merged);
       Bootstrap.saveSnapshot(
         lastConversationId: activeConversation?.id,
         lastMessages: currentMessages,
@@ -353,7 +396,41 @@ class AppState extends ChangeNotifier {
     }
   }
 
+  /// Fusiona los adjuntos de los mensajes locales (SQLite) en las copias
+  /// traídas de Supabase. El emparejamiento es por rol + contenido ya que
+  /// los ids no coinciden: local usa `user-*/asst-*` y la nube usa UUIDs.
+  /// El pool se consume en orden para no asignar el mismo adjunto dos veces
+  /// cuando hay mensajes consecutivos con el mismo texto.
+  List<ChatMessage> _mergeLocalAttachments(
+    List<ChatMessage> cloud,
+    List<ChatMessage> local,
+  ) {
+    final pool = local.where((l) => l.attachments.isNotEmpty).toList();
+    if (pool.isEmpty) return cloud;
+    return cloud.map((m) {
+      final idx = pool.indexWhere(
+        (l) => l.role == m.role && l.content.trim() == m.content.trim(),
+      );
+      if (idx == -1) return m;
+      final match = pool.removeAt(idx);
+      return ChatMessage(
+        id: m.id,
+        conversationId: m.conversationId,
+        role: m.role,
+        content: m.content,
+        intentDetected: m.intentDetected ?? match.intentDetected,
+        modelCalled: m.modelCalled ?? match.modelCalled,
+        sources: m.sources.isNotEmpty ? m.sources : match.sources,
+        attachments: match.attachments,
+        createdAt: m.createdAt,
+        isThinking: m.isThinking,
+        isDegraded: m.isDegraded,
+      );
+    }).toList();
+  }
+
   void startNewChat({bool resetIncognito = true}) {
+    TtsService.instance.stop();
     if (resetIncognito) {
       isIncognito = false;
     }
@@ -363,6 +440,21 @@ class AppState extends ChangeNotifier {
       lastConversationId: '',
       lastMessages: [],
     );
+    notifyListeners();
+  }
+
+  /// Mueve la conversación con id [convId] al tope de [conversations]
+  /// (MRU). No hace nada si la lista está vacía, la conversación no
+  /// existe, o ya está en el índice 0. Persiste el snapshot local y
+  /// dispara `notifyListeners()` únicamente cuando hubo reordenamiento
+  /// real, evitando rebuilds innecesarios del Drawer.
+  void _bubbleConversationToTop(String convId) {
+    if (conversations.isEmpty) return;
+    final idx = conversations.indexWhere((c) => c.id == convId);
+    if (idx <= 0) return;
+    final conv = conversations.removeAt(idx);
+    conversations.insert(0, conv);
+    Bootstrap.saveSnapshot(conversations: conversations);
     notifyListeners();
   }
 
@@ -540,9 +632,39 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
-  void upgradeToProPlan() {
-    // Desactivado hasta conectar pasarela de pago real (Stripe / Google Play).
-    // Evita que usuarios en cuenta Free obtengan Pro y pasen al modelo XPi sin pagar.
+  Future<void> upgradeToProPlan(BuildContext context, {bool isAnnual = false}) async {
+    try {
+      final url = await StripeService.createCheckoutSession(isAnnual: isAnnual);
+      if (url != null && url.isNotEmpty) {
+        final uri = Uri.parse(url);
+        final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
+        if (!launched && context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('No se pudo abrir el enlace de pago. Intenta de nuevo.'),
+              backgroundColor: ExodoPalette.danger,
+            ),
+          );
+        }
+      } else if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('No se pudo generar el enlace de pago de Stripe. Intenta más tarde.'),
+            backgroundColor: ExodoPalette.danger,
+          ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        final cleanMsg = e.toString().replaceAll('Exception: ', '');
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error de suscripción: $cleanMsg'),
+            backgroundColor: ExodoPalette.danger,
+          ),
+        );
+      }
+    }
   }
 
   // [Punto 39] Borra todo el historial de conversaciones del usuario.
@@ -639,6 +761,94 @@ class AppState extends ChangeNotifier {
     }
   }
 
+  // ── Streaming suavizado: helpers del buffer de deltas ─────────────────
+
+  /// Procesa un delta del stream. En el PRIMER delta convierte la burbuja
+  /// "thinking" en el mensaje asistente activo; los siguientes se acumulan
+  /// en el buffer sin tocar la lista ni notificar listeners.
+  /// [guard] (opcional) se evalúa en cada flush con el contenido acumulado;
+  /// si devuelve true, la generación se cancela (p. ej. límite de tokens).
+  void _handleStreamChunk(
+    String msgId,
+    String chunk, {
+    required bool isDegraded,
+    bool Function(String content)? guard,
+  }) {
+    if (_streamingMsgId != msgId) {
+      if (_streamingMsgId != null) _endStreamingMessage();
+      // Preservar createdAt de la burbuja thinking si ya existía.
+      final existingIdx = currentMessages.indexWhere((m) => m.id == msgId);
+      _streamingCreatedAt = existingIdx != -1
+          ? currentMessages[existingIdx].createdAt
+          : DateTime.now();
+      currentMessages.removeWhere((m) => m.isThinking);
+      isThinking = false;
+      _streamingMsgId = msgId;
+      _streamingIsDegraded = isDegraded;
+      _streamGuard = guard;
+      _streamBuffer.clear();
+      _materializeStreamingMessage();
+    }
+    _streamBuffer.write(chunk);
+    _streamFlushTimer ??= Timer(_streamFlushInterval, _flushStreamBuffer);
+  }
+
+  /// Vuelca el buffer acumulado al mensaje activo: UNA copia de ChatMessage
+  /// y UN notifyListeners() por frame, independiente de la tasa de tokens.
+  void _flushStreamBuffer() {
+    _streamFlushTimer = null;
+    if (_streamingMsgId == null) return;
+    _materializeStreamingMessage();
+    final guard = _streamGuard;
+    if (guard != null && _streamingMsgId != null && guard(_streamBuffer.toString())) {
+      // El guard canceló la generación (límite de tokens); _cancelGeneration()
+      // ya limpió el estado del stream.
+    }
+  }
+
+  void _materializeStreamingMessage() {
+    final id = _streamingMsgId;
+    if (id == null) return;
+    final content = _streamBuffer.toString();
+    final idx = currentMessages.indexWhere((m) => m.id == id);
+    if (idx == -1) {
+      currentMessages.add(
+        ChatMessage(
+          id: id,
+          conversationId: activeConversation?.id ?? 'incognito',
+          role: 'assistant',
+          content: content,
+          createdAt: _streamingCreatedAt ?? DateTime.now(),
+          isDegraded: _streamingIsDegraded,
+        ),
+      );
+    } else {
+      currentMessages[idx] = ChatMessage(
+        id: id,
+        conversationId: currentMessages[idx].conversationId,
+        role: 'assistant',
+        content: content,
+        sources: currentMessages[idx].sources,
+        createdAt: currentMessages[idx].createdAt,
+        isDegraded: _streamingIsDegraded,
+      );
+    }
+    notifyListeners();
+  }
+
+  /// Finaliza la sesión de streaming: materializa los deltas pendientes
+  /// (≤1 frame) y limpia timers/estado.
+  void _endStreamingMessage() {
+    _streamFlushTimer?.cancel();
+    _streamFlushTimer = null;
+    _streamGuard = null;
+    if (_streamingMsgId != null) {
+      _materializeStreamingMessage();
+      _streamingMsgId = null;
+    }
+    _streamBuffer.clear();
+  }
+
   void _revertTokens(int amount) {
     if (isGuestUser || isIncognito) return;
     tokensUsed -= amount;
@@ -667,29 +877,29 @@ class AppState extends ChangeNotifier {
           : null,
       modelOverride: selectedModel.modelId,
       onChunk: (chunk) {
-        final idx = currentMessages.indexWhere((m) => m.id == thinkingId);
-        if (idx == -1) return;
-        currentMessages[idx] = ChatMessage(
-          id: thinkingId,
-          conversationId: activeConversation?.id ?? '',
-          role: 'assistant',
-          content: currentMessages[idx].content + chunk,
-          createdAt: currentMessages[idx].createdAt,
+        // FIX jerky streaming: los deltas se acumulan en el buffer y se
+        // materializan a cadencia de frame (~33ms), no por cada token.
+        _handleStreamChunk(
+          thinkingId,
+          chunk,
+          isDegraded: false,
+          guard: isGuestUser
+              ? null
+              : (content) {
+                  final currentEst = tokensUsed + (content.length ~/ 3) + 35;
+                  if (currentEst >= tokensLimit) {
+                    tokensUsed = tokensLimit;
+                    // [Punto 36 aviso] Usamos _cancelGeneration() (sin mensaje
+                    // stopped) porque esto lo dispara el límite de tokens.
+                    _cancelGeneration();
+                    return true;
+                  }
+                  return false;
+                },
         );
-        if (!isGuestUser) {
-          final currentEst =
-              tokensUsed + (currentMessages[idx].content.length ~/ 3) + 35;
-          if (currentEst >= tokensLimit) {
-            tokensUsed = tokensLimit;
-            // [Punto 36 aviso] Usamos _cancelGeneration() (sin mensaje stopped)
-            // porque esto lo dispara el límite de tokens, no el usuario.
-            _cancelGeneration();
-            return;
-          }
-        }
-        notifyListeners();
       },
       onComplete: (fullText, sources) {
+        _endStreamingMessage();
         isGenerating = false;
         if (!isGuestUser) {
           tokensUsed += (fullText.length ~/ 3) + 35;
@@ -708,6 +918,7 @@ class AppState extends ChangeNotifier {
         notifyListeners();
       },
       onError: (e) {
+        _endStreamingMessage();
         _revertTokens(userTokensEst);
         isGenerating = false;
         errorMessage = e.toString();
@@ -720,6 +931,7 @@ class AppState extends ChangeNotifier {
     String text, {
     List<Attachment>? attachments,
   }) async {
+    TtsService.instance.stop();
     if (text.trim().isEmpty && (attachments == null || attachments.isEmpty)) return;
     final isGuest = isGuestUser;
     errorMessage = null;
@@ -741,6 +953,26 @@ class AppState extends ChangeNotifier {
     );
     currentMessages.add(userMsg);
 
+    // OFFLINE OUTBOX: Si no hay conexión, guardar en Drift con status='queued' y retornar
+    if (!_isOnline) {
+      if (shouldSaveHistory && activeConversation != null) {
+        // Guardar en Drift con status queued
+        await localChatRepo.saveMessage(userMsg);
+        await localChatRepo.updateMessageStatus(userMsg.id, LocalMessageStatus.queued);
+      }
+      // Agregar badge visual de offline al mensaje
+      final offlineMsg = ChatMessage(
+        id: 'offline-${DateTime.now().microsecondsSinceEpoch}',
+        conversationId: activeConversation?.id ?? 'guest',
+        role: 'system',
+        content: 'Mensaje en cola. Se enviará automáticamente cuando recuperes conexión.',
+        createdAt: DateTime.now(),
+      );
+      currentMessages.add(offlineMsg);
+      notifyListeners();
+      return; // Retornar sin hacer HTTP
+    }
+
     isThinking = true;
     isGenerating = true;
     final thinkingMsg = ChatMessage(
@@ -756,11 +988,23 @@ class AppState extends ChangeNotifier {
 
     // 2. CREAR CONVERSACIÓN EN BD (si no existe) SIN DETENER LA UI
     if (activeConversation == null && shouldSaveHistory) {
-      final effectiveTitle = text.trim().isNotEmpty
-          ? (text.length > 30 ? '${text.substring(0, 30)}...' : text)
-          : (attachments != null && attachments.isNotEmpty && attachments.first.fileName.isNotEmpty
-              ? attachments.first.fileName
-              : 'Imagen adjunta');
+      // Smart title: usar texto del usuario si existe, sino título contextual para adjuntos
+      String effectiveTitle;
+      if (text.trim().isNotEmpty) {
+        effectiveTitle = text.length > 30 ? '${text.substring(0, 30)}...' : text;
+      } else if (attachments != null && attachments.isNotEmpty) {
+        // Detectar si hay imágenes para usar título más descriptivo
+        final hasImages = attachments.any((att) => 
+            att.mimeType.startsWith('image/') || 
+            att.filePath.toLowerCase().endsWith('.jpg') ||
+            att.filePath.toLowerCase().endsWith('.jpeg') ||
+            att.filePath.toLowerCase().endsWith('.png') ||
+            att.filePath.toLowerCase().endsWith('.gif') ||
+            att.filePath.toLowerCase().endsWith('.webp'));
+        effectiveTitle = hasImages ? 'Análisis visual' : 'Consulta con archivo';
+      } else {
+        effectiveTitle = 'Nueva conversación';
+      }
       try {
         activeConversation = await SupabaseService.createConversation(
           effectiveTitle,
@@ -787,43 +1031,29 @@ class AppState extends ChangeNotifier {
         }
         notifyListeners();
       } catch (_) {}
+    } else if (activeConversation != null && shouldSaveHistory) {
+      // Recent Chats ordering: al enviar un mensaje en una conversación
+      // existente, ésta se mueve al tope de la lista. El Drawer siempre
+      // mostrará el chat activo como el más reciente.
+      _bubbleConversationToTop(activeConversation!.id);
     }
 
     // 3. GUARDAR MENSAJE DE USUARIO EN BD LOCAL Y NUBE EN SEGUNDO PLANO
     if (shouldSaveHistory && activeConversation != null) {
       localChatRepo.saveMessage(userMsg);
-      String contentToSave = text.trim();
-      if (attachments != null && attachments.isNotEmpty) {
-        try {
-          final attLight = attachments
-              .map((a) => {
-                    'filePath': a.filePath,
-                    'fileName': a.fileName,
-                    'mimeType': a.mimeType,
-                  })
-              .toList();
-          final attJson = jsonEncode(attLight);
-          final labels = attachments
-              .map((a) =>
-                  a.mimeType.startsWith('image/')
-                      ? '[Imagen: ${a.fileName}]'
-                      : '[Archivo: ${a.fileName}]')
-              .join('\n');
-          contentToSave = contentToSave.isEmpty
-              ? '$labels\n<!-- ATTACHMENTS: $attJson -->'
-              : '$contentToSave\n\n$labels\n<!-- ATTACHMENTS: $attJson -->';
-        } catch (_) {}
-      }
+      // FIX (no-mutación 2026-08-19): persistir SOLO el texto original del
+      // usuario. No inyectar etiquetas sintéticas "[Imagen: ...]" ni prompts
+      // de análisis en el registro de la base de datos; los adjuntos ya viven
+      // en `userMsg.attachments` y se renderizan desde disco/memoria.
       SupabaseService.client.from('messages').insert({
         'conversation_id': activeConversation!.id,
         'role': 'user',
-        'content': contentToSave,
+        'content': text.trim(),
       }).then((_) {}).catchError((_) {});
     }
 
     try {
       final msgId = 'asst-${DateTime.now().microsecondsSinceEpoch}';
-      bool firstChunk = true;
       bool msgIsDegraded = false;
 
       await ChatService.sendMessageStream(
@@ -857,37 +1087,13 @@ class AppState extends ChangeNotifier {
           }
         },
         onChunk: (chunk) {
-          if (firstChunk) {
-            firstChunk = false;
-            currentMessages.removeWhere((m) => m.isThinking);
-            isThinking = false;
-            currentMessages.add(
-              ChatMessage(
-                id: msgId,
-                conversationId: activeConversation?.id ?? 'incognito',
-                role: 'assistant',
-                content: chunk,
-                createdAt: DateTime.now(),
-                isDegraded: msgIsDegraded,
-              ),
-            );
-          } else {
-            final idx = currentMessages.indexWhere((m) => m.id == msgId);
-            if (idx != -1) {
-              currentMessages[idx] = ChatMessage(
-                id: msgId,
-                conversationId: currentMessages[idx].conversationId,
-                role: 'assistant',
-                content: currentMessages[idx].content + chunk,
-                sources: currentMessages[idx].sources,
-                createdAt: currentMessages[idx].createdAt,
-                isDegraded: msgIsDegraded,
-              );
-            }
-          }
-          notifyListeners();
+          // FIX jerky streaming: append directo al buffer del mensaje activo;
+          // la lista y los listeners se actualizan a cadencia de frame (~33ms)
+          // en lugar de reconstruirse por cada token.
+          _handleStreamChunk(msgId, chunk, isDegraded: msgIsDegraded);
         },
         onComplete: (fullText, sources) async {
+          _endStreamingMessage();
           isGenerating = false;
           if (!isGuestUser) {
             tokensUsed += (fullText.length ~/ 3) + 35;
@@ -903,7 +1109,9 @@ class AppState extends ChangeNotifier {
               createdAt: currentMessages[idx].createdAt,
               isDegraded: msgIsDegraded,
             );
-          } else if (firstChunk) {
+          } else {
+            // El stream cerró sin chunks visibles (p. ej. solo 'done'): crear
+            // el mensaje final directamente.
             currentMessages.removeWhere((m) => m.isThinking);
             isThinking = false;
             currentMessages.add(
@@ -958,6 +1166,7 @@ class AppState extends ChangeNotifier {
           notifyListeners();
         },
         onError: (err) {
+          _endStreamingMessage();
           _revertTokens(userTokensEst);
           currentMessages.removeWhere((m) => m.isThinking);
           isThinking = false;
@@ -976,6 +1185,7 @@ class AppState extends ChangeNotifier {
         },
       );
     } catch (e) {
+      _endStreamingMessage();
       _revertTokens(userTokensEst);
       currentMessages.removeWhere((m) => m.isThinking);
       isThinking = false;
@@ -1028,6 +1238,7 @@ class AppState extends ChangeNotifier {
   /// **NO** añade ningún mensaje al chat. Use esto siempre que quiera
   /// parar la generación sin dejar texto residual.
   void _cancelGeneration() {
+    _endStreamingMessage(); // materializa deltas pendientes y limpia timers
     ChatService.cancelStream();
     currentMessages.removeWhere((m) => m.isThinking);
     isThinking = false;
@@ -1085,4 +1296,35 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Desencola y envía todos los mensajes pendientes de la cola offline (outbox).
+  /// Se invoca automáticamente cuando ConnectivityService detecta restauración de red
+  /// y al arrancar la app si ya hay conexión. Cada mensaje se despacha secuencialmente
+  /// a través de ChatService.sendMessageStream; al completar se marca como 'sent' en Drift.
+  Future<void> _flushOutboxQueue() async {
+    if (isGenerating) return; // No flush mientras hay un stream activo
+    
+    final queued = await localChatRepo.getQueuedMessages();
+    if (queued.isEmpty) return;
+
+    // Limpiar cualquier placeholder visual de "mensaje en cola" antes de enviar
+    currentMessages.removeWhere((m) => m.id.startsWith('offline-'));
+    notifyListeners();
+
+    for (final msg in queued) {
+      if (!_isOnline) break; // Si se pierde la red a mitad de cola, detener
+      try {
+        await localChatRepo.updateMessageStatus(msg.id, LocalMessageStatus.sent);
+        // Si el mensaje ya estaba en currentMessages como placeholder, remover para evitar duplicado
+        currentMessages.removeWhere((m) => m.id == msg.id);
+
+        await sendUserMessage(
+          msg.content,
+          attachments: msg.attachments.isNotEmpty ? msg.attachments : null,
+        );
+      } catch (e) {
+        debugPrint('[Outbox] Error enviando mensaje en cola: $e');
+        await localChatRepo.updateMessageStatus(msg.id, LocalMessageStatus.failed);
+      }
+    }
+  }
 }

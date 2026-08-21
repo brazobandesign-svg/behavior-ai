@@ -72,6 +72,7 @@ class ChatStage extends StatelessWidget {
     // Selectores específicos: solo reconstruye si cambian estas 3 propiedades de estado.
     final isIncognito = context.select<AppState, bool>((s) => s.isIncognito);
     final isDarkMode = context.select<AppState, bool>((s) => s.isDarkMode);
+    final isOnline = context.select<AppState, bool>((s) => s.isOnline);
     final temp = context.select<AppState, double?>((s) => s.currentTempC);
 
     final isLight =
@@ -126,6 +127,31 @@ class ChatStage extends StatelessWidget {
                 child: Image.asset(watermarkAsset, fit: BoxFit.fill),
               ),
             ),
+            if (!isOnline) ...[
+              const SizedBox(height: 18),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                decoration: BoxDecoration(
+                  color: (isLight ? Colors.black : Colors.white).withValues(alpha: 0.06),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.cloud_off_rounded, size: 16, color: ExodoColors.amber),
+                    const SizedBox(width: 8),
+                    Text(
+                      AppI18n.of(context).t('network.offline_title'),
+                      style: GoogleFonts.inter(
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w600,
+                        color: isLight ? const Color(0xFF171615) : ExodoColors.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
             if (isIncognito) ...[
               const SizedBox(height: 18),
               Text(

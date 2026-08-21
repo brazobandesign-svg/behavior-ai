@@ -66,5 +66,7 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Éxodo necesita acceso al micrófono para transcribir tu voz a texto mediante el motor de Whisper.</string>
 </dict>
 </plist>

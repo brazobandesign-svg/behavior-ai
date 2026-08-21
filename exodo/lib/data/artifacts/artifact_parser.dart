@@ -102,6 +102,48 @@ class ArtifactParser {
     );
   }
 
+  /// Cleans markdown code fences, backticks, and HTML entities from extracted code.
+  static String cleanCode(String raw) {
+    if (raw.trim().isEmpty) return '';
+    var s = raw.trim();
+
+    // 1. Unescape HTML entities if detected in document tags
+    if (s.startsWith('&lt;') ||
+        s.contains('&lt;!DOCTYPE') ||
+        s.contains('&lt;html') ||
+        s.contains('&lt;div') ||
+        s.contains('&lt;svg') ||
+        s.contains('&lt;script') ||
+        s.contains('&lt;style')) {
+      s = s
+          .replaceAll('&lt;', '<')
+          .replaceAll('&gt;', '>')
+          .replaceAll('&quot;', '"')
+          .replaceAll('&#39;', "'")
+          .replaceAll('&apos;', "'")
+          .replaceAll('&#x2F;', '/')
+          .replaceAll('&#47;', '/')
+          .replaceAll('&amp;', '&');
+    }
+
+    // 2. Strip leading markdown code fences: ```html, ```xml, ```, ~~~, etc.
+    s = s.replaceFirst(RegExp(r'^(`{3,}|~{3,})[a-zA-Z0-9_\-]*\s*\n?'), '');
+
+    // 3. Strip trailing markdown code fences: ``` or ~~~
+    s = s.replaceFirst(RegExp(r'\n?(`{3,}|~{3,})\s*$'), '');
+
+    // 4. Repeated check for nested fences
+    s = s.trim();
+    while (s.startsWith('```') || s.startsWith('~~~')) {
+      s = s.replaceFirst(RegExp(r'^(`{3,}|~{3,})[a-zA-Z0-9_\-]*\s*\n?'), '').trim();
+    }
+    while (s.endsWith('```') || s.endsWith('~~~')) {
+      s = s.replaceFirst(RegExp(r'\n?(`{3,}|~{3,})\s*$'), '').trim();
+    }
+
+    return s;
+  }
+
   String _extractArtifactTags({
     required String content,
     required String messageId,
@@ -110,7 +152,8 @@ class ArtifactParser {
   }) {
     return content.replaceAllMapped(_artifactTag, (match) {
       final attrs = match.group(1) ?? '';
-      final body = (match.group(2) ?? '').trim();
+      final rawBody = (match.group(2) ?? '').trim();
+      final body = cleanCode(rawBody);
 
       String type = _extractAttr(attrs, 'type') ?? _extractAttr(attrs, 'language') ?? 'html';
       String? title = _extractAttr(attrs, 'title');
@@ -179,7 +222,8 @@ class ArtifactParser {
         j++;
       }
       if (!closed) {
-        final source = lines.sublist(openingLine + 1).join('\n');
+        final rawSource = lines.sublist(openingLine + 1).join('\n');
+        final source = cleanCode(rawSource);
         if (source.trim().isNotEmpty) {
           final kind = _kindByLanguage[language] ?? ArtifactKind.code;
           final id = 'art-code-${DateTime.now().microsecondsSinceEpoch}-${artifactsSink.length}';
@@ -201,7 +245,8 @@ class ArtifactParser {
         }
         break;
       }
-      final source = buf.join('\n');
+      final rawSource = buf.join('\n');
+      final source = cleanCode(rawSource);
       final kind = _kindByLanguage[language] ?? ArtifactKind.code;
       String? title;
       for (int k = out.length - 1; k >= 0; k--) {
@@ -254,7 +299,8 @@ class ArtifactParser {
     );
 
     var res = content.replaceAllMapped(fullDocRegex, (m) {
-      final body = m.group(1)!.trim();
+      final rawBody = m.group(1)!.trim();
+      final body = cleanCode(rawBody);
       if (body.isEmpty) return '';
       final kind = body.startsWith('<svg') ? ArtifactKind.svg : ArtifactKind.html;
       final lang = kind == ArtifactKind.svg ? 'svg' : 'html';
@@ -284,7 +330,8 @@ class ArtifactParser {
         caseSensitive: false,
       );
       res = res.replaceAllMapped(snippetRegex, (m) {
-        final body = m.group(1)!.trim();
+        final rawBody = m.group(1)!.trim();
+        final body = cleanCode(rawBody);
         if (body.length > 50) {
           final title = _normalizeTitle(null, ArtifactKind.html, 'html', body);
           final id = 'art-raw-${DateTime.now().microsecondsSinceEpoch}-${artifactsSink.length}';

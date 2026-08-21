@@ -1,6 +1,8 @@
+import 'dart:convert';
 import 'dart:io';
 
-import 'package:flutter/foundation.dart' show kDebugMode;
+import 'package:flutter/foundation.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_highlight/flutter_highlight.dart';
@@ -227,7 +229,6 @@ class _SandboxWebView extends StatefulWidget {
 }
 
 class _SandboxWebViewState extends State<_SandboxWebView> {
-  // ignore: unused_field
   InAppWebViewController? _controller;
   bool _loading = true;
 
@@ -238,34 +239,67 @@ class _SandboxWebViewState extends State<_SandboxWebView> {
   }
 
   @override
+  void didUpdateWidget(covariant _SandboxWebView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.artifact.sourceCode != widget.artifact.sourceCode ||
+        oldWidget.artifact.kind != widget.artifact.kind) {
+      final cleanHtml = SandboxTemplate.wrap(
+        kind: widget.artifact.kind,
+        source: widget.artifact.sourceCode,
+      );
+      _controller?.loadUrl(
+        urlRequest: URLRequest(
+          url: WebUri(
+            Uri.dataFromString(
+              cleanHtml,
+              mimeType: 'text/html',
+              encoding: Encoding.getByName('utf-8'),
+            ).toString(),
+          ),
+        ),
+      );
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     final a = widget.artifact;
-    final html = SandboxTemplate.wrap(kind: a.kind, source: a.sourceCode);
+    final cleanHtml = SandboxTemplate.wrap(kind: a.kind, source: a.sourceCode);
 
     return SizedBox.expand(
       child: Stack(
         children: [
           Positioned.fill(
             child: InAppWebView(
-              initialData: InAppWebViewInitialData(
-                data: html,
-                mimeType: 'text/html',
-                encoding: 'utf-8',
-              ),
+              gestureRecognizers: <Factory<OneSequenceGestureRecognizer>>{
+                Factory<OneSequenceGestureRecognizer>(
+                  () => EagerGestureRecognizer(),
+                ),
+              },
               initialSettings: InAppWebViewSettings(
                 javaScriptEnabled: true,
-                transparentBackground: false,
-                supportZoom: true,
+                domStorageEnabled: true,
+                supportZoom: false,
                 useWideViewPort: true,
                 loadWithOverviewMode: true,
+                transparentBackground: true,
+                allowFileAccess: true,
+                allowFileAccessFromFileURLs: true,
+                allowUniversalAccessFromFileURLs: true,
+                mixedContentMode: MixedContentMode.MIXED_CONTENT_ALWAYS_ALLOW,
               ),
               onWebViewCreated: (controller) {
                 _controller = controller;
-                controller.loadData(
-                  data: html,
-                  mimeType: 'text/html',
-                  encoding: 'utf-8',
-                  baseUrl: WebUri('about:blank'),
+                controller.loadUrl(
+                  urlRequest: URLRequest(
+                    url: WebUri(
+                      Uri.dataFromString(
+                        cleanHtml,
+                        mimeType: 'text/html',
+                        encoding: Encoding.getByName('utf-8'),
+                      ).toString(),
+                    ),
+                  ),
                 );
               },
               onLoadStart: (controller, url) {

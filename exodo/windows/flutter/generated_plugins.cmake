@@ -4,12 +4,14 @@
 
 list(APPEND FLUTTER_PLUGIN_LIST
   app_links
+  audioplayers_windows
   connectivity_plus
   file_selector_windows
   flutter_inappwebview_windows
   flutter_tts
   passkeys_windows
   printing
+  record_windows
   share_plus
   speech_to_text_windows
   sqlite3_flutter_libs

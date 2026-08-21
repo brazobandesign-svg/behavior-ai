@@ -66,4 +66,22 @@ class MessagesDao extends DatabaseAccessor<AppDatabase> with _$MessagesDaoMixin 
   Future<void> deleteAll() {
     return delete(localMessages).go();
   }
+
+  /// Obtiene mensajes en estado 'queued' ordenados por createdAt ASC.
+  Future<List<LocalMessage>> getQueuedMessages() {
+    return (select(localMessages)
+          ..where((tbl) => tbl.status.equals(LocalMessageStatus.queued.name))
+          ..orderBy([(t) => OrderingTerm(expression: t.createdAt, mode: OrderingMode.asc)]))
+        .get();
+  }
+
+  /// Actualiza el estado de sincronización de un mensaje.
+  Future<void> updateStatus(String id, LocalMessageStatus newStatus) {
+    return (update(localMessages)..where((t) => t.id.equals(id))).write(
+      LocalMessagesCompanion(
+        status: Value(newStatus),
+        updatedAt: Value(DateTime.now()),
+      ),
+    );
+  }
 }

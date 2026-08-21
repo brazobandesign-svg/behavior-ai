@@ -36,13 +36,30 @@ class ChatService {
 
   static String get backendUrl => _workingUrl ?? (_candidateUrls.isNotEmpty ? _candidateUrls.first : 'https://behavior-ai-production.up.railway.app/api/chat');
 
-  static http.Client? _activeClient;
+  static List<String> get candidateUrls => List.unmodifiable(_candidateUrls);
+
+  static List<String> get voiceTranscribeUrls {
+    final list = <String>[];
+    for (final c in _candidateUrls) {
+      final vUrl = c.replaceAll('/api/chat', '/api/voice/transcribe');
+      if (!list.contains(vUrl)) list.add(vUrl);
+    }
+    return list;
+  }
+
   static bool _isCancelled = false;
+
+  /// Cliente HTTP persistente (keep-alive): reutiliza el pool de conexiones
+  /// TCP entre mensajes en lugar de abrir un socket nuevo por request. Al
+  /// cancelar un stream se recicla por completo para abortar el socket vivo.
+  static http.Client _sharedClient = http.Client();
+  static http.Client? _activeClient;
 
   static void cancelStream() {
     _isCancelled = true;
-    _activeClient?.close();
     _activeClient = null;
+    _sharedClient.close();
+    _sharedClient = http.Client();
   }
 
   /// Consulta el estado y consumo de cuota diaria del usuario desde /api/user/usage
@@ -113,7 +130,9 @@ class ChatService {
       for (final url in _candidateUrls) {
         if (_isCancelled) return;
         try {
-          final reqClient = http.Client();
+          // Cliente compartido: la conexión TCP persiste en el pool keep-alive
+          // entre mensajes; no se abre un socket nuevo por request.
+          final reqClient = _sharedClient;
           final request = http.Request('POST', Uri.parse(url));
           request.headers.addAll({
             'Content-Type': 'application/json',
@@ -144,15 +163,14 @@ class ChatService {
             response = resp;
             _workingUrl = url;
             break;
-          } else {
-            reqClient.close();
           }
+          // Non-200: probar siguiente candidato. NO se cierra el cliente
+          // compartido — el pool keep-alive sigue vivo para el resto.
         } catch (_) {}
       }
 
       if (response == null || client == null || response.statusCode != 200) {
         if (_activeClient == client) _activeClient = null;
-        client?.close();
         if (!_isCancelled) {
           String errMsg = 'Sin conexión con el servidor. Verifica tu red e inténtalo de nuevo.';
           if (response != null) {
@@ -227,7 +245,8 @@ class ChatService {
             },
             onDone: () {
               if (_activeClient == client) _activeClient = null;
-              client?.close();
+              // NO se cierra el cliente: la conexión TCP persiste en el pool
+              // keep-alive para el siguiente mensaje.
               // Si el stream cerró sin enviar 'done', finalizar con lo que hay.
               if (!_isCancelled && !isCompleted && fullText.isNotEmpty) {
                 isCompleted = true;
@@ -240,7 +259,8 @@ class ChatService {
             },
             onError: (e) {
               if (_activeClient == client) _activeClient = null;
-              client?.close();
+              // Sin close(): el pool keep-alive se conserva; si el socket murió,
+              // el cliente abre uno nuevo de forma transparente.
               if (!_isCancelled) onError(e.toString());
             },
           );

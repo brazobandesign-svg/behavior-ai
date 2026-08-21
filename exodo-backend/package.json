@@ -24,6 +24,7 @@
     "express": "^5.2.1",
     "express-rate-limit": "^8.5.2",
     "mammoth": "1.8.0",
+    "multer": "^2.2.0",
     "nanoid": "^3.3.18",
     "openai": "^7.4.0",
     "pdf-parse": "1.1.1",

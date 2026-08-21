@@ -2,6 +2,8 @@ const express = require('express');
 const Stripe = require('stripe');
 const supabase = require('../config/supabase');
 const auth = require('../middleware/auth');
+const { createStripeIdempotencyMiddleware } = require('../middleware/stripeIdempotency');
+const dbPool = require('../config/database');
 
 const router = express.Router();
 
@@ -20,25 +22,25 @@ function getStripe() {
 router.post('/checkout', auth, async (req, res) => {
   const stripe = getStripe();
   if (!stripe) {
-    return res.status(503).json({ error: 'Stripe no configurado en el servidor' });
+    return res.status(503).json({
+      error: 'stripe_not_configured',
+      message: 'Pasarela de pagos en configuración.',
+    });
   }
 
+  // Plan mensual ($4.99) vs anual ($49.99). isAnnual viene del body.
+  const { isAnnual } = req.body || {};
   const { userId, plan, anonymous } = req.user;
   if (anonymous || !userId) {
     return res.status(401).json({ error: 'Inicia sesión para suscribirte' });
   }
 
-  // Si ya es Hazak, no crear otra suscripción
+  // Si ya es Hazak, no crear otra suscripción.
   if (plan === 'hazak') {
     return res.status(400).json({ error: 'Ya tienes el plan Hazak activo' });
   }
 
-  const priceId = process.env.STRIPE_PRICE_ID;
-  if (!priceId) {
-    return res.status(503).json({ error: 'Precio de Stripe no configurado' });
-  }
-
-  // Resolver email del usuario autenticado si no venía en req.user
+  // Resolver email del usuario autenticado si no venía en req.user.
   if (!req.user.email) {
     try {
       const { data: profile } = await supabase
@@ -53,18 +55,31 @@ router.post('/checkout', auth, async (req, res) => {
     req.user.email = req.body.email;
   }
 
+  const frontendUrl = process.env.FRONTEND_URL || 'https://exodo.behavior.do';
+
   try {
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
-      line_items: [{ price: process.env.STRIPE_PRICE_ID, quantity: 1 }],
       mode: 'subscription',
-      success_url: `${process.env.PUBLIC_BASE_URL || 'https://exodo.app'}/billing/success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${process.env.PUBLIC_BASE_URL || 'https://exodo.app'}/billing/cancel`,
-      client_reference_id: req.user.userId,
+      line_items: [{
+        quantity: 1,
+        price_data: {
+          currency: 'usd',
+          unit_amount: isAnnual ? 4999 : 499, // centavos USD
+          recurring: { interval: isAnnual ? 'year' : 'month' },
+          product_data: {
+            name: isAnnual ? 'Hazak Anual' : 'Hazak Mensual',
+          },
+        },
+      }],
+      client_reference_id: userId,
+      metadata: { userId, plan: 'hazak' },
+      success_url: `${frontendUrl}/success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${frontendUrl}/canceled`,
       customer_email: req.user.email || undefined,
     });
 
-    return res.json({ url: session.url });
+    return res.json({ success: true, url: session.url, sessionId: session.id });
   } catch (err) {
     console.error('[stripe] Error creando checkout session:', err.message);
     return res.status(500).json({ error: 'Error al crear la sesión de pago' });
@@ -73,116 +88,35 @@ router.post('/checkout', auth, async (req, res) => {
 
 /**
  * POST /api/stripe/webhook
- * Recibe webhooks de Stripe. Valida firma raw para idempotencia y actualización de suscripciones.
+ * Recibe webhooks de Stripe de forma IDEMPOTENTE y ATOMICA.
+ * La funcion RPC `transition_subscription` es la unica capa duena de reclamar
+ * el evento, transicionar la suscripcion y marcarlo (idempotencia por event_id).
+ *
+ * Eventos objetivo:
+ *   - checkout.session.completed    -> activa la suscripcion (status 'active').
+ *   - customer.subscription.deleted -> cancela la suscripcion (status 'canceled').
  */
-router.post('/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
-  const stripe = getStripe();
-  if (!stripe) {
-    return res.status(503).send('Stripe no configurado');
+const stripeWebhookMiddleware = (() => {
+  if (!dbPool || !process.env.STRIPE_SECRET_KEY || !process.env.STRIPE_WEBHOOK_SECRET) {
+    console.warn('[stripe] Idempotencia no disponible: verifica DATABASE_URL, STRIPE_SECRET_KEY y STRIPE_WEBHOOK_SECRET en .env');
+    return null;
   }
-
-  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
-  if (!webhookSecret) {
-    return res.status(503).send('Webhook secret no configurado');
-  }
-
-  let event;
   try {
-    const payload = Buffer.isBuffer(req.body) ? req.body : JSON.stringify(req.body);
-    const sig = req.headers['stripe-signature'];
-    event = stripe.webhooks.constructEvent(payload, sig, webhookSecret);
+    return createStripeIdempotencyMiddleware({
+      stripeSecretKey: process.env.STRIPE_SECRET_KEY,
+      webhookSecret: process.env.STRIPE_WEBHOOK_SECRET,
+      pool: dbPool,
+      logger: console,
+    });
   } catch (err) {
-    console.error('[stripe] Webhook signature verification failed:', err.message);
-    return res.status(400).send(`Webhook Error: ${err.message}`);
+    console.warn('[stripe] Middleware de idempotencia no disponible:', err.message);
+    return null;
   }
+})();
 
-  try {
-    switch (event.type) {
-      case 'checkout.session.completed': {
-        const session = event.data.object;
-        const userId = session.client_reference_id || session.metadata?.user_id;
-
-        if (userId && supabase) {
-          // Actualizar plan del usuario a hazak
-          await supabase
-            .from('profiles')
-            .update({ plan: 'hazak' })
-            .eq('id', userId);
-
-          // Registrar suscripción
-          await supabase
-            .from('subscriptions')
-            .insert({
-              user_id: userId,
-              plan: 'hazak',
-              status: 'active',
-              provider: 'stripe',
-              provider_sub_id: session.subscription,
-              current_period_end: null,
-            });
-        }
-        break;
-      }
-
-      case 'customer.subscription.updated':
-      case 'customer.subscription.deleted': {
-        const sub = event.data.object;
-        const status = sub.status === 'active' ? 'active' :
-                       sub.status === 'canceled' ? 'cancelled' :
-                       sub.status === 'past_due' ? 'past_due' :
-                       sub.status;
-
-        if (supabase) {
-          await supabase
-            .from('subscriptions')
-            .update({
-              status,
-              current_period_end: sub.current_period_end
-                ? new Date(sub.current_period_end * 1000).toISOString()
-                : null,
-            })
-            .eq('provider_sub_id', sub.id);
-
-          if (sub.status === 'canceled') {
-            const userId = sub.metadata?.user_id;
-            if (userId) {
-              await supabase
-                .from('profiles')
-                .update({ plan: 'genesis' })
-                .eq('id', userId);
-            }
-          }
-        }
-        break;
-      }
-
-      case 'invoice.paid': {
-        const invoice = event.data.object;
-        const subId = invoice.subscription;
-        if (subId && supabase) {
-          await supabase
-            .from('subscriptions')
-            .update({
-              status: 'active',
-              current_period_end: invoice.lines?.data?.[0]?.period?.end
-                ? new Date(invoice.lines.data[0].period.end * 1000).toISOString()
-                : null,
-            })
-            .eq('provider_sub_id', subId);
-        }
-        break;
-      }
-
-      default:
-        break;
-    }
-
-    return res.json({ received: true });
-  } catch (err) {
-    console.error('[stripe] Error procesando webhook:', err.message);
-    return res.status(500).json({ error: 'Error interno procesando webhook' });
-  }
-});
+router.post('/webhook', stripeWebhookMiddleware || ((req, res) => {
+  res.status(503).send('Webhook no configurado (verifica DATABASE_URL y STRIPE_* en .env)');
+}));
 
 /**
  * POST /api/stripe/portal

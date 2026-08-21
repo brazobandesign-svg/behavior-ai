@@ -18,7 +18,8 @@ class StripeService {
   }
 
   /// Crea una sesión de Stripe Checkout y retorna la URL generada.
-  static Future<String?> createCheckoutSession() async {
+  /// [isAnnual] determina si se crea una suscripción anual (true) o mensual (false).
+  static Future<String?> createCheckoutSession({bool isAnnual = false}) async {
     final session = SupabaseService.client.auth.currentSession;
     final jwt = session?.accessToken;
 
@@ -33,6 +34,7 @@ class StripeService {
         'Authorization': 'Bearer $jwt',
       },
       body: jsonEncode({
+        'isAnnual': isAnnual,
         'origin': 'exodo://checkout',
       }),
     ).timeout(const Duration(seconds: 15));
