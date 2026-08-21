@@ -173,7 +173,7 @@ class _ArtifactFullscreenState extends State<ArtifactFullscreen>
             duration: const Duration(seconds: 3),
             action: SnackBarAction(
               label: 'VER',
-              textColor: ExodoPalette.amber,
+              textColor: ExodoPalette.gold,
               onPressed: () {
                 Navigator.push(
                   context,
@@ -270,7 +270,7 @@ class _ArtifactFullscreenState extends State<ArtifactFullscreen>
                     height: 18,
                     child: CircularProgressIndicator(
                       strokeWidth: 2,
-                      color: ExodoPalette.amber,
+                      color: ExodoPalette.gold,
                     ),
                   )
                 : const Icon(Icons.bookmark_add_outlined, color: Color(0xFF8E8E93)),

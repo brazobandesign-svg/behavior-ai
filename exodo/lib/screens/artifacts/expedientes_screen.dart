@@ -120,9 +120,45 @@ class _ExpedientesScreenState extends State<ExpedientesScreen> {
 
   Future<void> _openFullscreen(Expediente item) async {
     HapticFeedback.lightImpact();
+    String? payload = item.contentPayload;
+    if (payload == null || payload.trim().isEmpty) {
+      final detailed = await ExpedientesRepository.instance.getExpediente(item.id);
+      payload = detailed?.contentPayload;
+    }
+
+    if (payload != null && payload.isNotEmpty) {
+      ArtifactKind kind = ArtifactKind.code;
+      if (item.category == 'interactivo' &&
+          (item.fileFormat == 'html' || item.fileFormat == 'react')) {
+        kind = ArtifactKind.html;
+      } else if (item.category == 'interactivo' && item.fileFormat == 'svg') {
+        kind = ArtifactKind.svg;
+      } else if (item.category == 'tabla') {
+        kind = ArtifactKind.table;
+      }
+
+      final artifact = Artifact(
+        id: item.id,
+        kind: kind,
+        language: item.fileFormat,
+        title: item.title,
+        sourceCode: payload,
+        meta: item.metadata,
+      );
+
+      if (!mounted) return;
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => ArtifactFullscreen(artifact: artifact),
+        ),
+      );
+      return;
+    }
+
     final url = item.metadata['public_url']?.toString() ?? '';
     final uri = Uri.tryParse(url);
-    if (uri != null) {
+    if (uri != null && uri.hasScheme) {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
     }
   }
@@ -501,50 +537,61 @@ class _FilterChipsRow extends StatelessWidget {
       (_FilterCategory.interactive, i18n.t('artifacts.filter_interactive')),
     ];
 
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-      child: Row(
-        children: chips.map((chip) {
-          final (category, label) = chip;
-          final isActive = activeFilter == category;
-          final activeBg = isDark ? const Color(0xFF2A2520) : const Color(0xFFE8E4DB);
-          final inactiveBg = isDark ? const Color(0xFF1E1E1E) : const Color(0xFFF0EDE6);
-          final activeTextColor = isDark ? const Color(0xFFF5F2EB) : const Color(0xFF191919);
-          final inactiveTextColor = isDark ? const Color(0xFF8E8E93) : const Color(0xFF636366);
-          final borderColor = isActive
-              ? (isDark ? const Color(0xFFD4A843).withValues(alpha: 0.5) : const Color(0xFFD4A843).withValues(alpha: 0.4))
-              : (isDark ? const Color(0xFF2A2A2C) : const Color(0xFFD1D1D6));
+    final containerBg = isDark ? const Color(0xFF1E1E1E) : const Color(0xFFEAE7E0);
+    final activePillBg = isDark ? const Color(0xFF2C2C2E) : Colors.white;
+    final activeTextColor = isDark ? const Color(0xFFF5F2EB) : const Color(0xFF191919);
+    final inactiveTextColor = isDark ? const Color(0xFF8E8E93) : const Color(0xFF706E6B);
 
-          return Padding(
-            padding: const EdgeInsets.only(right: 8),
-            child: GestureDetector(
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 4, 16, 10),
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: containerBg,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        physics: const BouncingScrollPhysics(),
+        child: Row(
+          children: chips.map((chip) {
+            final (category, label) = chip;
+            final isActive = activeFilter == category;
+
+            return GestureDetector(
               onTap: () {
                 HapticFeedback.selectionClick();
                 onFilterChanged(category);
               },
               child: AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
+                duration: const Duration(milliseconds: 180),
                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
                 decoration: BoxDecoration(
-                  color: isActive ? activeBg : inactiveBg,
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: borderColor, width: isActive ? 1.2 : 0.8),
+                  color: isActive ? activePillBg : Colors.transparent,
+                  borderRadius: BorderRadius.circular(8),
+                  boxShadow: isActive
+                      ? [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: isDark ? 0.25 : 0.06),
+                            blurRadius: 4,
+                            offset: const Offset(0, 1),
+                          )
+                        ]
+                      : null,
                 ),
                 child: Text(
                   label,
                   style: TextStyle(
                     fontFamily: 'AnthropicSans',
-                    fontSize: 12.5,
-                    fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
+                    fontSize: 13,
+                    fontWeight: isActive ? FontWeight.w600 : FontWeight.w400,
                     color: isActive ? activeTextColor : inactiveTextColor,
                     letterSpacing: -0.1,
                   ),
                 ),
               ),
-            ),
-          );
-        }).toList(),
+            );
+          }).toList(),
+        ),
       ),
     );
   }
@@ -599,6 +646,7 @@ class _ExpedienteCard extends StatelessWidget {
 
     Widget chip(String label, IconData icon, VoidCallback onTap) {
       return GestureDetector(
+        behavior: HitTestBehavior.opaque,
         onTap: onTap,
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
@@ -648,11 +696,10 @@ class _ExpedienteCard extends StatelessWidget {
           chip(i18n.t('artifacts.share_web'), Icons.link_rounded, onCopy),
         ];
       case _FilterCategory.all:
-        // Default actions
         return [
-          chip(i18n.t('artifacts.export_pdf'), Icons.picture_as_pdf_rounded, onShare),
+          chip(i18n.t('artifacts.open_fullscreen'), Icons.open_in_new_rounded, onOpenFullscreen),
           const SizedBox(width: 6),
-          chip(i18n.t('artifacts.share_web'), Icons.link_rounded, onCopy),
+          chip(i18n.t('artifacts.export_pdf'), Icons.picture_as_pdf_rounded, onShare),
         ];
     }
   }
@@ -662,39 +709,42 @@ class _ExpedienteCard extends StatelessWidget {
     final cardBg = isDark ? const Color(0xFF252525) : Colors.white;
     final borderColor = isDark ? const Color(0xFF2A2520) : const Color(0xFFE2DDD5);
 
-    return Container(
-      decoration: BoxDecoration(
-        color: cardBg,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: borderColor),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Header: Format badge
-            Row(
-              children: [
-                _FormatBadge(format: item.fileFormat, category: item.category),
-                const Spacer(),
-              ],
-            ),
-            const SizedBox(height: 12),
-
-            // Title
-            Text(
-              item.title,
-              style: TextStyle(
-                fontFamily: 'AnthropicSans',
-                color: primaryTextColor,
-                fontWeight: FontWeight.w600,
-                fontSize: 15.5,
-                letterSpacing: -0.2,
+    return InkWell(
+      onTap: onOpenFullscreen,
+      borderRadius: BorderRadius.circular(14),
+      child: Container(
+        decoration: BoxDecoration(
+          color: cardBg,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: borderColor),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Header: Format badge
+              Row(
+                children: [
+                  _FormatBadge(format: item.fileFormat, category: item.category),
+                  const Spacer(),
+                ],
               ),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
+              const SizedBox(height: 12),
+
+              // Title
+              Text(
+                item.title,
+                style: TextStyle(
+                  fontFamily: 'AnthropicSans',
+                  color: primaryTextColor,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 15.5,
+                  letterSpacing: -0.2,
+                ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
             const SizedBox(height: 6),
 
             // Updated date

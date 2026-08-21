@@ -4,6 +4,9 @@ import 'package:flutter_highlight/flutter_highlight.dart';
 import 'package:flutter_highlight/themes/atom-one-dark.dart';
 import '../../data/artifacts/artifact.dart';
 import '../../screens/artifacts/artifact_fullscreen.dart';
+import '../../screens/artifacts/expedientes_screen.dart';
+import '../../services/expedientes_repository.dart';
+import '../../theme/exodo_palette.dart';
 
 /// Single, cohesive, minimal artifact container.
 /// Background: #1E1E1E (Dark) / #F4F2EB (Light) with subtle 1px border.
@@ -25,6 +28,8 @@ class ArtifactCard extends StatefulWidget {
 class _ArtifactCardState extends State<ArtifactCard> {
   bool _isExpanded = false;
   bool _copied = false;
+  bool _savedToExpedientes = false;
+  bool _savingExpediente = false;
 
   void _copy() {
     Clipboard.setData(ClipboardData(text: widget.artifact.sourceCode));
@@ -51,6 +56,82 @@ class _ArtifactCardState extends State<ArtifactCard> {
       widget.onOpen!();
     } else {
       _preview();
+    }
+  }
+
+  Future<void> _saveToExpedientes() async {
+    if (_savingExpediente) return;
+    final a = widget.artifact;
+    setState(() => _savingExpediente = true);
+
+    try {
+      String category = 'documento';
+      String fileFormat = 'md';
+
+      if (a.kind == ArtifactKind.table) {
+        category = 'tabla';
+        fileFormat = 'xlsx';
+      } else if (a.kind == ArtifactKind.html || a.kind == ArtifactKind.react) {
+        category = 'interactivo';
+        fileFormat = 'html';
+      } else if (a.kind == ArtifactKind.svg) {
+        category = 'interactivo';
+        fileFormat = 'svg';
+      }
+
+      final title = (a.title != null && a.title!.trim().isNotEmpty)
+          ? a.title!.trim()
+          : (a.language.isNotEmpty
+              ? 'Artefacto ${a.language.toUpperCase()}'
+              : 'Expediente Éxodo');
+
+      await ExpedientesRepository.instance.createExpediente(
+        title: title,
+        category: category,
+        fileFormat: fileFormat,
+        contentPayload: a.sourceCode,
+        metadata: a.meta,
+      );
+
+      if (!mounted) return;
+      HapticFeedback.lightImpact();
+      setState(() {
+        _savedToExpedientes = true;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Row(
+            children: [
+              Icon(Icons.check_circle_rounded, color: Color(0xFFF5F2EB), size: 18),
+              SizedBox(width: 10),
+              Expanded(child: Text('Guardado en tus Expedientes')),
+            ],
+          ),
+          backgroundColor: ExodoPalette.inkRaised,
+          duration: const Duration(seconds: 3),
+          action: SnackBarAction(
+            label: 'VER',
+            textColor: ExodoPalette.gold,
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const ExpedientesScreen()),
+              );
+            },
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error al guardar: $e'),
+          backgroundColor: ExodoPalette.danger,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _savingExpediente = false);
     }
   }
 
@@ -88,9 +169,12 @@ class _ArtifactCardState extends State<ArtifactCard> {
             isDark: isDark,
             borderColor: borderColor,
             copied: _copied,
+            savedToExpedientes: _savedToExpedientes,
+            savingExpediente: _savingExpediente,
             onPreview: _preview,
             onCopy: _copy,
             onOpen: _open,
+            onSaveToExpedientes: _saveToExpedientes,
           ),
         ],
       ),
@@ -418,18 +502,24 @@ class _Actions extends StatelessWidget {
   final bool isDark;
   final Color borderColor;
   final bool copied;
+  final bool savedToExpedientes;
+  final bool savingExpediente;
   final VoidCallback onPreview;
   final VoidCallback onCopy;
   final VoidCallback onOpen;
+  final VoidCallback onSaveToExpedientes;
 
   const _Actions({
     required this.artifact,
     required this.isDark,
     required this.borderColor,
     required this.copied,
+    required this.savedToExpedientes,
+    required this.savingExpediente,
     required this.onPreview,
     required this.onCopy,
     required this.onOpen,
+    required this.onSaveToExpedientes,
   });
 
   @override
@@ -481,6 +571,32 @@ class _Actions extends StatelessWidget {
               icon: Icons.visibility_outlined,
               label: 'Vista previa',
               onTap: onPreview,
+            ),
+            const SizedBox(width: 4),
+            actionBtn(
+              icon: savedToExpedientes
+                  ? Icons.check_circle_rounded
+                  : (savingExpediente
+                      ? Icons.hourglass_top_rounded
+                      : Icons.bookmark_add_outlined),
+              label: savedToExpedientes
+                  ? 'Guardado'
+                  : (savingExpediente
+                      ? 'Guardando...'
+                      : 'Guardar en Expedientes'),
+              onTap: savedToExpedientes
+                  ? () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const ExpedientesScreen(),
+                        ),
+                      );
+                    }
+                  : onSaveToExpedientes,
+              color: savedToExpedientes
+                  ? const Color(0xFF34C759)
+                  : (savingExpediente ? ExodoPalette.gold : actionColor),
             ),
             const SizedBox(width: 4),
             actionBtn(
