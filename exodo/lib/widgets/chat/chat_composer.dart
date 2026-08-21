@@ -758,10 +758,10 @@ class _ChatComposerState extends State<ChatComposer>
                           horizontal: 4,
                           vertical: 4,
                         ),
-                        child: Text(
-                          AppI18n.of(context).t('tokens.upgrade_btn'),
-                          style: TextStyle(fontFamily: 'AnthropicSans', 
-                            color: ExodoColors.amber,
+                        child: _ShimmeringUpgradeText(
+                          text: AppI18n.of(context).t('tokens.upgrade_btn'),
+                          style: const TextStyle(
+                            fontFamily: 'AnthropicSans',
                             fontWeight: FontWeight.bold,
                             fontSize: 12.0,
                           ),
@@ -1132,3 +1132,89 @@ class _ChatComposerState extends State<ChatComposer>
     );
   }
 }
+
+/// Aplica un barrido fluido de luz blanca pura de izquierda a derecha
+/// de forma periódica sobre el texto ámbar "Actualizar", manteniendo su color
+/// base sin descender a cero opacidad.
+class _ShimmeringUpgradeText extends StatefulWidget {
+  final String text;
+  final TextStyle style;
+  final Color baseColor;
+  final Color highlightColor;
+
+  const _ShimmeringUpgradeText({
+    required this.text,
+    required this.style,
+    this.baseColor = ExodoColors.amber,
+    this.highlightColor = Colors.white,
+  });
+
+  @override
+  State<_ShimmeringUpgradeText> createState() => _ShimmeringUpgradeTextState();
+}
+
+class _ShimmeringUpgradeTextState extends State<_ShimmeringUpgradeText>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    // Ciclo total: ~3.6 segundos. Durante el primer 35% del ciclo (~1.2s)
+    // la luz cruza de izquierda a derecha. El 65% restante permanece en reposo.
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 3600),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, child) {
+        final progress = _controller.value;
+        double sweep;
+
+        if (progress <= 0.35) {
+          // Fase activa: paso de luz pura de izquierda a derecha
+          final t = progress / 0.35;
+          final curveT = Curves.easeInOutSine.transform(t);
+          sweep = -2.5 + (5.0 * curveT);
+        } else {
+          // Fase de reposo: la luz se queda fuera del rango visible
+          sweep = 3.0;
+        }
+
+        return ShaderMask(
+          blendMode: BlendMode.srcIn,
+          shaderCallback: (bounds) {
+            return LinearGradient(
+              begin: Alignment(sweep - 1.2, 0.0),
+              end: Alignment(sweep + 1.2, 0.0),
+              colors: [
+                widget.baseColor,
+                widget.baseColor,
+                widget.highlightColor,
+                widget.baseColor,
+                widget.baseColor,
+              ],
+              stops: const [0.0, 0.3, 0.5, 0.7, 1.0],
+            ).createShader(bounds);
+          },
+          child: Text(
+            widget.text,
+            style: widget.style.copyWith(color: Colors.white),
+          ),
+        );
+      },
+    );
+  }
+}
+
