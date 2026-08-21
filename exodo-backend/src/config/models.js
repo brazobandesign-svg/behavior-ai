@@ -10,25 +10,29 @@ const ALIBABA_CONFIG = {
   // index.js avisa y el SDK de OpenAI falla ruidosamente en el primer request.
   apiKey: process.env.DASHSCOPE_API_KEY || process.env.ALIBABA_API_KEY || process.env.ALIBABA_FREE_KEY,
   models: {
-    // Hazak (Pro / Reasoner)
-    hazakPrimary: 'qwen3-235b-a22b',
-    hazakReasoner: 'qwen3-235b-a22b',
-    hazakCoder: 'qwen3-coder-30b-a3b-instruct',
-    hazakVision: 'qwen3-vl-plus',
-    hazakFallback: 'qwen3.6-27b',
-    hazakReasonerFallback: 'qwen-plus',
+    // Hazak (Pro / Flagship / Reasoner)
+    hazakPrimary: 'qwen3.7-max-2026-05-20',
+    hazakReasoner: 'qwq-plus',
+    hazakThinking: 'qwen3-next-80b-a3b-thinking',
+    hazakMoE: 'qwen3-235b-a22b',
+    hazakCoder: 'qwen3-coder-plus-2025-07-22',
+    hazakVision: 'qwen-vl-max',
+    hazakVisionMoE: 'qwen3-vl-235b-a22b-instruct',
+    hazakOcr: 'qwen-vl-ocr',
+    hazakFallback: 'qwen3.7-max-2026-05-17',
+    hazakReasonerFallback: 'qwen3-next-80b-a3b-thinking',
     hazakVisionFallback: 'qwen3-vl-plus',
 
-    // Genesis (Free / Fast)
+    // Genesis (Free / Fast / Agile)
     genesisSimple: 'qwen3.6-flash-2026-04-16',
-    genesisRedaccion: 'qwen3.6-27b',
+    genesisRedaccion: 'qwen3.6-plus-2026-04-02',
     genesisReasoner: 'qwen3.6-27b',
     genesisCoder: 'qwen3-coder-flash',
     genesisVision: 'qwen3-vl-plus',
-    genesisSimpleFallback: 'qwen3.6-27b',
-    genesisRedaccionFallback: 'qwen-plus',
-    genesisReasonerFallback: 'qwen-turbo',
-    genesisVisionFallback: 'qwen3-vl-plus',
+    genesisSimpleFallback: 'qwen3.6-plus-2026-04-02',
+    genesisRedaccionFallback: 'qwen3.5-plus',
+    genesisReasonerFallback: 'qwen-plus',
+    genesisVisionFallback: 'qwen-vl-max',
 
     // Audio & Image models
     sttModel: 'fun-asr-flash-2026-06-15',
@@ -52,12 +56,12 @@ const PLAN_CONFIG = {
     allowThinking: true,
     primaryModel: 'qwen3.6-flash-2026-04-16',
     fallbackChain: [
+      'qwen3.6-plus-2026-04-02',
       'qwen3.6-27b',
-      'qwen-plus',
-      'qwen-turbo',
+      'qwen3.5-plus',
       'qwen3-coder-flash',
     ],
-    visionModels: ['qwen3-vl-plus'],
+    visionModels: ['qwen3-vl-plus', 'qwen-vl-max'],
     isDegradable: false,
   },
   pro: {
@@ -67,14 +71,16 @@ const PLAN_CONFIG = {
     maxOutputTokens: 8192,
     monthlyVisionLimit: 2000,
     allowThinking: true,
-    primaryModel: 'qwen3-235b-a22b',
+    primaryModel: 'qwen3.7-max-2026-05-20',
     fallbackChain: [
-      'qwen3-coder-30b-a3b-instruct',
-      'qwen3.6-27b',
-      'qwen-plus',
-      'qwen3.6-flash-2026-04-16',
+      'qwq-plus',
+      'qwen3-coder-plus-2025-07-22',
+      'qwen3-next-80b-a3b-thinking',
+      'qwen3.7-max-2026-05-17',
+      'qwen3-235b-a22b',
+      'qwen3.6-plus-2026-04-02',
     ],
-    visionModels: ['qwen3-vl-plus'],
+    visionModels: ['qwen-vl-max', 'qwen3-vl-235b-a22b-instruct', 'qwen3-vl-plus'],
     isDegradable: false,
   },
 };
