@@ -67,6 +67,10 @@ class LocalChatRepository {
     await db.conversationsDao.updateTitle(id, newTitle);
   }
 
+  Future<void> updateConversationTitle(String id, String newTitle) async {
+    await db.conversationsDao.updateTitle(id, newTitle);
+  }
+
   Future<void> toggleStarred(String id, bool isStarred) async {
     await db.conversationsDao.toggleStarred(id, isStarred);
   }
