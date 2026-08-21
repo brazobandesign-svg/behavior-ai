@@ -245,11 +245,11 @@ class MessageBubble extends StatelessWidget {
                         ),
                         blockquotePadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                         blockquoteDecoration: BoxDecoration(
-                          color: isLight ? const Color(0xFFF1F5F9) : const Color(0xFF1E293B),
+                          color: isLight ? const Color(0xFFF7F7F8) : const Color(0xFF1C1C1E),
                           borderRadius: BorderRadius.circular(8),
                           border: Border(
                             left: BorderSide(
-                              color: isLight ? const Color(0xFF0284C7) : const Color(0xFF38BDF8),
+                              color: isLight ? const Color(0xFFB8860B) : const Color(0xFFD4AF37),
                               width: 4,
                             ),
                           ),
@@ -257,7 +257,7 @@ class MessageBubble extends StatelessWidget {
                         blockquote: TextStyle(
                           fontFamily: 'AnthropicSans',
                           fontSize: 14,
-                          color: isLight ? const Color(0xFF0F172A) : const Color(0xFFE2E8F0),
+                          color: isLight ? const Color(0xFF111827) : const Color(0xFFF3F4F6),
                           fontStyle: FontStyle.italic,
                         ),
                         code: TextStyle(
@@ -1440,19 +1440,19 @@ class _AssistantContentWithArtifacts extends StatelessWidget {
           blockSpacing: 12.0,
           blockquotePadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
           blockquoteDecoration: BoxDecoration(
-            color: isLight ? const Color(0xFFF1F5F9) : const Color(0xFF1E293B),
+            color: isLight ? const Color(0xFFF7F7F8) : const Color(0xFF1C1C1E),
             borderRadius: BorderRadius.circular(8),
             border: Border(
               left: BorderSide(
-                color: isLight ? const Color(0xFF0284C7) : const Color(0xFF38BDF8),
+                color: isLight ? const Color(0xFFB8860B) : const Color(0xFFD4AF37),
                 width: 4,
               ),
             ),
           ),
           blockquote: TextStyle(
             fontFamily: 'AnthropicSerif',
-            fontSize: 14.5,
-            color: isLight ? const Color(0xFF0F172A) : const Color(0xFFE2E8F0),
+            fontSize: 14,
+            color: isLight ? const Color(0xFF111827) : const Color(0xFFF3F4F6),
             fontStyle: FontStyle.italic,
             height: 1.45,
           ),
