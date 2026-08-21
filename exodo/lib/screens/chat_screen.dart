@@ -12,7 +12,6 @@ import '../widgets/chat/chat_composer.dart';
 import '../widgets/chat/message_bubble.dart';
 import '../widgets/chat/model_selector.dart';
 import '../services/chat_service.dart';
-import '../services/tts_service.dart';
 import '../theme/exodo_theme.dart';
 
 class ChatScreen extends StatefulWidget {
@@ -68,8 +67,7 @@ class _ChatScreenState extends State<ChatScreen>
         state == AppLifecycleState.paused ||
         state == AppLifecycleState.hidden ||
         state == AppLifecycleState.detached) {
-      // App minimizada, oculta o inactiva: cancelar TTS inmediatamente
-      TtsService.instance.stop();
+      // App minimizada, oculta o inactiva: pausar animaciones
       _thinkingAnimCtrl.stop();
       _ambientBgCtrl.stop();
       _pulseCtrl.stop();

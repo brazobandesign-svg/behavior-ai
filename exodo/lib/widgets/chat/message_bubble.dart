@@ -123,7 +123,6 @@ class MessageBubble extends StatelessWidget {
     final likeLabel = AppI18n.of(context).t('act.like');
     final dislikeLabel = AppI18n.of(context).t('act.dislike');
     final shareLabel = AppI18n.of(context).t('act.share');
-    final playLabel = AppI18n.of(context).t('act.play');
 
     if (isUser) {
       return Align(
@@ -340,7 +339,6 @@ class MessageBubble extends StatelessWidget {
             likeLabel: likeLabel,
             dislikeLabel: dislikeLabel,
             shareLabel: shareLabel,
-            playLabel: playLabel,
           ),
           if (isLastAssistant) ...[
             const SizedBox(height: 16),
@@ -589,7 +587,6 @@ class _MessageActionBar extends StatelessWidget {
   final String likeLabel;
   final String dislikeLabel;
   final String shareLabel;
-  final String playLabel;
   const _MessageActionBar({
     required this.message,
     required this.copyLabel,
@@ -597,7 +594,6 @@ class _MessageActionBar extends StatelessWidget {
     required this.likeLabel,
     required this.dislikeLabel,
     required this.shareLabel,
-    required this.playLabel,
   });
 
   @override

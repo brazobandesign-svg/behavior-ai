@@ -15,7 +15,6 @@ import 'supabase_service.dart';
 import 'chat_service.dart';
 import 'connectivity_service.dart';
 import 'stripe_service.dart';
-import 'tts_service.dart';
 import '../theme/exodo_palette.dart';
 import '../l10n/app_i18n.dart';
 
@@ -344,7 +343,6 @@ class AppState extends ChangeNotifier {
   }
 
   Future<void> selectConversation(Conversation conv) async {
-    TtsService.instance.stop();
     // [Sprint 0] Ownership check: verificar que la conversación pertenece al usuario actual.
     final currentUserId = SupabaseService.currentUser?.id;
     if (currentUserId != null && conv.userId != currentUserId) {
@@ -537,7 +535,6 @@ class AppState extends ChangeNotifier {
   }
 
   void startNewChat({bool resetIncognito = true}) {
-    TtsService.instance.stop();
     if (resetIncognito) {
       isIncognito = false;
     }
@@ -1038,7 +1035,6 @@ class AppState extends ChangeNotifier {
     String text, {
     List<Attachment>? attachments,
   }) async {
-    TtsService.instance.stop();
     if (text.trim().isEmpty && (attachments == null || attachments.isEmpty)) return;
     final isGuest = isGuestUser;
     errorMessage = null;
