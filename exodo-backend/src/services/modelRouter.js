@@ -56,9 +56,10 @@ function getExecutionChain(plan, intent, modelOverride, imageDataUris, taskType)
     ];
   }
 
-  // 5. Texto General, Conversación y Redacción (1 solo modelo unificado para ambos planes)
+  // 5. Texto General, Conversación y Redacción (1 solo modelo unificado para ambos planes con fallback robusto)
   return [
-    ALIBABA_CONFIG.models.textPrimary, // qwen3.7-max-2026-05-20
+    ALIBABA_CONFIG.models.textPrimary,  // qwen3.7-max-2026-05-20
+    ALIBABA_CONFIG.models.textFallback, // qwen3.6-plus-2026-04-02
   ];
 }
 

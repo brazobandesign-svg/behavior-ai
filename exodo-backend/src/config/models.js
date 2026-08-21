@@ -12,6 +12,7 @@ const ALIBABA_CONFIG = {
   models: {
     // 4 Modelos Principales Unificados por Objetivo (Fase de Pruebas: Free & Pro idénticos)
     textPrimary: 'qwen3.7-max-2026-05-20',       // Texto, conversación, redacción y asistencia general
+    textFallback: 'qwen3.6-plus-2026-04-02',     // Respaldo de alta elocuencia
     reasonerPrimary: 'qwq-plus',                 // Razonamiento lógico profundo y matemáticas
     coderPrimary: 'qwen3-coder-plus-2025-07-22', // Generación de código y artefactos interactivos
     visionPrimary: 'qwen-vl-max',                // Análisis de imágenes, visión multimodal y OCR
