@@ -207,6 +207,7 @@ class TtsService {
 
   /// Detiene inmediatamente cualquier reproducción de audio activa.
   Future<void> stop() async {
+    _setSpeaking(false);
     try {
       await _audioPlayer.stop();
     } catch (_) {}

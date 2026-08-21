@@ -64,20 +64,21 @@ class _ChatScreenState extends State<ChatScreen>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     final appState = context.read<AppState>();
-    if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive) {
-      // [TASK 3] App minimizada o inactiva: cancelar TTS y grabación
+    if (state == AppLifecycleState.inactive ||
+        state == AppLifecycleState.paused ||
+        state == AppLifecycleState.hidden ||
+        state == AppLifecycleState.detached) {
+      // App minimizada, oculta o inactiva: cancelar TTS inmediatamente
       TtsService.instance.stop();
-      // [Sprint 0] pausar animaciones para ahorrar batería.
       _thinkingAnimCtrl.stop();
       _ambientBgCtrl.stop();
       _pulseCtrl.stop();
     } else if (state == AppLifecycleState.resumed) {
-      // [Sprint 0] App vuelve a primer plano: reanudar animaciones.
+      // App vuelve a primer plano: reanudar animaciones.
       if (appState.isGenerating) {
         _thinkingAnimCtrl.repeat(reverse: true);
       }
       _pulseCtrl.repeat(reverse: true);
-      // _ambientBgCtrl no se reanuda (no se usa, bug #9 auditoría).
     }
   }
 
@@ -207,16 +208,33 @@ class _ChatScreenState extends State<ChatScreen>
                               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                               child: Row(
                                 children: [
-                                  const Icon(Icons.graphic_eq_rounded, color: Colors.amberAccent, size: 22),
+                                  const Icon(Icons.volume_up_rounded, color: Colors.amberAccent, size: 22),
                                   const SizedBox(width: 10),
-                                  const Text('Éxodo leyendo...', style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w500)),
+                                  const Text(
+                                    'Éxodo hablando...',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
                                   const Spacer(),
                                   GestureDetector(
-                                    onTap: () => TtsService.instance.stop(),
+                                    onTap: () {
+                                      HapticFeedback.selectionClick();
+                                      TtsService.instance.stop();
+                                    },
                                     child: Container(
                                       padding: const EdgeInsets.all(4),
-                                      decoration: const BoxDecoration(color: Colors.redAccent, shape: BoxShape.circle),
-                                      child: const Icon(Icons.stop_rounded, color: Colors.white, size: 20),
+                                      decoration: const BoxDecoration(
+                                        color: Colors.redAccent,
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: const Icon(
+                                        Icons.stop_rounded,
+                                        color: Colors.white,
+                                        size: 20,
+                                      ),
                                     ),
                                   ),
                                 ],
