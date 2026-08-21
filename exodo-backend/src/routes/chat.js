@@ -75,17 +75,37 @@ function adaptChunksForPrompt(chunks) {
 }
 
 /**
- * Extrae enlaces markdown [Título](URL) y URLs en texto plano del contenido.
- * Garantiza que las fuentes citadas se persistan en Supabase desde el backend.
+ * Extrae enlaces markdown [Título](URL), URLs en texto plano y chunks RAG del contenido.
+ * Garantiza que las fuentes citadas se persistan en Supabase desde el backend y se entreguen
+ * en formato estructurado a la app móvil (SourcesSheet).
  */
-function extractSourcesFromText(text, existingSources = []) {
+function extractSourcesFromText(text, existingSources = [], contextChunks = [], isEducational = false) {
   if (existingSources && existingSources.length > 0) {
     return existingSources.slice(0, 10);
   }
   const found = [];
+  const seenTitles = new Set();
   const seenUrls = new Set();
   
-  // 1. Extraer enlaces markdown [Título](URL)
+  // 1. Chunks recuperados por RAG
+  if (Array.isArray(contextChunks) && contextChunks.length > 0) {
+    for (const c of contextChunks) {
+      const shortName = c.short_name || 'MINERD';
+      const pageStr = c.page ? ` (pág. ${c.page})` : '';
+      const sectionStr = c.section ? ` · ${c.section}` : '';
+      const title = `${shortName}${pageStr}${sectionStr}`;
+      if (!seenTitles.has(title)) {
+        seenTitles.add(title);
+        found.push({
+          title,
+          url: 'https://ministeriodeeducacion.gob.do/servicios/docentes/diseno-curricular',
+          favicon: shortName.slice(0, 3).toUpperCase(),
+        });
+      }
+    }
+  }
+
+  // 2. Extraer enlaces markdown [Título](URL)
   const mdRegex = /\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g;
   let match;
   while ((match = mdRegex.exec(text)) !== null) {
@@ -97,12 +117,13 @@ function extractSourcesFromText(text, existingSources = []) {
       try { host = new URL(url).host; } catch (_) {}
       found.push({
         title: title || host,
-        url: url
+        url: url,
+        favicon: (title || host).slice(0, 3).toUpperCase(),
       });
     }
   }
 
-  // 2. Extraer URLs en texto plano https://...
+  // 3. Extraer URLs en texto plano https://...
   const urlRegex = /(https?:\/\/[a-zA-Z0-9\-\.]+\.[a-zA-Z]{2,}(?:\/[^\s\)\]\>"]*)?)/g;
   while ((match = urlRegex.exec(text)) !== null) {
     const url = (match[1] || '').trim();
@@ -112,9 +133,29 @@ function extractSourcesFromText(text, existingSources = []) {
       try { host = new URL(url).host.replace(/^www\./, ''); } catch (_) {}
       found.push({
         title: host,
-        url: url
+        url: url,
+        favicon: host.slice(0, 3).toUpperCase(),
       });
     }
+  }
+
+  // 4. Si es consulta educativa/curricular dominicana y no hay fuentes específicas, adjuntar el marco normativo MINERD
+  if (isEducational && found.length === 0) {
+    found.push({
+      title: 'MINERD · Diseño Curricular Nivel Secundario',
+      url: 'https://ministeriodeeducacion.gob.do/servicios/docentes/diseno-curricular',
+      favicon: 'DC',
+    });
+    found.push({
+      title: 'MINERD · Ordenanza 04-2023 / 01-2021',
+      url: 'https://ministeriodeeducacion.gob.do/transparencia/marco-legal/ordenanzas',
+      favicon: 'ORD',
+    });
+    found.push({
+      title: 'Ley General de Educación 66-97',
+      url: 'https://ministeriodeeducacion.gob.do/transparencia/marco-legal/ley-general-de-educacion-66-97',
+      favicon: 'LEY',
+    });
   }
 
   return found.slice(0, 10);
@@ -397,7 +438,8 @@ router.post('/', auth, planGuard, upload.array('files', 5), async (req, res) => 
     }
 
     // 5. Persistir en DB: SOLO para usuarios registrados autenticados
-    const sources = extractSourcesFromText(fullText, result.sources);
+    const isEduQuery = isMinerdQuery(minerdContext);
+    const sources = extractSourcesFromText(fullText, result.sources, contextChunks, isEduQuery);
 
     if (conversationId && !isGuest && !anonymous) {
       try {

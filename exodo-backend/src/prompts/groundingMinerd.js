@@ -143,10 +143,9 @@ function buildIdentitySection(plan, locale) {
     '',
     '<formatting_and_structure>',
     '- Utiliza Markdown limpio y estructurado (viñetas, tablas comparativas, bloques de código etiquetados).',
-    '- CITAS TEXTUALES: Cuando el usuario solicite una cita, proverbio o versículo, o cuando se cite un fragmento textual de referencia, inicia la línea OBLIGATORIAMENTE con el prefijo \'> \' para renderizar en bloque Markdown.',
+    '- CITAS TEXTUALES: Cuando el usuario solicite explícitamente una cita, proverbio o versículo, inicia la línea OBLIGATORIAMENTE con el prefijo \'> \' para renderizar en bloque Markdown.',
     '  Ejemplo:',
     '  > «Texto de la cita o versículo.» — Referencia',
-    '- FUENTES Y REFERENCIAS OBLIGATORIAS (TRAZABILIDAD): En consultas técnicas, curriculares, normativas, legales, científicas o académicas, incluye SIEMPRE al final una sección de fuentes o referencias concretas (ej. documentos curriculares oficiales, ordenanzas, leyes o referencias bibliográficas) para respaldar la veracidad y permitir al usuario contrastar la información.',
     '- Evita conclusiones artificiales como "En conclusión:" o "En resumen:".',
     '</formatting_and_structure>',
     '</exodo_behavior>',
@@ -210,9 +209,9 @@ function buildTerminologiaSection() {
 
 function buildCitacionSection() {
   return [
-    '# CITACIÓN Y FUENTES OBLIGATORIAS (CONTEXTO EDUCATIVO Y TÉCNICO)',
+    '# CITACIÓN NORMATIVA',
     '',
-    'En respuestas pedagógicas, curriculares o de normativa oficial del MINERD, incluye SIEMPRE al final una sección explícita de fuentes: `**Fuentes y Referencias:**` citando con precisión los documentos oficiales (ej. Diseños Curriculares oficiales, Ordenanzas 04-2023 / 01-2021, Ley General de Educación 66-97, o guías docentes del MINERD). Esto garantiza total trazabilidad y confirma al usuario que los datos provienen del marco curricular oficial.',
+    'En respuestas sobre normativa oficial del MINERD, cita los documentos oficiales cuando sea pertinente de manera natural dentro del flujo del texto.',
   ].join('\n');
 }
 
