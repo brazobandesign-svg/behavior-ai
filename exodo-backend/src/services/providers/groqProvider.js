@@ -1,4 +1,5 @@
 const { OpenAI } = require('openai');
+const { SYSTEM_PROMPT } = require('../../config/systemPrompt');
 const { logInternalGatewayError } = require('../errorSanitizer');
 
 /**
@@ -27,12 +28,14 @@ function getClient() {
 
 function buildMessages(messages, systemPrompt, imageDataUris = []) {
   const formatted = [];
+  const effectivePrompt = (systemPrompt && typeof systemPrompt === 'string' && systemPrompt.trim())
+    ? systemPrompt.trim()
+    : SYSTEM_PROMPT;
 
-  // System Prompt limpio y natural (sin inyecciones de brevedad)
-  if (systemPrompt && systemPrompt.trim()) {
+  if (effectivePrompt) {
     formatted.push({
       role: 'system',
-      content: systemPrompt.trim(),
+      content: effectivePrompt,
     });
   }
 

@@ -2,6 +2,7 @@
 
 const { OpenAI } = require('openai');
 const { ALIBABA_CONFIG } = require('../../config/models');
+const { SYSTEM_PROMPT } = require('../../config/systemPrompt');
 const { logInternalGatewayError, wrapProviderError } = require('../errorSanitizer');
 
 /**
@@ -56,11 +57,14 @@ function getClient() {
 
 function buildMessages(messages, systemPrompt, imageDataUris = []) {
   const formatted = [];
+  const effectivePrompt = (systemPrompt && typeof systemPrompt === 'string' && systemPrompt.trim())
+    ? systemPrompt.trim()
+    : SYSTEM_PROMPT;
 
-  if (systemPrompt && systemPrompt.trim()) {
+  if (effectivePrompt) {
     formatted.push({
       role: 'system',
-      content: systemPrompt.trim(),
+      content: effectivePrompt,
     });
   }
 

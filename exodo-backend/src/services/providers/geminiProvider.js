@@ -1,4 +1,5 @@
 const { GoogleGenAI } = require('@google/genai');
+const { SYSTEM_PROMPT } = require('../../config/systemPrompt');
 const { logInternalGatewayError } = require('../errorSanitizer');
 
 /**
@@ -116,9 +117,13 @@ async function call(modelId, messages, systemPrompt, imageDataUris = [], options
     temperature: 0.7,
   };
 
-  if (systemPrompt && systemPrompt.trim()) {
+  const effectivePrompt = (systemPrompt && typeof systemPrompt === 'string' && systemPrompt.trim())
+    ? systemPrompt.trim()
+    : SYSTEM_PROMPT;
+
+  if (effectivePrompt) {
     config.systemInstruction = {
-      parts: [{ text: systemPrompt.trim() }],
+      parts: [{ text: effectivePrompt }],
     };
   }
 
@@ -173,9 +178,13 @@ async function callStream(modelId, messages, systemPrompt, onChunk, imageDataUri
     temperature: 0.7,
   };
 
-  if (systemPrompt && systemPrompt.trim()) {
+  const effectiveStreamPrompt = (systemPrompt && typeof systemPrompt === 'string' && systemPrompt.trim())
+    ? systemPrompt.trim()
+    : SYSTEM_PROMPT;
+
+  if (effectiveStreamPrompt) {
     config.systemInstruction = {
-      parts: [{ text: systemPrompt.trim() }],
+      parts: [{ text: effectiveStreamPrompt }],
     };
   }
 
