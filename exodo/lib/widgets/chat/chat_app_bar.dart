@@ -90,23 +90,19 @@ class ChatAppBar extends StatelessWidget {
               onPressed: () => state.startNewChat(),
             ),
 
-            // 2. Dark / Light Mode (Long-press para ver Showcase de Animaciones de Razonamiento)
-            InkResponse(
-              onTap: () => state.toggleTheme(),
-              onLongPress: () => showThinkingStylesShowcase(context),
-              radius: 20,
-              child: Padding(
-                padding: const EdgeInsets.all(8.0),
-                child: Icon(
-                  isDarkMode
-                      ? Icons.light_mode_outlined
-                      : Icons.dark_mode_outlined,
-                  size: 22,
-                  color: isLight
-                      ? Colors.black87
-                      : ExodoColors.textSecondary,
-                ),
+            // 2. Dark / Light Mode
+            IconButton(
+              icon: Icon(
+                isDarkMode
+                    ? Icons.light_mode_outlined
+                    : Icons.dark_mode_outlined,
+                size: 22,
+                color: isLight
+                    ? Colors.black87
+                    : ExodoColors.textSecondary,
               ),
+              tooltip: isDarkMode ? 'Modo claro' : 'Modo oscuro',
+              onPressed: () => state.toggleTheme(),
             ),
           ],
 

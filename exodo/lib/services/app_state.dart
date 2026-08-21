@@ -41,12 +41,6 @@ class AppState extends ChangeNotifier {
   bool isGenerating = false;
   String? errorMessage;
   int guestMessagesSessionCount = 0;
-  int thinkingAnimationIndex = 0; // 0: Giróscopo, 1: Chispa, 2: Ondas
-
-  void setThinkingAnimationIndex(int idx) {
-    thinkingAnimationIndex = idx % 3;
-    notifyListeners();
-  }
 
   // ── Streaming suavizado (FIX jerky rendering 2026-08-20) ──────────────
   // Los deltas del stream se acumulan en un buffer mutable y se materializan
@@ -382,7 +376,7 @@ class AppState extends ChangeNotifier {
       // fusionan los adjuntos de las filas SQLite; sin este merge, cada
       // sincronización borraba las fotos del chat al cambiar de
       // conversación.
-      final merged = _mergeLocalAttachments(fetchedMessages, localMsgs);
+      final merged = _mergeLocalData(fetchedMessages, localMsgs);
       currentMessages = merged;
       // Reemplazo atómico del historial local en vez de upsert: los ids de
       // la nube (UUID) difieren de los locales (`user-*`/`asst-*`) y el
@@ -396,21 +390,20 @@ class AppState extends ChangeNotifier {
     }
   }
 
-  /// Fusiona los adjuntos de los mensajes locales (SQLite) en las copias
-  /// traídas de Supabase.
+  /// Fusiona los adjuntos y fuentes (sources) de los mensajes locales (SQLite)
+  /// en las copias traídas de Supabase para garantizar persistencia 100% íntegra.
   /// Implementa estrategia de emparejamiento multi-nivel:
   /// 1. Coincidencia exacta por id.
   /// 2. Coincidencia por rol + contenido no vacío.
   /// 3. Coincidencia por rol ('user') con contenido vacío por proximidad temporal.
   /// 4. Coincidencia posicional para mensajes de usuario restantes.
-  /// 5. Safety Net: si queda algún mensaje local con adjuntos no emparejado
-  ///    (aún no sincronizado en la nube), se inserta en el orden cronológico
-  ///    correcto para NUNCA perder fotos locales.
-  List<ChatMessage> _mergeLocalAttachments(
+  /// 5. Safety Net: si queda algún mensaje local con adjuntos/fuentes no emparejado,
+  ///    se inserta en el orden cronológico correcto.
+  List<ChatMessage> _mergeLocalData(
     List<ChatMessage> cloud,
     List<ChatMessage> local,
   ) {
-    final pool = local.where((l) => l.attachments.isNotEmpty).toList();
+    final pool = local.where((l) => l.attachments.isNotEmpty || l.sources.isNotEmpty).toList();
     if (pool.isEmpty) return cloud;
 
     int mergedCount = 0;
@@ -465,19 +458,19 @@ class AppState extends ChangeNotifier {
         intentDetected: m.intentDetected ?? match.intentDetected,
         modelCalled: m.modelCalled ?? match.modelCalled,
         sources: m.sources.isNotEmpty ? m.sources : match.sources,
-        attachments: match.attachments,
+        attachments: match.attachments.isNotEmpty ? match.attachments : m.attachments,
         createdAt: m.createdAt,
         isThinking: m.isThinking,
         isDegraded: m.isDegraded,
       );
     }).toList();
 
-    // Nivel 5 (Safety Net): Si quedan mensajes locales con adjuntos que no
+    // Nivel 5 (Safety Net): Si quedan mensajes locales con adjuntos o fuentes que no
     // vinieron en la respuesta de la nube, agregarlos preservando el orden.
     if (pool.isNotEmpty) {
       if (kDebugMode) {
         debugPrint(
-          '[AppState] _mergeLocalAttachments: Reteniendo ${pool.length} adjuntos locales no sincronizados en nube',
+          '[AppState] _mergeLocalData: Reteniendo ${pool.length} mensajes locales con datos no sincronizados en nube',
         );
       }
       final result = <ChatMessage>[...mergedCloud, ...pool];
@@ -487,7 +480,7 @@ class AppState extends ChangeNotifier {
 
     if (kDebugMode && mergedCount > 0) {
       debugPrint(
-        '[AppState] _mergeLocalAttachments: Fusionados con éxito $mergedCount mensajes con adjuntos locales',
+        '[AppState] _mergeLocalData: Fusionados con éxito $mergedCount mensajes con datos locales',
       );
     }
 
@@ -1021,6 +1014,9 @@ class AppState extends ChangeNotifier {
           sources: sources,
           createdAt: currentMessages[idx].createdAt,
         );
+        if (activeConversation != null && !isGuestUser) {
+          localChatRepo.saveMessage(currentMessages[idx]);
+        }
         notifyListeners();
       },
       onError: (e) {

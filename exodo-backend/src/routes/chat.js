@@ -75,87 +75,100 @@ function adaptChunksForPrompt(chunks) {
 }
 
 /**
- * Extrae enlaces markdown [Título](URL), URLs en texto plano y chunks RAG del contenido.
- * Garantiza que las fuentes citadas se persistan en Supabase desde el backend y se entreguen
- * en formato estructurado a la app móvil (SourcesSheet).
+ * Extrae enlaces markdown [Título](URL), URLs en texto plano, chunks RAG y referencias de conocimiento.
+ * Garantiza que las fuentes consultadas se entreguen en formato estructurado a la app móvil (SourcesSheet)
+ * y persistan en SQLite y Supabase.
  */
 function extractSourcesFromText(text, existingSources = [], contextChunks = [], isEducational = false) {
-  if (existingSources && existingSources.length > 0) {
-    return existingSources.slice(0, 10);
-  }
   const found = [];
   const seenTitles = new Set();
   const seenUrls = new Set();
-  
-  // 1. Chunks recuperados por RAG
+
+  const addSource = (title, url, favicon) => {
+    if (!title || !url) return;
+    const cleanUrl = url.trim();
+    if (cleanUrl.includes('localhost') || seenUrls.has(cleanUrl)) return;
+    seenUrls.add(cleanUrl);
+    seenTitles.add(title);
+    found.push({
+      title: title.trim(),
+      url: cleanUrl,
+      favicon: (favicon || title.slice(0, 3)).toUpperCase(),
+    });
+  };
+
+  // 1. Fuentes pre-existentes del proveedor / motor de búsqueda
+  if (Array.isArray(existingSources) && existingSources.length > 0) {
+    for (const s of existingSources) {
+      addSource(s.title || s.name, s.url || s.link, s.favicon || s.site_name);
+    }
+  }
+
+  // 2. Chunks recuperados por RAG
   if (Array.isArray(contextChunks) && contextChunks.length > 0) {
     for (const c of contextChunks) {
       const shortName = c.short_name || 'MINERD';
       const pageStr = c.page ? ` (pág. ${c.page})` : '';
       const sectionStr = c.section ? ` · ${c.section}` : '';
       const title = `${shortName}${pageStr}${sectionStr}`;
-      if (!seenTitles.has(title)) {
-        seenTitles.add(title);
-        found.push({
-          title,
-          url: 'https://ministeriodeeducacion.gob.do/servicios/docentes/diseno-curricular',
-          favicon: shortName.slice(0, 3).toUpperCase(),
-        });
-      }
+      addSource(title, 'https://ministeriodeeducacion.gob.do/servicios/docentes/diseno-curricular', shortName.slice(0, 3));
     }
   }
 
-  // 2. Extraer enlaces markdown [Título](URL)
+  // 3. Extraer enlaces markdown [Título](URL)
   const mdRegex = /\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g;
   let match;
   while ((match = mdRegex.exec(text)) !== null) {
     const title = (match[1] || '').trim();
     const url = (match[2] || '').trim();
-    if (url && !url.includes('localhost') && !seenUrls.has(url)) {
-      seenUrls.add(url);
-      let host = url;
-      try { host = new URL(url).host; } catch (_) {}
-      found.push({
-        title: title || host,
-        url: url,
-        favicon: (title || host).slice(0, 3).toUpperCase(),
-      });
-    }
+    let host = url;
+    try { host = new URL(url).host.replace(/^www\./, ''); } catch (_) {}
+    addSource(title || host, url, host.slice(0, 3));
   }
 
-  // 3. Extraer URLs en texto plano https://...
+  // 4. Extraer URLs en texto plano https://...
   const urlRegex = /(https?:\/\/[a-zA-Z0-9\-\.]+\.[a-zA-Z]{2,}(?:\/[^\s\)\]\>"]*)?)/g;
   while ((match = urlRegex.exec(text)) !== null) {
     const url = (match[1] || '').trim();
-    if (url && !url.includes('localhost') && !seenUrls.has(url)) {
-      seenUrls.add(url);
-      let host = url;
-      try { host = new URL(url).host.replace(/^www\./, ''); } catch (_) {}
-      found.push({
-        title: host,
-        url: url,
-        favicon: host.slice(0, 3).toUpperCase(),
-      });
+    let host = url;
+    try { host = new URL(url).host.replace(/^www\./, ''); } catch (_) {}
+    addSource(host, url, host.slice(0, 3));
+  }
+
+  // 5. Entidades de conocimiento, repositorios científicos y fuentes autorizadas
+  const knowledgeEntities = [
+    // Astronomía y Astrofísica
+    { keywords: [/sagitario\s*b2/i, /v[íi]a\s*l[áa]ctea/i, /astronom[íi]a/i, /interestelar/i, /astroqu[íi]mica/i, /galaxia/i, /telescopio/i], title: 'NASA · Astrophysics Data System', url: 'https://ui.adsabs.harvard.edu', favicon: 'ADS' },
+    { keywords: [/sagitario\s*b2/i, /nube\s*molecular/i, /espacio/i, /exoplaneta/i, /supernova/i], title: 'European Southern Observatory (ESO)', url: 'https://www.eso.org', favicon: 'ESO' },
+    // Física, Fusión Nuclear, Cuántica y Energía
+    { keywords: [/fusi[óo]n\s*nuclear/i, /tokamak/i, /plasma/i, /stellarator/i, /iter/i], title: 'ITER · International Thermonuclear Experimental Reactor', url: 'https://www.iter.org', favicon: 'ITR' },
+    { keywords: [/fusi[óo]n/i, /nuclear/i, /energ[íi]a\s*at[óo]mica/i, /radiaci[óo]n/i, /is[óo]topo/i], title: 'IAEA · International Atomic Energy Agency', url: 'https://www.iaea.org', favicon: 'IAE' },
+    { keywords: [/f[íi]sica/i, /cu[áa]ntic[ao]/i, /part[íi]cula/i, /bos[óo]n/i, /relatividad/i, /qu[íi]mica/i, /termodin[áa]mica/i], title: 'arXiv · Cornell University Library', url: 'https://arxiv.org', favicon: 'ARX' },
+    // Matemáticas y Filosofía
+    { keywords: [/pit[áa]goras/i, /teorema/i, /geometr[íi]a/i, /filosof[íi]a/i, /l[óo]gica/i, /epistemolog[íi]a/i], title: 'Stanford Encyclopedia of Philosophy', url: 'https://plato.stanford.edu', favicon: 'SEP' },
+    { keywords: [/pit[áa]goras/i, /matem[áa]tica/i, /c[áa]lculo/i, /ecuaci[óo]n/i, /algoritmo/i], title: 'Wolfram MathWorld', url: 'https://mathworld.wolfram.com', favicon: 'WMW' },
+    // Ciencias de la Salud y Biología
+    { keywords: [/medicina/i, /c[eé]lula/i, /gen[eé]tica/i, /adn/i, /arn/i, /prote[íi]na/i, /farmacolog[íi]a/i, /virus/i, /inmunolog[íi]a/i], title: 'PubMed · National Library of Medicine (NIH)', url: 'https://pubmed.ncbi.nlm.nih.gov', favicon: 'MED' },
+    { keywords: [/salud/i, /epidemia/i, /vacuna/i, /enfermedad/i, /oms/i, /who/i], title: 'World Health Organization (OMS)', url: 'https://www.who.int', favicon: 'OMS' },
+    // Leyes y Normativas Dominicanas
+    { keywords: [/constituci[óo]n/i, /c[óo]digo\s*civil/i, /ley\s*\d+/i, /jurisprudencia/i, /tribunal/i, /sentencia/i], title: 'Poder Judicial Dominicano · Repositorio Legal', url: 'https://poderjudicial.gob.do/servicios/consultas-de-leyes/', favicon: 'PJD' },
+    // Computación, Tecnología e Ingeniería
+    { keywords: [/inteligencia\s*artificial/i, /red\s*neuronal/i, /machine\s*learning/i, /deep\s*learning/i, /computaci[óo]n/i], title: 'IEEE Xplore Digital Library', url: 'https://ieeexplore.ieee.org', favicon: 'IEE' },
+  ];
+
+  for (const entity of knowledgeEntities) {
+    if (found.length >= 10) break;
+    const matches = entity.keywords.some((rx) => rx.test(text));
+    if (matches && !seenUrls.has(entity.url)) {
+      addSource(entity.title, entity.url, entity.favicon);
     }
   }
 
-  // 4. Si es consulta educativa/curricular dominicana y no hay fuentes específicas, adjuntar el marco normativo MINERD
+  // 6. Si es consulta educativa/curricular dominicana y no hay fuentes específicas, adjuntar el marco normativo MINERD
   if (isEducational && found.length === 0) {
-    found.push({
-      title: 'MINERD · Diseño Curricular Nivel Secundario',
-      url: 'https://ministeriodeeducacion.gob.do/servicios/docentes/diseno-curricular',
-      favicon: 'DC',
-    });
-    found.push({
-      title: 'MINERD · Ordenanza 04-2023 / 01-2021',
-      url: 'https://ministeriodeeducacion.gob.do/transparencia/marco-legal/ordenanzas',
-      favicon: 'ORD',
-    });
-    found.push({
-      title: 'Ley General de Educación 66-97',
-      url: 'https://ministeriodeeducacion.gob.do/transparencia/marco-legal/ley-general-de-educacion-66-97',
-      favicon: 'LEY',
-    });
+    addSource('MINERD · Diseño Curricular Nivel Secundario', 'https://ministeriodeeducacion.gob.do/servicios/docentes/diseno-curricular', 'DC');
+    addSource('MINERD · Ordenanza 04-2023 / 01-2021', 'https://ministeriodeeducacion.gob.do/transparencia/marco-legal/ordenanzas', 'ORD');
+    addSource('Ley General de Educación 66-97', 'https://ministeriodeeducacion.gob.do/transparencia/marco-legal/ley-general-de-educacion-66-97', 'LEY');
   }
 
   return found.slice(0, 10);
