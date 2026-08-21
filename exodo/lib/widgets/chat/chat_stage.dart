@@ -93,6 +93,61 @@ class ChatStage extends StatelessWidget {
     final watermarkWidth = stageWidth * 0.40;
     final watermarkHeight = watermarkWidth / 7.0208;
 
+    // Modo Incógnito: Solo disclaimer centrado, sin saludo ni watermark de Éxodo
+    if (isIncognito) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 32),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Text(
+                AppI18n.of(context).t('chat.incognito_desc'),
+                textAlign: TextAlign.center,
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontFamily: 'AnthropicSans',
+                  fontSize: 14,
+                  fontWeight: FontWeight.w400,
+                  color: ExodoColors.textSecondary,
+                  height: 1.4,
+                  letterSpacing: -0.1,
+                ),
+              ),
+              if (!isOnline) ...[
+                const SizedBox(height: 18),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.06),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.cloud_off_rounded, size: 16, color: ExodoColors.amber),
+                      const SizedBox(width: 8),
+                      Text(
+                        AppI18n.of(context).t('network.offline_title'),
+                        style: GoogleFonts.inter(
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w600,
+                          color: ExodoColors.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      );
+    }
+
     return Center(
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -103,9 +158,7 @@ class ChatStage extends StatelessWidget {
           children: [
             // Saludo (original, máximo 2 líneas)
             Text(
-              isIncognito
-                  ? AppI18n.of(context).t('chat.incognito_title')
-                  : _getGreeting(context, temp),
+              _getGreeting(context, temp),
               textAlign: TextAlign.center,
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
@@ -150,16 +203,6 @@ class ChatStage extends StatelessWidget {
                     ),
                   ],
                 ),
-              ),
-            ],
-            if (isIncognito) ...[
-              const SizedBox(height: 18),
-              Text(
-                AppI18n.of(context).t('chat.incognito_desc'),
-                textAlign: TextAlign.center,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: GoogleFonts.inter(fontSize: 13.5, color: ExodoColors.textSecondary),
               ),
             ],
           ],

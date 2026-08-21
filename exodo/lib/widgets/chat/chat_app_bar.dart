@@ -72,8 +72,24 @@ class ChatAppBar extends StatelessWidget {
             ),
           ),
 
-          // Header limpio sin barra de progreso de tokens (disponible en Perfil/Ajustes)
-          const Spacer(),
+          // En modo incógnito, centrar "Incógnito" en la barra superior
+          if (isIncognito)
+            Expanded(
+              child: Center(
+                child: Text(
+                  AppI18n.of(context).t('chat.incognito_title'),
+                  style: const TextStyle(
+                    fontFamily: 'AnthropicSans',
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: ExodoColors.textPrimary,
+                    letterSpacing: -0.2,
+                  ),
+                ),
+              ),
+            )
+          else
+            const Spacer(),
 
           // En modo incógnito quitar iconos New Chat y Dark Mode
           if (!isIncognito) ...[
