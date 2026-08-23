@@ -80,6 +80,13 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Callback registrado por ChatComposer para cancelar y silenciar la grabación de voz activa
+  VoidCallback? onCancelVoiceRecording;
+
+  void cancelActiveVoiceRecording() {
+    onCancelVoiceRecording?.call();
+  }
+
   bool _initializedSupabase = false;
 
   AppState({
@@ -343,6 +350,7 @@ class AppState extends ChangeNotifier {
   }
 
   Future<void> selectConversation(Conversation conv) async {
+    cancelActiveVoiceRecording();
     // [Sprint 0] Ownership check: verificar que la conversación pertenece al usuario actual.
     final currentUserId = SupabaseService.currentUser?.id;
     if (currentUserId != null && conv.userId != currentUserId) {
@@ -530,6 +538,7 @@ class AppState extends ChangeNotifier {
   }
 
   void startNewChat({bool resetIncognito = true}) {
+    cancelActiveVoiceRecording();
     if (resetIncognito) {
       isIncognito = false;
     }
@@ -642,6 +651,7 @@ class AppState extends ChangeNotifier {
   /// Sale de incógnito y limpia mensajes. Llamado desde chat_screen
   /// al abrir el drawer estando en incógnito.
   void exitIncognitoAndClear() {
+    cancelActiveVoiceRecording();
     currentMessages.clear();
     isIncognito = false;
     notifyListeners();

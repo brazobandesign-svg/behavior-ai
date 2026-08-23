@@ -170,6 +170,13 @@ class _ChatComposerState extends State<ChatComposer>
       vsync: this,
       duration: const Duration(milliseconds: 3200),
     )..repeat();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        context.read<AppState>().onCancelVoiceRecording = () {
+          unawaited(_abortVoiceSession());
+        };
+      }
+    });
   }
 
   @override
@@ -191,8 +198,8 @@ class _ChatComposerState extends State<ChatComposer>
   void _pushWaveLevel(double normalizedLevel) {
     _lastWaveEvent = DateTime.now();
     _waveTarget = normalizedLevel.clamp(0.0, 1.0);
-    // Envelope follower (Qwen DSP): Ataque rápido al hablar (0.35), Release suave con inercia (0.88)
-    final alpha = _waveTarget > _waveEnv ? 0.35 : 0.88;
+    // Envelope follower (Gemini/ChatGPT Style): Attack 0.45, Release 0.68 para caída limpia
+    final alpha = _waveTarget > _waveEnv ? 0.45 : 0.68;
     _waveEnv = alpha * _waveEnv + (1.0 - alpha) * _waveTarget;
     _commitWaveBar();
   }
@@ -371,9 +378,10 @@ class _ChatComposerState extends State<ChatComposer>
     // Conversión a dBFS logarítmico [-96.0 a 0.0]
     final dbfs = 20.0 * (math.log(rms / 32768.0) / math.ln10);
 
-    // Noise Gate: piso de silencio a -48 dBFS
-    const noiseFloorDb = -48.0;
-    const gateRangeDb = 38.0; // Rango útil de -48 a -10 dBFS
+    // Noise Gate estricto estilo Gemini/ChatGPT: piso en -35 dBFS
+    // Cualquier ruido ambiente/ventilador por debajo de -35 dBFS queda en 0.0 absoluto
+    const noiseFloorDb = -35.0;
+    const gateRangeDb = 23.0; // Rango dinámico útil (-35 a -12 dBFS)
 
     if (dbfs < noiseFloorDb) {
       return 0.0; // Silencio absoluto -> onda plana (3.0px)
@@ -381,8 +389,8 @@ class _ChatComposerState extends State<ChatComposer>
 
     final gated = ((dbfs - noiseFloorDb) / gateRangeDb).clamp(0.0, 1.0);
 
-    // Curva perceptual de respuesta (potencia 0.70)
-    final visual = math.pow(gated, 0.70).clamp(0.0, 1.0).toDouble();
+    // Curva expansora no-lineal (potencia 1.35): suprime ruidos débiles y abre con voz real
+    final visual = math.pow(gated, 1.35).clamp(0.0, 1.0).toDouble();
     return visual;
   }
 
@@ -1083,6 +1091,9 @@ class _ChatComposerState extends State<ChatComposer>
 
   @override
   void dispose() {
+    try {
+      context.read<AppState>().onCancelVoiceRecording = null;
+    } catch (_) {}
     WidgetsBinding.instance.removeObserver(this);
     _auraController.dispose();
     _voiceLevel.dispose();
@@ -1764,7 +1775,8 @@ class _AudioWaveBarsPainter extends CustomPainter {
       ..strokeCap = StrokeCap.round
       ..style = PaintingStyle.fill;
 
-    final isSilent = level < 0.02;
+    // Umbral de silencio calibrado: 0.05 (VOZ-1 FIX)
+    final isSilent = level < 0.05;
 
     for (var i = 0; i < count; i++) {
       final x = i * step + (step - barWidth) / 2;
@@ -1778,7 +1790,9 @@ class _AudioWaveBarsPainter extends CustomPainter {
         final bellFactor = 0.25 + 0.75 * math.cos(normalizedPos * math.pi / 2);
         final harmonic = math.sin(i * 0.75 + level * 5.0) * 0.12 * level;
         final dynamicLevel = (level + harmonic).clamp(0.0, 1.0);
-        barH = (3.0 + dynamicLevel * (size.height - 4.0) * bellFactor).clamp(3.0, size.height);
+        // Altura máxima contenida (techo bajo elegante, max 13.5px)
+        const maxHeight = 13.5;
+        barH = (3.0 + dynamicLevel * maxHeight * bellFactor).clamp(3.0, 16.5);
       }
 
       final rrect = RRect.fromRectAndRadius(

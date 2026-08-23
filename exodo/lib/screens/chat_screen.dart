@@ -126,8 +126,11 @@ class _ChatScreenState extends State<ChatScreen>
       drawerEnableOpenDragGesture: true,
       drawerEdgeDragWidth: MediaQuery.of(context).size.width * 0.26,
       onDrawerChanged: (isOpened) {
-        if (isOpened && isIncognito) {
-          context.read<AppState>().exitIncognitoAndClear();
+        if (isOpened) {
+          context.read<AppState>().cancelActiveVoiceRecording();
+          if (isIncognito) {
+            context.read<AppState>().exitIncognitoAndClear();
+          }
         }
       },
       body: AnimatedAmbientBackground(
