@@ -190,14 +190,15 @@ class _ChatComposerState extends State<ChatComposer>
 
   void _pushWaveLevel(double normalizedLevel) {
     _lastWaveEvent = DateTime.now();
-    _waveTarget = normalizedLevel.clamp(0.05, 1.0);
-    final k = _waveTarget > _waveEnv ? 0.85 : 0.28;
-    _waveEnv = _waveEnv + (_waveTarget - _waveEnv) * k;
+    _waveTarget = normalizedLevel.clamp(0.0, 1.0);
+    // Envelope follower (Qwen DSP): Ataque rápido al hablar (0.35), Release suave con inercia (0.88)
+    final alpha = _waveTarget > _waveEnv ? 0.35 : 0.88;
+    _waveEnv = alpha * _waveEnv + (1.0 - alpha) * _waveTarget;
     _commitWaveBar();
   }
 
   void _commitWaveBar() {
-    _voiceLevel.value = _waveEnv.clamp(0.05, 1.0);
+    _voiceLevel.value = _waveEnv.clamp(0.0, 1.0);
   }
 
   void _startWaveTickers() {
@@ -354,10 +355,10 @@ class _ChatComposerState extends State<ChatComposer>
     _pushWaveLevel(normLevel);
   }
 
-  /// Calcula la amplitud RMS normalizada (0.05 a 1.0) directamente del PCM.
+  /// Calcula la amplitud normalizada (0.0 a 1.0) con Noise Gate en dBFS.
   double _calcChunkNormalizedRms(Uint8List pcm) {
     final n = pcm.length ~/ 2;
-    if (n == 0) return 0.05;
+    if (n == 0) return 0.0;
     final bd = ByteData.sublistView(pcm);
     double sumSq = 0;
     for (var i = 0; i < n; i++) {
@@ -365,10 +366,24 @@ class _ChatComposerState extends State<ChatComposer>
       sumSq += v * v;
     }
     final rms = math.sqrt(sumSq / n);
-    if (rms <= 8) return 0.05;
-    // Rango dinámico perceptual: voz suave (RMS 80) -> 0.40, normal (RMS 300) -> 0.75, fuerte -> 1.0
-    final norm = math.pow((rms - 8) / 750.0, 0.42).clamp(0.05, 1.0).toDouble();
-    return norm;
+    if (rms <= 1e-4) return 0.0;
+
+    // Conversión a dBFS logarítmico [-96.0 a 0.0]
+    final dbfs = 20.0 * (math.log(rms / 32768.0) / math.ln10);
+
+    // Noise Gate: piso de silencio a -48 dBFS
+    const noiseFloorDb = -48.0;
+    const gateRangeDb = 38.0; // Rango útil de -48 a -10 dBFS
+
+    if (dbfs < noiseFloorDb) {
+      return 0.0; // Silencio absoluto -> onda plana (3.0px)
+    }
+
+    final gated = ((dbfs - noiseFloorDb) / gateRangeDb).clamp(0.0, 1.0);
+
+    // Curva perceptual de respuesta (potencia 0.70)
+    final visual = math.pow(gated, 0.70).clamp(0.0, 1.0).toDouble();
+    return visual;
   }
 
   /// RMS de las muestras Int16 → dBFS.
@@ -1749,17 +1764,22 @@ class _AudioWaveBarsPainter extends CustomPainter {
       ..strokeCap = StrokeCap.round
       ..style = PaintingStyle.fill;
 
+    final isSilent = level < 0.02;
+
     for (var i = 0; i < count; i++) {
       final x = i * step + (step - barWidth) / 2;
-      // Perfil armónico: barras del centro reaccionan más que los extremos
-      final normalizedPos = ((i - count / 2).abs()) / (count / 2);
-      final bellFactor = 0.35 + 0.65 * math.cos(normalizedPos * math.pi / 2);
 
-      // Dinámica de onda con variación armónica entre barras
-      final phaseOffset = math.sin(i * 0.75 + level * 6.0) * 0.25;
-      final dynamicLevel = (level + phaseOffset).clamp(0.08, 1.0);
-
-      final barH = (3.5 + dynamicLevel * (size.height - 4.0) * bellFactor).clamp(3.5, size.height);
+      double barH;
+      if (isSilent) {
+        // Silencio absoluto: línea de reposo plana y serena (3.0px)
+        barH = 3.0;
+      } else {
+        final normalizedPos = ((i - count / 2).abs()) / (count / 2);
+        final bellFactor = 0.25 + 0.75 * math.cos(normalizedPos * math.pi / 2);
+        final harmonic = math.sin(i * 0.75 + level * 5.0) * 0.12 * level;
+        final dynamicLevel = (level + harmonic).clamp(0.0, 1.0);
+        barH = (3.0 + dynamicLevel * (size.height - 4.0) * bellFactor).clamp(3.0, size.height);
+      }
 
       final rrect = RRect.fromRectAndRadius(
         Rect.fromCenter(
