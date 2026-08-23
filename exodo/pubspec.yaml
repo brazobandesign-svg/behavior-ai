@@ -180,5 +180,9 @@ flutter:
           weight: 800
 
 dependency_overrides:
+  # Pin necesario: record 5.2.1 permite interfaces >=1.2 pero su propio
+  # record_linux <1.0 no compila con 1.5/1.6 (firma hasPermission cambiada).
+  # Quitarlo rompe el build salvo actualización completa de la familia record
+  # (que a su vez requiere Modo Desarrollador de Windows por symlinks).
   record_platform_interface: 1.1.0
 

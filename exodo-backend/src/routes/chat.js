@@ -4,7 +4,7 @@ const auth = require('../middleware/auth');
 const { planGuard } = require('../middleware/planGuard');
 const { classifyByKeywords } = require('../services/intentClassifier');
 const { routeMessage, routeMessageStream } = require('../services/modelRouter');
-const { getHistory, saveMessage } = require('../services/historyManager');
+const { getHistory, saveMessage, assertConversationOwner } = require('../services/historyManager');
 const { estimateTokens, updateTokenUsage } = require('../services/tokenCounter');
 const { extractText } = require('../services/documentExtractor');
 const { buildSystemPrompt } = require('../prompts/groundingMinerd');
@@ -191,8 +191,24 @@ router.post('/', auth, planGuard, upload.array('files', 5), async (req, res) => 
   try {
     const { message, conversationId, model_override, attachments, subject } = req.body;
     const { userId, plan, anonymous } = req.user;
+    const isGuest = !!req.user?.isGuest;
 
-        const multipartFiles = Array.isArray(req.files) ? req.files : [];
+    // C1 (IDOR Guard): validar propiedad de la conversación antes de procesar
+    if (conversationId && !isGuest && !anonymous && userId) {
+      try {
+        await assertConversationOwner(userId, conversationId);
+      } catch (err) {
+        if (err.status === 403) {
+          return res.status(403).json({
+            error: 'forbidden',
+            message: 'No tienes permiso para acceder a esta conversación.',
+          });
+        }
+        throw err;
+      }
+    }
+
+    const multipartFiles = Array.isArray(req.files) ? req.files : [];
     const hasAttachments =
       (attachments && Array.isArray(attachments) && attachments.length > 0) ||
       multipartFiles.length > 0;
@@ -302,7 +318,6 @@ router.post('/', auth, planGuard, upload.array('files', 5), async (req, res) => 
     sendSse({ type: 'heartbeat', status: 'connected' });
 
     // 1 & 2. Paralelizar historial e intención.
-    const isGuest = !!req.user?.isGuest;
     const hasImages = imageDataUris && imageDataUris.length > 0;
 
     let history = [];
@@ -530,6 +545,23 @@ router.post('/', auth, planGuard, upload.array('files', 5), async (req, res) => 
 router.post('/title', auth, async (req, res) => {
   try {
     const { conversationId, messages } = req.body || {};
+    const { userId, isGuest, anonymous } = req.user || {};
+
+    // C1 (IDOR Guard): validar propiedad de la conversación
+    if (conversationId && !isGuest && !anonymous && userId) {
+      try {
+        await assertConversationOwner(userId, conversationId);
+      } catch (err) {
+        if (err.status === 403) {
+          return res.status(403).json({
+            error: 'forbidden',
+            message: 'No tienes permiso para acceder a esta conversación.',
+          });
+        }
+        throw err;
+      }
+    }
+
     if (!Array.isArray(messages) || messages.length === 0) {
       return res.status(400).json({ error: 'messages array is required' });
     }

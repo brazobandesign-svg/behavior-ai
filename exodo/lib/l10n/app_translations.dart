@@ -125,6 +125,7 @@ const Map<String, String> _es = <String, String>{
   'greeting.late_en': 'Late night hustle',
   'greeting.cold': 'Frío afuera, mejor que un café',
   'greeting.hot': 'Toma algo frío, hace mucho calor',
+  'greeting.flirt': 'Tú, yo, una buena charla... No sé, piénsalo',
   'greeting.cold_en': 'Cold outside, better than coffee',
   'greeting.hot_en': 'Grab something cold, really hot',
 
@@ -369,6 +370,7 @@ const Map<String, String> _en = <String, String>{
   'greeting.late_en': 'Late night hustle',
   'greeting.cold': 'Cold outside, better than coffee',
   'greeting.hot': 'Grab something cold, really hot',
+  'greeting.flirt': 'You, me, a good chat... Think about it',
   'greeting.cold_en': 'Cold outside, better than coffee',
   'greeting.hot_en': 'Grab something cold, really hot',
 

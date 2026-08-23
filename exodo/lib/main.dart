@@ -8,6 +8,7 @@ import 'l10n/app_i18n.dart';
 import 'l10n/app_translations.dart';
 import 'services/supabase_service.dart';
 import 'services/app_state.dart';
+import 'services/chat_service.dart';
 import 'theme/exodo_theme.dart';
 
 void main() async {
@@ -19,6 +20,7 @@ void main() async {
   // Lectura síncrona de SharedPreferences antes del primer frame en el frame 0.
   // NO toca red ni bloquea la interfaz.
   final bootstrap = await Bootstrap.readSync();
+  await ChatService.loadSavedWorkingUrl();
 
   // 2. CAPA ASÍNCRONA (fire-and-forget)
   // Supabase se inicializa en background en paralelo sin bloquear el arranque.

@@ -484,7 +484,7 @@ class UpgradeModal {
                               : () async {
                                   HapticFeedback.mediumImpact();
                                   setModalState(() => isLoadingCheckout = true);
-                                  final success = await StripeService.startCheckoutSession(context);
+                                  final success = await StripeService.startCheckoutSession(context, isAnnual: isAnnual);
                                   if (context.mounted && success) {
                                     Navigator.pop(ctx);
                                   } else if (context.mounted) {

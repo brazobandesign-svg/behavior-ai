@@ -6,16 +6,17 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_highlight/flutter_highlight.dart';
-import 'package:flutter_highlight/themes/atom-one-dark.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
+import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../../data/artifacts/artifact.dart';
+import '../../models/models.dart';
+import '../../services/app_state.dart';
 import '../../services/artifacts_service.dart';
 import '../../services/expedientes_repository.dart';
 import '../../services/export/exporters.dart';
 import '../../theme/exodo_palette.dart';
-import 'expedientes_screen.dart';
 
 import '../../templates/sandbox_template.dart';
 
@@ -55,9 +56,6 @@ class _ArtifactFullscreenState extends State<ArtifactFullscreen>
     await Clipboard.setData(ClipboardData(text: a.sourceCode));
     if (!mounted) return;
     HapticFeedback.lightImpact();
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Copiado al portapapeles'), duration: Duration(seconds: 2)),
-    );
   }
 
   Future<void> _shareSource() async {
@@ -153,65 +151,65 @@ class _ArtifactFullscreenState extends State<ArtifactFullscreen>
         category: category,
         fileFormat: fileFormat,
         contentPayload: a.sourceCode,
-        metadata: a.meta,
+        chatId: a.conversationId.isNotEmpty ? a.conversationId : null,
+        metadata: {
+          ...a.meta,
+          'message_id': a.messageId,
+          'conversation_id': a.conversationId,
+        },
       );
 
       if (!mounted) return;
 
       if (expediente != null) {
         HapticFeedback.lightImpact();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Row(
-              children: [
-                Icon(Icons.check_circle_rounded, color: Color(0xFFF5F2EB), size: 18),
-                SizedBox(width: 10),
-                Expanded(child: Text('Guardado en tus Expedientes')),
-              ],
-            ),
-            backgroundColor: ExodoPalette.inkRaised,
-            duration: const Duration(seconds: 3),
-            action: SnackBarAction(
-              label: 'VER',
-              textColor: ExodoPalette.gold,
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const ExpedientesScreen()),
-                );
-              },
-            ),
-          ),
-        );
       } else {
         HapticFeedback.vibrate();
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('No se pudo guardar en Expedientes. Inicia sesión primero.'),
-            backgroundColor: ExodoPalette.danger,
-            duration: Duration(seconds: 3),
-          ),
-        );
       }
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error al guardar: $e'),
-          backgroundColor: ExodoPalette.danger,
-        ),
-      );
+      HapticFeedback.vibrate();
     } finally {
       if (mounted) setState(() => _savingExpediente = false);
     }
   }
 
+  Future<void> _navigateToConversation() async {
+    final convId = widget.artifact.conversationId;
+    if (convId.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Conversación original no disponible.'),
+          backgroundColor: const Color(0xFF252525),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+      return;
+    }
+    final state = context.read<AppState>();
+    Conversation? targetConv =
+        state.conversations.where((c) => c.id == convId).firstOrNull;
+    targetConv ??= Conversation(
+      id: convId,
+      userId: state.profile?.id ?? '',
+      title: widget.artifact.title ?? 'Conversación',
+      createdAt: widget.artifact.detectedAt,
+      updatedAt: widget.artifact.updatedAt,
+    );
+    await state.selectConversation(targetConv);
+    if (!mounted) return;
+    Navigator.of(context).popUntil((route) => route.isFirst);
+  }
+
   Future<void> _openExportSheet() async {
     final a = widget.artifact;
     if (!mounted) return;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     await showModalBottomSheet<void>(
       context: context,
-      backgroundColor: ExodoPalette.inkRaised,
+      backgroundColor: isDark ? const Color(0xFF191919) : Colors.white,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
@@ -262,6 +260,12 @@ class _ArtifactFullscreenState extends State<ArtifactFullscreen>
           overflow: TextOverflow.ellipsis,
         ),
         actions: [
+          if (widget.artifact.conversationId.isNotEmpty)
+            IconButton(
+              tooltip: 'Ir a la conversación',
+              icon: const Icon(Icons.forum_outlined, color: Color(0xFF8E8E93)),
+              onPressed: _navigateToConversation,
+            ),
           IconButton(
             tooltip: 'Guardar en Expedientes',
             icon: _savingExpediente
@@ -562,6 +566,31 @@ class _CodeView extends StatelessWidget {
     if (artifact.kind == ArtifactKind.html || artifact.kind == ArtifactKind.svg) {
       lang = 'xml';
     }
+    final theme = <String, TextStyle>{
+      'root': const TextStyle(
+        backgroundColor: Colors.transparent,
+        color: Color(0xFFF5F2EB),
+      ),
+      'tag': const TextStyle(color: Color(0xFFD4A843), fontWeight: FontWeight.w600),
+      'name': const TextStyle(color: Color(0xFFD4A843), fontWeight: FontWeight.w600),
+      'keyword': const TextStyle(color: Color(0xFFD4A843), fontWeight: FontWeight.w600),
+      'selector-tag': const TextStyle(color: Color(0xFFD4A843), fontWeight: FontWeight.w600),
+      'attr': const TextStyle(color: Color(0xFFE5C07B)),
+      'attribute': const TextStyle(color: Color(0xFFE5C07B)),
+      'variable': const TextStyle(color: Color(0xFFE5C07B)),
+      'string': const TextStyle(color: Color(0xFFCE9178)),
+      'value': const TextStyle(color: Color(0xFFCE9178)),
+      'number': const TextStyle(color: Color(0xFFD19A66)),
+      'literal': const TextStyle(color: Color(0xFFD19A66)),
+      'comment': const TextStyle(color: Color(0xFF8E8E93), fontStyle: FontStyle.italic),
+      'quote': const TextStyle(color: Color(0xFF8E8E93), fontStyle: FontStyle.italic),
+      'symbol': const TextStyle(color: Color(0xFF61AFEF)),
+      'bullet': const TextStyle(color: Color(0xFF61AFEF)),
+      'built_in': const TextStyle(color: Color(0xFFE5C07B)),
+      'title': const TextStyle(color: Color(0xFF61AFEF)),
+      'section': const TextStyle(color: Color(0xFFD4A843), fontWeight: FontWeight.bold),
+    };
+
     return Container(
       color: ExodoPalette.inkDeep,
       child: SingleChildScrollView(
@@ -573,13 +602,14 @@ class _CodeView extends StatelessWidget {
             child: HighlightView(
               artifact.sourceCode,
               language: lang,
-              theme: atomOneDarkTheme,
+              theme: theme,
               padding: EdgeInsets.zero,
               textStyle: const TextStyle(
                 fontFamily: 'monospace',
                 fontSize: 12.5,
                 height: 1.5,
                 letterSpacing: 0,
+                color: Color(0xFFF5F2EB),
               ),
             ),
           ),
@@ -718,6 +748,10 @@ class _ExportSheetState extends State<ExportSheet> {
     final a = widget.artifact;
     final isTabular = a.kind == ArtifactKind.table;
     final isExecutable = a.isExecutable;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final primaryTextColor = isDark ? const Color(0xFFF5F2EB) : const Color(0xFF191919);
+    final secondaryTextColor = isDark ? const Color(0xFF8E8E93) : const Color(0xFF6E6E73);
+
     return SafeArea(
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
@@ -725,15 +759,15 @@ class _ExportSheetState extends State<ExportSheet> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Row(
+            Row(
               children: [
-                Icon(Icons.ios_share_rounded, color: Color(0xFFF5F2EB), size: 20),
-                SizedBox(width: 8),
+                Icon(Icons.ios_share_rounded, color: primaryTextColor, size: 20),
+                const SizedBox(width: 8),
                 Text(
                   'Exportar artefacto',
                   style: TextStyle(
                     fontFamily: 'AnthropicSans',
-                    color: Color(0xFFF5F2EB),
+                    color: primaryTextColor,
                     fontWeight: FontWeight.w700,
                     fontSize: 16,
                     letterSpacing: 0.3,
@@ -742,14 +776,19 @@ class _ExportSheetState extends State<ExportSheet> {
               ],
             ),
             const SizedBox(height: 6),
-            const Text(
+            Text(
               'Elige un formato. El archivo se generará y se abrirá el menú de compartir.',
-              style: TextStyle(color: ExodoPalette.textMuted, fontSize: 12.5, height: 1.4),
+              style: TextStyle(
+                fontFamily: 'AnthropicSans',
+                color: secondaryTextColor,
+                fontSize: 12.5,
+                height: 1.4,
+              ),
             ),
             const SizedBox(height: 16),
             _ExportTile(
               icon: Icons.link_rounded,
-              label: '🔗 Compartir enlace Web',
+              label: 'Compartir enlace web',
               description: 'Genera una URL pública interactiva en exodo.app',
               onTap: _publishWebLink,
               enabled: !_busy,
@@ -757,14 +796,14 @@ class _ExportSheetState extends State<ExportSheet> {
             _ExportTile(
               icon: Icons.picture_as_pdf_rounded,
               label: 'PDF',
-              description: 'Maquetado con la paleta Éxodo',
+              description: 'Maquetado limpio para lectura e impresión',
               onTap: () => _run(() => PdfExporter().exportArtifact(a), 'PDF'),
               enabled: !_busy,
             ),
             _ExportTile(
               icon: Icons.description_rounded,
               label: 'DOCX',
-              description: 'Documento Word con headings nativos',
+              description: 'Documento Word con títulos y estructura nativa',
               onTap: () => _run(() => DocxExporter().exportArtifact(a), 'DOCX'),
               enabled: !_busy,
             ),
@@ -772,7 +811,7 @@ class _ExportSheetState extends State<ExportSheet> {
               _ExportTile(
                 icon: Icons.table_view_rounded,
                 label: 'XLSX',
-                description: 'Hoja de cálculo con cabecera Éxodo',
+                description: 'Hoja de cálculo con celdas formateadas',
                 onTap: () => _run(() => XlsxExporter().exportArtifact(a), 'XLSX'),
                 enabled: !_busy,
               ),
@@ -780,7 +819,7 @@ class _ExportSheetState extends State<ExportSheet> {
               _ExportTile(
                 icon: Icons.code_rounded,
                 label: 'HTML standalone',
-                description: 'Archivo .html envuelto y sanitizado',
+                description: 'Archivo HTML independiente sanitizado',
                 onTap: () => _run(() => ExportRepositoryHelpers.exportStandaloneHtml(a), 'HTML'),
                 enabled: !_busy,
               ),
@@ -795,14 +834,25 @@ class _ExportSheetState extends State<ExportSheet> {
                 ),
                 child: Text(
                   _error!,
-                  style: const TextStyle(color: ExodoPalette.danger, fontSize: 12),
+                  style: const TextStyle(
+                    fontFamily: 'AnthropicSans',
+                    color: ExodoPalette.danger,
+                    fontSize: 12,
+                  ),
                 ),
               ),
             ],
             const SizedBox(height: 6),
             TextButton(
               onPressed: _busy ? null : () => Navigator.of(context).pop(),
-              child: const Text('CANCELAR', style: TextStyle(color: ExodoPalette.textMuted)),
+              child: Text(
+                'CANCELAR',
+                style: TextStyle(
+                  fontFamily: 'AnthropicSans',
+                  color: secondaryTextColor,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
             ),
           ],
         ),
@@ -828,16 +878,24 @@ class _ExportTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final primaryTextColor = isDark ? const Color(0xFFF5F2EB) : const Color(0xFF191919);
+    final secondaryTextColor = isDark ? const Color(0xFF8E8E93) : const Color(0xFF6E6E73);
+
     return Material(
       color: Colors.transparent,
       child: InkWell(
         onTap: enabled ? onTap : null,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(10),
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
           child: Row(
             children: [
-              Icon(icon, color: enabled ? const Color(0xFFF5F2EB) : ExodoPalette.textMuted, size: 22),
+              Icon(
+                icon,
+                color: enabled ? primaryTextColor : secondaryTextColor,
+                size: 22,
+              ),
               const SizedBox(width: 14),
               Expanded(
                 child: Column(
@@ -847,15 +905,19 @@ class _ExportTile extends StatelessWidget {
                       label,
                       style: TextStyle(
                         fontFamily: 'AnthropicSans',
-                        color: enabled ? ExodoPalette.textOnDark : ExodoPalette.textMuted,
+                        color: enabled ? primaryTextColor : secondaryTextColor,
                         fontWeight: FontWeight.w700,
                         fontSize: 13.5,
-                        letterSpacing: 0.3,
+                        letterSpacing: 0.2,
                       ),
                     ),
                     Text(
                       description,
-                      style: const TextStyle(fontFamily: 'AnthropicSans', color: ExodoPalette.textMuted, fontSize: 11.5),
+                      style: TextStyle(
+                        fontFamily: 'AnthropicSans',
+                        color: secondaryTextColor,
+                        fontSize: 11.5,
+                      ),
                     ),
                   ],
                 ),
@@ -867,7 +929,7 @@ class _ExportTile extends StatelessWidget {
                   child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF8E8E93)),
                 )
               else
-                const Icon(Icons.chevron_right_rounded, color: ExodoPalette.textMuted, size: 20),
+                Icon(Icons.chevron_right_rounded, color: secondaryTextColor, size: 20),
             ],
           ),
         ),

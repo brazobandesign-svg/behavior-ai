@@ -162,4 +162,44 @@ async function saveMessage(conversationId, role, content, metadata = {}) {
   }
 }
 
-module.exports = { getHistory, saveMessage };
+/**
+ * C1 (IDOR): Valida que la conversación pertenezca al usuario autenticado.
+ * - Si conversationId no está especificado o el usuario es anónimo/invitado, omite la validación.
+ * - Si la conversación no existe aún en la base de datos (creación optimista en cliente), permite continuar.
+ * - Si la conversación existe en Supabase pero pertenece a otro user_id, lanza error 403 Forbidden.
+ * @param {string} userId - UUID del usuario autenticado (req.user.userId)
+ * @param {string} conversationId - UUID de la conversación
+ * @returns {Promise<boolean>}
+ */
+async function assertConversationOwner(userId, conversationId) {
+  if (!conversationId || !userId || !supabase) return true;
+
+  try {
+    const { data, error } = await supabase
+      .from('conversations')
+      .select('user_id')
+      .eq('id', conversationId)
+      .maybeSingle();
+
+    if (error) {
+      console.error('[historyManager] Error verificando propiedad de conversación:', error.message);
+      return true; // En caso de fallo transitorio de BD
+    }
+
+    // Si la conversación existe y su user_id no coincide con el usuario autenticado -> 403 Forbidden
+    if (data && data.user_id && data.user_id !== userId) {
+      const err = new Error('No tienes permiso para acceder a esta conversación');
+      err.status = 403;
+      err.code = 'FORBIDDEN_CONVERSATION';
+      throw err;
+    }
+
+    return true;
+  } catch (err) {
+    if (err.status === 403) throw err;
+    console.error('[historyManager] assertConversationOwner error:', err.message);
+    return true;
+  }
+}
+
+module.exports = { getHistory, saveMessage, assertConversationOwner };

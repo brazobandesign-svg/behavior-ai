@@ -72,6 +72,7 @@ class MessageBubble extends StatelessWidget {
   Widget build(BuildContext context) {
     final isUser = message.role == 'user';
     final isLight = Theme.of(context).brightness == Brightness.light;
+    final isIncognito = context.select<AppState, bool>((s) => s.isIncognito);
     final copyLabel = AppI18n.of(context).t('act.copy');
     final copiedLabel = AppI18n.of(context).t('act.copied');
     final likeLabel = AppI18n.of(context).t('act.like');
@@ -178,49 +179,96 @@ class MessageBubble extends StatelessWidget {
                     width: 1.0,
                   ),
                 ),
-                child: MarkdownBody(
-                  data: _AssistantContentWithArtifacts._sanitizeMarkdown(message.content),
-                  onTapLink: (text, href, title) {
-                    if (href != null) {
-                      final uri = Uri.tryParse(href);
-                      if (uri != null) launchUrl(uri, mode: LaunchMode.externalApplication);
-                    }
-                  },
-                  builders: {
-                    'table': _TableElementBuilder(isLight),
-                  },
-                  styleSheet: MarkdownStyleSheet.fromTheme(Theme.of(context))
-                      .copyWith(
-                        p: TextStyle(
-                          fontFamily: 'AnthropicSans',
-                          fontSize: 15,
-                          color: isLight ? const Color(0xFF171615) : ExodoColors.textPrimary,
+                child: isIncognito
+                    ? Transform(
+                        transform: Matrix4.skewX(-0.16),
+                        child: MarkdownBody(
+                          data: _AssistantContentWithArtifacts._sanitizeMarkdown(message.content),
+                          onTapLink: (text, href, title) {
+                            if (href != null) {
+                              final uri = Uri.tryParse(href);
+                              if (uri != null) launchUrl(uri, mode: LaunchMode.externalApplication);
+                            }
+                          },
+                          builders: {
+                            'table': _TableElementBuilder(isLight),
+                          },
+                          styleSheet: MarkdownStyleSheet.fromTheme(Theme.of(context))
+                              .copyWith(
+                                p: TextStyle(
+                                  fontFamily: 'AnthropicSans',
+                                  fontSize: 15,
+                                  color: isLight ? const Color(0xFF171615) : ExodoColors.textPrimary,
+                                ),
+                                blockquotePadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                                blockquoteDecoration: BoxDecoration(
+                                  color: isLight ? const Color(0xFFF7F7F8) : const Color(0xFF1C1C1E),
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border(
+                                    left: BorderSide(
+                                      color: isLight ? const Color(0xFFB8860B) : const Color(0xFFD4AF37),
+                                      width: 4,
+                                    ),
+                                  ),
+                                ),
+                                blockquote: TextStyle(
+                                  fontFamily: 'AnthropicSans',
+                                  fontSize: 14,
+                                  color: isLight ? const Color(0xFF111827) : const Color(0xFFF3F4F6),
+                                  fontStyle: FontStyle.italic,
+                                ),
+                                code: TextStyle(
+                                  fontFamily: 'AnthropicSans',
+                                  backgroundColor: isLight ? const Color(0xFFE2E8F0) : const Color(0xFF1E293B),
+                                  color: isLight ? const Color(0xFF0F172A) : const Color(0xFF38BDF8),
+                                  fontSize: 13.5,
+                                ),
+                              ),
                         ),
-                        blockquotePadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                        blockquoteDecoration: BoxDecoration(
-                          color: isLight ? const Color(0xFFF7F7F8) : const Color(0xFF1C1C1E),
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border(
-                            left: BorderSide(
-                              color: isLight ? const Color(0xFFB8860B) : const Color(0xFFD4AF37),
-                              width: 4,
+                      )
+                    : MarkdownBody(
+                        data: _AssistantContentWithArtifacts._sanitizeMarkdown(message.content),
+                        onTapLink: (text, href, title) {
+                          if (href != null) {
+                            final uri = Uri.tryParse(href);
+                            if (uri != null) launchUrl(uri, mode: LaunchMode.externalApplication);
+                          }
+                        },
+                        builders: {
+                          'table': _TableElementBuilder(isLight),
+                        },
+                        styleSheet: MarkdownStyleSheet.fromTheme(Theme.of(context))
+                            .copyWith(
+                              p: TextStyle(
+                                fontFamily: 'AnthropicSans',
+                                fontSize: 15,
+                                color: isLight ? const Color(0xFF171615) : ExodoColors.textPrimary,
+                              ),
+                              blockquotePadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                              blockquoteDecoration: BoxDecoration(
+                                color: isLight ? const Color(0xFFF7F7F8) : const Color(0xFF1C1C1E),
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border(
+                                  left: BorderSide(
+                                    color: isLight ? const Color(0xFFB8860B) : const Color(0xFFD4AF37),
+                                    width: 4,
+                                  ),
+                                ),
+                              ),
+                              blockquote: TextStyle(
+                                fontFamily: 'AnthropicSans',
+                                fontSize: 14,
+                                color: isLight ? const Color(0xFF111827) : const Color(0xFFF3F4F6),
+                                fontStyle: FontStyle.italic,
+                              ),
+                              code: TextStyle(
+                                fontFamily: 'AnthropicSans',
+                                backgroundColor: isLight ? const Color(0xFFE2E8F0) : const Color(0xFF1E293B),
+                                color: isLight ? const Color(0xFF0F172A) : const Color(0xFF38BDF8),
+                                fontSize: 13.5,
+                              ),
                             ),
-                          ),
-                        ),
-                        blockquote: TextStyle(
-                          fontFamily: 'AnthropicSans',
-                          fontSize: 14,
-                          color: isLight ? const Color(0xFF111827) : const Color(0xFFF3F4F6),
-                          fontStyle: FontStyle.italic,
-                        ),
-                        code: TextStyle(
-                          fontFamily: 'AnthropicSans',
-                          backgroundColor: isLight ? const Color(0xFFE2E8F0) : const Color(0xFF1E293B),
-                          color: isLight ? const Color(0xFF0F172A) : const Color(0xFF38BDF8),
-                          fontSize: 13.5,
-                        ),
                       ),
-                ),
               ),
             Padding(
               padding: const EdgeInsets.only(right: 6, top: 3),
@@ -250,6 +298,9 @@ class MessageBubble extends StatelessWidget {
     }
 
     // Respuesta de la IA: AL DESCUBIERTO (Sin fondo, sin borde, puro texto como Claude)
+    if (message.content.trim().isEmpty && !message.isThinking) {
+      return const SizedBox.shrink();
+    }
     return Container(
       width: double.infinity,
       margin: const EdgeInsets.symmetric(vertical: 10),
@@ -257,22 +308,13 @@ class MessageBubble extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          (isLastAssistant && context.select<AppState, bool>((s) => s.isGenerating))
-              ? SelectableText(
-                  message.content,
-                  style: TextStyle(
-                    fontFamily: 'AnthropicSerif',
-                    fontSize: 15.5,
-                    color: isLight ? const Color(0xFF171615) : ExodoColors.textPrimary,
-                    height: 1.45,
-                  ),
-                )
-              : _AssistantContentWithArtifacts(
-                  message: message,
-                  isLight: isLight,
-                  copyLabel: copyLabel,
-                  copiedLabel: copiedLabel,
-                ),
+          _AssistantContentWithArtifacts(
+            message: message,
+            isLight: isLight,
+            copyLabel: copyLabel,
+            copiedLabel: copiedLabel,
+            isStreaming: isLastAssistant && context.select<AppState, bool>((s) => s.isGenerating),
+          ),
           if (message.isDegraded) ...[
             const SizedBox(height: 8),
             _EcoModeNotice(isLight: isLight),
@@ -285,15 +327,17 @@ class MessageBubble extends StatelessWidget {
             const SizedBox(height: 14),
             _SourcesSheet(sources: message.sources),
           ],
-          const SizedBox(height: 10),
-          _MessageActionBar(
-            message: message,
-            copyLabel: copyLabel,
-            copiedLabel: copiedLabel,
-            likeLabel: likeLabel,
-            dislikeLabel: dislikeLabel,
-            shareLabel: shareLabel,
-          ),
+          if (message.id != 'error' && message.content.trim().isNotEmpty) ...[
+            const SizedBox(height: 10),
+            _MessageActionBar(
+              message: message,
+              copyLabel: copyLabel,
+              copiedLabel: copiedLabel,
+              likeLabel: likeLabel,
+              dislikeLabel: dislikeLabel,
+              shareLabel: shareLabel,
+            ),
+          ],
           if (isLastAssistant) ...[
             const SizedBox(height: 16),
             Row(
@@ -1116,11 +1160,10 @@ class _InteractiveCodeBlockState extends State<_InteractiveCodeBlock> {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = !widget.isLight;
-    final bg = isDark ? const Color(0xFF1E1E1E) : const Color(0xFFF4F2EB);
-    final borderColor = isDark ? const Color(0xFF2E2E2E) : const Color(0x14000000);
-    final textCol = isDark ? const Color(0xFFF5F2EB) : const Color(0xFF191919);
-    final langCol = isDark ? const Color(0xFFD4A843) : const Color(0xFF996B00);
+    const bg = Color(0xFF1E1E1E);
+    const borderColor = Color(0xFF2E2E2E);
+    const textCol = Color(0xFFF5F2EB);
+    const langCol = Color(0xFFD4A843);
 
     return Container(
       width: double.infinity,
@@ -1139,12 +1182,12 @@ class _InteractiveCodeBlockState extends State<_InteractiveCodeBlock> {
               // Header permanente con indicador de lenguaje
               Container(
                 padding: const EdgeInsets.fromLTRB(14, 10, 80, 10),
-                decoration: BoxDecoration(
+                decoration: const BoxDecoration(
                   border: Border(bottom: BorderSide(color: borderColor, width: 1.0)),
                 ),
                 child: Row(
                   children: [
-                    Icon(
+                    const Icon(
                       Icons.code_rounded,
                       size: 15,
                       color: langCol,
@@ -1153,7 +1196,7 @@ class _InteractiveCodeBlockState extends State<_InteractiveCodeBlock> {
                     Expanded(
                       child: Text(
                         widget.language.toUpperCase(),
-                        style: TextStyle(
+                        style: const TextStyle(
                           fontFamily: 'AnthropicSans',
                           fontSize: 11,
                           fontWeight: FontWeight.w600,
@@ -1176,9 +1219,9 @@ class _InteractiveCodeBlockState extends State<_InteractiveCodeBlock> {
                     child: IntrinsicWidth(
                       child: SelectableText(
                         widget.code,
-                        style: TextStyle(
-                          fontFamily: 'AnthropicSans',
-                          fontSize: 13,
+                        style: const TextStyle(
+                          fontFamily: 'monospace',
+                          fontSize: 12.5,
                           color: textCol,
                           height: 1.45,
                         ),
@@ -1200,11 +1243,11 @@ class _InteractiveCodeBlockState extends State<_InteractiveCodeBlock> {
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
                   color: _copied
-                      ? Colors.green.withValues(alpha: 0.2)
+                      ? const Color(0xFFD4A843).withValues(alpha: 0.2)
                       : Colors.white.withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(6),
                   border: Border.all(
-                    color: _copied ? Colors.green.withValues(alpha: 0.5) : Colors.white12,
+                    color: _copied ? const Color(0xFFD4A843).withValues(alpha: 0.5) : Colors.white12,
                   ),
                 ),
                 child: Row(
@@ -1213,7 +1256,7 @@ class _InteractiveCodeBlockState extends State<_InteractiveCodeBlock> {
                     Icon(
                       _copied ? Icons.check_rounded : Icons.copy_rounded,
                       size: 13,
-                      color: _copied ? Colors.green : ExodoColors.textPrimary,
+                      color: _copied ? const Color(0xFFD4A843) : const Color(0xFFF5F2EB),
                     ),
                     const SizedBox(width: 4),
                     Text(
@@ -1222,7 +1265,7 @@ class _InteractiveCodeBlockState extends State<_InteractiveCodeBlock> {
                         fontFamily: 'AnthropicSans',
                         fontSize: 10.5,
                         fontWeight: FontWeight.w600,
-                        color: _copied ? Colors.green : ExodoColors.textPrimary,
+                        color: _copied ? const Color(0xFFD4A843) : const Color(0xFFF5F2EB),
                       ),
                     ),
                   ],
@@ -1284,15 +1327,17 @@ class _AssistantContentWithArtifacts extends StatelessWidget {
   final bool isLight;
   final String copyLabel;
   final String copiedLabel;
+  final bool isStreaming;
 
   const _AssistantContentWithArtifacts({
     required this.message,
     required this.isLight,
     required this.copyLabel,
     required this.copiedLabel,
+    this.isStreaming = false,
   });
 
-  static String _sanitizeMarkdown(String input) {
+  static String _sanitizeMarkdown(String input, {bool isStreaming = false}) {
     if (input.trim().isEmpty) return '';
     var s = input;
     // 1. Purge HTML comments
@@ -1303,6 +1348,36 @@ class _AssistantContentWithArtifacts extends StatelessWidget {
     s = s.replaceAll(RegExp(r'<style[\s\S]*?<\/style>', caseSensitive: false), '');
     // 3. Purge raw HTML open/close/self-closing tags so flutter_markdown AST inline stack is 100% clean
     s = s.replaceAll(RegExp(r'<\/?([a-zA-Z0-9_-]+)(?:\s+[^>]*)?\/?>'), '');
+
+    // 4. Live Streaming Structure Auto-Closer (Estándar Claude/ChatGPT):
+    // Cierra automáticamente bloques incompletos durante el streaming para que
+    // el parser pinte títulos, negritas, cursivas y cajas de código en tiempo real.
+    if (isStreaming) {
+      // Auto-cierre de bloques de código ```
+      final codeFenceCount = RegExp(r'```').allMatches(s).length;
+      if (codeFenceCount % 2 != 0) {
+        s = '$s\n```';
+      }
+
+      // Auto-cierre de negritas ** (si quedan impares)
+      final boldMatches = RegExp(r'\*\*').allMatches(s).length;
+      if (boldMatches % 2 != 0) {
+        s = '$s**';
+      }
+
+      // Auto-cierre de tachado ~~
+      final strikeMatches = RegExp(r'~~').allMatches(s).length;
+      if (strikeMatches % 2 != 0) {
+        s = '$s~~';
+      }
+
+      // Auto-cierre de inline code `
+      final inlineCodeCount = RegExp(r'(?<!`)`(?!`)').allMatches(s).length;
+      if (inlineCodeCount % 2 != 0) {
+        s = '$s`';
+      }
+    }
+
     return s;
   }
 
@@ -1329,7 +1404,7 @@ class _AssistantContentWithArtifacts extends StatelessWidget {
         if (match.start > lastEnd) {
           final text = parseResult.cleanedMarkdown.substring(lastEnd, match.start).trim();
           if (text.isNotEmpty) {
-            segments.add(_buildMarkdown(context, text));
+            segments.add(_buildMarkdown(context, text, isStreaming: isStreaming));
           }
         }
         final artId = match.group(1);
@@ -1343,12 +1418,12 @@ class _AssistantContentWithArtifacts extends StatelessWidget {
       if (lastEnd < parseResult.cleanedMarkdown.length) {
         final remaining = parseResult.cleanedMarkdown.substring(lastEnd).trim();
         if (remaining.isNotEmpty) {
-          segments.add(_buildMarkdown(context, remaining));
+          segments.add(_buildMarkdown(context, remaining, isStreaming: isStreaming));
         }
       }
 
       if (segments.isEmpty) {
-        return _buildMarkdown(context, message.content);
+        return _buildMarkdown(context, message.content, isStreaming: isStreaming);
       }
 
       return Column(
@@ -1369,8 +1444,8 @@ class _AssistantContentWithArtifacts extends StatelessWidget {
     }
   }
 
-  Widget _buildMarkdown(BuildContext context, String rawContent) {
-    final content = _sanitizeMarkdown(rawContent);
+  Widget _buildMarkdown(BuildContext context, String rawContent, {bool isStreaming = false}) {
+    final content = _sanitizeMarkdown(rawContent, isStreaming: isStreaming);
     if (content.trim().isEmpty) return const SizedBox.shrink();
 
     try {

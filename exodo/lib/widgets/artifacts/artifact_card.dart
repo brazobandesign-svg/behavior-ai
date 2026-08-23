@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_highlight/flutter_highlight.dart';
-import 'package:flutter_highlight/themes/atom-one-dark.dart';
 import '../../data/artifacts/artifact.dart';
 import '../../screens/artifacts/artifact_fullscreen.dart';
 import '../../screens/artifacts/expedientes_screen.dart';
@@ -90,7 +89,12 @@ class _ArtifactCardState extends State<ArtifactCard> {
         category: category,
         fileFormat: fileFormat,
         contentPayload: a.sourceCode,
-        metadata: a.meta,
+        chatId: a.conversationId.isNotEmpty ? a.conversationId : null,
+        metadata: {
+          ...a.meta,
+          'message_id': a.messageId,
+          'conversation_id': a.conversationId,
+        },
       );
 
       if (!mounted) return;
@@ -98,38 +102,9 @@ class _ArtifactCardState extends State<ArtifactCard> {
       setState(() {
         _savedToExpedientes = true;
       });
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Row(
-            children: [
-              Icon(Icons.check_circle_rounded, color: Color(0xFFF5F2EB), size: 18),
-              SizedBox(width: 10),
-              Expanded(child: Text('Guardado en tus Expedientes')),
-            ],
-          ),
-          backgroundColor: ExodoPalette.inkRaised,
-          duration: const Duration(seconds: 3),
-          action: SnackBarAction(
-            label: 'VER',
-            textColor: ExodoPalette.gold,
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const ExpedientesScreen()),
-              );
-            },
-          ),
-        ),
-      );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error al guardar: $e'),
-          backgroundColor: ExodoPalette.danger,
-        ),
-      );
+      HapticFeedback.vibrate();
     } finally {
       if (mounted) setState(() => _savingExpediente = false);
     }
@@ -137,9 +112,8 @@ class _ArtifactCardState extends State<ArtifactCard> {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final cardBg = isDark ? const Color(0xFF1E1E1E) : const Color(0xFFF4F2EB);
-    final borderColor = isDark ? const Color(0xFF2E2E2E) : const Color(0x14000000); // subtle 1px rgba(0,0,0,0.08)
+    const cardBg = Color(0xFF1E1E1E);
+    const borderColor = Color(0xFF2E2E2E);
 
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 12),
@@ -155,18 +129,18 @@ class _ArtifactCardState extends State<ArtifactCard> {
         children: [
           _Header(
             artifact: widget.artifact,
-            isDark: isDark,
+            isDark: true,
             borderColor: borderColor,
             isExpanded: _isExpanded,
             onToggleExpand: () => setState(() => _isExpanded = !_isExpanded),
           ),
           if (widget.artifact.isTabular)
-            _TablePreview(artifact: widget.artifact, isDark: isDark, isExpanded: _isExpanded)
+            _TablePreview(artifact: widget.artifact, isDark: true, isExpanded: _isExpanded)
           else
-            _CodePreview(artifact: widget.artifact, isDark: isDark, isExpanded: _isExpanded),
+            _CodePreview(artifact: widget.artifact, isDark: true, isExpanded: _isExpanded),
           _Actions(
             artifact: widget.artifact,
-            isDark: isDark,
+            isDark: true,
             borderColor: borderColor,
             copied: _copied,
             savedToExpedientes: _savedToExpedientes,
@@ -230,9 +204,9 @@ class _Header extends StatelessWidget {
                 secondaryLabel,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: TextStyle(
+                style: const TextStyle(
                   fontFamily: 'AnthropicSans',
-                  color: isDark ? const Color(0xFFF5F2EB) : const Color(0xFF191919),
+                  color: Color(0xFFF5F2EB),
                   fontSize: 11.5,
                   fontWeight: FontWeight.w600,
                   letterSpacing: 0.2,
@@ -244,9 +218,9 @@ class _Header extends StatelessWidget {
           const Spacer(),
           Text(
             _summary(artifact.sourceCode),
-            style: TextStyle(
+            style: const TextStyle(
               fontFamily: 'AnthropicSans',
-              color: isDark ? const Color(0xFF8E8E93) : const Color(0xFF8A8279),
+              color: Color(0xFF8E8E93),
               fontSize: 11,
             ),
           ),
@@ -269,33 +243,36 @@ class _KindBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final (label, color) = switch (kind) {
-      ArtifactKind.html    => ('HTML', const Color(0xFFE44D26)),
-      ArtifactKind.svg     => ('SVG', const Color(0xFFFFB13B)),
-      ArtifactKind.mermaid => ('Mermaid', const Color(0xFF00C853)),
-      ArtifactKind.react   => ('JSX', const Color(0xFF61DAFB)),
-      ArtifactKind.vue     => ('Vue', const Color(0xFF42B883)),
-      ArtifactKind.code    => ('Code', const Color(0xFF8E8E93)),
-      ArtifactKind.table   => ('Tabla', const Color(0xFF8E8E93)),
-      ArtifactKind.json    => ('JSON', const Color(0xFFFF9800)),
-      ArtifactKind.latex   => ('LaTeX', const Color(0xFF8E8E93)),
-      ArtifactKind.diagram => ('Diagrama', const Color(0xFF8E8E93)),
+    final label = switch (kind) {
+      ArtifactKind.html    => 'HTML',
+      ArtifactKind.svg     => 'SVG',
+      ArtifactKind.mermaid => 'Mermaid',
+      ArtifactKind.react   => 'JSX',
+      ArtifactKind.vue     => 'Vue',
+      ArtifactKind.code    => 'Code',
+      ArtifactKind.table   => 'Tabla',
+      ArtifactKind.json    => 'JSON',
+      ArtifactKind.latex   => 'LaTeX',
+      ArtifactKind.diagram => 'Diagrama',
     };
 
+    const brandAmber = Color(0xFFD4A843);
+
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
+        color: brandAmber.withValues(alpha: 0.14),
         borderRadius: BorderRadius.circular(4),
-        border: Border.all(color: color.withValues(alpha: 0.4)),
+        border: Border.all(color: brandAmber.withValues(alpha: 0.35)),
       ),
       child: Text(
         label,
-        style: TextStyle(
+        style: const TextStyle(
           fontFamily: 'AnthropicSans',
-          color: color,
-          fontSize: 10,
+          color: brandAmber,
+          fontSize: 10.5,
           fontWeight: FontWeight.w700,
+          letterSpacing: 0.3,
         ),
       ),
     );
@@ -332,11 +309,31 @@ class _CodePreview extends StatelessWidget {
       _ => 'plaintext',
     };
 
-    final theme = Map<String, TextStyle>.from(atomOneDarkTheme);
-    theme['root'] = const TextStyle(
-      backgroundColor: Colors.transparent,
-      color: Color(0xFFABB2BF),
-    );
+    // Paleta de sintaxis Éxodo Brand: Ámbar, Arena, Terracota suave y Tiza
+    final theme = <String, TextStyle>{
+      'root': const TextStyle(
+        backgroundColor: Colors.transparent,
+        color: Color(0xFFF5F2EB),
+      ),
+      'tag': const TextStyle(color: Color(0xFFD4A843), fontWeight: FontWeight.w600),
+      'name': const TextStyle(color: Color(0xFFD4A843), fontWeight: FontWeight.w600),
+      'keyword': const TextStyle(color: Color(0xFFD4A843), fontWeight: FontWeight.w600),
+      'selector-tag': const TextStyle(color: Color(0xFFD4A843), fontWeight: FontWeight.w600),
+      'attr': const TextStyle(color: Color(0xFFE5C07B)),
+      'attribute': const TextStyle(color: Color(0xFFE5C07B)),
+      'variable': const TextStyle(color: Color(0xFFE5C07B)),
+      'string': const TextStyle(color: Color(0xFFCE9178)),
+      'value': const TextStyle(color: Color(0xFFCE9178)),
+      'number': const TextStyle(color: Color(0xFFD19A66)),
+      'literal': const TextStyle(color: Color(0xFFD19A66)),
+      'comment': const TextStyle(color: Color(0xFF8E8E93), fontStyle: FontStyle.italic),
+      'quote': const TextStyle(color: Color(0xFF8E8E93), fontStyle: FontStyle.italic),
+      'symbol': const TextStyle(color: Color(0xFF61AFEF)),
+      'bullet': const TextStyle(color: Color(0xFF61AFEF)),
+      'built_in': const TextStyle(color: Color(0xFFE5C07B)),
+      'title': const TextStyle(color: Color(0xFF61AFEF)),
+      'section': const TextStyle(color: Color(0xFFD4A843), fontWeight: FontWeight.bold),
+    };
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
@@ -348,11 +345,11 @@ class _CodePreview extends StatelessWidget {
             language: lang,
             theme: theme,
             padding: EdgeInsets.zero,
-            textStyle: TextStyle(
+            textStyle: const TextStyle(
               fontFamily: 'monospace',
               fontSize: 12,
               height: 1.45,
-              color: isDark ? const Color(0xFFF5F2EB) : const Color(0xFF191919),
+              color: Color(0xFFF5F2EB),
             ),
           ),
         ),
@@ -595,7 +592,7 @@ class _Actions extends StatelessWidget {
                     }
                   : onSaveToExpedientes,
               color: savedToExpedientes
-                  ? const Color(0xFF34C759)
+                  ? ExodoPalette.gold
                   : (savingExpediente ? ExodoPalette.gold : actionColor),
             ),
             const SizedBox(width: 4),
@@ -603,7 +600,7 @@ class _Actions extends StatelessWidget {
               icon: copied ? Icons.check_rounded : Icons.copy_rounded,
               label: copied ? 'Copiado' : 'Copiar',
               onTap: onCopy,
-              color: copied ? Colors.green : actionColor,
+              color: copied ? ExodoPalette.gold : actionColor,
             ),
             const SizedBox(width: 4),
             actionBtn(

@@ -14,6 +14,12 @@ const { HOST, PORT, NODE_ENV, corsOrigins } = require('./config/network');
 
 const app = express();
 
+// C4: Detrás de reverse proxy (Railway) confiamos en 1 salto para que req.ip
+// sea la IP REAL del cliente. Sin esto, req.ip es la IP del load balancer y
+// TODOS los usuarios comparten un solo bucket del rate limiter (429 masivos).
+// TRUST_PROXY=false la desactiva (depuración de spoofing de X-Forwarded-For).
+app.set('trust proxy', process.env.TRUST_PROXY === 'false' ? false : 1);
+
 // Middlewares globales
 // CORS configurado: en dev permite todo, en prod respeta lista blanca.
 app.use(cors({

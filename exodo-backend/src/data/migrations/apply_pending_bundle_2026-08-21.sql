@@ -1,0 +1,572 @@
+-- ============================================================================
+-- apply_pending_bundle_2026-08-21.sql
+--
+-- Bundle COMBINADO e IDEMPOTENTE de las migraciones pendientes:
+--   002_minerd_schema.sql        (esquema RAG MINERD + RPC match_chunks/hybrid_search)
+--   003_published_artifacts.sql  (artefactos publicados con slug)
+--   004_expedientes.sql          (almacén privado Expedientes + RLS)
+--
+-- Puede ejecutarse completo las veces que sea necesario (IF NOT EXISTS /
+-- DROP ... IF EXISTS / DO-blocks para tipos enum) sin duplicar objetos.
+--
+-- Aplicar con:
+--   psql "$DATABASE_URL" -f src/data/migrations/apply_pending_bundle_2026-08-21.sql
+--   -- o desde Supabase SQL Editor (pegar todo el bloque).
+-- ============================================================================
+
+-- ╔═══════════════════════════════════════════════════════════════════════════╗
+-- ║ PARTE 1: Esquema RAG MINERD (002)                                          ║
+-- ╚═══════════════════════════════════════════════════════════════════════════╝
+
+create extension if not exists vector;
+create extension if not exists pg_trgm;
+create extension if not exists pgcrypto;
+
+-- ─── Enums (con guarda para re-ejecución) ───────────────────────────────────
+
+do $$ begin
+  create type minerd_nivel as enum ('inicial', 'primario', 'secundario', 'transversal');
+exception when duplicate_object then null; end $$;
+
+do $$ begin
+  create type minerd_ciclo as enum ('1er_ciclo', '2do_ciclo', 'N/A');
+exception when duplicate_object then null; end $$;
+
+do $$ begin
+  create type minerd_doc_type as enum ('ley', 'ordenanza', 'diseno', 'guia', 'plan', 'reglamento', 'resolucion');
+exception when duplicate_object then null; end $$;
+
+do $$ begin
+  create type minerd_confidence as enum ('high', 'medium', 'low');
+exception when duplicate_object then null; end $$;
+
+-- ─── Tabla: minerd_documents ────────────────────────────────────────────────
+
+create table if not exists minerd_documents (
+  id              uuid primary key default gen_random_uuid(),
+  short_name      text not null unique,
+  title           text not null,
+  doc_type        minerd_doc_type not null,
+  version         text,
+  published_at    date,
+  source_url      text,
+  local_path      text,
+  file_hash       text not null,
+  total_pages     int,
+  language        text not null default 'es-DO',
+  status          text not null default 'active',
+  superseded_by   uuid references minerd_documents(id) on delete set null,
+  metadata        jsonb not null default '{}'::jsonb,
+  created_at      timestamptz not null default now(),
+  updated_at      timestamptz not null default now(),
+
+  constraint minerd_documents_short_name_length_chk check (char_length(short_name) between 4 and 32),
+  constraint minerd_documents_title_length_chk       check (char_length(title) <= 300),
+  constraint minerd_documents_status_chk            check (status in ('active', 'superseded', 'draft'))
+);
+
+create index if not exists idx_minerd_documents_status on minerd_documents(status) where status = 'active';
+create index if not exists idx_minerd_documents_type   on minerd_documents(doc_type);
+create index if not exists idx_minerd_documents_year   on minerd_documents(published_at);
+create index if not exists idx_minerd_documents_meta   on minerd_documents using gin(metadata);
+
+-- ─── Tabla: minerd_chunks ───────────────────────────────────────────────────
+
+create table if not exists minerd_chunks (
+  id                          uuid primary key default gen_random_uuid(),
+  document_id                 uuid not null references minerd_documents(id) on delete cascade,
+  chunk_index                 int not null,
+  content                     text not null,
+  content_tokens              int,
+  embedding                   vector(1536),
+
+  page_number                 int,
+  section                     text,
+  subsection                  text,
+  paragraph_index             int,
+
+  nivel                       minerd_nivel,
+  ciclo                       minerd_ciclo,
+  grado                       text,
+  area_curricular             text,
+  competencia_fundamental     text[],
+  competencia_especifica      text,
+  indicadores_logro           text[],
+  ejes_tematicos              text[],
+  periodo                     text,
+
+  has_table                   boolean not null default false,
+  has_list                    boolean not null default false,
+  is_definition               boolean not null default false,
+  is_citation                 boolean not null default false,
+  confidence_label            minerd_confidence not null default 'medium',
+
+  content_tsv                 tsvector,
+
+  created_at                  timestamptz not null default now(),
+
+  unique (document_id, chunk_index)
+);
+
+create index if not exists idx_minerd_chunks_document          on minerd_chunks(document_id, chunk_index);
+create index if not exists idx_minerd_chunks_nivel_ciclo_grado on minerd_chunks(nivel, ciclo, grado);
+create index if not exists idx_minerd_chunks_area              on minerd_chunks(area_curricular);
+create index if not exists idx_minerd_chunks_cf                on minerd_chunks using gin(competencia_fundamental);
+create index if not exists idx_minerd_chunks_ejes              on minerd_chunks using gin(ejes_tematicos);
+create index if not exists idx_minerd_chunks_indicadores       on minerd_chunks using gin(indicadores_logro);
+create index if not exists idx_minerd_chunks_tsv               on minerd_chunks using gin(content_tsv);
+create index if not exists idx_minerd_chunks_embedding         on minerd_chunks using ivfflat (embedding vector_cosine_ops) with (lists = 100);
+create index if not exists idx_minerd_chunks_confidence        on minerd_chunks(confidence_label) where confidence_label = 'high';
+
+-- ─── Función: actualizar tsvector automáticamente ───────────────────────────
+
+create or replace function minerd_chunks_update_tsv()
+returns trigger
+language plpgsql
+as $$
+begin
+  new.content_tsv :=
+    setweight(to_tsvector('spanish', coalesce(new.content, '')), 'A') ||
+    setweight(to_tsvector('spanish', coalesce(array_to_string(new.competencia_fundamental, ' '), '')), 'B') ||
+    setweight(to_tsvector('spanish', coalesce(new.area_curricular, '')), 'C') ||
+    setweight(to_tsvector('spanish', coalesce(array_to_string(new.ejes_tematicos, ' '), '')), 'C') ||
+    setweight(to_tsvector('spanish', coalesce(array_to_string(new.indicadores_logro, ' '), '')), 'C') ||
+    setweight(to_tsvector('spanish', coalesce(new.competencia_especifica, '')), 'C');
+  return new;
+end;
+$$;
+
+drop trigger if exists trg_minerd_chunks_tsv on minerd_chunks;
+create trigger trg_minerd_chunks_tsv
+  before insert or update of content, competencia_fundamental, area_curricular,
+    ejes_tematicos, indicadores_logro, competencia_especifica
+  on minerd_chunks
+  for each row execute function minerd_chunks_update_tsv();
+
+-- ─── Función: updated_at automático ────────────────────────────────────────
+
+create or replace function minerd_set_updated_at()
+returns trigger
+language plpgsql
+as $$
+begin
+  new.updated_at := now();
+  return new;
+end;
+$$;
+
+drop trigger if exists trg_minerd_documents_updated_at on minerd_documents;
+create trigger trg_minerd_documents_updated_at
+  before update on minerd_documents
+  for each row execute function minerd_set_updated_at();
+
+-- ─── RLS ────────────────────────────────────────────────────────────────────
+
+alter table minerd_documents enable row level security;
+alter table minerd_chunks    enable row level security;
+
+drop policy if exists "minerd_documents_public_read" on minerd_documents;
+create policy "minerd_documents_public_read"
+  on minerd_documents
+  for select
+  to anon, authenticated
+  using (status = 'active');
+
+drop policy if exists "minerd_chunks_public_read" on minerd_chunks;
+create policy "minerd_chunks_public_read"
+  on minerd_chunks
+  for select
+  to anon, authenticated
+  using (
+    exists (
+      select 1
+      from minerd_documents d
+      where d.id = minerd_chunks.document_id
+        and d.status = 'active'
+    )
+  );
+
+-- ─── Función RPC: match_chunks ──────────────────────────────────────────────
+
+create or replace function match_chunks(
+  query_embedding vector(1536),
+  match_count     int  default 10,
+  filter          jsonb default '{}'::jsonb
+)
+returns table (
+  id            uuid,
+  document_id   uuid,
+  content       text,
+  similarity    float,
+  metadata      jsonb
+)
+language sql
+stable
+as $$
+  select
+    c.id,
+    c.document_id,
+    c.content,
+    1 - (c.embedding <=> query_embedding) as similarity,
+    jsonb_build_object(
+      'short_name', d.short_name,
+      'title', d.title,
+      'doc_type', d.doc_type,
+      'version', d.version,
+      'page', c.page_number,
+      'section', c.section,
+      'subsection', c.subsection,
+      'nivel', c.nivel,
+      'ciclo', c.ciclo,
+      'grado', c.grado,
+      'area_curricular', c.area_curricular,
+      'competencias_fundamentales', c.competencia_fundamental,
+      'competencia_especifica', c.competencia_especifica,
+      'indicadores_logro', c.indicadores_logro,
+      'ejes_tematicos', c.ejes_tematicos,
+      'periodo', c.periodo,
+      'confidence_label', c.confidence_label,
+      'is_definition', c.is_definition,
+      'has_table', c.has_table
+    ) as metadata
+  from minerd_chunks c
+  join minerd_documents d on c.document_id = d.id
+  where d.status = 'active'
+    and (
+      filter = '{}'::jsonb
+      or (
+        (filter->>'nivel' is null or c.nivel::text = filter->>'nivel')
+        and (filter->>'ciclo' is null or c.ciclo::text = filter->>'ciclo')
+        and (filter->>'grado' is null or c.grado = filter->>'grado')
+        and (filter->>'area_curricular' is null or c.area_curricular = filter->>'area_curricular')
+        and (filter->>'periodo' is null or c.periodo = filter->>'periodo')
+        and (
+          (filter->>'competencia_fundamental') is null
+          or c.competencia_fundamental @> array[filter->>'competencia_fundamental']
+        )
+        and (
+          (filter->>'eje_tematico') is null
+          or c.ejes_tematicos @> array[filter->>'eje_tematico']
+        )
+        and (filter->>'short_name' is null or d.short_name = filter->>'short_name')
+        and (
+          (filter->>'min_similarity') is null
+          or (1 - (c.embedding <=> query_embedding)) >= (filter->>'min_similarity')::float
+        )
+      )
+    )
+  order by c.embedding <=> query_embedding
+  limit greatest(match_count, 1);
+$$;
+
+grant execute on function match_chunks(vector(1536), int, jsonb) to anon, authenticated, service_role;
+
+-- ─── Función RPC: hybrid_search ─────────────────────────────────────────────
+
+create or replace function hybrid_search(
+  query_text       text,
+  query_embedding  vector(1536),
+  match_count      int  default 10,
+  filter           jsonb default '{}'::jsonb,
+  semantic_weight  float default 0.7
+)
+returns table (
+  id            uuid,
+  document_id   uuid,
+  content       text,
+  score         float,
+  semantic      float,
+  fulltext      float,
+  metadata      jsonb
+)
+language sql
+stable
+as $$
+  with sem as (
+    select c.id, 1 - (c.embedding <=> query_embedding) as s
+    from minerd_chunks c
+    join minerd_documents d on c.document_id = d.id
+    where d.status = 'active'
+    order by c.embedding <=> query_embedding
+    limit 50
+  ),
+  fts as (
+    select c.id,
+           ts_rank_cd(c.content_tsv, websearch_to_tsquery('spanish', query_text)) as s
+    from minerd_chunks c
+    join minerd_documents d on c.document_id = d.id
+    where d.status = 'active'
+      and c.content_tsv @@ websearch_to_tsquery('spanish', query_text)
+    order by s desc
+    limit 50
+  ),
+  combined as (
+    select coalesce(sem.id, fts.id) as id,
+           coalesce(sem.s, 0) * semantic_weight
+         + coalesce(fts.s, 0) * (1 - semantic_weight) as score,
+           coalesce(sem.s, 0) as semantic,
+           coalesce(fts.s, 0) as fulltext
+    from sem
+    full outer join fts on sem.id = fts.id
+  )
+  select
+    c.id,
+    c.document_id,
+    c.content,
+    combined.score,
+    combined.semantic,
+    combined.fulltext,
+    jsonb_build_object(
+      'short_name', d.short_name,
+      'title', d.title,
+      'doc_type', d.doc_type,
+      'page', c.page_number,
+      'section', c.section,
+      'subsection', c.subsection,
+      'nivel', c.nivel,
+      'ciclo', c.ciclo,
+      'grado', c.grado,
+      'area_curricular', c.area_curricular,
+      'competencias_fundamentales', c.competencia_fundamental,
+      'competencia_especifica', c.competencia_especifica,
+      'indicadores_logro', c.indicadores_logro,
+      'ejes_tematicos', c.ejes_tematicos,
+      'periodo', c.periodo,
+      'confidence_label', c.confidence_label
+    ) as metadata
+  from combined
+  join minerd_chunks c on c.id = combined.id
+  join minerd_documents d on c.document_id = d.id
+  where
+    (filter = '{}'::jsonb)
+    or (
+      (filter->>'nivel' is null or c.nivel::text = filter->>'nivel')
+      and (filter->>'ciclo' is null or c.ciclo::text = filter->>'ciclo')
+      and (filter->>'grado' is null or c.grado = filter->>'grado')
+      and (filter->>'area_curricular' is null or c.area_curricular = filter->>'area_curricular')
+      and (
+        (filter->>'competencia_fundamental') is null
+        or c.competencia_fundamental @> array[filter->>'competencia_fundamental']
+      )
+    )
+  order by combined.score desc
+  limit greatest(match_count, 1);
+$$;
+
+grant execute on function hybrid_search(text, vector(1536), int, jsonb, float) to anon, authenticated, service_role;
+
+-- ─── Tabla: minerd_query_log ─────────────────────────────────────────────────
+
+create table if not exists minerd_query_log (
+  id              uuid primary key default gen_random_uuid(),
+  query_text      text not null,
+  matched_doc_ids uuid[],
+  top_similarity  float,
+  user_plan       text,
+  chunks_returned int,
+  latency_ms      int,
+  created_at      timestamptz not null default now()
+);
+
+create index if not exists idx_minerd_query_log_created on minerd_query_log(created_at desc);
+create index if not exists idx_minerd_query_log_plan     on minerd_query_log(user_plan);
+
+alter table minerd_query_log enable row level security;
+drop policy if exists "minerd_query_log_service_only" on minerd_query_log;
+create policy "minerd_query_log_service_only"
+  on minerd_query_log for all
+  to service_role
+  using (true)
+  with check (true);
+
+-- ╔═══════════════════════════════════════════════════════════════════════════╗
+-- ║ PARTE 2: Artefactos publicados (003) — tal cual, ya idempotente            ║
+-- ╚═══════════════════════════════════════════════════════════════════════════╝
+
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
+CREATE TABLE IF NOT EXISTS published_artifacts (
+  id              uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
+  slug            text        NOT NULL UNIQUE,
+  user_id         uuid        NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  title           text        NOT NULL CHECK (char_length(title) BETWEEN 1 AND 200),
+  description     text        CHECK (description IS NULL OR char_length(description) <= 500),
+  kind            text        NOT NULL CHECK (kind IN ('html','markdown','mermaid','svg','code','react')),
+  language        text        CHECK (language IS NULL OR char_length(language) <= 40),
+  source_code     text        NOT NULL CHECK (char_length(source_code) BETWEEN 1 AND 200000),
+  metadata        jsonb       NOT NULL DEFAULT '{}'::jsonb,
+  is_public       boolean     NOT NULL DEFAULT true,
+  views_count     integer     NOT NULL DEFAULT 0 CHECK (views_count >= 0),
+  expires_at      timestamptz,
+  created_at      timestamptz NOT NULL DEFAULT now(),
+  updated_at      timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_published_artifacts_slug
+  ON published_artifacts (slug);
+
+CREATE INDEX IF NOT EXISTS idx_published_artifacts_user_created
+  ON published_artifacts (user_id, created_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_published_artifacts_expires
+  ON published_artifacts (expires_at)
+  WHERE expires_at IS NOT NULL;
+
+CREATE INDEX IF NOT EXISTS idx_published_artifacts_public_recent
+  ON published_artifacts (created_at DESC)
+  WHERE is_public = true;
+
+CREATE OR REPLACE FUNCTION trg_set_updated_at()
+RETURNS trigger AS $$
+BEGIN
+  NEW.updated_at = now();
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS published_artifacts_set_updated_at ON published_artifacts;
+CREATE TRIGGER published_artifacts_set_updated_at
+  BEFORE UPDATE ON published_artifacts
+  FOR EACH ROW
+  EXECUTE FUNCTION trg_set_updated_at();
+
+CREATE OR REPLACE FUNCTION increment_views(p_slug text)
+RETURNS integer AS $$
+DECLARE
+  v_new integer;
+BEGIN
+  UPDATE published_artifacts
+     SET views_count = views_count + 1
+   WHERE slug = p_slug
+     AND is_public = true
+     AND (expires_at IS NULL OR expires_at > now())
+  RETURNING views_count INTO v_new;
+
+  RETURN COALESCE(v_new, 0);
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+REVOKE ALL ON FUNCTION increment_views(text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION increment_views(text) TO anon, authenticated;
+
+ALTER TABLE published_artifacts ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS published_artifacts_read_public ON published_artifacts;
+CREATE POLICY published_artifacts_read_public ON published_artifacts
+  FOR SELECT
+  TO anon, authenticated
+  USING (
+    is_public = true
+    AND (expires_at IS NULL OR expires_at > now())
+  );
+
+DROP POLICY IF EXISTS published_artifacts_insert_own ON published_artifacts;
+CREATE POLICY published_artifacts_insert_own ON published_artifacts
+  FOR INSERT
+  TO authenticated
+  WITH CHECK (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS published_artifacts_update_own ON published_artifacts;
+CREATE POLICY published_artifacts_update_own ON published_artifacts
+  FOR UPDATE
+  TO authenticated
+  USING (auth.uid() = user_id)
+  WITH CHECK (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS published_artifacts_delete_own ON published_artifacts;
+CREATE POLICY published_artifacts_delete_own ON published_artifacts
+  FOR DELETE
+  TO authenticated
+  USING (auth.uid() = user_id);
+
+GRANT USAGE ON SCHEMA public TO anon, authenticated;
+GRANT SELECT ON published_artifacts TO anon, authenticated;
+GRANT INSERT, UPDATE, DELETE ON published_artifacts TO authenticated;
+
+-- ╔═══════════════════════════════════════════════════════════════════════════╗
+-- ║ PARTE 3: Expedientes (004) — tal cual, ya idempotente                      ║
+-- ╚═══════════════════════════════════════════════════════════════════════════╝
+
+CREATE TABLE IF NOT EXISTS expedientes (
+  id              uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id         uuid        NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  chat_id         text,
+  title           text        NOT NULL,
+  category        text        NOT NULL CHECK (category IN ('documento', 'tabla', 'interactivo')),
+  file_format     text        NOT NULL CHECK (file_format IN ('docx', 'xlsx', 'pdf', 'html', 'svg', 'md')),
+  content_payload text        NOT NULL,
+  metadata        jsonb       NOT NULL DEFAULT '{}'::jsonb,
+  created_at      timestamptz NOT NULL DEFAULT now(),
+  updated_at      timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_expedientes_user_id
+  ON expedientes (user_id);
+
+CREATE INDEX IF NOT EXISTS idx_expedientes_category
+  ON expedientes (user_id, category);
+
+CREATE OR REPLACE FUNCTION trg_set_updated_at()
+RETURNS trigger AS $$
+BEGIN
+  NEW.updated_at = now();
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS expedientes_set_updated_at ON expedientes;
+CREATE TRIGGER expedientes_set_updated_at
+  BEFORE UPDATE ON expedientes
+  FOR EACH ROW
+  EXECUTE FUNCTION trg_set_updated_at();
+
+ALTER TABLE expedientes ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS expedientes_select_own ON expedientes;
+CREATE POLICY expedientes_select_own ON expedientes
+  FOR SELECT
+  TO authenticated
+  USING (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS expedientes_insert_own ON expedientes;
+CREATE POLICY expedientes_insert_own ON expedientes
+  FOR INSERT
+  TO authenticated
+  WITH CHECK (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS expedientes_update_own ON expedientes;
+CREATE POLICY expedientes_update_own ON expedientes
+  FOR UPDATE
+  TO authenticated
+  USING (auth.uid() = user_id)
+  WITH CHECK (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS expedientes_delete_own ON expedientes;
+CREATE POLICY expedientes_delete_own ON expedientes
+  FOR DELETE
+  TO authenticated
+  USING (auth.uid() = user_id);
+
+GRANT USAGE ON SCHEMA public TO anon, authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON expedientes TO authenticated;
+
+-- ╔═══════════════════════════════════════════════════════════════════════════╗
+-- ║ PARTE 4: Grants de acceso API (incluye service_role para el backend)       ║
+-- ╚═══════════════════════════════════════════════════════════════════════════╝
+
+GRANT USAGE ON SCHEMA public TO anon, authenticated, service_role;
+
+GRANT SELECT ON minerd_documents, minerd_chunks TO anon, authenticated, service_role;
+GRANT INSERT, UPDATE, DELETE ON minerd_documents, minerd_chunks TO service_role;
+GRANT ALL ON minerd_query_log TO service_role;
+
+GRANT SELECT, INSERT, UPDATE, DELETE ON published_artifacts TO authenticated, service_role;
+GRANT SELECT ON published_artifacts TO anon;
+
+GRANT SELECT, INSERT, UPDATE, DELETE ON expedientes TO authenticated, service_role;
+
+GRANT EXECUTE ON FUNCTION increment_views(text) TO anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION match_chunks(vector(1536), int, jsonb) TO anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION hybrid_search(text, vector(1536), int, jsonb, float) TO anon, authenticated, service_role;
+
+-- Fin del bundle.

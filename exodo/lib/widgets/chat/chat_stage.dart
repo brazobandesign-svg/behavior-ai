@@ -1,3 +1,4 @@
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -33,7 +34,7 @@ class AnimatedAmbientBackground extends StatelessWidget {
   }
 }
 
-class ChatStage extends StatelessWidget {
+class ChatStage extends StatefulWidget {
   final Animation<double>? pulseAnim;
   final String? fullName;
   const ChatStage({
@@ -42,29 +43,43 @@ class ChatStage extends StatelessWidget {
     super.key,
   });
 
+  @override
+  State<ChatStage> createState() => _ChatStageState();
+}
+
+class _ChatStageState extends State<ChatStage> {
   String _getGreeting(BuildContext context, double? temp) {
     final i18n = AppI18n.of(context);
     final userEmail = context.select<AppState, String>((s) => s.userEmail);
-    final profileName = fullName?.trim().isNotEmpty == true
-        ? fullName!.trim()
+    final profileName = widget.fullName?.trim().isNotEmpty == true
+        ? widget.fullName!.trim()
         : (userEmail.isNotEmpty
             ? userEmail.split('@').first.replaceFirstMapped(
                 RegExp(r'^[a-z]'), (m) => m[0]!.toUpperCase())
             : 'User');
 
-    if (temp != null) {
-      if (temp <= 21.0) {
-        return '${i18n.t('greeting.cold')}, $profileName';
-      } else if (temp >= 31.0) {
-        return '${i18n.t('greeting.hot')}, $profileName';
-      }
+    final hour = DateTime.now().hour;
+    final timeGreeting = (hour >= 0 && hour < 6)
+        ? i18n.t('greeting.late')
+        : (hour < 12)
+            ? i18n.t('greeting.morning')
+            : (hour < 18)
+                ? i18n.t('greeting.afternoon')
+                : i18n.t('greeting.evening');
+
+    final greetings = <String>[
+      '$timeGreeting, $profileName',
+      i18n.t('greeting.flirt'),
+      '${i18n.t('greeting.hot')}, $profileName',
+      i18n.t('greeting.flirt'),
+      '${i18n.t('greeting.hot')}, $profileName',
+    ];
+
+    if (temp != null && temp >= 28.0) {
+      greetings.add('${i18n.t('greeting.hot')}, $profileName');
     }
 
-    final hour = DateTime.now().hour;
-    if (hour >= 0 && hour < 6) return '${i18n.t('greeting.late')}, $profileName';
-    if (hour < 12) return '${i18n.t('greeting.morning')}, $profileName';
-    if (hour < 18) return '${i18n.t('greeting.afternoon')}, $profileName';
-    return '${i18n.t('greeting.evening')}, $profileName';
+    return greetings[Random().nextInt(greetings.length)];
   }
 
   @override

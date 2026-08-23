@@ -155,10 +155,26 @@ class ExpedientesRepository {
               .map((e) => Expediente.fromJson(e))
               .toList();
 
-          // Merge items
+          // Merge items preserving local payload and metadata
           final map = {for (final e in localList) e.id: e};
           for (final c in cloudItems) {
-            map[c.id] = c;
+            final existing = map[c.id];
+            map[c.id] = Expediente(
+              id: c.id,
+              chatId: c.chatId ?? existing?.chatId,
+              title: c.title,
+              category: c.category,
+              fileFormat: c.fileFormat,
+              contentPayload: (c.contentPayload != null && c.contentPayload!.isNotEmpty)
+                  ? c.contentPayload
+                  : existing?.contentPayload,
+              metadata: {
+                if (existing != null) ...existing.metadata,
+                ...c.metadata,
+              },
+              createdAt: c.createdAt,
+              updatedAt: c.updatedAt,
+            );
           }
           final merged = map.values.toList()
             ..sort((a, b) => b.updatedAt.compareTo(a.updatedAt));

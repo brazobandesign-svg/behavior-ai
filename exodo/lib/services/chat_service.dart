@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/models.dart';
 import 'supabase_service.dart';
 
@@ -19,20 +20,22 @@ class ChatService {
         if (!list.contains(url)) list.add(url);
       }
     }
+
+    // Candidatos de conexión en orden: local (adb reverse / LAN) primero,
+    // emulador, y producción en Railway como respaldo final.
+    // NOTA: no volver a hardcodear túneles trycloudflare aquí — son
+    // efímeros (mueren al cerrarse el proceso) y envenenan cada petición
+    // con un DNS muerto hasta agotar el timeout. El túnel dinámico será
+    // tarea T5, almacenado en SharedPreferences.
     list.add('http://127.0.0.1:3000/api/chat');
     list.add('http://localhost:3000/api/chat');
     list.add('http://192.168.8.223:3000/api/chat');
     list.add('http://192.168.9.244:3000/api/chat');
     list.add('http://10.0.2.2:3000/api/chat');
 
-    // URL de producción en Railway (siempre, al final como fallback)
+    // URL de producción en Railway (como fallback final)
     const prodUrl = 'https://behavior-ai-production.up.railway.app/api/chat';
     if (!list.contains(prodUrl)) list.add(prodUrl);
-    // En release, Railway va primero
-    if (!kDebugMode) {
-      list.remove(prodUrl);
-      list.insert(0, prodUrl);
-    }
     return list;
   }
 
@@ -40,9 +43,59 @@ class ChatService {
 
   static List<String> get candidateUrls => List.unmodifiable(_candidateUrls);
 
+  static Future<void> setWorkingUrl(String url) async {
+    _workingUrl = url;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('custom_backend_url', url);
+    } catch (_) {}
+  }
+
+  static Future<void> loadSavedWorkingUrl() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final saved = prefs.getString('custom_backend_url');
+      if (saved == null || saved.isEmpty) return;
+      // Validar antes de confiar: un túnel efímero muerto (p. ej.
+      // trycloudflare) quedaría como ÚNICO candidato y envenenaría todas
+      // las peticiones hasta fallar. Si no responde, se descarta y se
+      // limpia la preferencia para auto-sanar el estado persistido.
+      final base = saved.endsWith('/api/chat')
+          ? saved.substring(0, saved.length - '/api/chat'.length)
+          : saved;
+      try {
+        final resp = await http
+            .get(Uri.parse('$base/health'))
+            .timeout(const Duration(seconds: 3));
+        if (resp.statusCode == 200) {
+          _workingUrl = saved.endsWith('/api/chat')
+              ? saved
+              : '$saved/api/chat';
+          return;
+        }
+      } catch (_) {}
+      debugPrint('[ChatService] URL guardada muerta ($base): descartada');
+      _workingUrl = null;
+      await prefs.remove('custom_backend_url');
+    } catch (_) {}
+  }
+
+  /// Todos los backends conocidos, con el que funciona (si vive) primero.
+  /// La transcripción de voz SIEMPRE itera esta lista completa: nunca
+  /// depender de un solo URL evita el fallo total por un candidato muerto.
+  static List<String> get allBackendCandidates {
+    final list = <String>[];
+    final working = _workingUrl;
+    if (working != null && working.isNotEmpty) list.add(working);
+    for (final c in _candidateUrls) {
+      if (!list.contains(c)) list.add(c);
+    }
+    return list;
+  }
+
   static List<String> get voiceTranscribeUrls {
     final list = <String>[];
-    for (final c in _candidateUrls) {
+    for (final c in allBackendCandidates) {
       final vUrl = c.replaceAll('/api/chat', '/api/voice/transcribe');
       if (!list.contains(vUrl)) list.add(vUrl);
     }
@@ -164,6 +217,7 @@ class ChatService {
             _activeClient = client;
             response = resp;
             _workingUrl = url;
+            setWorkingUrl(url);
             break;
           }
           // Non-200: probar siguiente candidato. NO se cierra el cliente

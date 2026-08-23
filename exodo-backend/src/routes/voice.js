@@ -10,7 +10,7 @@
 
 const express = require('express');
 const multer = require('multer');
-const { chatRateLimiter } = require('../middleware/rateLimiter');
+const auth = require('../middleware/auth');
 const { synthesizeSpeech } = require('../services/ttsService');
 const { OpenAI, toFile } = require('openai');
 
@@ -18,6 +18,42 @@ const router = express.Router();
 
 const GROQ_WHISPER_MODEL = 'whisper-large-v3-turbo';
 const MAX_AUDIO_BYTES = 25 * 1024 * 1024; // 25 MB
+
+// ---------------------------------------------------------------------------
+// Rate limit por sesión (VOZ-1): cuenta SUBIDAS LÓGICAS (seq_id único por
+// usuario), no intentos HTTP — el cliente reintenta por candidato y cada
+// reintento no debe consumir cuota (medido: 6 candidatos × N subidas agotaba
+// 30/min en segundos).
+// ---------------------------------------------------------------------------
+const VOICE_RATE_LIMIT = 30;          // subidas lógicas
+const VOICE_RATE_WINDOW_MS = 60_000;  // por minuto
+const _voiceSeqHits = new Map(); // userId -> Map(seq -> timestamp)
+
+function registerVoiceUpload(userId, seqId) {
+  const now = Date.now();
+  let perUser = _voiceSeqHits.get(userId);
+  if (!perUser) {
+    perUser = new Map();
+    _voiceSeqHits.set(userId, perUser);
+  }
+  for (const [seq, ts] of perUser) {
+    if (now - ts >= VOICE_RATE_WINDOW_MS) perUser.delete(seq);
+  }
+  const key = String(seqId ?? `noseq-${now}`); // sin seq: cada petición cuenta
+  if (!perUser.has(key)) perUser.set(key, now);
+  if (perUser.size > VOICE_RATE_LIMIT) return false;
+  if (_voiceSeqHits.size > 5000) _voiceSeqHits.clear(); // saneo defensivo
+  return true;
+}
+
+/** C9 (auditoría): los endpoints de voz requieren JWT válido — sin usuario
+ *  real se rechaza con 401 (antes Whisper quedaba abierto al público). */
+function requireVoiceUser(req, res, next) {
+  if (!req.user || !req.user.userId) {
+    return res.status(401).json({ error: 'authentication_required' });
+  }
+  next();
+}
 
 const DOMINICAN_PROMPT =
   'Transcripción en español dominicano y caribeño, términos técnicos y educativos.';
@@ -108,7 +144,11 @@ function runUploadMiddleware(req, res) {
 // POST /api/voice/transcribe
 // ---------------------------------------------------------------------------
 
-router.post('/transcribe', chatRateLimiter, async (req, res, next) => {
+// Sin chatRateLimiter aquí: el pseudo-streaming de voz dispara ~30 subidas
+// lógicas/min y agotaría el presupuesto GLOBAL del chat del usuario (medido:
+// el mensaje de chat posterior fallaba con "sin conexión" tras una sesión
+// de dictado larga). El abuso de voz lo frena el limitador por sesión propio.
+router.post('/transcribe', auth, requireVoiceUser, async (req, res, next) => {
   const startedAt = Date.now();
   try {
     try {
@@ -128,6 +168,13 @@ router.post('/transcribe', chatRateLimiter, async (req, res, next) => {
         });
       }
       return res.status(400).json({ error: 'invalid_multipart_payload' });
+    }
+
+    // Rate limit por subida lógica (tras multer: seq_id ya está en req.body).
+    const seqId = req.body && req.body.seq_id;
+    if (!registerVoiceUpload(req.user.userId, seqId)) {
+      res.setHeader('Retry-After', Math.ceil(VOICE_RATE_WINDOW_MS / 1000));
+      return res.status(429).json({ error: 'voice_rate_limited', limit: VOICE_RATE_LIMIT });
     }
 
     if (!req.file || !req.file.buffer || req.file.buffer.length === 0) {
@@ -159,6 +206,12 @@ router.post('/transcribe', chatRateLimiter, async (req, res, next) => {
       file: fileObj,
       model: GROQ_WHISPER_MODEL,
       response_format: 'json',
+      // VOZ-1: transcripción determinista. Nota de desviación del acta:
+      // `condition_on_previous_text` NO existe en la API de Groq (400
+      // "unknown param", verificado en vivo); su intención (no re-inyectar
+      // contexto del modelo) queda cubierta de facto — la continuidad la
+      // porta exclusivamente el `prompt` que envía el cliente.
+      temperature: 0,
     };
 
     // Si el cliente envía un idioma explícito diferente de 'auto', respetarlo.
@@ -170,8 +223,10 @@ router.post('/transcribe', chatRateLimiter, async (req, res, next) => {
 
     // El prompt en Whisper sesga el vocabulario y el idioma esperado.
     // Solo inyectar prompt dominicano si se pide explícitamente español, o si el cliente envía un prompt propio.
-    if (req.body && req.body.prompt) {
-      transcriptionParams.prompt = req.body.prompt;
+    // VOZ-1: el prompt viaja desde el cliente (últimas palabras consolidadas)
+    // para dar continuidad entre bloques de dictado; se acota por seguridad.
+    if (req.body && typeof req.body.prompt === 'string' && req.body.prompt.trim()) {
+      transcriptionParams.prompt = req.body.prompt.trim().slice(0, 200);
     } else if (req.body && (req.body.language === 'es' || req.body.language === 'es-DO')) {
       transcriptionParams.prompt = DOMINICAN_PROMPT;
     }
@@ -217,7 +272,7 @@ router.post('/transcribe', chatRateLimiter, async (req, res, next) => {
 // POST /api/voice/tts
 // ---------------------------------------------------------------------------
 
-router.post('/tts', chatRateLimiter, async (req, res, next) => {
+router.post('/tts', auth, requireVoiceUser, async (req, res, next) => {
   try {
     const { text, voice, format } = req.body || {};
     if (!text || typeof text !== 'string' || !text.trim()) {

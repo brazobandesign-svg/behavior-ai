@@ -143,3 +143,5 @@ CREATE POLICY published_artifacts_delete_own ON published_artifacts
 GRANT USAGE ON SCHEMA public TO anon, authenticated;
 GRANT SELECT ON published_artifacts TO anon, authenticated;
 GRANT INSERT, UPDATE, DELETE ON published_artifacts TO authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON published_artifacts TO service_role;
+GRANT EXECUTE ON FUNCTION increment_views(text) TO service_role;

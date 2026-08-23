@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math' as math;
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
@@ -15,6 +16,7 @@ import 'package:record/record.dart';
 import '../../models/models.dart';
 import '../../services/app_state.dart';
 import '../../services/chat_service.dart';
+import '../../services/supabase_service.dart';
 import '../../data/repositories/attachment_storage.dart';
 import '../../theme/exodo_theme.dart';
 import '../../l10n/app_i18n.dart';
@@ -75,22 +77,20 @@ String mimeFromExtension(String fileName) {
   }
 }
 
-/// Convierte un string MIME (ej. `audio/m4a`) en un `MediaType` de
-/// `package:http_parser`, con fallback seguro a `application/octet-stream`.
-MediaType _parseMediaType(String mime) {
-  final parts = mime.split('/');
-  if (parts.length != 2 || parts[0].isEmpty || parts[1].isEmpty) {
-    return MediaType('application', 'octet-stream');
-  }
-  return MediaType(parts[0], parts[1]);
-}
-
 // Regla 5 & 9: Widget supremo de esfera donde cada punto cambia de tamaño aleatoriamente
 // Optimizado con context.select para evitar repintado durante el streaming de mensajes.
 
-// MIME type por defecto para el audio grabado. M4A/AAC es el formato nativo
-// de iOS y se acepta correctamente por whisper-large-v3-turbo.
-const String _kVoiceMime = 'audio/m4a';
+/// Modos de envío de audio a transcripción (VOZ-1 FASE 1).
+enum _VoiceSendMode {
+  /// Parcial acumulativo del bloque en curso: REEMPLAZA el parcial mostrado.
+  partial,
+
+  /// Bloque consolidado por pausa VAD: entra al texto confirmado.
+  block,
+
+  /// Audio canónico de TODA la sesión al soltar: REEMPLAZA todo.
+  canonical,
+}
 
 class ChatComposer extends StatefulWidget {
   final TextEditingController controller;
@@ -111,202 +111,626 @@ class ChatComposer extends StatefulWidget {
 }
 
 class _ChatComposerState extends State<ChatComposer>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, WidgetsBindingObserver {
+  /// Duración máxima de una sesión de voz (59s de timeout si no detecta voz).
+  static const Duration _kVoiceSessionMax = Duration(seconds: 59);
+
   late AnimationController _auraController;
   bool _hasAttachment = false;
   bool _isRecording = false;
-  bool _isLongPressActive = false;
   bool _isTranscribing = false;
-  final AudioRecorder _audioRecorder = AudioRecorder();
-  String? _activeRecordingPath;
+  // Reciclable por sesión: los streams del plugin son de suscripción única.
+  AudioRecorder _audioRecorder = AudioRecorder();
+  StreamSubscription<Uint8List>? _pcmSub;
+  Timer? _recordingTimer;
+  Timer? _waveTicker;
+  Timer? _sessionCapTimer;
+  int _recordingSeconds = 0;
+  // Guarda de reentrada para no ejecutar dos stops en paralelo.
+  bool _isStoppingVoice = false;
+  // Guarda contra arranques concurrentes de sesión (toques rápidos).
+  bool _isStartingVoice = false;
+  // ── VOZ-1: stream PCM16 16k mono + VAD + pseudo-streaming ──
+  // Audio canónico de TODA la sesión (para la transcripción final) y audio
+  // del bloque de voz en curso (para los envíos acumulativos parciales).
+  final BytesBuilder _sessionPcm = BytesBuilder(copy: false);
+  final BytesBuilder _blockPcm = BytesBuilder(copy: false);
+  DateTime _voiceSessionStart = DateTime.now();
+  // VAD: piso de ruido dinámico (calibración ~300ms) → umbral = piso + 6dB.
+  // El prior -30dB refleja una sala típica; si los primeros chunks traen
+  // señal real, el mínimo observado lo corrige a la baja.
+  bool _calibrating = false;
+  double _calibMinDb = -30.0;
+  double _vadThresholdDb = -24.0; // prior hasta calibrar (-30 + 6)
+  DateTime _lastVadEvent = DateTime.now();
+  bool _blockActive = false;
+  DateTime _blockStart = DateTime.now();
+  int _blockVocalMs = 0;
+  int _blockSilenceMs = 0;
+  int _totalVocalMs = 0;
+  DateTime _lastPartialSend = DateTime.now();
+  // Pseudo-streaming: seq monotónico anti-desorden + textos consolidados.
+  int _reqSeq = 0;
+  int _appliedSeq = 0;
+  final List<String> _confirmedTexts = [];
+  String _partialText = '';
+  final List<http.Client> _activeUploads = [];
+  // ── Motor de ondas: envolvente reactiva en tiempo real ──
+  final ValueNotifier<double> _voiceLevel = ValueNotifier<double>(0.05);
+  double _waveEnv = 0.05;
+  double _waveTarget = 0.05;
+  DateTime _lastWaveEvent = DateTime.now();
   final List<PendingAttachment> _pendingAttachments = [];
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _auraController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 3200),
     )..repeat();
   }
 
-  /// Inicia la grabación de audio. Solicita permiso de micrófono si hace falta.
-  /// Devuelve `true` si la grabación arrancó correctamente.
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Al salir de primer plano se libera el micrófono de inmediato y se
+    // consolida el texto (Whisper cubre si el STT en vivo no capturó nada).
+    if ((state == AppLifecycleState.paused ||
+            state == AppLifecycleState.hidden) &&
+        _isRecording &&
+        !_isStoppingVoice) {
+      unawaited(_stopAndTranscribe());
+    }
+  }
+
+  // ── Motor de ondas ─────────────────────────────────────────────────────────
+  // Convierte amplitud de audio RMS en una onda reactiva y viva:
+  // envolvente con ataque rápido / caída suave (60 FPS sin saltos).
+
+  void _pushWaveLevel(double normalizedLevel) {
+    _lastWaveEvent = DateTime.now();
+    _waveTarget = normalizedLevel.clamp(0.05, 1.0);
+    final k = _waveTarget > _waveEnv ? 0.85 : 0.28;
+    _waveEnv = _waveEnv + (_waveTarget - _waveEnv) * k;
+    _commitWaveBar();
+  }
+
+  void _commitWaveBar() {
+    _voiceLevel.value = _waveEnv.clamp(0.05, 1.0);
+  }
+
+  void _startWaveTickers() {
+    _waveTicker?.cancel();
+    _waveTicker = Timer.periodic(const Duration(milliseconds: 33), (_) {
+      if (!_isRecording) return;
+      final since = DateTime.now().difference(_lastWaveEvent).inMilliseconds;
+      if (since < 45) return;
+      _waveEnv = _waveEnv + (_waveTarget - _waveEnv) * 0.15;
+      _commitWaveBar();
+    });
+
+    // Timeout de 59 segundos si la sesión se queda abierta.
+    _sessionCapTimer?.cancel();
+    _sessionCapTimer = Timer(_kVoiceSessionMax, () {
+      if (!_isRecording) return;
+      if (_isStoppingVoice) {
+        _isStoppingVoice = false;
+      }
+      debugPrint('[VOZ] 59s alcanzados sin confirmación: deteniendo automáticamente');
+      unawaited(_stopAndTranscribe());
+    });
+  }
+
+  void _stopWaveTickers() {
+    _waveTicker?.cancel();
+    _waveTicker = null;
+    _sessionCapTimer?.cancel();
+    _sessionCapTimer = null;
+  }
+
+  /// Inicia la sesión de voz: grabación local inmediata (micrófono
+  /// exclusivo de la grabadora) y transcripción con Whisper del backend al
+  /// detener. Flujo validado: 200-650 ms, calidad alta.
+  ///
+  /// Nota de arquitectura: el STT on-device de Google se retiró de este
+  /// flujo tras medirlo en el dispositivo real — su servicio cae cada 6-28 s
+  /// y su motor offline es "ambient oneshot" en inglés; era la fuente de
+  /// cortes bruscos, texto pobre y ondas sin reactividad.
   Future<bool> _startRecording() async {
-    if (_isRecording || _isTranscribing) return false;
+    if (_isRecording ||
+        _isTranscribing ||
+        _isStoppingVoice ||
+        _isStartingVoice) {
+      return false;
+    }
+    _isStartingVoice = true;
     try {
-      final hasPermission = await _audioRecorder.hasPermission();
+      // Timeout: si el canal nativo no responde, liberar en vez de dejar el
+      // botón muerto en silencio.
+      final hasPermission = await _audioRecorder
+          .hasPermission()
+          .timeout(const Duration(seconds: 4), onTimeout: () => false);
       if (!hasPermission) {
-        debugPrint('[STT] Permiso de micrófono no concedido');
+        debugPrint('[VOZ] Permiso de micrófono no concedido o sin respuesta');
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('Por favor concede permiso de micrófono para la entrada por voz.'),
+              content: Text('El micrófono no respondió. Intenta de nuevo.'),
               duration: Duration(seconds: 2),
             ),
           );
         }
         return false;
       }
-      final dir = await Directory.systemTemp.createTemp('exodo_voice_');
-      final path =
-          '${dir.path}/clip_${DateTime.now().millisecondsSinceEpoch}.m4a';
-      await _audioRecorder.start(
-        const RecordConfig(
-          encoder: AudioEncoder.aacLc,
-          bitRate: 64000,
-          sampleRate: 16000,
-          numChannels: 1,
-        ),
-        path: path,
-      );
-      _activeRecordingPath = path;
+
+      if (!await _startVoiceStream()) return false;
+
+      _recordingSeconds = 0;
+      _waveEnv = 0.0;
+      _waveTarget = 0.0;
+      _voiceLevel.value = 0.12;
+      _sessionPcm.clear();
+      _blockPcm.clear();
+      _voiceSessionStart = DateTime.now();
+      _calibrating = true;
+      _calibMinDb = -30.0;
+      _blockActive = false;
+      _blockVocalMs = 0;
+      _blockSilenceMs = 0;
+      _totalVocalMs = 0;
+      _lastVadEvent = DateTime.now();
+      _lastPartialSend = DateTime.now();
+      _reqSeq = 0;
+      _appliedSeq = 0;
+      _confirmedTexts.clear();
+      _partialText = '';
+
+      _recordingTimer?.cancel();
+      _recordingTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+        if (mounted && _isRecording) {
+          setState(() => _recordingSeconds++);
+        }
+      });
+      _startWaveTickers();
+
       if (mounted) {
         setState(() => _isRecording = true);
       }
-      debugPrint('[STT] Grabación iniciada en: $path');
+      debugPrint('[VOZ] Sesión de voz iniciada (stream PCM 16k mono)');
       return true;
     } catch (e) {
-      debugPrint('[STT] Error al iniciar grabación: $e');
+      debugPrint('[VOZ] Error al iniciar sesión de voz: $e');
+      await _abortVoiceSession();
+      return false;
+    } finally {
+      _isStartingVoice = false;
+    }
+  }
+
+  /// VOZ-1: arranca el stream PCM16 16k mono. La amplitud se calcula del
+  /// propio PCM (RMS→dBFS): cero dependencia de onAmplitudeChanged, que
+  /// congelaba o entregaba -Infinity en algunos dispositivos al grabar.
+  Future<bool> _startVoiceStream() async {
+    try {
+      // Los streams del plugin son de suscripción única: reciclar la
+      // grabadora en cada sesión.
+      try {
+        await _audioRecorder.dispose();
+      } catch (_) {}
+      _audioRecorder = AudioRecorder();
+
+      final stream = await _audioRecorder.startStream(
+        const RecordConfig(
+          encoder: AudioEncoder.pcm16bits,
+          sampleRate: 16000,
+          numChannels: 1,
+        ),
+      );
+      _pcmSub?.cancel();
+      _pcmSub = stream.listen(
+        _onPcmChunk,
+        onError: (Object e) => debugPrint('[VOZ] error de stream: $e'),
+        cancelOnError: false,
+      );
+      return true;
+    } catch (e) {
+      debugPrint('[VOZ] Error iniciando stream: $e');
       return false;
     }
   }
 
-  /// Detiene la grabación activa y envía el audio al backend para transcripción.
-  /// El texto devuelto se concatena al `widget.controller` en la posición del
-  /// cursor (o al final si no hay selección).
-  Future<void> _stopAndTranscribe() async {
+  /// Cada chunk alimenta: el buffer canónico, el buffer del bloque de voz
+  /// activo, y el medidor de ondas (RMS del propio PCM).
+  /// Cada chunk alimenta: el buffer canónico, el buffer del bloque de voz
+  /// activo, y el medidor de ondas (RMS real del propio PCM).
+  void _onPcmChunk(Uint8List chunk) {
     if (!_isRecording) return;
-    final path = _activeRecordingPath;
-    setState(() {
-      _isRecording = false;
-    });
+    _sessionPcm.add(chunk);
+    if (_blockActive) _blockPcm.add(chunk);
+    final normLevel = _calcChunkNormalizedRms(chunk);
+    final db = _rmsToDb(chunk);
+    _vadTick(db);
+    _pushWaveLevel(normLevel);
+  }
+
+  /// Calcula la amplitud RMS normalizada (0.05 a 1.0) directamente del PCM.
+  double _calcChunkNormalizedRms(Uint8List pcm) {
+    final n = pcm.length ~/ 2;
+    if (n == 0) return 0.05;
+    final bd = ByteData.sublistView(pcm);
+    double sumSq = 0;
+    for (var i = 0; i < n; i++) {
+      final v = bd.getInt16(i * 2, Endian.little);
+      sumSq += v * v;
+    }
+    final rms = math.sqrt(sumSq / n);
+    if (rms <= 8) return 0.05;
+    // Rango dinámico perceptual: voz suave (RMS 80) -> 0.40, normal (RMS 300) -> 0.75, fuerte -> 1.0
+    final norm = math.pow((rms - 8) / 750.0, 0.42).clamp(0.05, 1.0).toDouble();
+    return norm;
+  }
+
+  /// RMS de las muestras Int16 → dBFS.
+  double _rmsToDb(Uint8List pcm) {
+    final n = pcm.length ~/ 2;
+    if (n == 0) return -96.0;
+    final bd = ByteData.sublistView(pcm);
+    double sumSq = 0;
+    for (var i = 0; i < n; i++) {
+      final v = bd.getInt16(i * 2, Endian.little);
+      sumSq += v * v;
+    }
+    final rms = math.sqrt(sumSq / n);
+    if (rms <= 0) return -96.0;
+    return 20.0 * (math.log(rms / 32768.0) / math.ln10);
+  }
+
+  // ── VAD con piso de ruido dinámico (VOZ-1 FASE 0) ─────────────────────────
+  // Primeros ~300ms: observar el mínimo dB de la sala → umbral = piso + 6dB.
+  // Después: abrir bloque de voz con señal ≥ umbral, consolidarlo con pausa
+  // >500ms, y disparar envíos acumulativos parciales mientras se habla.
+
+  void _vadTick(double db) {
+    final now = DateTime.now();
+    final deltaMs =
+        now.difference(_lastVadEvent).inMilliseconds.clamp(0, 500).toInt();
+    _lastVadEvent = now;
+
+    if (_calibrating) {
+      if (db > -90 && db < _calibMinDb) _calibMinDb = db;
+      final sinceStart = now.difference(_voiceSessionStart).inMilliseconds;
+      if (sinceStart >= 300) {
+        _calibrating = false;
+        _vadThresholdDb = (_calibMinDb + 5.0).clamp(-50.0, -18.0);
+        debugPrint('[VAD] calibrado: piso=${_calibMinDb.toStringAsFixed(1)}dB '
+            'umbral=${_vadThresholdDb.toStringAsFixed(1)}dB');
+      }
+      return;
+    }
+
+    final voiceOpen = db >= _vadThresholdDb;
+
+    if (!_blockActive) {
+      if (voiceOpen) {
+        _blockActive = true;
+        _blockStart = now;
+        _blockVocalMs = 0;
+        _blockSilenceMs = 0;
+        _lastPartialSend = now;
+        _blockPcm.clear();
+      }
+      return;
+    }
+
+    if (voiceOpen) {
+      _blockVocalMs += deltaMs;
+      _totalVocalMs += deltaMs;
+      _blockSilenceMs = 0;
+    } else {
+      _blockSilenceMs += deltaMs;
+    }
+
+    // Envío parcial acumulativo: ≥400ms de voz y cada ~1.2s para actualizar el texto en vivo.
+    if (_blockVocalMs >= 400 &&
+        now.difference(_lastPartialSend).inMilliseconds >= 1200 &&
+        _blockPcm.length >= 16000) {
+      _lastPartialSend = now;
+      _sendVoiceWav(_snapshotBlock(), mode: _VoiceSendMode.partial);
+    }
+
+    // Consolidación del bloque: pausa >500ms o tope de 6s hablando.
+    if (_blockSilenceMs > 500 ||
+        now.difference(_blockStart).inMilliseconds >= 6000) {
+      _consolidateBlock();
+    }
+  }
+
+  /// Copia del audio acumulado del bloque SIN vaciar el builder (el bloque
+  /// sigue creciendo hasta consolidarse).
+  Uint8List _snapshotBlock() {
+    return Uint8List.fromList(_blockPcm.toBytes());
+  }
+
+  void _consolidateBlock() {
+    final bytes = _blockPcm.toBytes();
+    final vocal = _blockVocalMs;
+    _blockActive = false;
+    _blockPcm.clear();
+    if (vocal >= 600 && bytes.length >= 16000) {
+      debugPrint('[VAD] bloque consolidado (${vocal}ms voz, ${bytes.length}B)');
+      HapticFeedback.mediumImpact();
+      _sendVoiceWav(bytes, mode: _VoiceSendMode.block);
+    } else {
+      debugPrint('[VAD] bloque descartado (${vocal}ms voz, ${bytes.length}B)');
+    }
+  }
+
+  /// Envuelve PCM16 16k mono en un contenedor WAV (header RIFF de 44 bytes).
+  Uint8List _wrapWav(Uint8List pcm) {
+    final out = Uint8List(44 + pcm.length);
+    final h = ByteData.view(out.buffer, 0, 44);
+    void w(int off, String s) {
+      for (var i = 0; i < s.length; i++) {
+        out[off + i] = s.codeUnitAt(i);
+      }
+    }
+
+    w(0, 'RIFF');
+    h.setUint32(4, 36 + pcm.length, Endian.little);
+    w(8, 'WAVE');
+    w(12, 'fmt ');
+    h.setUint32(16, 16, Endian.little); // tamaño fmt
+    h.setUint16(20, 1, Endian.little); // PCM
+    h.setUint16(22, 1, Endian.little); // mono
+    h.setUint32(24, 16000, Endian.little); // sample rate
+    h.setUint32(28, 32000, Endian.little); // byte rate
+    h.setUint16(32, 2, Endian.little); // block align
+    h.setUint16(34, 16, Endian.little); // bits
+    w(36, 'data');
+    h.setUint32(40, pcm.length, Endian.little);
+    out.setRange(44, out.length, pcm);
+    return out;
+  }
+
+  /// Arranca la grabación local para transcribir con Whisper al detener.
+  /// Detiene la sesión de voz (VOZ-1): aborta envíos pendientes, consolida
+  /// el bloque en curso y lanza la transcripción canónica del audio TOTAL,
+  /// que reemplaza cualquier parcial mostrado.
+  Future<void> _stopAndTranscribe({bool sendAfter = false}) async {
+    if (!_isRecording || _isStoppingVoice) {
+      debugPrint('[VOZ] stop ignorado (rec=$_isRecording, stopping=$_isStoppingVoice)');
+      return;
+    }
+    _isStoppingVoice = true;
     try {
-      final resultPath = await _audioRecorder.stop();
-      final finalPath = resultPath ?? path;
-      if (finalPath == null) {
-        debugPrint('[STT] _stopAndTranscribe: stop() devolvió null');
-        return;
+      // Abortar envíos pendientes: el canónico es la única verdad restante.
+      _abortPendingUploads();
+
+      _recordingTimer?.cancel();
+      _recordingTimer = null;
+      _stopWaveTickers();
+      await _pcmSub?.cancel();
+      _pcmSub = null;
+      try {
+        await _audioRecorder
+            .stop()
+            .timeout(const Duration(seconds: 5), onTimeout: () => null);
+      } catch (_) {}
+
+      if (mounted) {
+        setState(() => _isRecording = false);
       }
 
-      final file = File(finalPath);
-      if (!await file.exists()) {
-        debugPrint('[STT] Archivo no existe: $finalPath');
-        return;
-      }
-      final length = await file.length();
-      if (length < 100) {
-        debugPrint('[STT] Clip demasiado corto (${length}B), descartado');
-        return;
+      // Consolidar el bloque en curso si tiene voz suficiente (no se pierde
+      // la última frase dicha aunque no hubiera pausa >500ms).
+      if (_blockActive && _blockVocalMs >= 600 && _blockPcm.length >= 16000) {
+        _consolidateBlock();
+      } else {
+        _blockActive = false;
+        _blockPcm.clear();
       }
 
-      final bytes = await file.readAsBytes();
-      if (bytes.isEmpty) return;
+      final canonical = _sessionPcm.toBytes();
+      _sessionPcm.clear();
+
+      // Sin voz real en toda la sesión: descartar sin "procesar" nada.
+      if (_totalVocalMs < 600 || canonical.length < 32000) {
+        debugPrint('[VOZ] sesión sin voz (${_totalVocalMs}ms): descartada');
+        HapticFeedback.lightImpact();
+        return;
+      }
 
       if (mounted) {
         setState(() => _isTranscribing = true);
       }
 
-      String? transcription;
-      try {
-        transcription = await _transcribeAudio(bytes);
-      } catch (e) {
-        debugPrint('[STT] Excepción en transcripción: $e');
-      }
+      final text = await _sendVoiceWav(
+        canonical,
+        mode: _VoiceSendMode.canonical,
+      );
 
       if (!mounted) return;
       setState(() => _isTranscribing = false);
 
-      if (transcription != null && transcription.isNotEmpty) {
-        _appendTranscription(transcription);
+      if (text != null && text.isNotEmpty) {
+        // El canónico ya reemplazó el campo dentro de _sendVoiceWav.
+        _confirmedTexts.clear();
+        _partialText = '';
+        HapticFeedback.selectionClick();
+        if (sendAfter) _triggerSend();
       } else {
+        // El canónico falló: conservar el texto ensamblado por bloques.
+        final assembled = _confirmedTexts.join(' ');
+        if (assembled.isNotEmpty) {
+          widget.controller.text = assembled;
+          widget.controller.selection = TextSelection.collapsed(
+            offset: assembled.length,
+          );
+        }
         HapticFeedback.lightImpact();
       }
     } catch (e) {
-      debugPrint('[STT] _stopAndTranscribe error: $e');
+      debugPrint('[VOZ] _stopAndTranscribe error: $e');
     } finally {
-      _activeRecordingPath = null;
-      if (path != null) {
-        try {
-          await File(path).delete().catchError((_) => File(path));
-        } catch (_) {}
-      }
       if (mounted) {
         setState(() => _isTranscribing = false);
       }
+      _isStoppingVoice = false;
     }
   }
 
-  /// Envía los bytes de audio al endpoint de transcripción vía multipart.
-  /// Itera sobre las URLs candidatas del backend (127.0.0.1, localhost, LAN, Railway).
-  Future<String?> _transcribeAudio(Uint8List bytes) async {
-    debugPrint('[STT] Iniciando transcripción de ${bytes.length} bytes...');
-    final urls = ChatService.voiceTranscribeUrls;
-    for (final candidateUrl in urls) {
+  /// Aborta todas las subidas en vuelo (cierre de socket = fallo inmediato
+  /// en el await y descarte del resultado por seq).
+  void _abortPendingUploads() {
+    for (final c in List<http.Client>.of(_activeUploads)) {
       try {
-        debugPrint('[STT] Intentando transcribir en: $candidateUrl');
-        final uri = Uri.parse(candidateUrl);
-        final request = http.MultipartRequest('POST', uri)
-          ..fields['model'] = 'whisper-large-v3-turbo'
-          ..fields['language'] = 'auto'
-          ..fields['response_format'] = 'json'
-          ..files.add(
-            http.MultipartFile.fromBytes(
-              'file',
-              bytes,
-              filename: 'audio.m4a',
-              contentType: _parseMediaType(_kVoiceMime),
-            ),
-          );
-
-        final streamed = await request.send().timeout(
-              const Duration(seconds: 5),
-            );
-        final response = await http.Response.fromStream(streamed);
-        if (response.statusCode == 200) {
-          final body = jsonDecode(response.body);
-          if (body is Map<String, dynamic>) {
-            final text = body['text'];
-            if (text is String && text.trim().isNotEmpty) {
-              debugPrint('[STT] Transcripción exitosa: "$text"');
-              return text.trim();
-            }
-          }
-        } else {
-          debugPrint('[STT] Error HTTP ${response.statusCode} desde $candidateUrl: ${response.body}');
-        }
-      } catch (e) {
-        debugPrint('[STT] Fallo al conectar con $candidateUrl: $e');
-        continue;
-      }
+        c.close();
+      } catch (_) {}
     }
-    debugPrint('[STT] Todos los candidatos del backend fallaron.');
-    return null;
+    _activeUploads.clear();
   }
 
-  /// Inserta el texto transcrito en el `TextEditingController`, respetando
-  /// la posición del cursor. Si no hay texto previo, lo reemplaza.
-  void _appendTranscription(String text) {
-    final controller = widget.controller;
-    final selection = controller.selection;
-    final current = controller.text;
-    if (!selection.isValid) {
-      controller.text = current.isEmpty
-          ? text
-          : (current.endsWith(' ') ? '$current$text' : '$current $text');
-      controller.selection =
-          TextSelection.collapsed(offset: controller.text.length);
-      return;
+  /// Libera el micrófono y descarta la sesión de voz SIN transcribir.
+  /// Se usa al enviar texto tecleado mientras se graba y al desmontar.
+  Future<void> _abortVoiceSession() async {
+    _abortPendingUploads();
+    _recordingTimer?.cancel();
+    _recordingTimer = null;
+    _stopWaveTickers();
+    await _pcmSub?.cancel();
+    _pcmSub = null;
+    try {
+      await _audioRecorder.stop();
+    } catch (_) {}
+    _sessionPcm.clear();
+    _blockPcm.clear();
+    _blockActive = false;
+    _confirmedTexts.clear();
+    _partialText = '';
+    if (mounted) {
+      setState(() {
+        _isRecording = false;
+        _isTranscribing = false;
+      });
+    } else {
+      _isRecording = false;
+      _isTranscribing = false;
     }
-    final start = selection.start;
-    final end = selection.end;
-    final needsSpaceBefore =
-        start > 0 && current[start - 1] != ' ' && current[start - 1] != '\n';
-    final insertion = (needsSpaceBefore ? ' ' : '') + text;
-    final newText = current.replaceRange(start, end, insertion);
-    controller.text = newText;
-    controller.selection =
-        TextSelection.collapsed(offset: start + insertion.length);
+  }
+
+  /// VOZ-1 FASE 1 — envío de audio WAV al backend con JWT, seq_id y prompt
+  /// de continuidad. Devuelve el texto transcrito (o null si todo falló).
+  /// Aplica el resultado según [mode] respetando el orden por seq: una
+  /// respuesta vieja jamás pisa una más nueva.
+  Future<String?> _sendVoiceWav(Uint8List pcm, {required _VoiceSendMode mode}) async {
+    final seq = ++_reqSeq;
+    final wav = _wrapWav(pcm);
+    final prompt = mode == _VoiceSendMode.canonical ? '' : _promptFromConfirmed();
+    final label = mode.toString().split('.').last;
+    debugPrint('[VOZ] envío $label seq=$seq (${wav.length}B${prompt.isNotEmpty ? ', prompt="${prompt.length}c"' : ''})');
+
+    final jwt = SupabaseService.client.auth.currentSession?.accessToken;
+    if (jwt == null) {
+      debugPrint('[VOZ] sin JWT de sesión: no se envía (C9 requiere auth)');
+      return null;
+    }
+
+    final client = http.Client();
+    _activeUploads.add(client);
+    try {
+      for (final candidateUrl in ChatService.voiceTranscribeUrls) {
+        try {
+          final request = http.MultipartRequest('POST', Uri.parse(candidateUrl))
+            ..fields['language'] = 'auto'
+            ..fields['seq_id'] = seq.toString()
+            ..files.add(
+              http.MultipartFile.fromBytes(
+                'file',
+                wav,
+                filename: 'clip.wav',
+                contentType: MediaType('audio', 'wav'),
+              ),
+            );
+          if (prompt.isNotEmpty) request.fields['prompt'] = prompt;
+          request.headers['Authorization'] = 'Bearer $jwt';
+
+          final streamed = await client
+              .send(request)
+              .timeout(const Duration(seconds: 8));
+          final response = await http.Response.fromStream(streamed);
+
+          if (response.statusCode == 200) {
+            final body = jsonDecode(response.body);
+            final text = body is Map && body['text'] is String
+                ? (body['text'] as String).trim()
+                : '';
+            debugPrint('[VOZ] respuesta $label seq=$seq: "$text" (${response.body.length}B)');
+            if (text.isNotEmpty && seq > _appliedSeq && mounted) {
+              _applyVoiceText(text, seq: seq, mode: mode);
+            }
+            return text.isNotEmpty ? text : null;
+          }
+          debugPrint('[VOZ] HTTP ${response.statusCode} en $candidateUrl');
+        } catch (e) {
+          debugPrint('[VOZ] fallo $candidateUrl: $e');
+        }
+      }
+      debugPrint('[VOZ] $label seq=$seq: todos los candidatos fallaron');
+      return null;
+    } finally {
+      _activeUploads.remove(client);
+      client.close();
+    }
+  }
+
+  /// Aplica una transcripción según su modo y seq (monotónico).
+  void _applyVoiceText(String text, {required int seq, required _VoiceSendMode mode}) {
+    _appliedSeq = seq;
+    switch (mode) {
+      case _VoiceSendMode.partial:
+        // El parcial del bloque en curso REEMPLAZA al anterior.
+        _partialText = text;
+        _refreshVoiceField();
+        break;
+      case _VoiceSendMode.block:
+        // Bloque consolidado: entra al texto confirmado y limpia el parcial.
+        _confirmedTexts.add(text);
+        _partialText = '';
+        _refreshVoiceField();
+        break;
+      case _VoiceSendMode.canonical:
+        // Transcripción total canónica: REEMPLAZA todo lo mostrado.
+        _confirmedTexts.clear();
+        _partialText = '';
+        widget.controller.text = text;
+        widget.controller.selection =
+            TextSelection.collapsed(offset: text.length);
+        break;
+    }
+  }
+
+  /// Reconstruye el campo: texto confirmado + parcial en curso directamente en el cajón.
+  void _refreshVoiceField() {
+    final confirmed = _confirmedTexts.join(' ').trim();
+    final partial = _partialText.trim();
+    final text = partial.isEmpty
+        ? confirmed
+        : (confirmed.isEmpty ? partial : '$confirmed $partial');
+    if (text.isEmpty) return;
+    widget.controller.text = text;
+    widget.controller.selection =
+        TextSelection.collapsed(offset: text.length);
+  }
+
+  /// Últimas palabras del texto confirmado: viaja como `prompt` de Whisper
+  /// para dar continuidad entre bloques (acta VOZ-1).
+  String _promptFromConfirmed() {
+    if (_confirmedTexts.isEmpty) return '';
+    final last = _confirmedTexts.last;
+    final words = last.trim().split(RegExp(r'\s+'));
+    if (words.length <= 12) return last.trim();
+    return words.sublist(words.length - 12).join(' ');
   }
 
   Widget _buildAttachmentPreview() {
@@ -608,6 +1032,14 @@ class _ChatComposerState extends State<ChatComposer>
   }
 
   void _triggerSend() {
+    // Si hay una sesión de dictado activa, el texto parcial actual es el que
+    // se envía. Se baja _isRecording ANTES para que los resultados tardíos
+    // del STT no sobrescriban el campo ya enviado, y se libera el micrófono
+    // en segundo plano sin retrasar el envío.
+    if (_isRecording) {
+      unawaited(_abortVoiceSession());
+    }
+
     final attachments = <Attachment>[];
     for (final pa in _pendingAttachments) {
       attachments.add(
@@ -636,9 +1068,17 @@ class _ChatComposerState extends State<ChatComposer>
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _auraController.dispose();
+    _voiceLevel.dispose();
+    _abortPendingUploads();
+    _pcmSub?.cancel();
+    _pcmSub = null;
+    _recordingTimer?.cancel();
+    _recordingTimer = null;
+    _stopWaveTickers();
     // Best-effort: si todavía hay una grabación activa al desmontar el
-    // widget, la cancelamos para no dejar el mic abierto.
+    // widget, la cancelamos para no dejar el micrófono abierto.
     try {
       _audioRecorder.stop();
     } catch (_) {}
@@ -648,7 +1088,7 @@ class _ChatComposerState extends State<ChatComposer>
 
   String _getPlaceholder(BuildContext context) {
     if (_isRecording) {
-      return 'Grabando voz... (Toca para enviar)';
+      return 'Escuchando…';
     }
     if (_isTranscribing) {
       return 'Transcribiendo voz...';
@@ -656,42 +1096,6 @@ class _ChatComposerState extends State<ChatComposer>
     return AppI18n.of(context).t('chat.placeholder');
   }
 
-
-  Widget _buildRecordingMicIcon() {
-    return AnimatedBuilder(
-      animation: _auraController,
-      builder: (context, _) {
-        final t = _auraController.value;
-        final pulse = 0.6 + 0.4 * ((math.sin(t * math.pi * 2) + 1) / 2);
-        return Stack(
-          alignment: Alignment.center,
-          clipBehavior: Clip.none,
-          children: [
-            const Icon(Icons.mic, color: ExodoColors.error),
-            Positioned(
-              top: -2,
-              right: -2,
-              child: Container(
-                width: 8 + 4 * pulse,
-                height: 8 + 4 * pulse,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: ExodoColors.error.withValues(alpha: 0.9),
-                  boxShadow: [
-                    BoxShadow(
-                      color: ExodoColors.error.withValues(alpha: 0.5 * pulse),
-                      blurRadius: 6 * pulse,
-                      spreadRadius: 1 * pulse,
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        );
-      },
-    );
-  }
   @override
   Widget build(BuildContext context) {
     // Selectores finos para evitar repintado durante streaming de chat
@@ -815,6 +1219,37 @@ class _ChatComposerState extends State<ChatComposer>
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                         _buildAttachmentPreview(),
+                        // VOZ-2 Punto 3 — morphing de estados con
+                        // AnimatedSwitcher (250ms, escala + fade) entre
+                        // Reposo ➔ Grabando ➔ Transcribiendo.
+                        AnimatedSwitcher(
+                          duration: const Duration(milliseconds: 250),
+                          switchInCurve: Curves.easeOutCubic,
+                          switchOutCurve: Curves.easeInCubic,
+                          transitionBuilder: (child, anim) => FadeTransition(
+                            opacity: anim,
+                            child: ScaleTransition(
+                              scale: Tween<double>(begin: 0.96, end: 1.0)
+                                  .animate(anim),
+                              child: child,
+                            ),
+                          ),
+                          child: _isRecording
+                              ? _LiveVoiceWaveform(
+                                  key: const ValueKey('voz-grabando'),
+                                  level: _voiceLevel,
+                                  isLight: isLight,
+                                  onStop: () =>
+                                      unawaited(_stopAndTranscribe()),
+                                )
+                              : _isTranscribing
+                                  ? _TranscribingIndicator(
+                                      key: const ValueKey('voz-transcribiendo'),
+                                      isLight: isLight,
+                                    )
+                                  : const SizedBox.shrink(
+                                      key: ValueKey('voz-reposo')),
+                        ),
                         TextField(
                           controller: widget.controller,
                           maxLines: 4,
@@ -1024,100 +1459,115 @@ class _ChatComposerState extends State<ChatComposer>
                                 final hasText = widget.controller.text
                                     .trim()
                                     .isNotEmpty;
-                                final shouldShowSend =
-                                    hasText || _hasAttachment || _isRecording;
+                                final shouldShowSend = hasText || _hasAttachment;
 
-                                return Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    GestureDetector(
-                                      behavior: HitTestBehavior.opaque,
-                                      onLongPressStart: _isTranscribing
-                                          ? null
-                                          : (_) async {
-                                              HapticFeedback.mediumImpact();
-                                              _isLongPressActive = true;
-                                              await _startRecording();
-                                            },
-                                      onLongPressEnd: _isTranscribing
-                                          ? null
-                                          : (_) async {
-                                              _isLongPressActive = false;
-                                              HapticFeedback.lightImpact();
-                                              await _stopAndTranscribe();
-                                            },
-                                      child: IconButton(
-                                        icon: _isRecording
-                                            ? _buildRecordingMicIcon()
-                                            : Icon(
-                                                _isTranscribing
-                                                    ? Icons.hourglass_top_rounded
-                                                    : Icons.mic_none,
-                                                color: _isTranscribing
-                                                    ? ExodoColors.amber
-                                                    : (shouldShowSend
-                                                        ? (isLight
-                                                              ? Colors.black54
-                                                              : ExodoColors
-                                                                    .textSecondary)
-                                                        : (isLight
-                                                              ? Colors.black87
-                                                              : Colors.white70)),
-                                              ),
-                                        onPressed: _isTranscribing
-                                            ? null
-                                            : () async {
-                                                // Tap-to-toggle: si está
-                                                // grabando, paramos. Si no,
-                                                // iniciamos. Se ignora si el
-                                                // usuario también hizo
-                                                // long-press (manejado por
-                                                // el GestureDetector padre).
-                                                if (_isLongPressActive) return;
-                                                HapticFeedback.vibrate();
-                                                if (_isRecording) {
-                                                  await _stopAndTranscribe();
-                                                } else {
-                                                  await _startRecording();
-                                                }
-                                              },
-                                      ),
-                                    ),
-                                    if (shouldShowSend || isGenerating)
-                                      GestureDetector(
-                                        onTap: () async {
-                                          if (isGenerating) {
-                                            HapticFeedback.mediumImpact();
-                                            state.stopGeneration();
-                                          } else if (shouldShowSend) {
-                                            _triggerSend();
-                                          }
-                                        },
-                                        child: Container(
-                                          width: 38,
-                                          height: 38,
-                                          margin: const EdgeInsets.only(
-                                            left: 2,
-                                            right: 2,
-                                          ),
-                                          decoration: BoxDecoration(
-                                            color: isLight
-                                                ? const Color(0xFF131313)
-                                                : ExodoColors.textPrimary,
-                                            shape: BoxShape.circle,
-                                          ),
-                                          child: Icon(
-                                            isGenerating
-                                                ? Icons.stop_rounded
-                                                : Icons.arrow_upward,
-                                            size: isGenerating ? 22 : 19,
-                                            color: isLight
-                                                ? Colors.white
-                                                : const Color(0xFF141414),
-                                          ),
+                                // 1. GRABANDO: Un único botón de STOP en la derecha (#252525)
+                                if (_isRecording) {
+                                  return GestureDetector(
+                                    behavior: HitTestBehavior.opaque,
+                                    onTap: () async {
+                                      HapticFeedback.mediumImpact();
+                                      await _stopAndTranscribe();
+                                    },
+                                    child: Container(
+                                      width: 40,
+                                      height: 40,
+                                      margin: const EdgeInsets.symmetric(horizontal: 2),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFF252525),
+                                        shape: BoxShape.circle,
+                                        border: Border.all(
+                                          color: isLight ? Colors.transparent : Colors.white24,
+                                          width: 1.0,
                                         ),
                                       ),
-                                  ],
+                                      child: const Icon(
+                                        Icons.stop_rounded,
+                                        size: 24,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                  );
+                                }
+
+                                // 2. GENERANDO LLM: Botón Stop para cancelar respuesta
+                                if (isGenerating) {
+                                  return GestureDetector(
+                                    behavior: HitTestBehavior.opaque,
+                                    onTap: () {
+                                      HapticFeedback.mediumImpact();
+                                      state.stopGeneration();
+                                    },
+                                    child: Container(
+                                      width: 38,
+                                      height: 38,
+                                      margin: const EdgeInsets.symmetric(horizontal: 2),
+                                      decoration: BoxDecoration(
+                                        color: isLight
+                                            ? const Color(0xFF131313)
+                                            : ExodoColors.textPrimary,
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: Icon(
+                                        Icons.stop_rounded,
+                                        size: 22,
+                                        color: isLight
+                                            ? Colors.white
+                                            : const Color(0xFF141414),
+                                      ),
+                                    ),
+                                  );
+                                }
+
+                                // 3. CON TEXTO / ADJUNTOS: Botón de ENVIAR (Flecha)
+                                if (shouldShowSend) {
+                                  return GestureDetector(
+                                    behavior: HitTestBehavior.opaque,
+                                    onTap: _triggerSend,
+                                    child: Container(
+                                      width: 38,
+                                      height: 38,
+                                      margin: const EdgeInsets.symmetric(horizontal: 2),
+                                      decoration: BoxDecoration(
+                                        color: isLight
+                                            ? const Color(0xFF131313)
+                                            : ExodoColors.textPrimary,
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: Icon(
+                                        Icons.arrow_upward,
+                                        size: 19,
+                                        color: isLight
+                                            ? Colors.white
+                                            : const Color(0xFF141414),
+                                      ),
+                                    ),
+                                  );
+                                }
+
+                                // 4. EN REPOSO VACÍO: Botón de MICRÓFONO para iniciar grabación
+                                return GestureDetector(
+                                  behavior: HitTestBehavior.opaque,
+                                  onTap: _isTranscribing
+                                      ? null
+                                      : () async {
+                                          HapticFeedback.lightImpact();
+                                          await _startRecording();
+                                        },
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(8.0),
+                                    child: Icon(
+                                      _isTranscribing
+                                          ? Icons.hourglass_top_rounded
+                                          : Icons.mic_none,
+                                      size: 26,
+                                      color: _isTranscribing
+                                          ? ExodoColors.amber
+                                          : (isLight
+                                              ? Colors.black87
+                                              : Colors.white70),
+                                    ),
+                                  ),
                                 );
                               },
                             ),
@@ -1139,14 +1589,10 @@ class _ChatComposerState extends State<ChatComposer>
 class _ShimmeringUpgradeText extends StatefulWidget {
   final String text;
   final TextStyle style;
-  final Color baseColor;
-  final Color highlightColor;
 
   const _ShimmeringUpgradeText({
     required this.text,
     required this.style,
-    this.baseColor = ExodoColors.amber,
-    this.highlightColor = Colors.white,
   });
 
   @override
@@ -1198,12 +1644,12 @@ class _ShimmeringUpgradeTextState extends State<_ShimmeringUpgradeText>
             return LinearGradient(
               begin: Alignment(sweep - 1.3, -0.7),
               end: Alignment(sweep + 1.3, 0.7),
-              colors: [
-                widget.baseColor,
-                widget.baseColor,
-                widget.highlightColor,
-                widget.baseColor,
-                widget.baseColor,
+              colors: const [
+                ExodoColors.amber,
+                ExodoColors.amber,
+                Colors.white,
+                ExodoColors.amber,
+                ExodoColors.amber,
               ],
               stops: const [0.0, 0.35, 0.5, 0.65, 1.0],
             ).createShader(bounds);
@@ -1214,6 +1660,160 @@ class _ShimmeringUpgradeTextState extends State<_ShimmeringUpgradeText>
           ),
         );
       },
+    );
+  }
+}
+
+/// Detector visual de ondas de audio en vivo que reacciona directamente al micrófono
+class _LiveVoiceWaveform extends StatelessWidget {
+  final ValueNotifier<double> level;
+  final bool isLight;
+  final VoidCallback onStop;
+
+  const _LiveVoiceWaveform({
+    super.key,
+    required this.level,
+    required this.isLight,
+    required this.onStop,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(top: 4, bottom: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      decoration: BoxDecoration(
+        color: isLight ? const Color(0xFFF3ECE1) : const Color(0xFF1E1E1E),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: isLight
+              ? const Color(0xFF252525).withValues(alpha: 0.25)
+              : Colors.white24,
+          width: 1.2,
+        ),
+      ),
+      child: Row(
+        children: [
+          // Punto indicador #252525
+          Container(
+            width: 8,
+            height: 8,
+            margin: const EdgeInsets.only(right: 12),
+            decoration: BoxDecoration(
+              color: isLight ? const Color(0xFF252525) : Colors.white70,
+              shape: BoxShape.circle,
+            ),
+          ),
+          // Detector de ondas de audio
+          Expanded(
+            child: SizedBox(
+              height: 28,
+              child: AnimatedBuilder(
+                animation: level,
+                builder: (context, _) {
+                  return CustomPaint(
+                    painter: _AudioWaveBarsPainter(
+                      level: level.value,
+                      isLight: isLight,
+                    ),
+                  );
+                },
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Dibuja barras de audio vivas en tiempo real con altura reactiva proporcional al volumen
+class _AudioWaveBarsPainter extends CustomPainter {
+  final double level;
+  final bool isLight;
+
+  _AudioWaveBarsPainter({required this.level, required this.isLight});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    const count = 30;
+    final totalWidth = size.width;
+    final step = totalWidth / count;
+    final barWidth = (step * 0.55).clamp(2.5, 6.0);
+    final cy = size.height / 2;
+
+    final barColor = isLight ? const Color(0xFF252525) : const Color(0xFFE2E2E2);
+
+    final paint = Paint()
+      ..color = barColor
+      ..strokeCap = StrokeCap.round
+      ..style = PaintingStyle.fill;
+
+    for (var i = 0; i < count; i++) {
+      final x = i * step + (step - barWidth) / 2;
+      // Perfil armónico: barras del centro reaccionan más que los extremos
+      final normalizedPos = ((i - count / 2).abs()) / (count / 2);
+      final bellFactor = 0.35 + 0.65 * math.cos(normalizedPos * math.pi / 2);
+
+      // Dinámica de onda con variación armónica entre barras
+      final phaseOffset = math.sin(i * 0.75 + level * 6.0) * 0.25;
+      final dynamicLevel = (level + phaseOffset).clamp(0.08, 1.0);
+
+      final barH = (3.5 + dynamicLevel * (size.height - 4.0) * bellFactor).clamp(3.5, size.height);
+
+      final rrect = RRect.fromRectAndRadius(
+        Rect.fromCenter(
+          center: Offset(x + barWidth / 2, cy),
+          width: barWidth,
+          height: barH,
+        ),
+        Radius.circular(barWidth / 2),
+      );
+      canvas.drawRRect(rrect, paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _AudioWaveBarsPainter oldDelegate) {
+    return oldDelegate.level != level;
+  }
+}
+
+class _TranscribingIndicator extends StatelessWidget {
+  final bool isLight;
+  const _TranscribingIndicator({super.key, required this.isLight});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: isLight ? const Color(0xFFF2EEE7) : const Color(0xFF202020),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const SizedBox(
+            width: 12,
+            height: 12,
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              valueColor: AlwaysStoppedAnimation<Color>(ExodoColors.amber),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            'Procesando voz...',
+            style: TextStyle(
+              fontFamily: 'AnthropicSans',
+              fontSize: 12,
+              color: isLight ? const Color(0xFF171615) : Colors.white70,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

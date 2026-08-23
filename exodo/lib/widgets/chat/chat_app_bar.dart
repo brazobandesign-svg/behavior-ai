@@ -3,7 +3,6 @@ import 'package:provider/provider.dart';
 import '../../services/app_state.dart';
 import '../../theme/exodo_theme.dart';
 import '../../l10n/app_i18n.dart';
-import 'exodo_thinking_indicator.dart';
 
 class ChatAppBar extends StatelessWidget {
   const ChatAppBar({super.key});

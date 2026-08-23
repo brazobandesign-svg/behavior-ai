@@ -14,6 +14,7 @@ import '../l10n/app_translations.dart';
 import '../screens/profile_screen.dart';
 import '../screens/artifacts/expedientes_screen.dart';
 import 'billing/token_progress_bar.dart';
+import 'chat/model_selector.dart';
 
 /// Item de menú reutilizable con padding responsive.
 class _DrawerItem extends StatelessWidget {
@@ -1318,30 +1319,30 @@ class _ClaudeAccountModal {
                         }
                       }
                     },
-                    child: Text(AppI18n.of(context).t('billing.cancel_btn'), style: GoogleFonts.inter(color: const Color(0xFFE57373), fontWeight: FontWeight.bold)),
+                    child: Text(
+                      AppI18n.of(context).t('billing.cancel_btn'),
+                      style: GoogleFonts.inter(color: const Color(0xFFE57373), fontWeight: FontWeight.bold),
+                    ),
                   ),
                 )
               else
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(backgroundColor: ExodoColors.amber, foregroundColor: Colors.black, padding: const EdgeInsets.symmetric(vertical: 14)),
-                    onPressed: () async {
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: ExodoColors.amber,
+                      foregroundColor: Colors.black,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    ),
+                    onPressed: () {
                       Navigator.pop(ctx);
-                      try {
-                        final url = await StripeService.createCheckoutSession();
-                        if (url != null && ctx.mounted) {
-                          await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
-                        }
-                      } catch (e) {
-                        if (ctx.mounted) {
-                          ScaffoldMessenger.of(ctx).showSnackBar(
-                            SnackBar(content: Text(e.toString().replaceFirst('Exception: ', ''))),
-                          );
-                        }
-                      }
+                      UpgradeModal.show(context);
                     },
-                    child: Text(AppI18n.of(context).t('billing.upgrade_btn'), style: GoogleFonts.inter(fontWeight: FontWeight.bold)),
+                    child: Text(
+                      AppI18n.of(context).t('billing.upgrade_btn'),
+                      style: GoogleFonts.inter(fontWeight: FontWeight.bold),
+                    ),
                   ),
                 ),
             ],

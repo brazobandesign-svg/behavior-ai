@@ -327,7 +327,9 @@ as $$
   combined as (
     select coalesce(sem.id, fts.id) as id,
            coalesce(sem.s, 0) * semantic_weight
-         + coalesce(fts.s, 0) * (1 - semantic_weight) as score
+         + coalesce(fts.s, 0) * (1 - semantic_weight) as score,
+           coalesce(sem.s, 0) as semantic,
+           coalesce(fts.s, 0) as fulltext
     from sem
     full outer join fts on sem.id = fts.id
   )
@@ -336,8 +338,8 @@ as $$
     c.document_id,
     c.content,
     combined.score,
-    coalesce(sem.s, 0) as semantic,
-    coalesce(fts.s, 0) as fulltext,
+    combined.semantic,
+    combined.fulltext,
     jsonb_build_object(
       'short_name', d.short_name,
       'title', d.title,
@@ -399,3 +401,12 @@ create policy "minerd_query_log_service_only"
   to service_role
   using (true)
   with check (true);
+
+-- ─── Grants de acceso API ────────────────────────────────────────────────────
+-- service_role = backend (SUPABASE_SERVICE_KEY). Sin estos GRANTs, PostgREST
+-- responde 403 "permission denied" aunque las policies RLS permitan el acceso.
+
+grant usage on schema public to anon, authenticated, service_role;
+grant select on minerd_documents, minerd_chunks to anon, authenticated, service_role;
+grant insert, update, delete on minerd_documents, minerd_chunks to service_role;
+grant all on minerd_query_log to service_role;

@@ -360,8 +360,14 @@ class _ChatMessagesListState extends State<ChatMessagesList> {
           top: 8,
           bottom: 200,
         ),
-        itemCount: state.currentMessages.length,
+        itemCount: state.currentMessages.length + (state.currentMessages.length >= 24 && !state.isGenerating ? 1 : 0),
         itemBuilder: (context, index) {
+          if (index == state.currentMessages.length) {
+            return _LongConversationBanner(
+              isLight: widget.isLight,
+              onNewChat: () => state.startNewChat(),
+            );
+          }
           final msg = state.currentMessages[index];
           if (msg.isThinking) {
             return RepaintBoundary(
@@ -377,6 +383,100 @@ class _ChatMessagesListState extends State<ChatMessagesList> {
             ),
           );
         },
+      ),
+    );
+  }
+}
+
+/// Banner preventivo estilo Claude cuando la conversación acumula muchos turnos
+class _LongConversationBanner extends StatefulWidget {
+  final bool isLight;
+  final VoidCallback onNewChat;
+
+  const _LongConversationBanner({
+    required this.isLight,
+    required this.onNewChat,
+  });
+
+  @override
+  State<_LongConversationBanner> createState() => _LongConversationBannerState();
+}
+
+class _LongConversationBannerState extends State<_LongConversationBanner> {
+  bool _dismissed = false;
+
+  @override
+  Widget build(BuildContext context) {
+    if (_dismissed) return const SizedBox.shrink();
+
+    return Container(
+      margin: const EdgeInsets.only(top: 14, bottom: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: widget.isLight ? const Color(0xFFF7F5EE) : const Color(0xFF1E1E1E),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: widget.isLight
+              ? const Color(0xFFE2DCD2)
+              : const Color(0xFF333336),
+          width: 1,
+        ),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          const Icon(
+            Icons.auto_awesome_outlined,
+            size: 18,
+            color: ExodoColors.amber,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              'Esta conversación es extensa. Para consultas complejas o máxima retención de contexto, considera iniciar un nuevo chat.',
+              style: TextStyle(
+                fontFamily: 'AnthropicSans',
+                fontSize: 12,
+                color: widget.isLight ? const Color(0xFF555555) : Colors.white70,
+                height: 1.35,
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          InkWell(
+            onTap: () {
+              HapticFeedback.lightImpact();
+              widget.onNewChat();
+            },
+            borderRadius: BorderRadius.circular(8),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              decoration: BoxDecoration(
+                color: ExodoColors.amber.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Text(
+                'Nuevo',
+                style: TextStyle(
+                  fontFamily: 'AnthropicSans',
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.bold,
+                  color: ExodoColors.amber,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 4),
+          IconButton(
+            icon: const Icon(Icons.close, size: 16),
+            color: widget.isLight ? Colors.black45 : Colors.white38,
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
+            onPressed: () {
+              setState(() => _dismissed = true);
+            },
+          ),
+        ],
       ),
     );
   }

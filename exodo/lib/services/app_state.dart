@@ -1153,8 +1153,8 @@ class AppState extends ChangeNotifier {
       }).then((_) {}).catchError((_) {});
     }
 
+    final msgId = 'asst-${DateTime.now().microsecondsSinceEpoch}';
     try {
-      final msgId = 'asst-${DateTime.now().microsecondsSinceEpoch}';
       bool msgIsDegraded = false;
 
       await ChatService.sendMessageStream(
@@ -1279,7 +1279,7 @@ class AppState extends ChangeNotifier {
         onError: (err) {
           _endStreamingMessage();
           _revertTokens(userTokensEst);
-          currentMessages.removeWhere((m) => m.isThinking);
+          currentMessages.removeWhere((m) => m.id == msgId || m.isThinking);
           isThinking = false;
           isGenerating = false;
           errorMessage = err.replaceAll('Exception: ', '');
@@ -1298,7 +1298,7 @@ class AppState extends ChangeNotifier {
     } catch (e) {
       _endStreamingMessage();
       _revertTokens(userTokensEst);
-      currentMessages.removeWhere((m) => m.isThinking);
+      currentMessages.removeWhere((m) => m.id == msgId || m.isThinking);
       isThinking = false;
       isGenerating = false;
       errorMessage = e.toString().replaceAll('Exception: ', '');

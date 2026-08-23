@@ -100,3 +100,4 @@ CREATE POLICY expedientes_delete_own ON expedientes
 
 GRANT USAGE ON SCHEMA public TO anon, authenticated;
 GRANT SELECT, INSERT, UPDATE, DELETE ON expedientes TO authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON expedientes TO service_role;

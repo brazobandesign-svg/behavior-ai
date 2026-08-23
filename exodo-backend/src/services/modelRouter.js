@@ -42,17 +42,21 @@ function getExecutionChain(plan, intent, modelOverride, imageDataUris, taskType)
     }
   }
 
-  // 3. Código y Artefactos (1 solo modelo unificado para ambos planes)
+  // 3. Código y Artefactos (con fallback robusto)
   if (intent === 'CODE' || taskType === 'code' || taskType === 'code_analysis') {
     return [
       ALIBABA_CONFIG.models.coderPrimary, // qwen3-coder-plus-2025-07-22
+      ALIBABA_CONFIG.models.textPrimary,  // qwen3.7-max
+      ALIBABA_CONFIG.models.textFallback, // qwen3.6-plus
     ];
   }
 
-  // 4. Razonamiento Profundo y Matemáticas (1 solo modelo unificado para ambos planes)
+  // 4. Razonamiento Profundo y Matemáticas (con fallback robusto para evitar timeouts)
   if (intent === 'RAZONAMIENTO' || taskType === 'reasoning') {
     return [
       ALIBABA_CONFIG.models.reasonerPrimary, // qwq-plus
+      ALIBABA_CONFIG.models.textPrimary,     // qwen3.7-max
+      ALIBABA_CONFIG.models.textFallback,    // qwen3.6-plus
     ];
   }
 
@@ -133,11 +137,11 @@ async function routeMessage(plan, intent, messages, systemPrompt, modelOverride,
  */
 async function routeMessageStream(plan, intent, messages, systemPrompt, onChunk, modelOverride, imageDataUris, taskType, isDegraded = false, isGuest = false, signal = null) {
   const chain = getExecutionChain(plan, intent, modelOverride, imageDataUris, taskType);
-  // Vision: el payload multimodal (imágenes base64) alarga el TTFT de qwen-vl
-  // (~1.5-3.0s en carga normal, más con imágenes grandes). 15s evita abortar
-  // intentos sanos y thrashear la cadena de fallback.
+  // TTFT timeout adaptativo: modelos de razonamiento (qwq-plus), visión y código
+  // requieren margen para pensar/procesar tokens iniciales sin abortar prematuramente.
   const hasImages = Array.isArray(imageDataUris) && imageDataUris.length > 0;
-  const TTFT_TIMEOUT_MS = hasImages ? 15000 : 5000;
+  const isHeavyTask = hasImages || intent === 'RAZONAMIENTO' || intent === 'CODE' || taskType === 'reasoning' || taskType === 'code';
+  const TTFT_TIMEOUT_MS = isHeavyTask ? 20000 : 12000;
 
   let lastError = null;
 

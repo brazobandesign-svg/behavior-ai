@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:url_launcher/url_launcher.dart';
+import 'package:provider/provider.dart';
+import '../../models/models.dart';
+import '../../services/app_state.dart';
 import '../../services/expedientes_repository.dart';
 import '../../services/export/exporters.dart';
+import '../../data/artifacts/artifact.dart';
+import 'artifact_fullscreen.dart';
 import '../../theme/exodo_palette.dart';
 import '../../l10n/app_i18n.dart';
 
@@ -51,6 +55,10 @@ class _ExpedientesScreenState extends State<ExpedientesScreen> {
   List<Expediente> _expedientes = [];
   final Set<String> _deletingIds = {};
   _FilterCategory _activeFilter = _FilterCategory.all;
+  bool _isSearching = false;
+  String _searchQuery = '';
+  final TextEditingController _searchCtrl = TextEditingController();
+  final FocusNode _searchFocus = FocusNode();
 
   @override
   void initState() {
@@ -58,9 +66,29 @@ class _ExpedientesScreenState extends State<ExpedientesScreen> {
     _loadExpedientes();
   }
 
+  @override
+  void dispose() {
+    _searchCtrl.dispose();
+    _searchFocus.dispose();
+    super.dispose();
+  }
+
   List<Expediente> get _filteredExpedientes {
-    if (_activeFilter == _FilterCategory.all) return _expedientes;
-    return _expedientes.where((e) => _categoryFor(e.category) == _activeFilter).toList();
+    var list = _expedientes;
+    if (_activeFilter != _FilterCategory.all) {
+      list = list.where((e) => _categoryFor(e.category) == _activeFilter).toList();
+    }
+    if (_searchQuery.trim().isNotEmpty) {
+      final q = _searchQuery.trim().toLowerCase();
+      list = list.where((e) {
+        final title = e.title.toLowerCase();
+        final format = e.fileFormat.toLowerCase();
+        final cat = e.category.toLowerCase();
+        final content = (e.contentPayload ?? '').toLowerCase();
+        return title.contains(q) || format.contains(q) || cat.contains(q) || content.contains(q);
+      }).toList();
+    }
+    return list;
   }
 
   Future<void> _loadExpedientes() async {
@@ -91,21 +119,6 @@ class _ExpedientesScreenState extends State<ExpedientesScreen> {
     HapticFeedback.lightImpact();
     final url = item.metadata['public_url']?.toString() ?? '';
     await Clipboard.setData(ClipboardData(text: url));
-    if (!mounted) return;
-    final i18n = AppI18n.of(context);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            const Icon(Icons.check_circle_rounded, color: Color(0xFFF5F2EB), size: 18),
-            const SizedBox(width: 10),
-            Expanded(child: Text('${i18n.t('artifacts.copied')}: $url')),
-          ],
-        ),
-        backgroundColor: ExodoPalette.inkRaised,
-        duration: const Duration(seconds: 3),
-      ),
-    );
   }
 
   Future<void> _shareLink(Expediente item) async {
@@ -122,45 +135,81 @@ class _ExpedientesScreenState extends State<ExpedientesScreen> {
     HapticFeedback.lightImpact();
     String? payload = item.contentPayload;
     if (payload == null || payload.trim().isEmpty) {
+      payload = item.metadata['source_code']?.toString() ??
+          item.metadata['content']?.toString() ??
+          item.metadata['code']?.toString();
+    }
+    if (payload == null || payload.trim().isEmpty) {
       final detailed = await ExpedientesRepository.instance.getExpediente(item.id);
-      payload = detailed?.contentPayload;
+      payload = detailed?.contentPayload ??
+          detailed?.metadata['source_code']?.toString();
     }
 
-    if (payload != null && payload.isNotEmpty) {
-      ArtifactKind kind = ArtifactKind.code;
-      if (item.category == 'interactivo' &&
-          (item.fileFormat == 'html' || item.fileFormat == 'react')) {
-        kind = ArtifactKind.html;
-      } else if (item.category == 'interactivo' && item.fileFormat == 'svg') {
-        kind = ArtifactKind.svg;
-      } else if (item.category == 'tabla') {
-        kind = ArtifactKind.table;
-      }
+    if (payload == null || payload.trim().isEmpty) {
+      payload = '// ${item.title}\n\n// Formato: ${item.fileFormat}';
+    }
 
-      final artifact = Artifact(
-        id: item.id,
-        kind: kind,
-        language: item.fileFormat,
+    ArtifactKind kind = ArtifactKind.code;
+    if (item.category == 'interactivo' &&
+        (item.fileFormat == 'html' || item.fileFormat == 'react')) {
+      kind = ArtifactKind.html;
+    } else if (item.category == 'interactivo' && item.fileFormat == 'svg') {
+      kind = ArtifactKind.svg;
+    } else if (item.category == 'tabla') {
+      kind = ArtifactKind.table;
+    }
+
+    final artifact = Artifact(
+      id: item.id,
+      messageId: item.metadata['message_id']?.toString() ?? item.id,
+      conversationId: item.chatId ?? item.metadata['conversation_id']?.toString() ?? '',
+      kind: kind,
+      language: item.fileFormat,
+      title: item.title,
+      sourceCode: payload,
+      meta: item.metadata,
+      detectedAt: item.createdAt,
+      updatedAt: item.updatedAt,
+    );
+
+    if (!mounted) return;
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ArtifactFullscreen(artifact: artifact),
+      ),
+    );
+  }
+
+  Future<void> _navigateToChat(Expediente item) async {
+    HapticFeedback.selectionClick();
+    final chatId = item.chatId ??
+        item.metadata['conversation_id']?.toString() ??
+        item.metadata['chat_id']?.toString();
+
+    final state = context.read<AppState>();
+    Conversation? targetConv;
+
+    if (chatId != null && chatId.trim().isNotEmpty) {
+      targetConv =
+          state.conversations.where((c) => c.id == chatId).firstOrNull;
+
+      targetConv ??= Conversation(
+        id: chatId,
+        userId: state.profile?.id ?? '',
         title: item.title,
-        sourceCode: payload,
-        meta: item.metadata,
+        createdAt: item.createdAt,
+        updatedAt: item.updatedAt,
       );
-
-      if (!mounted) return;
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => ArtifactFullscreen(artifact: artifact),
-        ),
-      );
-      return;
+    } else {
+      targetConv = state.activeConversation ?? state.conversations.firstOrNull;
     }
 
-    final url = item.metadata['public_url']?.toString() ?? '';
-    final uri = Uri.tryParse(url);
-    if (uri != null && uri.hasScheme) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (targetConv != null) {
+      await state.selectConversation(targetConv);
     }
+    if (!mounted) return;
+    Navigator.of(context).pop(); // Retorna a ChatScreen
   }
 
   Future<void> _confirmDelete(Expediente item) async {
@@ -274,22 +323,88 @@ class _ExpedientesScreenState extends State<ExpedientesScreen> {
         elevation: 0,
         scrolledUnderElevation: 0,
         iconTheme: IconThemeData(color: primaryTextColor),
-        title: Text(
-          i18n.t('artifacts.title'),
-          style: TextStyle(
-            fontFamily: 'AnthropicSans',
-            color: primaryTextColor,
-            fontWeight: FontWeight.w600,
-            fontSize: 18,
-            letterSpacing: -0.2,
-          ),
-        ),
+        title: _isSearching
+            ? Container(
+                height: 40,
+                decoration: BoxDecoration(
+                  color: isDark ? const Color(0xFF252525) : const Color(0xFFEAE7E0),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: TextField(
+                  controller: _searchCtrl,
+                  focusNode: _searchFocus,
+                  autofocus: true,
+                  style: TextStyle(
+                    fontFamily: 'AnthropicSans',
+                    color: primaryTextColor,
+                    fontSize: 14,
+                  ),
+                  cursorColor: ExodoPalette.gold,
+                  decoration: InputDecoration(
+                    hintText: 'Buscar en expedientes...',
+                    hintStyle: TextStyle(
+                      fontFamily: 'AnthropicSans',
+                      color: neutralGray,
+                      fontSize: 13.5,
+                    ),
+                    prefixIcon: Icon(Icons.search_rounded, size: 18, color: neutralGray),
+                    prefixIconConstraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                    suffixIcon: _searchQuery.isNotEmpty
+                        ? IconButton(
+                            icon: const Icon(Icons.clear_rounded, size: 16),
+                            color: neutralGray,
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                            onPressed: () {
+                              _searchCtrl.clear();
+                              setState(() => _searchQuery = '');
+                            },
+                          )
+                        : null,
+                    border: InputBorder.none,
+                    isDense: true,
+                    contentPadding: const EdgeInsets.symmetric(vertical: 10),
+                  ),
+                  onChanged: (v) => setState(() => _searchQuery = v),
+                ),
+              )
+            : Text(
+                i18n.t('artifacts.title'),
+                style: TextStyle(
+                  fontFamily: 'AnthropicSans',
+                  color: primaryTextColor,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 18,
+                  letterSpacing: -0.2,
+                ),
+              ),
         actions: [
-          IconButton(
-            tooltip: i18n.t('artifacts.refresh'),
-            icon: const Icon(Icons.refresh_rounded, color: neutralGray),
-            onPressed: _isLoading ? null : _loadExpedientes,
-          ),
+          if (_isSearching)
+            IconButton(
+              tooltip: 'Cerrar búsqueda',
+              icon: const Icon(Icons.close_rounded),
+              onPressed: () {
+                _searchCtrl.clear();
+                setState(() {
+                  _isSearching = false;
+                  _searchQuery = '';
+                });
+              },
+            )
+          else ...[
+            IconButton(
+              tooltip: 'Buscar expediente',
+              icon: const Icon(Icons.search_rounded),
+              onPressed: () {
+                setState(() => _isSearching = true);
+              },
+            ),
+            IconButton(
+              tooltip: i18n.t('artifacts.refresh'),
+              icon: const Icon(Icons.refresh_rounded, color: neutralGray),
+              onPressed: _isLoading ? null : _loadExpedientes,
+            ),
+          ],
         ],
       ),
       body: Column(
@@ -389,6 +504,66 @@ class _ExpedientesScreenState extends State<ExpedientesScreen> {
     }
 
     final filtered = _filteredExpedientes;
+
+    if (filtered.isEmpty && _searchQuery.trim().isNotEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 32.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 56,
+                height: 56,
+                decoration: BoxDecoration(
+                  color: isDark ? const Color(0xFF252525) : const Color(0xFFE5E5EA),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.search_off_rounded,
+                  size: 28,
+                  color: neutralGray,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Sin resultados',
+                style: TextStyle(
+                  fontFamily: 'AnthropicSans',
+                  color: primaryTextColor,
+                  fontSize: 16.5,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'No se encontró ningún expediente con "$_searchQuery"',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontFamily: 'AnthropicSans',
+                  color: neutralGray,
+                  fontSize: 13,
+                ),
+              ),
+              const SizedBox(height: 18),
+              OutlinedButton(
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: primaryTextColor,
+                  side: BorderSide(color: isDark ? const Color(0xFF3A3A3C) : const Color(0xFFD1D1D6)),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                ),
+                onPressed: () {
+                  _searchCtrl.clear();
+                  setState(() => _searchQuery = '');
+                },
+                child: const Text('Limpiar búsqueda', style: TextStyle(fontFamily: 'AnthropicSans', fontSize: 12)),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
 
     if (_expedientes.isEmpty) {
       return Center(
@@ -504,6 +679,7 @@ class _ExpedientesScreenState extends State<ExpedientesScreen> {
             onShare: () => _shareLink(item),
             onDelete: () => _confirmDelete(item),
             onOpenFullscreen: () => _openFullscreen(item),
+            onNavigateToChat: () => _navigateToChat(item),
           );
         },
       ),
@@ -613,6 +789,7 @@ class _ExpedienteCard extends StatelessWidget {
   final VoidCallback onShare;
   final VoidCallback onDelete;
   final VoidCallback onOpenFullscreen;
+  final VoidCallback onNavigateToChat;
 
   const _ExpedienteCard({
     required this.item,
@@ -626,6 +803,7 @@ class _ExpedienteCard extends StatelessWidget {
     required this.onShare,
     required this.onDelete,
     required this.onOpenFullscreen,
+    required this.onNavigateToChat,
   });
 
   String _formatDate(DateTime dt) {
@@ -676,38 +854,42 @@ class _ExpedienteCard extends StatelessWidget {
       );
     }
 
+    final chips = <Widget>[];
+
     switch (category) {
       case _FilterCategory.documents:
-        return [
+        chips.addAll([
           chip(i18n.t('artifacts.export_pdf'), Icons.picture_as_pdf_rounded, onShare),
           const SizedBox(width: 6),
           chip(i18n.t('artifacts.export_docx'), Icons.description_outlined, onShare),
-        ];
+        ]);
+        break;
       case _FilterCategory.tables:
-        return [
+        chips.addAll([
           chip(i18n.t('artifacts.export_xlsx'), Icons.table_chart_outlined, onShare),
           const SizedBox(width: 6),
           chip(i18n.t('artifacts.export_pdf'), Icons.picture_as_pdf_rounded, onShare),
-        ];
+        ]);
+        break;
       case _FilterCategory.interactive:
-        return [
-          chip(i18n.t('artifacts.open_fullscreen'), Icons.open_in_new_rounded, onOpenFullscreen),
-          const SizedBox(width: 6),
+        chips.addAll([
           chip(i18n.t('artifacts.share_web'), Icons.link_rounded, onCopy),
-        ];
+        ]);
+        break;
       case _FilterCategory.all:
-        return [
-          chip(i18n.t('artifacts.open_fullscreen'), Icons.open_in_new_rounded, onOpenFullscreen),
-          const SizedBox(width: 6),
+        chips.addAll([
           chip(i18n.t('artifacts.export_pdf'), Icons.picture_as_pdf_rounded, onShare),
-        ];
+        ]);
+        break;
     }
+
+    return chips;
   }
 
   @override
   Widget build(BuildContext context) {
     final cardBg = isDark ? const Color(0xFF252525) : Colors.white;
-    final borderColor = isDark ? const Color(0xFF2A2520) : const Color(0xFFE2DDD5);
+    final borderColor = isDark ? const Color(0xFF2C2C2E) : const Color(0xFFE2DDD5);
 
     return InkWell(
       onTap: onOpenFullscreen,
@@ -723,11 +905,33 @@ class _ExpedienteCard extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Header: Format badge
+              // Header: Format badge and VER EN CHAT
               Row(
                 children: [
                   _FormatBadge(format: item.fileFormat, category: item.category),
                   const Spacer(),
+                  OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: primaryTextColor,
+                      side: BorderSide(color: isDark ? const Color(0xFF38383A) : const Color(0xFFD1D1D6), width: 0.8),
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      minimumSize: Size.zero,
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
+                    onPressed: onNavigateToChat,
+                    icon: Icon(Icons.forum_outlined, size: 13, color: primaryTextColor),
+                    label: Text(
+                      'VER EN CHAT',
+                      style: TextStyle(
+                        fontFamily: 'AnthropicSans',
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.w600,
+                        color: primaryTextColor,
+                        letterSpacing: 0.3,
+                      ),
+                    ),
+                  ),
                 ],
               ),
               const SizedBox(height: 12),
@@ -745,81 +949,117 @@ class _ExpedienteCard extends StatelessWidget {
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
               ),
-            const SizedBox(height: 6),
+              const SizedBox(height: 6),
 
-            // Updated date
-            Text(
-              '${i18n.t('artifacts.published')}: ${_formatDate(item.updatedAt)}',
-              style: TextStyle(
-                fontFamily: 'AnthropicSans',
-                color: neutralGray,
-                fontSize: 11.5,
+              // Updated date
+              Text(
+                '${i18n.t('artifacts.published')}: ${_formatDate(item.updatedAt)}',
+                style: TextStyle(
+                  fontFamily: 'AnthropicSans',
+                  color: neutralGray,
+                  fontSize: 11.5,
+                ),
               ),
-            ),
-            const SizedBox(height: 12),
+              const SizedBox(height: 12),
 
-            // Quick export action chips
-            Row(
-              children: _buildExportActions(),
-            ),
-            const SizedBox(height: 10),
+              // Quick export action chips
+              if (_buildExportActions().isNotEmpty) ...[
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: _buildExportActions(),
+                  ),
+                ),
+                const SizedBox(height: 10),
+              ],
 
-            // Divider
-            Divider(color: borderColor, height: 1),
-            const SizedBox(height: 8),
+              // Divider
+              Divider(color: borderColor, height: 1),
+              const SizedBox(height: 8),
 
-            // Action bar
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                if (isDeleting)
-                  const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 12),
-                    child: SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: ExodoPalette.danger,
+              // Action bar (No overflow)
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: isDark ? const Color(0xFF2C2C2E) : const Color(0xFFE5E5EA),
+                      foregroundColor: primaryTextColor,
+                      elevation: 0,
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
+                    onPressed: onOpenFullscreen,
+                    icon: Icon(Icons.fullscreen_rounded, size: 16, color: primaryTextColor),
+                    label: Text(
+                      'ABRIR',
+                      style: TextStyle(
+                        fontFamily: 'AnthropicSans',
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w700,
+                        color: primaryTextColor,
+                        letterSpacing: 0.3,
                       ),
                     ),
-                  )
-                else
-                  IconButton(
-                    tooltip: i18n.t('artifacts.delete_title'),
-                    icon: const Icon(Icons.delete_outline_rounded, color: ExodoPalette.danger, size: 20),
-                    onPressed: onDelete,
                   ),
-                const SizedBox(width: 4),
-                IconButton(
-                  tooltip: i18n.t('act.copy'),
-                  icon: Icon(Icons.copy_rounded, color: neutralGray, size: 19),
-                  onPressed: onCopy,
-                ),
-                const SizedBox(width: 4),
-                ElevatedButton.icon(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: isDark ? const Color(0xFF2C2C2E) : const Color(0xFFE5E5EA),
-                    foregroundColor: primaryTextColor,
-                    elevation: 0,
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (isDeleting)
+                        const Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 10),
+                          child: SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: ExodoPalette.danger,
+                            ),
+                          ),
+                        )
+                      else
+                        IconButton(
+                          tooltip: i18n.t('artifacts.delete_title'),
+                          icon: const Icon(Icons.delete_outline_rounded, color: ExodoPalette.danger, size: 19),
+                          padding: const EdgeInsets.all(6),
+                          constraints: const BoxConstraints(),
+                          onPressed: onDelete,
+                        ),
+                      const SizedBox(width: 6),
+                      IconButton(
+                        tooltip: i18n.t('act.copy'),
+                        icon: Icon(Icons.copy_rounded, color: neutralGray, size: 18),
+                        padding: const EdgeInsets.all(6),
+                        constraints: const BoxConstraints(),
+                        onPressed: onCopy,
+                      ),
+                      const SizedBox(width: 6),
+                      ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: isDark ? const Color(0xFF2C2C2E) : const Color(0xFFE5E5EA),
+                          foregroundColor: primaryTextColor,
+                          elevation: 0,
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        ),
+                        onPressed: onShare,
+                        icon: Icon(Icons.share_rounded, size: 14, color: primaryTextColor),
+                        label: Text(
+                          i18n.t('act.share'),
+                          style: TextStyle(
+                            fontFamily: 'AnthropicSans',
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: primaryTextColor,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                  onPressed: onShare,
-                  icon: Icon(Icons.share_rounded, size: 15, color: primaryTextColor),
-                  label: Text(
-                    i18n.t('act.share').toUpperCase(),
-                    style: const TextStyle(
-                      fontFamily: 'AnthropicSans',
-                      fontSize: 11.5,
-                      fontWeight: FontWeight.w600,
-                      letterSpacing: 0.3,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ],
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -837,21 +1077,22 @@ class _FormatBadge extends StatelessWidget {
   const _FormatBadge({required this.format, required this.category});
 
   (IconData, String, Color) _resolveMeta() {
+    const brandColor = Color(0xFFD4A843);
     switch (format.toLowerCase()) {
       case 'html':
-        return (Icons.html_rounded, 'HTML', const Color(0xFFE44D26));
+        return (Icons.html_rounded, 'HTML', brandColor);
       case 'svg':
-        return (Icons.brush_rounded, 'SVG', const Color(0xFFFFB13B));
+        return (Icons.brush_rounded, 'SVG', brandColor);
       case 'pdf':
-        return (Icons.picture_as_pdf_rounded, 'PDF', const Color(0xFFE53935));
+        return (Icons.picture_as_pdf_rounded, 'PDF', brandColor);
       case 'docx':
-        return (Icons.description_outlined, 'DOCX', const Color(0xFF2196F3));
+        return (Icons.description_outlined, 'DOCX', brandColor);
       case 'xlsx':
-        return (Icons.table_chart_rounded, 'XLSX', const Color(0xFF4CAF50));
+        return (Icons.table_chart_rounded, 'XLSX', brandColor);
       case 'md':
-        return (Icons.article_outlined, 'MD', const Color(0xFF9E9E9E));
+        return (Icons.article_outlined, 'MD', brandColor);
       default:
-        return (Icons.code_rounded, format.toUpperCase(), const Color(0xFF8E8E93));
+        return (Icons.code_rounded, format.toUpperCase(), brandColor);
     }
   }
 

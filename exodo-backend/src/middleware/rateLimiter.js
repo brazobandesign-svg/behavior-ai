@@ -1,28 +1,30 @@
 /**
  * Rate Limiter — Éxodo by Behavior
  *
- * Limita peticiones por minuto:
- *   - Usuarios autenticados (userId):    60 req/min
- *   - Usuarios anónimos (IP):            10 req/min
- *   - Incluye cabecera Retry-After en 429.
+ * Piso global PRE-auth en /api/*: se aplica ANTES del middleware auth, por lo
+ * que req.user no existe aquí y el keying es por IP (req.ip).
+ *  - Con `trust proxy` activo (producción/Railway) cada cliente aporta su IP
+ *    real → bucket por cliente. 60 req/min por IP.
+ *  - En desarrollo (adb reverse / localhost) todo llega como 127.0.0.1 → el
+ *    piso es compartido pero generoso; los límites estrictos por usuario
+ *    pertenecen a capas post-auth (planGuard, limiters por ruta).
+ * Incluye cabecera Retry-After en 429.
  *
  * Dependencia: npm install express-rate-limit
  */
 const rateLimit = require('express-rate-limit');
 
+const WINDOW_MS = 60 * 1000; // 1 minuto
+const MAX_REQUESTS_PER_WINDOW = 60;
+
 /**
- * Limita por userId (autenticado) o IP (anónimo/desarrollo).
- * Express-rate-limit v7+ requiere `keyGenerator` y `handler` personalizados.
+ * Piso global por IP (pre-auth). Express-rate-limit v7+ requiere
+ * `keyGenerator` y `handler` personalizados.
  */
 const chatRateLimiter = rateLimit({
-  windowMs: 60 * 1000, // 1 minuto
-  max: (req) => {
-    // Autenticados tienen cupo más alto
-    if (req.user?.userId) return 60;
-    return 10; // anónimos: 10 por minuto
-  },
+  windowMs: WINDOW_MS,
+  max: MAX_REQUESTS_PER_WINDOW,
   keyGenerator: (req) => {
-    // Usa userId si existe, si no la IP
     return req.user?.userId || req.ip || req.connection?.remoteAddress || 'unknown';
   },
   standardHeaders: true, // devuelve RateLimit-* headers
@@ -31,7 +33,8 @@ const chatRateLimiter = rateLimit({
   // (keyGeneratorIpFallback crashea en localhost con IPv6)
   validate: false,
   handler: (req, res, _next) => {
-    const retryAfter = Math.ceil(60 / 1000); // 60 segundos
+    // Fix: antes Math.ceil(60 / 1000) = 1 segundo (bug B14).
+    const retryAfter = Math.ceil(WINDOW_MS / 1000); // 60 segundos
     res.set('Retry-After', String(retryAfter));
     res.status(429).json({
       error: 'too_many_requests',
