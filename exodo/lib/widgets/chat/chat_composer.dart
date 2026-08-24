@@ -454,10 +454,10 @@ class _ChatComposerState extends State<ChatComposer>
       _blockSilenceMs += deltaMs;
     }
 
-    // Envío parcial acumulativo: ≥400ms de voz y cada ~1.2s para actualizar el texto en vivo.
-    if (_blockVocalMs >= 400 &&
-        now.difference(_lastPartialSend).inMilliseconds >= 1200 &&
-        _blockPcm.length >= 16000) {
+    // Envío parcial acumulativo rápido (PERF-1): ≥300ms de voz y cada ~900ms para respuesta inmediata.
+    if (_blockVocalMs >= 300 &&
+        now.difference(_lastPartialSend).inMilliseconds >= 900 &&
+        _blockPcm.length >= 12000) {
       _lastPartialSend = now;
       _sendVoiceWav(_snapshotBlock(), mode: _VoiceSendMode.partial);
     }
@@ -659,6 +659,9 @@ class _ChatComposerState extends State<ChatComposer>
       return null;
     }
 
+    if (mode == _VoiceSendMode.partial) {
+      _abortPendingUploads();
+    }
     final client = http.Client();
     _activeUploads.add(client);
     try {
