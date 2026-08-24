@@ -381,7 +381,7 @@ class _ChatComposerState extends State<ChatComposer>
     // Noise Gate estricto estilo Gemini/ChatGPT: piso en -35 dBFS
     // Cualquier ruido ambiente/ventilador por debajo de -35 dBFS queda en 0.0 absoluto
     const noiseFloorDb = -35.0;
-    const gateRangeDb = 23.0; // Rango dinámico útil (-35 a -12 dBFS)
+    const gateRangeDb = 22.0; // Rango dinámico útil (-35 a -13 dBFS)
 
     if (dbfs < noiseFloorDb) {
       return 0.0; // Silencio absoluto -> onda plana (3.0px)
@@ -389,8 +389,8 @@ class _ChatComposerState extends State<ChatComposer>
 
     final gated = ((dbfs - noiseFloorDb) / gateRangeDb).clamp(0.0, 1.0);
 
-    // Curva expansora no-lineal (potencia 1.35): suprime ruidos débiles y abre con voz real
-    final visual = math.pow(gated, 1.35).clamp(0.0, 1.0).toDouble();
+    // Curva de expansión cuadrática (potencia 2.0): suprime 100% de ruido y abre con voz real
+    final visual = math.pow(gated, 2.0).clamp(0.0, 1.0).toDouble();
     return visual;
   }
 
@@ -1775,8 +1775,8 @@ class _AudioWaveBarsPainter extends CustomPainter {
       ..strokeCap = StrokeCap.round
       ..style = PaintingStyle.fill;
 
-    // Umbral de silencio calibrado: 0.05 (VOZ-1 FIX)
-    final isSilent = level < 0.05;
+    // Umbral de silencio estricto: 0.08 (con expansión cuadrática, ruido < 0.08 -> barra de reposo)
+    final isSilent = level < 0.08;
 
     for (var i = 0; i < count; i++) {
       final x = i * step + (step - barWidth) / 2;
@@ -1792,7 +1792,7 @@ class _AudioWaveBarsPainter extends CustomPainter {
         final dynamicLevel = (level + harmonic).clamp(0.0, 1.0);
         // Altura máxima contenida (techo bajo elegante, max 13.5px)
         const maxHeight = 13.5;
-        barH = (3.0 + dynamicLevel * maxHeight * bellFactor).clamp(3.0, 16.5);
+        barH = (3.0 + dynamicLevel * maxHeight * bellFactor).clamp(3.0, 14.0);
       }
 
       final rrect = RRect.fromRectAndRadius(
