@@ -54,8 +54,14 @@ void main() async {
             final state = AppState(bootstrap: bootstrap);
             // Cuando la inicialización de Supabase culmine en background,
             // conectamos los listeners de sincronización en tiempo real y perfil.
-            initFuture.then((_) {
+            // C11: si initialize() falla (sin red al arrancar), no debe quedar
+            // una promesa rechazada sin manejar ni bloquear el arranque cacheado.
+            initFuture
+                .then((_) {
               state.initAfterSupabase();
+            })
+                .catchError((Object e) {
+              debugPrint('[main] Supabase.initialize falló al arranque: $e');
             });
             return state;
           },

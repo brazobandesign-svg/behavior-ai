@@ -389,9 +389,15 @@ class _SandboxWebViewState extends State<_SandboxWebView> {
                 useWideViewPort: true,
                 loadWithOverviewMode: true,
                 transparentBackground: true,
-                allowFileAccess: true,
-                allowFileAccessFromFileURLs: true,
-                allowUniversalAccessFromFileURLs: true,
+                // C8: el artefacto se sirve como data URI; no necesita leer el
+                // sistema de archivos del teléfono. Antes
+                // allowUniversalAccessFromFileURLs permitía que el JS del
+                // artefacto hiciera XHR a file:// y exfiltrar archivos locales.
+                allowFileAccess: false,
+                allowFileAccessFromFileURLs: false,
+                allowUniversalAccessFromFileURLs: false,
+                // Mixed content se conserva permisivo: los data URI no son
+                // origen file:// y algunos artefactos embeben recursos http://.
                 mixedContentMode: MixedContentMode.MIXED_CONTENT_ALWAYS_ALLOW,
               ),
               onWebViewCreated: (controller) {

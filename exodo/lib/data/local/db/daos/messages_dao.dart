@@ -87,6 +87,21 @@ class MessagesDao extends DatabaseAccessor<AppDatabase> with _$MessagesDaoMixin 
         .get();
   }
 
+  /// C10: busca conversaciones cuyo contenido local coincida con la query.
+  /// Cubre invitados y mensajes offline que nunca llegaron a Supabase.
+  Future<List<String>> searchConversationIds(String query, {int limit = 50}) {
+    // Neutralizar comodines LIKE del usuario para que busque texto literal.
+    final q = query.replaceAll(RegExp(r'[%_\\]'), '').trim();
+    if (q.isEmpty) return Future.value(const <String>[]);
+    final convId = localMessages.conversationId;
+    final stmt = selectOnly(localMessages)
+      ..addColumns([convId])
+      ..where(localMessages.content.like('%$q%'))
+      ..groupBy([convId])
+      ..limit(limit);
+    return stmt.get().then((rows) => rows.map((r) => r.read(convId)!).toList());
+  }
+
   /// Actualiza el estado de sincronización de un mensaje.
   Future<void> updateStatus(String id, LocalMessageStatus newStatus) {
     return (update(localMessages)..where((t) => t.id.equals(id))).write(

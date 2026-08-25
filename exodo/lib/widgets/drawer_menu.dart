@@ -279,10 +279,16 @@ class _DrawerMenuState extends State<DrawerMenu> {
                                         ),
                                         onChanged: (v) {
                                           setState(() => _searchQuery = v);
-                                          if (v.trim().length >= 2) {
-                                            SupabaseService.searchConversationIdsByMessage(v.trim()).then((ids) {
+                                          final q = v.trim();
+                                          if (q.length >= 2) {
+                                            // C10: buscar en la nube Y en el historial local
+                                            // (invitados y mensajes offline nunca suben a Supabase).
+                                            final remote = SupabaseService.searchConversationIdsByMessage(q);
+                                            final local =
+                                                context.read<AppState>().localChatRepo.searchConversationIds(q);
+                                            Future.wait([remote, local]).then((res) {
                                               if (mounted && _searchQuery == v) {
-                                                setState(() => _matchingIds = ids.toSet());
+                                                setState(() => _matchingIds = {...res[0], ...res[1]});
                                               }
                                             });
                                           } else {

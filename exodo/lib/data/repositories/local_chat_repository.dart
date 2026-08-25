@@ -303,6 +303,11 @@ class LocalChatRepository {
     return list.map(_toDomainMessage).toList();
   }
 
+  /// C10: IDs de conversaciones con contenido local que coincide con la query.
+  Future<List<String>> searchConversationIds(String query, {int limit = 50}) {
+    return db.messagesDao.searchConversationIds(query, limit: limit);
+  }
+
   /// Actualiza el estado de sincronización de un mensaje.
   Future<void> updateMessageStatus(String messageId, LocalMessageStatus newStatus) async {
     await db.messagesDao.updateStatus(messageId, newStatus);

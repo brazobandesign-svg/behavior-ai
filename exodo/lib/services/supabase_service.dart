@@ -22,7 +22,18 @@ class SupabaseService {
   }
 
   static SupabaseClient get client => Supabase.instance.client;
-  static User? get currentUser => client.auth.currentUser;
+
+  /// C11: durante la carrera de arranque (frame 0) el cliente puede no estar
+  /// inicializado aún; devolver null en vez de lanzar. hasSession cae al
+  /// snapshot cacheado de Bootstrap y RootSwitcher corrige cuando init termina.
+  static User? get currentUser {
+    if (!_initialized) return null;
+    try {
+      return client.auth.currentUser;
+    } catch (_) {
+      return null;
+    }
+  }
 
   // Autenticación por email/password
   static Future<AuthResponse> signIn(String email, String password) async {

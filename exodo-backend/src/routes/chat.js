@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const auth = require('../middleware/auth');
 const { planGuard } = require('../middleware/planGuard');
+const { guestLimit } = require('../middleware/guestLimit');
 const { classifyByKeywords } = require('../services/intentClassifier');
 const { routeMessage, routeMessageStream } = require('../services/modelRouter');
 const { getHistory, saveMessage, assertConversationOwner } = require('../services/historyManager');
@@ -151,7 +152,7 @@ function extractSourcesFromText(text, existingSources = [], contextChunks = [], 
  *   data: {"type":"done","content":"...","sources":[...]}\n\n
  *   data: {"type":"error","content":"..."}\n\n
  */
-router.post('/', auth, planGuard, upload.array('files', 5), async (req, res) => {
+router.post('/', auth, guestLimit, planGuard, upload.array('files', 5), async (req, res) => {
   // FIX scope: estas tres variables se usan en el catch externo, así que
   // deben declararse ANTES del try — declaradas dentro, un error temprano
   // (entre el inicio del try y la declaración) hacía que el catch lanzara

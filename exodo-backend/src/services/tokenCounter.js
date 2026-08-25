@@ -62,20 +62,29 @@ async function updateTokenUsage(userId, newTokens, hasImage = false, currentUsag
   // 2. Actualizar en Supabase
   if (!supabase) return;
 
+  // C7: incremento ATÓMICO en SQL (RPC increment_user_usage). Antes se
+  // sobrescribía el total con el valor en memoria → lost-updates entre
+  // requests concurrentes y entre réplicas, y pérdida del delta en restarts.
   try {
-    const updatePayload = {
-      tokens_used: mem.dailyTokensUsed,
-      images_used: mem.monthlyVisionUsed,
-      period: currentDate,
-      updated_at: new Date().toISOString(),
-    };
-
-    await supabase
-      .from('user_usage')
-      .update(updatePayload)
-      .eq('user_id', userId);
+    const { error } = await supabase.rpc('increment_user_usage', {
+      p_user_id: userId,
+      p_tokens: Math.max(1, Math.round(newTokens)),
+      p_images: imagesToAdd,
+    });
+    if (error) throw new Error(error.message);
   } catch (err) {
-    console.error('[tokenCounter] Error actualizando uso en DB:', err.message);
+    console.error('[tokenCounter] RPC atómica falló, usando fallback legado:', err.message);
+    try {
+      const updatePayload = {
+        tokens_used: mem.dailyTokensUsed,
+        images_used: mem.monthlyVisionUsed,
+        period: currentDate,
+        updated_at: new Date().toISOString(),
+      };
+      await supabase.from('user_usage').update(updatePayload).eq('user_id', userId);
+    } catch (err2) {
+      console.error('[tokenCounter] Error actualizando uso en DB:', err2.message);
+    }
   }
 }
 
