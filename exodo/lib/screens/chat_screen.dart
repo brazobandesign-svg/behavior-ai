@@ -207,6 +207,13 @@ class _ChatScreenState extends State<ChatScreen>
                           }
                           FocusScope.of(context).unfocus();
                           final state = context.read<AppState>();
+                          if (state.editingMessage != null) {
+                            final msgToEdit = state.editingMessage!;
+                            state.cancelEditingMessage();
+                            _inputCtrl.clear();
+                            state.editAndRegenerateUserMessage(msgToEdit, text);
+                            return;
+                          }
                           if (!state.isGuestUser &&
                               (state.tokensUsed >= state.tokensLimit ||
                                   state.tokensUsed + (text.length ~/ 3) + 15 >

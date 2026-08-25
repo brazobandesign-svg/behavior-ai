@@ -119,6 +119,8 @@ class _ChatComposerState extends State<ChatComposer>
   bool _hasAttachment = false;
   bool _isRecording = false;
   bool _isTranscribing = false;
+  final FocusNode _inputFocusNode = FocusNode();
+  String? _lastLoadedEditMsgId;
   // Reciclable por sesión: los streams del plugin son de suscripción única.
   AudioRecorder _audioRecorder = AudioRecorder();
   StreamSubscription<Uint8List>? _pcmSub;
@@ -1226,6 +1228,7 @@ class _ChatComposerState extends State<ChatComposer>
     WidgetsBinding.instance.removeObserver(this);
     _auraController.dispose();
     _voiceLevel.dispose();
+    _inputFocusNode.dispose();
     _abortPendingUploads();
     _pcmSub?.cancel();
     _pcmSub = null;
@@ -1264,6 +1267,22 @@ class _ChatComposerState extends State<ChatComposer>
 
     final isLight = !isDarkMode && !isIncognito;
     final state = context.read<AppState>();
+    final editingMessage = context.select<AppState, ChatMessage?>((s) => s.editingMessage);
+
+    if (editingMessage != null && editingMessage.id != _lastLoadedEditMsgId) {
+      _lastLoadedEditMsgId = editingMessage.id;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          widget.controller.text = editingMessage.content;
+          widget.controller.selection = TextSelection.fromPosition(
+            TextPosition(offset: widget.controller.text.length),
+          );
+          _inputFocusNode.requestFocus();
+        }
+      });
+    } else if (editingMessage == null && _lastLoadedEditMsgId != null) {
+      _lastLoadedEditMsgId = null;
+    }
 
     return Padding(
       padding: const EdgeInsets.only(left: 14, right: 14, bottom: 12),
@@ -1373,6 +1392,62 @@ class _ChatComposerState extends State<ChatComposer>
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                        if (editingMessage != null)
+                          Container(
+                            margin: const EdgeInsets.only(bottom: 6),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 5,
+                            ),
+                            decoration: BoxDecoration(
+                              color: isLight
+                                  ? Colors.black.withValues(alpha: 0.05)
+                                  : Colors.white.withValues(alpha: 0.07),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  Icons.edit_outlined,
+                                  size: 14,
+                                  color: isLight
+                                      ? Colors.black54
+                                      : Colors.white60,
+                                ),
+                                const SizedBox(width: 6),
+                                Expanded(
+                                  child: Text(
+                                    AppI18n.of(context).t('chat.edit_message'),
+                                    style: GoogleFonts.inter(
+                                      fontSize: 12.5,
+                                      fontWeight: FontWeight.w600,
+                                      color: isLight
+                                          ? Colors.black87
+                                          : Colors.white70,
+                                    ),
+                                  ),
+                                ),
+                                GestureDetector(
+                                  behavior: HitTestBehavior.opaque,
+                                  onTap: () {
+                                    HapticFeedback.lightImpact();
+                                    state.cancelEditingMessage();
+                                    widget.controller.clear();
+                                  },
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(2),
+                                    child: Icon(
+                                      Icons.close_rounded,
+                                      size: 16,
+                                      color: isLight
+                                          ? Colors.black45
+                                          : Colors.white38,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
                         _buildAttachmentPreview(),
                         // VOZ-2 Punto 3 — morphing de estados con
                         // AnimatedSwitcher (250ms, escala + fade) entre
@@ -1407,6 +1482,7 @@ class _ChatComposerState extends State<ChatComposer>
                         ),
                         TextField(
                           controller: widget.controller,
+                          focusNode: _inputFocusNode,
                           maxLines: 4,
                           minLines: 1,
                           maxLength: 16000,

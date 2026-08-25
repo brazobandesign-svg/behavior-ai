@@ -969,131 +969,14 @@ class _EditMessageButton extends StatelessWidget {
     required this.isLight,
   });
 
-  void _showEditSheet(BuildContext context) {
-    HapticFeedback.lightImpact();
-    final controller = TextEditingController(text: message.content);
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: isLight ? const Color(0xFFFBF9F5) : const Color(0xFF1E1E1E),
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (ctx) => Padding(
-        padding: EdgeInsets.only(
-          bottom: MediaQuery.of(ctx).viewInsets.bottom + 20,
-          left: 20,
-          right: 20,
-          top: 16,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Center(
-              child: Container(
-                width: 40,
-                height: 4,
-                margin: const EdgeInsets.only(bottom: 16),
-                decoration: BoxDecoration(
-                  color: isLight ? Colors.black26 : Colors.white24,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-            ),
-            Row(
-              children: [
-                const Icon(Icons.edit_note_rounded, color: ExodoColors.amber, size: 24),
-                const SizedBox(width: 8),
-                Text(
-                  'Editar mensaje',
-                  style: GoogleFonts.inter(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                    color: isLight ? Colors.black87 : Colors.white,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Container(
-              decoration: BoxDecoration(
-                color: isLight ? Colors.white : const Color(0xFF282828),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                  color: isLight ? const Color(0xFFDCD8D0) : const Color(0xFF383838),
-                ),
-              ),
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-              child: TextField(
-                controller: controller,
-                autofocus: true,
-                maxLines: 6,
-                minLines: 2,
-                style: GoogleFonts.inter(
-                  fontSize: 15,
-                  color: isLight ? Colors.black87 : Colors.white,
-                ),
-                decoration: const InputDecoration(
-                  border: InputBorder.none,
-                  hintText: 'Escribe tu mensaje corregido...',
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                TextButton(
-                  onPressed: () => Navigator.pop(ctx),
-                  child: Text(
-                    'Cancelar',
-                    style: GoogleFonts.inter(
-                      fontWeight: FontWeight.w600,
-                      color: isLight ? Colors.black54 : Colors.white60,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                ElevatedButton.icon(
-                  onPressed: () {
-                    final text = controller.text.trim();
-                    if (text.isNotEmpty) {
-                      Navigator.pop(ctx);
-                      context.read<AppState>().editAndRegenerateUserMessage(message, text);
-                    }
-                  },
-                  icon: const Icon(Icons.refresh_rounded, size: 18, color: Colors.black87),
-                  label: Text(
-                    'Guardar y Regenerar',
-                    style: GoogleFonts.inter(
-                      fontWeight: FontWeight.w700,
-                      color: Colors.black87,
-                    ),
-                  ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: ExodoColors.amber,
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final col = isLight ? Colors.black38 : Colors.white38;
     return InkResponse(
-      onTap: () => _showEditSheet(context),
+      onTap: () {
+        HapticFeedback.lightImpact();
+        context.read<AppState>().startEditingMessage(message);
+      },
       radius: 18,
       child: Padding(
         padding: const EdgeInsets.all(4),

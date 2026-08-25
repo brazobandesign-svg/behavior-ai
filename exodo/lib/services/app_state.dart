@@ -1348,6 +1348,19 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// [F4] Mensaje actualmente en modo edición en el composer
+  ChatMessage? editingMessage;
+
+  void startEditingMessage(ChatMessage msg) {
+    editingMessage = msg;
+    notifyListeners();
+  }
+
+  void cancelEditingMessage() {
+    editingMessage = null;
+    notifyListeners();
+  }
+
   Future<void> updateUserMessage(String id, String newContent) async {
     final idx = currentMessages.indexWhere((m) => m.id == id);
     if (idx == -1) return;
