@@ -72,7 +72,17 @@ class ExpedientesRepository {
   ExpedientesRepository._();
   static final ExpedientesRepository instance = ExpedientesRepository._();
 
-  static const String _prefsKey = 'exodo_local_expedientes';
+  /// CLAVE POR CUENTA: cada usuario autenticado tiene su propio caché local.
+  /// La llave global antigua ('exodo_local_expedientes') mezclaba expedientes
+  /// de todas las cuentas del dispositivo y se purga una sola vez (ver
+  /// _purgeLegacyKeyIfNeeded); la nube es la fuente de verdad por RLS.
+  static String get _prefsKey {
+    final uid = SupabaseService.client.auth.currentUser?.id;
+    final scope = (uid == null || uid.isEmpty) ? 'anon' : uid;
+    return 'exodo_local_expedientes_$scope';
+  }
+
+  static const String _legacyPrefsKey = 'exodo_local_expedientes';
 
   static String get _baseEndpoint {
     final base = ChatService.backendUrl
@@ -102,8 +112,22 @@ class ExpedientesRepository {
         '${bytes.sublist(10, 16).map((b) => b.toRadixString(16).padLeft(2, '0')).join()}';
   }
 
+  /// Purga UNA sola vez el caché global legacy (mezclaba cuentas).
+  /// No se importa a propósito: su contenido puede contener expedientes de
+  /// otras cuentas; la nube repobla el caché del usuario actual vía /api.
+  Future<void> _purgeLegacyKeyIfNeeded() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      if (prefs.containsKey(_legacyPrefsKey)) {
+        await prefs.remove(_legacyPrefsKey);
+        debugPrint('[ExpedientesRepository] Caché legacy global purgada.');
+      }
+    } catch (_) {}
+  }
+
   Future<List<Expediente>> _loadLocal() async {
     try {
+      await _purgeLegacyKeyIfNeeded();
       final prefs = await SharedPreferences.getInstance();
       final raw = prefs.getString(_prefsKey);
       if (raw == null || raw.isEmpty) return [];

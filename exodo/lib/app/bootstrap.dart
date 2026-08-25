@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/models.dart';
+import '../services/supabase_service.dart';
 
 /// Bootstrap de inicio instantáneo (Fast-Start 0s).
 /// Proporciona los datos del último estado cacheado en SharedPreferences
@@ -28,14 +29,53 @@ class Bootstrap {
 
   /// Lectura sincrónica de SharedPreferences antes del primer frame en main().
   /// NO toca red ni espera a Supabase.initialize().
+  ///
+  /// AISLAMIENTO POR CUENTA: el snapshot se pinta sólo si fue guardado por la
+  /// MISMA sesión activa (uid detectado en los tokens sb-*). Si la última
+  /// cuenta del dispositivo es otra, se descarta perfil/conversaciones/mensajes
+  /// para no filtrar datos entre cuentas en el frame 0.
   static Future<Bootstrap> readSync() async {
     final prefs = await SharedPreferences.getInstance();
 
-    final hasAuthToken = prefs.getKeys().any(
-      (k) => k.startsWith('sb-') && k.contains('auth-token'),
-    );
+    String? activeUid;
+    for (final k in prefs.getKeys()) {
+      if (!k.startsWith('sb-') || !k.contains('auth-token')) continue;
+      try {
+        final raw = prefs.getString(k);
+        if (raw == null || raw.isEmpty) continue;
+        final decoded = jsonDecode(raw);
+        if (decoded is Map<String, dynamic>) {
+          final user = decoded['user'];
+          if (user is Map<String, dynamic> && user['id'] is String) {
+            activeUid = user['id'] as String;
+            break;
+          }
+          final session = decoded['currentSession'];
+          if (session is Map<String, dynamic>) {
+            final su = session['user'];
+            if (su is Map<String, dynamic> && su['id'] is String) {
+              activeUid = su['id'] as String;
+              break;
+            }
+          }
+        }
+      } catch (_) {}
+    }
 
-    final profileJson = prefs.getString('exodo_cached_profile');
+    final snapshotUid = prefs.getString('exodo_snapshot_uid');
+    final sameAccount =
+        (activeUid == null && snapshotUid == null) ||
+        (activeUid != null && snapshotUid == activeUid);
+    // Sin coincidencia de cuenta: cachés de usuario vacías (tema/modelo se
+    // conservan: son preferencias de dispositivo, no datos personales).
+    final userCacheValid = sameAccount;
+
+    final hasAuthToken = activeUid != null;
+
+    // Cachés de usuario: sólo si el snapshot pertenece a la cuenta activa.
+    final profileJson = userCacheValid
+        ? prefs.getString('exodo_cached_profile')
+        : null;
     UserProfile? cachedProfile;
     if (profileJson != null) {
       try {
@@ -46,7 +86,9 @@ class Bootstrap {
       } catch (_) {}
     }
 
-    final conversationsJson = prefs.getString('exodo_cached_conversations');
+    final conversationsJson = userCacheValid
+        ? prefs.getString('exodo_cached_conversations')
+        : null;
     List<Conversation> cachedConversations = const [];
     if (conversationsJson != null) {
       try {
@@ -60,7 +102,9 @@ class Bootstrap {
       } catch (_) {}
     }
 
-    final lastMessagesJson = prefs.getString('exodo_cached_last_messages');
+    final lastMessagesJson = userCacheValid
+        ? prefs.getString('exodo_cached_last_messages')
+        : null;
     List<ChatMessage> cachedLastMessages = const [];
     if (lastMessagesJson != null) {
       try {
@@ -78,11 +122,13 @@ class Bootstrap {
       hasAuthToken: hasAuthToken,
       cachedProfile: cachedProfile,
       selectedModelId: prefs.getString('exodo_selected_model'),
-      lastConversationId: prefs.getString('exodo_last_conversation_id'),
+      lastConversationId: userCacheValid
+          ? prefs.getString('exodo_last_conversation_id')
+          : null,
       cachedConversations: cachedConversations,
       cachedLastMessages: cachedLastMessages,
       cachedTheme: prefs.getString('exodo_theme'),
-      cachedTokensUsed: prefs.getInt('exodo_tokens_used'),
+      cachedTokensUsed: userCacheValid ? prefs.getInt('exodo_tokens_used') : null,
     );
   }
 
@@ -98,6 +144,11 @@ class Bootstrap {
   }) async {
     try {
       final prefs = await SharedPreferences.getInstance();
+      // Marcar de qué cuenta es este snapshot (aislamiento entre cuentas).
+      final uid = SupabaseService.client.auth.currentUser?.id;
+      if (uid != null && uid.isNotEmpty) {
+        prefs.setString('exodo_snapshot_uid', uid);
+      }
       if (profile != null) {
         prefs.setString('exodo_cached_profile', jsonEncode(profile.toJson()));
       }

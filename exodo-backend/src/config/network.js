@@ -22,10 +22,19 @@ const corsOrigins = (process.env.CORS_ORIGIN || '')
   .map((s) => s.trim())
   .filter(Boolean);
 
+// PROVISIONAL (pre-lanzamiento): si no hay whitelist configurada, permitir el
+// exodo-web local. Cuando se configure CORS_ORIGIN en Railway, esta lista
+// default deja de aplicarse.
+const DEFAULT_DEV_ORIGINS = [
+  'http://localhost:5173',
+  'http://localhost:5174',
+  'http://127.0.0.1:5173',
+];
+
 module.exports = {
   HOST,
   PORT,
   NODE_ENV,
   isProduction: NODE_ENV === 'production',
-  corsOrigins: corsOrigins.length ? corsOrigins : null, // null = permitir todo
+  corsOrigins: corsOrigins.length ? corsOrigins : DEFAULT_DEV_ORIGINS,
 };

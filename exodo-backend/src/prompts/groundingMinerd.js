@@ -111,6 +111,21 @@ function buildSystemPrompt(opts) {
 
 function buildIdentitySection(plan, locale) {
   const planLabel = PLAN_LABELS[plan] || PLAN_LABELS.genesis;
+  const LANG_NAMES = {
+    en: 'inglés (English)',
+    fr: 'francés (Français)',
+    pt: 'portugués (Português)',
+    ht: 'criollo haitiano (Kreyòl Ayisyen)',
+    de: 'alemán (Deutsch)',
+    it: 'italiano (Italiano)',
+    ru: 'ruso (Русский)',
+    zh: 'chino (中文)',
+    ja: 'japonés (日本語)',
+    ko: 'coreano (한국어)',
+    hi: 'hindi (हिन्दी)',
+    ar: 'árabe (العربية)',
+  };
+  const langName = locale === 'es' ? 'español' : (LANG_NAMES[locale] || locale);
   return [
     '<exodo_behavior>',
     '<identity_and_stance>',
@@ -118,7 +133,10 @@ function buildIdentitySection(plan, locale) {
     '- NATURALEZA: Es una IA colaborativa de igual a igual. No adopta posturas serviles, aduladoras ni condescendientes.',
     '- CERO AFILIACIONES INSTITUCIONALES PÚBLICAS: Nunca debe presentarse como empleado, trabajador ni representante oficial del MINERD ni de ninguna institución. Es un asistente de IA universal.',
     '- DOMINIO LATENTE (INTERNO): Posee una maestría técnica y analítica profunda en diseño curricular, planificaciones docentes, educación superior (maestrías, licenciaturas), marco legal y normativo, maquetación de software, y herramientas para maestros, estudiantes, juristas y profesionales. Aplica esta profundidad de forma natural y contextual según la demanda de la consulta, sin alardear de su arquitectura interna ni auto-clasificarse.',
-    `Plan activo del usuario: ${planLabel}. Idioma de la interfaz: ${locale === 'es' ? 'español' : locale}.`,
+    `Plan activo del usuario: ${planLabel}.`,
+    locale !== 'es'
+      ? `- IDIOMA DE RESPUESTA OBLIGATORIO: La interfaz del usuario está en ${langName}. Redacta TODA tu respuesta en ${langName}, sin importar que este system prompt esté escrito en español o que el historial contenga español. Solo conserva en su idioma original nombres propios, marcas y citas textuales.`
+      : '- IDIOMA DE RESPUESTA: Responde en español.',
     '</identity_and_stance>',
     '',
     '<critical_rules_tone_and_manner>',

@@ -509,6 +509,27 @@ class AppState extends ChangeNotifier {
     return mergedCloud;
   }
 
+  /// Idioma efectivo de la interfaz para el backend (default 'es').
+  String get effectiveLocale {
+    final code = AppI18n.instance.localeCode;
+    return code.trim().isEmpty ? 'es' : code.trim();
+  }
+
+  /// Garantiza variedad de títulos: si ya existe una conversación con el mismo
+  /// título, agrega sufijo " ·2", " ·3"... (el usuario puede abrir 20 chats
+  /// diciendo "hola" y ninguno debe verse clonado).
+  String _makeUniqueTitle(String base) {
+    final clean = base.trim();
+    if (clean.isEmpty) return clean;
+    final existing = conversations.map((c) => c.title.trim()).toSet();
+    if (!existing.contains(clean)) return clean;
+    var n = 2;
+    while (existing.contains('$clean ·$n')) {
+      n++;
+    }
+    return '$clean ·$n';
+  }
+
   /// Genera un título ultra-conciso (2 a 4 palabras) en segundo plano llamando
   /// al endpoint LLM del backend `/api/chat/title` con qwen3.7-flash.
   void _requestLLMTitle({
@@ -522,10 +543,11 @@ class AppState extends ChangeNotifier {
           conversationId: conversationId,
           userText: userText,
           assistantText: assistantText,
+          locale: effectiveLocale,
         );
 
         if (generatedTitle != null && generatedTitle.trim().isNotEmpty) {
-          final cleanTitle = generatedTitle.trim();
+          final cleanTitle = _makeUniqueTitle(generatedTitle);
           if (kDebugMode) {
             debugPrint('[AppState] LLM Title Generated: "$cleanTitle" for conv $conversationId');
           }
@@ -1001,6 +1023,7 @@ class AppState extends ChangeNotifier {
           : null,
       modelOverride: selectedModel.modelId,
       taskType: effectiveTaskType,
+      locale: effectiveLocale,
       onChunk: (chunk) {
         // FIX jerky streaming: los deltas se acumulan en el buffer y se
         // materializan a cadencia de frame (~33ms), no por cada token.
@@ -1116,9 +1139,10 @@ class AppState extends ChangeNotifier {
     // 2. CREAR CONVERSACIÓN EN BD (si no existe) SIN DETENER LA UI
     if (activeConversation == null && shouldSaveHistory) {
       // Título inicial provisional: texto del usuario o 'Nuevo chat'
-      final effectiveTitle = text.trim().isNotEmpty
+      final effectiveTitleRaw = text.trim().isNotEmpty
           ? (text.trim().length > 30 ? '${text.trim().substring(0, 30)}...' : text.trim())
           : 'Nuevo chat';
+      final effectiveTitle = _makeUniqueTitle(effectiveTitleRaw);
 
       // FIX split-brain: el placeholder es SOLO visual (drawer instantáneo).
       // La persistencia (Drift, capturedConvId y backend) usa SIEMPRE el UUID
@@ -1221,6 +1245,7 @@ class AppState extends ChangeNotifier {
             : null,
         modelOverride: selectedModel.modelId,
         taskType: effectiveTaskType,
+        locale: effectiveLocale,
         attachments:
             attachments, // [Punto 40] adjuntos con bytes para multimodal
         session: session, // [F1] Sesión atómica

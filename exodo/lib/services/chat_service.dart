@@ -206,6 +206,7 @@ class ChatService {
     List<Map<String, dynamic>>? history,
     String? modelOverride,
     String? taskType, // 'simple' | 'reasoning' | null (auto): switcher Flash/Deep
+    String? locale, // idioma de la interfaz -> el modelo responde en él
     List<Attachment>? attachments, // [Punto 40] archivos para multimodal
     GenerationSession? session, // [F1] Sesión atómica de generación
     void Function(Map<String, dynamic> meta)? onMeta,
@@ -263,6 +264,7 @@ class ChatService {
             'history': history,
             'model_override': modelOverride,
             if (taskType != null && taskType != 'auto') 'taskType': taskType,
+            if (locale != null && locale.isNotEmpty) 'locale': locale,
             if (attachmentsJson != null && attachmentsJson.isNotEmpty)
               'attachments': attachmentsJson, // [Punto 40+42]
           });
@@ -446,6 +448,7 @@ class ChatService {
     required String conversationId,
     required String userText,
     required String assistantText,
+    String locale = 'es',
   }) async {
     for (final candidate in _candidateUrls) {
       final titleUrl = candidate.endsWith('/api/chat')
@@ -460,6 +463,7 @@ class ChatService {
         };
         final body = jsonEncode({
           'conversationId': conversationId,
+          'locale': locale,
           'messages': [
             {'role': 'user', 'content': userText},
             {'role': 'assistant', 'content': assistantText},

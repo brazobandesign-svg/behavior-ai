@@ -167,6 +167,10 @@ router.post('/', auth, planGuard, upload.array('files', 5), async (req, res) => 
     // taskType: el cliente puede forzar el modo de enrutado ('simple' | 'reasoning').
     // 'auto' (default) o cualquier otro valor => comportamiento actual intacto.
     const requestedTaskType = (req.body && typeof req.body.taskType === 'string') ? req.body.taskType.toLowerCase() : 'auto';
+    // Idioma de la interfaz del cliente (ej. 'en', 'fr'). Default 'es'.
+    const requestedLocale = (req.body && typeof req.body.locale === 'string' && req.body.locale.trim())
+      ? req.body.locale.trim().slice(0, 5).toLowerCase()
+      : 'es';
 
     // C1 (IDOR Guard): validar propiedad de la conversación antes de procesar
     if (conversationId && !isGuest && !anonymous && userId) {
@@ -394,7 +398,9 @@ router.post('/', auth, planGuard, upload.array('files', 5), async (req, res) => 
     const { systemPrompt } = buildSystemPrompt({
       userPlan: plan,
       conversationSubject: subject || req.body.conversationSubject,
-      userLocale: 'es',
+      // Idioma de la interfaz del cliente (default 'es'). El modelo debe
+      // responder en este idioma aunque el system prompt esté en español.
+      userLocale: requestedLocale,
       contextChunks,
     });
 
@@ -545,6 +551,9 @@ router.post('/', auth, planGuard, upload.array('files', 5), async (req, res) => 
 router.post('/title', auth, async (req, res) => {
   try {
     const { conversationId, messages } = req.body || {};
+    const locale = (typeof req.body?.locale === 'string' && req.body.locale.trim())
+      ? req.body.locale.trim().slice(0, 5).toLowerCase()
+      : 'es';
     const { userId, isGuest, anonymous } = req.user || {};
 
     // C1 (IDOR Guard): validar propiedad de la conversación
@@ -576,15 +585,24 @@ router.post('/title', auth, async (req, res) => {
       return res.json({ title: 'Nueva conversación' });
     }
 
+    const TITLE_LANGS = {
+      en: 'English', fr: 'Français', pt: 'Português', ht: 'Kreyòl Ayisyen',
+      de: 'Deutsch', it: 'Italiano', ru: 'Русский', zh: '中文',
+      ja: '日本語', ko: '한국어', hi: 'हिन्दी', ar: 'العربية',
+    };
+    const titleLang = TITLE_LANGS[locale] || 'español';
     const systemPrompt =
-      'Eres un generador de títulos concisos. Genera un título temático de 2 a 4 palabras en español que resuma el núcleo de la conversación. Devuelve ÚNICAMENTE el título limpio, sin comillas, sin formato Markdown y sin punto final.';
+      `Eres un generador de títulos concisos. Genera un título temático de 2 a 4 palabras EN ${titleLang} (el idioma del mensaje del usuario) que resuma el núcleo de la conversación. ` +
+      `PROHIBIDO usar títulos genéricos o repetitivos como "Saludo inicial", "Nueva conversación", "Consulta", "Chat" o traducciones de estos. ` +
+      `Si el mensaje es trivial (un saludo), crea algo breve pero ORIGINAL y variado: puede aludir a la hora del día, el ánimo o el contexto. Ejemplos de estilo: "Café y preguntas", "Tarde creativa", "Buen día, ideas". ` +
+      `Devuelve ÚNICAMENTE el título limpio, sin comillas, sin formato Markdown y sin punto final.`;
 
     const prompt = `Usuario: ${userText || '(Imagen / archivo adjunto)'}\nAsistente: ${asstSnippet}`;
 
     const alibaba = require('../services/providers/alibaba');
     const result = await alibaba.call('qwen3.7-flash', [prompt], systemPrompt, {
-      max_tokens: 30,
-      temperature: 0.0,
+      max_tokens: 40,
+      temperature: 0.9,
     });
 
     let rawTitle = (result.text || '').trim();

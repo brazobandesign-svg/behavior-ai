@@ -532,6 +532,10 @@ class UpgradeModal {
                         AppI18n.of(context).t('billing.feat6'),
                         textSecondary,
                       ),
+                      _item(
+                        AppI18n.of(context).t('billing.feat7'),
+                        textSecondary,
+                      ),
                     ],
                   ),
                 ),
