@@ -1,48 +1,52 @@
-{
+﻿{
   "provider": "alibaba",
-  "name": "Alibaba Cloud DashScope / Model Studio Free Tier — Elite Suite",
+  "name": "Alibaba Cloud DashScope / Model Studio Free Tier",
   "baseURL": "https://dashscope-intl.aliyuncs.com/compatible-mode/v1",
   "dailyTokenQuota": 1000000,
   "models": [
     {
+      "id": "kimi-k3",
+      "name": "Kimi K3 (Moonshot AI)",
+      "aliases": ["kimi-k3-1m", "moonshot-v1-1m", "kimi"],
+      "contextWindowTokens": 1000000,
+      "maxOutputTokens": 8192,
+      "category": "long_context",
+      "description": "Kimi K3 con ventana de contexto ultra larga de 1M de tokens para análisis masivo de libros, código y documentos extensos.",
+      "freeTier": true,
+      "freeTokensAllocated": 1000000
+    },
+    {
       "id": "qwen3.7-max-2026-05-20",
       "name": "Qwen 3.7 Max",
-      "aliases": ["qwen3.7-max", "max", "textPrimary", "xpi-flagship"],
+      "aliases": ["qwen3.7-max", "max", "textPrimary"],
       "contextWindowTokens": 131072,
       "maxOutputTokens": 8192,
-      "category": "flagship_pro",
-      "description": "Modelo insignia máximo para conversación elocuente, pedagogía y redacción de alta precisión (Motor de XPi).",
-      "freeTier": true
+      "category": "general",
+      "description": "Modelo insignia para conversación, asistencia y redacción de alta elocuencia.",
+      "freeTier": true,
+      "freeTokensAllocated": 1000000
     },
     {
       "id": "qwq-plus",
       "name": "QwQ Plus",
-      "aliases": ["qwq", "reasonerPrimary", "thinking-pro"],
+      "aliases": ["qwq", "reasonerPrimary"],
       "contextWindowTokens": 131072,
       "maxOutputTokens": 8192,
       "category": "reasoning",
-      "description": "Razonamiento analítico profundo paso a paso, resolución de problemas complejos y lógica formal.",
-      "freeTier": true
-    },
-    {
-      "id": "qwen3.7-flash-2026-07-15",
-      "name": "Qwen 3.7 Flash",
-      "aliases": ["qwen3.7-flash", "flash", "genesis-fast"],
-      "contextWindowTokens": 131072,
-      "maxOutputTokens": 8192,
-      "category": "fast_genesis",
-      "description": "Modelo ágil con latencia mínima (<200ms TTFT) para respuestas directas y fluidas (Motor de G1.1).",
-      "freeTier": true
+      "description": "Razonamiento lógico profundo, matemáticas y análisis analítico paso a paso.",
+      "freeTier": true,
+      "freeTokensAllocated": 1000000
     },
     {
       "id": "qwen3-coder-plus-2025-07-22",
-      "name": "Qwen 3 Coder Plus",
+      "name": "Qwen3 Coder Plus",
       "aliases": ["qwen-coder", "coderPrimary"],
       "contextWindowTokens": 131072,
       "maxOutputTokens": 8192,
       "category": "coding",
-      "description": "Generación de código estructurado, refactorización y análisis algorítmico.",
-      "freeTier": true
+      "description": "Generación de código, refactorización y artefactos interactivos.",
+      "freeTier": true,
+      "freeTokensAllocated": 1000000
     },
     {
       "id": "qwen-vl-max",
@@ -50,65 +54,10 @@
       "aliases": ["qwen-vl", "visionPrimary"],
       "contextWindowTokens": 131072,
       "maxOutputTokens": 8192,
-      "category": "vision_multimodal",
-      "description": "Visión multimodal de alta resolución, OCR de documentos y comprensión visual de imágenes.",
-      "freeTier": true
-    },
-    {
-      "id": "qwen-image-3.0-pro",
-      "name": "Qwen Image 3.0 Pro",
-      "aliases": ["qwen-image-pro", "imageGenPrimary"],
-      "category": "image_generation",
-      "description": "Motor de generación de imágenes fotorrealistas y artísticas de alta definición a partir de texto.",
-      "freeTier": true
-    },
-    {
-      "id": "wan2.7-image-pro",
-      "name": "Wanx 2.7 Image Pro",
-      "aliases": ["wanx-image", "imageGenArt"],
-      "category": "image_generation",
-      "description": "Motor Wanx de alta fidelidad estética para ilustraciones, diseño visual y conceptos artísticos.",
-      "freeTier": true
-    },
-    {
-      "id": "qwen-image-edit-max",
-      "name": "Qwen Image Edit Max",
-      "aliases": ["qwen-image-edit", "imageEditor"],
-      "category": "image_editing",
-      "description": "Edición y transformación de imágenes basada en instrucciones de lenguaje natural.",
-      "freeTier": true
-    },
-    {
-      "id": "qwen3-asr-flash",
-      "name": "Qwen 3 ASR Flash",
-      "aliases": ["qwen-asr", "voiceASR"],
-      "category": "audio_asr",
-      "description": "Reconocimiento automático del habla y transcripción de voz a texto ultrarrápida.",
-      "freeTier": true
-    },
-    {
-      "id": "cosyvoice-v3-plus",
-      "name": "CosyVoice v3 Plus",
-      "aliases": ["cosyvoice", "voiceTTS"],
-      "category": "audio_tts",
-      "description": "Síntesis de voz neural hiperrealista con entonación emocional natural.",
-      "freeTier": true
-    },
-    {
-      "id": "qwen3.7-text-embedding",
-      "name": "Qwen 3.7 Text Embedding",
-      "aliases": ["textEmbeddingPrimary"],
-      "category": "embedding",
-      "description": "Vectorización semántica densa de alta dimensionalidad para búsqueda RAG.",
-      "freeTier": true
-    },
-    {
-      "id": "qwen3-rerank",
-      "name": "Qwen 3 Rerank",
-      "aliases": ["rerankPrimary"],
-      "category": "rerank",
-      "description": "Reordenamiento semántico neuronal de documentos recuperados para máxima precisión pedagógica.",
-      "freeTier": true
+      "category": "vision",
+      "description": "Visión multimodal, OCR avanzado y análisis de imágenes.",
+      "freeTier": true,
+      "freeTokensAllocated": 1000000
     }
   ]
 }

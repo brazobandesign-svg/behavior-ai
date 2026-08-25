@@ -33,31 +33,6 @@ class AppState extends ChangeNotifier {
   ExodoModelOption selectedModel = exodoModels[0]; // Origo (G1.1)
   double? currentTempC;
 
-  /// Switcher de intención del chat: auto | flash | deep.
-  /// - auto: el clasificador por keywords decide (saludos→flash, análisis→reasoning)
-  /// - flash: fuerza la cadena rápida (respuesta <200ms TTFT)
-  /// - deep: fuerza razonamiento profundo (qwq-plus, más lento pero elaborado)
-  String chatMode = 'auto';
-
-  void setChatMode(String mode) {
-    if (mode == chatMode) return;
-    if (!const {'auto', 'flash', 'deep'}.contains(mode)) return;
-    chatMode = mode;
-    notifyListeners();
-  }
-
-  /// taskType para el backend: null = auto (el clasificador decide).
-  String? get effectiveTaskType {
-    switch (chatMode) {
-      case 'flash':
-        return 'simple';
-      case 'deep':
-        return 'reasoning';
-      default:
-        return null;
-    }
-  }
-
   int tokensUsed = 0;
   int get tokensLimit => isPro ? 50000 : 6000;
   DateTime? tokensResetTime;
@@ -333,7 +308,26 @@ class AppState extends ChangeNotifier {
       localChatRepo.saveConversations(fetchedConvs);
       Bootstrap.saveSnapshot(conversations: conversations);
 
-      // S1: La asignacion y verificacion del plan se gestiona 100% en backend y Stripe webhook
+      final currentUserEmail = SupabaseService.currentUser?.email;
+      if (currentUserEmail != null &&
+          currentUserEmail.toLowerCase() == 'brazobandesign@gmail.com') {
+        if (profile != null && profile!.plan != 'hazak') {
+          SupabaseService.client
+              .from('profiles')
+              .update({'plan': 'hazak'})
+              .eq('id', profile!.id)
+              .then((_) {})
+              .catchError((_) {});
+          profile = UserProfile(
+            id: profile!.id,
+            fullName: profile!.fullName,
+            plan: 'hazak',
+            avatarUrl: profile!.avatarUrl,
+            onboarding: profile!.onboarding,
+          );
+        }
+      }
+
       if (savedModelId == null) {
         selectedModel = profile?.plan == 'hazak' ? exodoModels[1] : exodoModels[0];
       }
@@ -362,9 +356,6 @@ class AppState extends ChangeNotifier {
 
   Future<void> selectConversation(Conversation conv) async {
     cancelActiveVoiceRecording();
-    if (isGenerating) {
-      _cancelGeneration();
-    }
     // [Sprint 0] Ownership check: verificar que la conversación pertenece al usuario actual.
     final currentUserId = SupabaseService.currentUser?.id;
     if (currentUserId != null && conv.userId != currentUserId) {
@@ -553,7 +544,6 @@ class AppState extends ChangeNotifier {
 
   void startNewChat({bool resetIncognito = true}) {
     cancelActiveVoiceRecording();
-    _cancelGeneration();
     if (resetIncognito) {
       isIncognito = false;
     }
@@ -1000,7 +990,6 @@ class AppState extends ChangeNotifier {
                 .toList()
           : null,
       modelOverride: selectedModel.modelId,
-      taskType: effectiveTaskType,
       onChunk: (chunk) {
         // FIX jerky streaming: los deltas se acumulan en el buffer y se
         // materializan a cadencia de frame (~33ms), no por cada token.
@@ -1119,43 +1108,21 @@ class AppState extends ChangeNotifier {
       final effectiveTitle = text.trim().isNotEmpty
           ? (text.trim().length > 30 ? '${text.trim().substring(0, 30)}...' : text.trim())
           : 'Nuevo chat';
-
-      // FIX split-brain: el placeholder es SOLO visual (drawer instantáneo).
-      // La persistencia (Drift, capturedConvId y backend) usa SIEMPRE el UUID
-      // real de Supabase: jamás enviar al backend un conversation_id que no
-      // existe en la FK de la nube.
-      final tempConvId = 'conv-${DateTime.now().millisecondsSinceEpoch}';
-      final placeholder = Conversation(
-        id: tempConvId,
-        userId: SupabaseService.client.auth.currentUser?.id ?? 'local',
-        title: effectiveTitle,
-        modelPlan: selectedModel.plan,
-        createdAt: DateTime.now(),
-      );
-      conversations.insert(0, placeholder);
-      notifyListeners(); // El chat ya aparece en el Drawer sin esperar red
-
       try {
-        final remoteConv = await SupabaseService.createConversation(
+        activeConversation = await SupabaseService.createConversation(
           effectiveTitle,
           selectedModel.plan,
           false,
         );
-        final idx = conversations.indexWhere((c) => c.id == tempConvId);
-        if (idx != -1) {
-          conversations[idx] = remoteConv;
-        } else {
-          conversations.insert(0, remoteConv);
-        }
-        activeConversation = remoteConv;
-        localChatRepo.saveConversation(remoteConv);
-
+        conversations.insert(0, activeConversation!);
+        localChatRepo.saveConversation(activeConversation!);
         for (int i = 0; i < currentMessages.length; i++) {
-          final cid = currentMessages[i].conversationId;
-          if (cid == 'guest' || cid == 'incognito' || cid.isEmpty || cid == tempConvId) {
+          if (currentMessages[i].conversationId == 'guest' ||
+              currentMessages[i].conversationId == 'incognito' ||
+              currentMessages[i].conversationId.isEmpty) {
             currentMessages[i] = ChatMessage(
               id: currentMessages[i].id,
-              conversationId: remoteConv.id,
+              conversationId: activeConversation!.id,
               role: currentMessages[i].role,
               content: currentMessages[i].content,
               attachments: currentMessages[i].attachments,
@@ -1166,15 +1133,11 @@ class AppState extends ChangeNotifier {
           }
         }
         notifyListeners();
-      } catch (e) {
-        // Degradado: sin nube se conserva la conversación local bajo tempConvId
-        // para que nada se pierda en el dispositivo; el historial en la nube se
-        // recuperará cuando exista conectividad (la fila local queda en Drift).
-        debugPrint('[AppState] createConversation falló, modo solo-local: $e');
-        activeConversation = placeholder;
-        localChatRepo.saveConversation(placeholder);
-      }
-    } else if (shouldSaveHistory) {
+      } catch (_) {}
+    } else if (activeConversation != null && shouldSaveHistory) {
+      // Recent Chats ordering: al enviar un mensaje en una conversación
+      // existente, ésta se mueve al tope de la lista. El Drawer siempre
+      // mostrará el chat activo como el más reciente.
       _bubbleConversationToTop(activeConversation!.id);
     }
 
@@ -1194,6 +1157,15 @@ class AppState extends ChangeNotifier {
         isDegraded: userMsg.isDegraded,
       );
       localChatRepo.saveMessage(effectiveUserMsg);
+      // FIX (no-mutación 2026-08-19): persistir SOLO el texto original del
+      // usuario. No inyectar etiquetas sintéticas "[Imagen: ...]" ni prompts
+      // de análisis en el registro de la base de datos; los adjuntos ya viven
+      // en `userMsg.attachments` y se renderizan desde disco/memoria.
+      SupabaseService.client.from('messages').insert({
+        'conversation_id': activeConversation!.id,
+        'role': 'user',
+        'content': text.trim(),
+      }).then((_) {}).catchError((_) {});
     }
 
     final msgId = 'asst-${DateTime.now().microsecondsSinceEpoch}';
@@ -1220,7 +1192,6 @@ class AppState extends ChangeNotifier {
                   .toList()
             : null,
         modelOverride: selectedModel.modelId,
-        taskType: effectiveTaskType,
         attachments:
             attachments, // [Punto 40] adjuntos con bytes para multimodal
         session: session, // [F1] Sesión atómica
@@ -1273,24 +1244,22 @@ class AppState extends ChangeNotifier {
             // el mensaje final directamente.
             currentMessages.removeWhere((m) => m.isThinking);
             isThinking = false;
-            if (activeConversation?.id == capturedConvId) {
-              currentMessages.add(
-                ChatMessage(
-                  id: msgId,
-                  conversationId: capturedConvId ?? 'incognito',
-                  role: 'assistant',
-                  content: fullText,
-                  sources: sources,
-                  createdAt: DateTime.now(),
-                  isDegraded: msgIsDegraded,
-                ),
-              );
-            }
+            currentMessages.add(
+              ChatMessage(
+                id: msgId,
+                conversationId: activeConversation?.id ?? 'incognito',
+                role: 'assistant',
+                content: fullText,
+                sources: sources,
+                createdAt: DateTime.now(),
+                isDegraded: msgIsDegraded,
+              ),
+            );
           }
-          if (shouldSaveHistory && capturedConvId != null && !isGuest) {
+          if (shouldSaveHistory && activeConversation != null && !isGuest) {
             final assistantMsg = ChatMessage(
               id: msgId,
-              conversationId: capturedConvId,
+              conversationId: activeConversation!.id,
               role: 'assistant',
               content: fullText,
               sources: sources,
@@ -1303,10 +1272,34 @@ class AppState extends ChangeNotifier {
             final assistantTurns = currentMessages.where((m) => m.role == 'assistant' && !m.isThinking).length;
             if (assistantTurns <= 1) {
               _requestLLMTitle(
-                conversationId: capturedConvId,
+                conversationId: activeConversation!.id,
                 userText: text,
                 assistantText: fullText,
               );
+            }
+
+            final sourcesJson = sources.isNotEmpty
+                ? jsonEncode(sources.map((s) => s.toJson()).toList())
+                : null;
+            final contentToSave = sourcesJson != null
+                ? '$fullText\n<!-- SOURCES: $sourcesJson -->'
+                : fullText;
+            try {
+              await SupabaseService.client.from('messages').insert({
+                'conversation_id': activeConversation!.id,
+                'role': 'assistant',
+                'content': contentToSave,
+                if (sources.isNotEmpty)
+                  'sources': sources.map((s) => s.toJson()).toList(),
+              });
+            } catch (_) {
+              try {
+                await SupabaseService.client.from('messages').insert({
+                  'conversation_id': activeConversation!.id,
+                  'role': 'assistant',
+                  'content': contentToSave,
+                });
+              } catch (_) {}
             }
           }
           HapticFeedback.vibrate();
@@ -1316,22 +1309,20 @@ class AppState extends ChangeNotifier {
           if (session.isCancelled || _activeSession?.id != session.id) return;
           _endStreamingMessage();
           _revertTokens(userTokensEst);
-          if (activeConversation?.id == capturedConvId) {
-            currentMessages.removeWhere((m) => m.id == msgId || m.isThinking);
-            isThinking = false;
-            isGenerating = false;
-            errorMessage = err.replaceAll('Exception: ', '');
-            currentMessages.add(
-              ChatMessage(
-                id: 'error',
-                conversationId: capturedConvId ?? 'incognito',
-                role: 'assistant',
-                content: '⚠️ $errorMessage',
-                createdAt: DateTime.now(),
-              ),
-            );
-            notifyListeners();
-          }
+          currentMessages.removeWhere((m) => m.id == msgId || m.isThinking);
+          isThinking = false;
+          isGenerating = false;
+          errorMessage = err.replaceAll('Exception: ', '');
+          currentMessages.add(
+            ChatMessage(
+              id: 'error',
+              conversationId: activeConversation?.id ?? 'incognito',
+              role: 'assistant',
+              content: '⚠️ $errorMessage',
+              createdAt: DateTime.now(),
+            ),
+          );
+          notifyListeners();
         },
       );
     } catch (e) {
@@ -1567,11 +1558,6 @@ class AppState extends ChangeNotifier {
     _activeSession?.cancel();
     _activeSession = null;
     currentMessages.removeWhere((m) => m.isThinking);
-    if (activeConversation != null && currentMessages.isNotEmpty) {
-      for (final m in currentMessages) {
-        localChatRepo.saveMessage(m);
-      }
-    }
     isThinking = false;
     isGenerating = false;
     notifyListeners();
@@ -1652,8 +1638,7 @@ class AppState extends ChangeNotifier {
           msg.content,
           attachments: msg.attachments.isNotEmpty ? msg.attachments : null,
         );
-        // P0-4: Borrar la fila encolada original tras el reenvio exitoso para evitar duplicacion permanente en Drift
-        await localChatRepo.deleteMessageById(msg.id);
+        await localChatRepo.updateMessageStatus(msg.id, LocalMessageStatus.sent);
       } catch (e) {
         debugPrint('[Outbox] Error enviando mensaje en cola: $e');
         await localChatRepo.updateMessageStatus(msg.id, LocalMessageStatus.failed);

@@ -12,7 +12,6 @@ const ALIBABA_CONFIG = {
   models: {
     // 4 Modelos Principales Unificados por Objetivo (Fase de Pruebas: Free & Pro idénticos)
     textPrimary: 'qwen3.7-max-2026-05-20',       // Texto, conversación, redacción y asistencia general
-    fastPrimary: 'qwen3.7-flash-2026-07-15',     // Conversación instantánea (<200ms TTFT) para saludos y mensajes simples
     textFallback: 'qwen3.6-plus-2026-04-02',     // Respaldo de alta elocuencia
     reasonerPrimary: 'qwq-plus',                 // Razonamiento lógico profundo y matemáticas
     coderPrimary: 'qwen3-coder-plus-2025-07-22', // Generación de código y artefactos interactivos
@@ -28,7 +27,7 @@ const ALIBABA_CONFIG = {
     hazakReasoner: 'qwq-plus',
     hazakCoder: 'qwen3-coder-plus-2025-07-22',
     hazakVision: 'qwen-vl-max',
-    genesisSimple: 'qwen3.7-flash-2026-07-15',
+    genesisSimple: 'qwen3.7-max-2026-05-20',
     genesisRedaccion: 'qwen3.7-max-2026-05-20',
     genesisReasoner: 'qwq-plus',
     genesisCoder: 'qwen3-coder-plus-2025-07-22',

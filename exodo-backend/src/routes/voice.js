@@ -29,8 +29,7 @@ const VOICE_RATE_LIMIT = 30;          // subidas lógicas
 const VOICE_RATE_WINDOW_MS = 60_000;  // por minuto
 const _voiceSeqHits = new Map(); // userId -> Map(seq -> timestamp)
 
-function registerVoiceUpload(userId, seqId, isPartial = false) {
-  if (isPartial) return true; // P1-1: Los parciales de pseudo-streaming no consumen el cupo de subidas canónicas
+function registerVoiceUpload(userId, seqId) {
   const now = Date.now();
   let perUser = _voiceSeqHits.get(userId);
   if (!perUser) {
@@ -43,11 +42,7 @@ function registerVoiceUpload(userId, seqId, isPartial = false) {
   const key = String(seqId ?? `noseq-${now}`); // sin seq: cada petición cuenta
   if (!perUser.has(key)) perUser.set(key, now);
   if (perUser.size > VOICE_RATE_LIMIT) return false;
-  // Saneo defensivo LRU (evictar entradas individuales, nunca clear total)
-  if (_voiceSeqHits.size > 5000) {
-    const oldestKey = _voiceSeqHits.keys().next().value;
-    _voiceSeqHits.delete(oldestKey);
-  }
+  if (_voiceSeqHits.size > 5000) _voiceSeqHits.clear(); // saneo defensivo
   return true;
 }
 
@@ -177,8 +172,7 @@ router.post('/transcribe', auth, requireVoiceUser, async (req, res, next) => {
 
     // Rate limit por subida lógica (tras multer: seq_id ya está en req.body).
     const seqId = req.body && req.body.seq_id;
-    const isPartial = req.body && req.body.mode === 'partial';
-    if (!registerVoiceUpload(req.user.userId, seqId, isPartial)) {
+    if (!registerVoiceUpload(req.user.userId, seqId)) {
       res.setHeader('Retry-After', Math.ceil(VOICE_RATE_WINDOW_MS / 1000));
       return res.status(429).json({ error: 'voice_rate_limited', limit: VOICE_RATE_LIMIT });
     }
@@ -257,8 +251,7 @@ router.post('/transcribe', auth, requireVoiceUser, async (req, res, next) => {
     }
 
     const elapsedMs = Date.now() - startedAt;
-    // P2-1: Privacidad — No loguear PII/texto de estudiantes en stdout de Railway
-    console.log(`[voice] Groq Whisper OK: len=${text.length} chars (${elapsedMs}ms)`);
+    console.log(`[voice] Groq Whisper OK: "${text}" (${elapsedMs}ms)`);
 
     return res.status(200).json({
       text: text,
@@ -268,10 +261,9 @@ router.post('/transcribe', auth, requireVoiceUser, async (req, res, next) => {
     });
   } catch (err) {
     console.error(`[voice] Error en transcripción: ${err.message}`);
-    // P2-1: Sanitizar mensaje al cliente
     return res.status(502).json({
       error: 'voice_transcription_failed',
-      message: 'No se pudo procesar el audio. Por favor intenta de nuevo.',
+      message: err.message,
     });
   }
 });

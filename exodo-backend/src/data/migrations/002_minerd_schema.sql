@@ -226,7 +226,6 @@ returns table (
 )
 language sql
 stable
-security definer
 as $$
   select
     c.id,

@@ -106,12 +106,10 @@ function createStripeIdempotencyMiddleware({ stripeSecretKey, webhookSecret, poo
     // Normalizar campos expandibles.
     let customerId = null;
     let subscriptionId = null;
-    let userId = null;
     if (event.type === 'checkout.session.completed') {
       const session = event.data.object;
       customerId = normalizeId(session.customer);
       subscriptionId = normalizeId(session.subscription);
-      userId = normalizeId(session.client_reference_id || session.metadata?.userId);
       // Pago único (mode 'payment') o sesión sin suscripción: nada que activar.
       if (!subscriptionId) {
         res.status(200).json({ received: true, ignored: true, reason: 'no_subscription' });
@@ -121,7 +119,6 @@ function createStripeIdempotencyMiddleware({ stripeSecretKey, webhookSecret, poo
       const subscription = event.data.object;
       customerId = normalizeId(subscription.customer);
       subscriptionId = normalizeId(subscription.id);
-      userId = normalizeId(subscription.metadata?.userId);
     }
 
     let payloadObj = null;
@@ -132,11 +129,11 @@ function createStripeIdempotencyMiddleware({ stripeSecretKey, webhookSecret, poo
     }
 
     try {
-      // Única sentencia atómica: la función reclama, transiciona (FOR UPDATE),
-      // actualiza profiles.plan y marca el evento, todo en una transacción.
+      // Única sentencia atómica: la función reclama, transiciona (FOR UPDATE)
+      // y marca el evento, todo en una transacción.
       const result = await pool.query(
-        'SELECT * FROM transition_subscription($1, $2, $3, $4, $5, $6, $7)',
-        [event.id, PROVIDER, event.type, customerId, subscriptionId, payloadObj, userId]
+        'SELECT * FROM transition_subscription($1, $2, $3, $4, $5, $6)',
+        [event.id, PROVIDER, event.type, customerId, subscriptionId, payloadObj]
       );
       const outcome = result.rows[0] || {};
 

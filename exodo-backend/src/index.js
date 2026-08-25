@@ -8,7 +8,6 @@ const artifactsRoutes = require('./routes/artifacts');
 const expedientesRoutes = require('./routes/expedientes');
 const voiceRoutes = require('./routes/voice');
 const imagesRoutes = require('./routes/images');
-const copilotRoutes = require('./routes/copilot');
 const errorHandler = require('./middleware/errorHandler');
 const { chatRateLimiter } = require('./middleware/rateLimiter');
 const { HOST, PORT, NODE_ENV, corsOrigins } = require('./config/network');
@@ -45,8 +44,9 @@ app.use((req, res, next) => {
   next();
 });
 app.use('/api/', (req, res, next) => {
-  // El webhook de Stripe y el proxy de Copilot NO pasan por el rate limiter de chat
-  if (req.path === '/stripe/webhook' || req.path.startsWith('/copilot')) return next();
+  // El webhook de Stripe NO debe pasar por el rate limiter: Stripe envia
+  // rafagas de eventos y un 429 retrasaria activaciones/cancelaciones.
+  if (req.path === '/stripe/webhook') return next();
   return chatRateLimiter(req, res, next);
 });
 
@@ -58,7 +58,6 @@ app.use('/api/artifacts', artifactsRoutes);
 app.use('/api/expedientes', expedientesRoutes);
 app.use('/api/voice', voiceRoutes);
 app.use('/api/images', imagesRoutes);
-app.use('/api/copilot', copilotRoutes);
 
 // Health check — Bible: verificar que el servidor está vivo
 app.get('/health', (req, res) => {

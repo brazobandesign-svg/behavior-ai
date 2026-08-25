@@ -153,7 +153,9 @@ class _AnimatedIncognitoHat extends StatefulWidget {
   const _AnimatedIncognitoHat({required this.isIncognito, required this.child});
   @override
   State<_AnimatedIncognitoHat> createState() => _AnimatedIncognitoHatState();
-}class _AnimatedIncognitoHatState extends State<_AnimatedIncognitoHat>
+}
+
+class _AnimatedIncognitoHatState extends State<_AnimatedIncognitoHat>
     with SingleTickerProviderStateMixin {
   late AnimationController _ctrl;
   late Animation<double> _anim;

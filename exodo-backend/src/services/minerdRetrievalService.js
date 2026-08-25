@@ -190,7 +190,6 @@ async function rerankChunks(query, chunks, topN = 5) {
     const documents = chunks.map((c) => c.content || '');
     const res = await fetch(RERANK_API_URL, {
       method: 'POST',
-      signal: AbortSignal.timeout(8000), // P1-3: Evita congelar el TTFT si DashScope cuelga
       headers: {
         'Authorization': `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
@@ -219,7 +218,9 @@ async function rerankChunks(query, chunks, topN = 5) {
       for (const item of results) {
         const originalIndex = item.index;
         if (chunks[originalIndex]) {
-          reranked.push(chunks[originalIndex]);
+          const chunkCopy = { ...chunks[originalIndex] };
+          chunkCopy.rerank_score = item.relevance_score;
+          reranked.push(chunkCopy);
         }
       }
       return reranked;
@@ -231,7 +232,7 @@ async function rerankChunks(query, chunks, topN = 5) {
   return chunks.slice(0, topN);
 }
 
-function buildFilter({ nivel, ciclo, grado, area, minSimilarity = 0.38 }) {
+function buildFilter({ nivel, ciclo, grado, area }) {
   const filter = {};
   if (nivel) filter.nivel = String(nivel);
   if (ciclo) filter.ciclo = String(ciclo);
@@ -239,7 +240,6 @@ function buildFilter({ nivel, ciclo, grado, area, minSimilarity = 0.38 }) {
     filter.grado = String(grado);
   }
   if (area) filter.area_curricular = String(area);
-  if (minSimilarity) filter.min_similarity = Number(minSimilarity);
   return filter;
 }
 

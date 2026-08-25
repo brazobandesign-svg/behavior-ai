@@ -1,3 +1,4 @@
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -66,7 +67,19 @@ class _ChatStageState extends State<ChatStage> {
                 ? i18n.t('greeting.afternoon')
                 : i18n.t('greeting.evening');
 
-    return '$timeGreeting, $profileName';
+    final greetings = <String>[
+      '$timeGreeting, $profileName',
+      i18n.t('greeting.flirt'),
+      '${i18n.t('greeting.hot')}, $profileName',
+      i18n.t('greeting.flirt'),
+      '${i18n.t('greeting.hot')}, $profileName',
+    ];
+
+    if (temp != null && temp >= 28.0) {
+      greetings.add('${i18n.t('greeting.hot')}, $profileName');
+    }
+
+    return greetings[Random().nextInt(greetings.length)];
   }
 
   @override

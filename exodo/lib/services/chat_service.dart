@@ -53,11 +53,20 @@ class ChatService {
       }
     }
 
-    const prodUrl = 'https://behavior-ai-production.up.railway.app/api/chat';
-
-    // Priorizar local ADB reverse si está conectado por cable (latencia <5ms), con fallback a Railway
+    // Candidatos de conexión en orden: local (adb reverse / LAN) primero,
+    // emulador, y producción en Railway como respaldo final.
+    // NOTA: no volver a hardcodear túneles trycloudflare aquí — son
+    // efímeros (mueren al cerrarse el proceso) y envenenan cada petición
+    // con un DNS muerto hasta agotar el timeout. El túnel dinámico será
+    // tarea T5, almacenado en SharedPreferences.
     list.add('http://127.0.0.1:3000/api/chat');
+    list.add('http://localhost:3000/api/chat');
     list.add('http://192.168.8.223:3000/api/chat');
+    list.add('http://192.168.9.244:3000/api/chat');
+    list.add('http://10.0.2.2:3000/api/chat');
+
+    // URL de producción en Railway (como fallback final)
+    const prodUrl = 'https://behavior-ai-production.up.railway.app/api/chat';
     if (!list.contains(prodUrl)) list.add(prodUrl);
     return list;
   }
@@ -140,34 +149,6 @@ class ChatService {
   /// [F1] Cancelación delegada: ahora se gestiona atómicamente por sesión vía GenerationSession.
   static void cancelStream() {}
 
-  /// Sonda paralela de candidatos: todos compiten con un GET /health barato y
-  /// gana el primero que responda 200. Elimina el coste secuencial (~1.5s por
-  /// candidato muerto) antes del POST real, que sigue saliendo UNA sola vez.
-  static Future<String?> _probeFastestBackend(
-    List<String> urls, {
-    Duration timeout = const Duration(milliseconds: 600),
-  }) async {
-    final completer = Completer<String?>();
-    var pending = urls.length;
-    for (final url in urls) {
-      final base = url.replaceAll('/api/chat', '');
-      () async {
-        try {
-          final resp =
-              await http.get(Uri.parse('$base/health')).timeout(timeout);
-          if (resp.statusCode == 200 && !completer.isCompleted) {
-            completer.complete(url);
-            return;
-          }
-        } catch (_) {}
-        pending--;
-        if (pending == 0 && !completer.isCompleted) completer.complete(null);
-      }();
-    }
-    return completer.future;
-  }
-
-
   /// Consulta el estado y consumo de cuota diaria del usuario desde /api/user/usage
   static Future<Map<String, dynamic>?> getUserUsage() async {
     final session = SupabaseService.client.auth.currentSession;
@@ -201,7 +182,6 @@ class ChatService {
     String? conversationId,
     List<Map<String, dynamic>>? history,
     String? modelOverride,
-    String? taskType, // 'simple' | 'reasoning' | null (auto): switcher Flash/Deep
     List<Attachment>? attachments, // [Punto 40] archivos para multimodal
     GenerationSession? session, // [F1] Sesión atómica de generación
     void Function(Map<String, dynamic> meta)? onMeta,
@@ -235,15 +215,6 @@ class ChatService {
           )
           .toList();
 
-      // Sonda paralela (una sola vez por arranque): elige el backend vivo
-      // más rápido sin encadenar timeouts secuenciales. El POST real sale
-      // después, una única vez, contra el ganador.
-      if (_workingUrl == null) {
-        _workingUrl = await _probeFastestBackend(_candidateUrls);
-        if (_workingUrl != null) setWorkingUrl(_workingUrl!);
-      }
-      if (activeSession.isCancelled) return;
-
       for (final url in _candidateUrls) {
         if (activeSession.isCancelled) return;
         try {
@@ -258,19 +229,17 @@ class ChatService {
             'conversationId': conversationId,
             'history': history,
             'model_override': modelOverride,
-            if (taskType != null && taskType != 'auto') 'taskType': taskType,
             if (attachmentsJson != null && attachmentsJson.isNotEmpty)
               'attachments': attachmentsJson, // [Punto 40+42]
           });
 
           final isWorkingUrl = _workingUrl == url;
           final isLocal = url.contains('localhost') ||
-              url.contains('127.0.0.1') ||
               url.contains('10.0.2.2') ||
               url.contains('192.168.');
           final timeoutDuration = isWorkingUrl
               ? const Duration(seconds: 45)
-              : (isLocal ? const Duration(milliseconds: 1500) : const Duration(seconds: 45));
+              : (isLocal ? const Duration(seconds: 8) : const Duration(seconds: 45));
           final resp = await reqClient.send(request).timeout(timeoutDuration);
           if (resp.statusCode == 200) {
             client = reqClient;
