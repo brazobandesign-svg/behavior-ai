@@ -1651,18 +1651,14 @@ class _ChatComposerState extends State<ChatComposer>
                                               children: [
                                                 Flexible(
                                                   child: Text(
-                                                    state.chatMode == 'flash'
-                                                        ? '${selectedModel.title} · Flash'
-                                                        : (state.chatMode == 'deep'
-                                                            ? '${selectedModel.title} · Deep'
-                                                            : selectedModel.title),
+                                                    selectedModel.title,
                                                     overflow:
                                                         TextOverflow.ellipsis,
                                                     style:
                                                         const TextStyle(
                                                           fontFamily:
                                                               'AnthropicSans',
-                                                          fontSize: 12.5,
+                                                          fontSize: 13,
                                                           fontWeight:
                                                               FontWeight.bold,
                                                         ),

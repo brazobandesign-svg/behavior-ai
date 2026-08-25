@@ -132,27 +132,6 @@ class ModelSelectorSheet extends StatelessWidget {
             );
           }),
           const SizedBox(height: 16),
-          Center(
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  Icons.psychology_rounded,
-                  size: 15,
-                  color: ExodoColors.amber.withValues(alpha: 0.8),
-                ),
-                const SizedBox(width: 6),
-                Text(
-                  AppI18n.of(context).t('models.thinking_default'),
-                  style: TextStyle(fontFamily: 'AnthropicSans', 
-                    fontSize: 11,
-                    color: isLight ? const Color(0xFF191919) : ExodoColors.textSecondary,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 12),
         ],
       ),
     );
