@@ -761,156 +761,241 @@ class _ChatComposerState extends State<ChatComposer>
 
   Widget _buildAttachmentPreview() {
     if (_pendingAttachments.isEmpty) return const SizedBox.shrink();
-    return SizedBox(
-      height: 72,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.only(bottom: 4),
-        itemCount: _pendingAttachments.length,
-        separatorBuilder: (_, _) => const SizedBox(width: 8),
-        itemBuilder: (context, i) {
-          final att = _pendingAttachments[i];
-          final isImage = att.mime.startsWith('image/');
-          final isLight = Theme.of(context).brightness == Brightness.light;
-          if (isImage) {
-            return Stack(
-              children: [
-                Container(
-                  width: 62,
-                  height: 62,
-                  margin: const EdgeInsets.only(top: 6, right: 6),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: isLight ? const Color(0xFFD1D1D6) : const Color(0xFF3A3A3C),
-                      width: 1,
-                    ),
-                  ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(11),
-                    child: Image.memory(
-                      att.bytes,
-                      fit: BoxFit.cover,
-                    ),
-                  ),
-                ),
-                Positioned(
-                  top: 0,
-                  right: 0,
-                  child: GestureDetector(
-                    onTap: () => _removePendingAt(i),
-                    child: Container(
-                      width: 20,
-                      height: 20,
-                      decoration: BoxDecoration(
-                        color: isLight ? const Color(0xFF131313) : const Color(0xFFFBF9F5),
-                        shape: BoxShape.circle,
-                      ),
-                      child: Icon(
-                        Icons.close,
-                        size: 13,
-                        color: isLight ? Colors.white : const Color(0xFF141414),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            );
-          } else {
-            return Container(
-              margin: const EdgeInsets.only(top: 6),
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              decoration: BoxDecoration(
-                color: isLight ? Colors.white : ExodoColors.modelChipBg,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                  color: isLight ? const Color(0xFFD1D1D6) : const Color(0xFF3A3A3C),
-                ),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
+    final isLight = Theme.of(context).brightness == Brightness.light;
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8, top: 2),
+      child: SizedBox(
+        height: 76,
+        child: ListView.separated(
+          scrollDirection: Axis.horizontal,
+          itemCount: _pendingAttachments.length,
+          separatorBuilder: (_, _) => const SizedBox(width: 10),
+          itemBuilder: (context, i) {
+            final att = _pendingAttachments[i];
+            final isImage = att.mime.startsWith('image/');
+
+            if (isImage) {
+              return Stack(
+                clipBehavior: Clip.none,
                 children: [
-                  const Icon(Icons.insert_drive_file_rounded, size: 18, color: ExodoColors.amber),
-                  const SizedBox(width: 8),
-                  Text(
-                    att.name.length > 18 ? '${att.name.substring(0, 15)}...' : att.name,
-                    style: GoogleFonts.inter(
-                      fontSize: 12.5,
-                      color: isLight ? const Color(0xFF000000) : const Color(0xFFFFFFFF),
+                  Container(
+                    width: 72,
+                    height: 72,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(
+                        color: isLight
+                            ? const Color(0xFFDCD8D0)
+                            : const Color(0xFF38383A),
+                        width: 1.2,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: isLight ? 0.06 : 0.25),
+                          blurRadius: 6,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(13),
+                      child: Image.memory(
+                        att.bytes,
+                        fit: BoxFit.cover,
+                      ),
                     ),
                   ),
-                  const SizedBox(width: 8),
-                  GestureDetector(
-                    onTap: () => _removePendingAt(i),
-                    child: Icon(
-                      Icons.close_rounded,
-                      size: 16,
-                      color: isLight ? Colors.black54 : Colors.white70,
+                  Positioned(
+                    top: -4,
+                    right: -4,
+                    child: GestureDetector(
+                      onTap: () {
+                        HapticFeedback.lightImpact();
+                        _removePendingAt(i);
+                      },
+                      child: Container(
+                        width: 22,
+                        height: 22,
+                        decoration: BoxDecoration(
+                          color: isLight ? const Color(0xFF1E1E1E) : const Color(0xFFE2E2E2),
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.2),
+                              blurRadius: 4,
+                            ),
+                          ],
+                        ),
+                        child: Icon(
+                          Icons.close_rounded,
+                          size: 14,
+                          color: isLight ? Colors.white : const Color(0xFF141414),
+                        ),
+                      ),
                     ),
                   ),
                 ],
-              ),
-            );
-          }
-        },
+              );
+            } else {
+              final isPdf = att.name.toLowerCase().endsWith('.pdf');
+              final isDoc = att.name.toLowerCase().endsWith('.doc') ||
+                  att.name.toLowerCase().endsWith('.docx');
+              final badgeColor = isPdf
+                  ? const Color(0xFFEF4444)
+                  : (isDoc ? const Color(0xFF3B82F6) : ExodoColors.amber);
+
+              return Container(
+                height: 72,
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                decoration: BoxDecoration(
+                  color: isLight ? Colors.white : ExodoColors.modelChipBg,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(
+                    color: isLight
+                        ? const Color(0xFFDCD8D0)
+                        : const Color(0xFF38383A),
+                    width: 1.2,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: isLight ? 0.05 : 0.2),
+                      blurRadius: 6,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 38,
+                      height: 38,
+                      decoration: BoxDecoration(
+                        color: badgeColor.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Icon(
+                        isPdf
+                            ? Icons.picture_as_pdf_rounded
+                            : Icons.insert_drive_file_rounded,
+                        size: 20,
+                        color: badgeColor,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          att.name.length > 16
+                              ? '${att.name.substring(0, 13)}...'
+                              : att.name,
+                          style: GoogleFonts.inter(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: isLight ? Colors.black87 : Colors.white,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          '${(att.bytes.length / 1024).toStringAsFixed(0)} KB',
+                          style: GoogleFonts.inter(
+                            fontSize: 11,
+                            color: ExodoColors.textSecondary,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(width: 10),
+                    GestureDetector(
+                      onTap: () {
+                        HapticFeedback.lightImpact();
+                        _removePendingAt(i);
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          color: isLight ? Colors.black12 : Colors.white12,
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(
+                          Icons.close_rounded,
+                          size: 14,
+                          color: isLight ? Colors.black87 : Colors.white70,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }
+          },
+        ),
       ),
     );
   }
 
   void _showAttachmentMenu() {
-    HapticFeedback.vibrate();
+    HapticFeedback.mediumImpact();
     final isLight = Theme.of(context).brightness == Brightness.light;
 
     showModalBottomSheet(
       context: context,
       backgroundColor: isLight
-          ? const Color(0xFFF5F2EB)
-          : ExodoColors.background,
+          ? const Color(0xFFFBF9F5)
+          : const Color(0xFF1C1C1E),
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
       ),
       builder: (ctx) => SafeArea(
         child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 16),
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
           child: Column(
             mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Container(
-                width: 36,
-                height: 4,
-                margin: const EdgeInsets.only(bottom: 16),
-                decoration: BoxDecoration(
-                  color: Colors.grey.withValues(alpha: 0.3),
-                  borderRadius: BorderRadius.circular(2),
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4.5,
+                  margin: const EdgeInsets.only(bottom: 20),
+                  decoration: BoxDecoration(
+                    color: isLight ? Colors.black26 : Colors.white24,
+                    borderRadius: BorderRadius.circular(3),
+                  ),
                 ),
               ),
-              ListTile(
-                leading: const Icon(
-                  Icons.camera_alt_rounded,
-                  color: ExodoColors.amber,
-                ),
-                title: Text(
-                  AppI18n.of(context).t('attach.camera'),
+              Padding(
+                padding: const EdgeInsets.only(left: 4, bottom: 16),
+                child: Text(
+                  'Adjuntar archivo',
                   style: GoogleFonts.inter(
-                    fontWeight: FontWeight.w600,
+                    fontSize: 17,
+                    fontWeight: FontWeight.w700,
                     color: isLight ? Colors.black87 : Colors.white,
                   ),
                 ),
+              ),
+              _buildAttachmentOption(
+                icon: Icons.camera_alt_rounded,
+                iconBg: const Color(0xFFF59E0B),
+                title: AppI18n.of(context).t('attach.camera'),
+                subtitle: 'Tomar foto con la cámara',
+                isLight: isLight,
                 onTap: () async {
                   Navigator.pop(ctx);
                   try {
                     final picker = ImagePicker();
                     final photo = await picker.pickImage(
                       source: ImageSource.camera,
-                      maxWidth: 1536,
-                      maxHeight: 1536,
-                      imageQuality: 80,
+                      maxWidth: 1600,
+                      maxHeight: 1600,
+                      imageQuality: 82,
                     );
                     if (photo != null && mounted) {
                       final bytes = await photo.readAsBytes();
-                      // Copia inmediata a almacenamiento permanente: la
-                      // caché del picker es volátil y el OS puede purgarla
-                      // antes de que el mensaje se guarde.
                       final permanentPath =
                           await AttachmentStorage.instance.persistPickedFile(
                         sourcePath: photo.path,
@@ -928,45 +1013,34 @@ class _ChatComposerState extends State<ChatComposer>
                         );
                       });
                     }
-                  } catch (e) {
-                    // Error silencioso
-                  }
+                  } catch (_) {}
                 },
               ),
-              ListTile(
-                leading: const Icon(
-                  Icons.photo_library_rounded,
-                  color: ExodoColors.amber,
-                ),
-                title: Text(
-                  AppI18n.of(context).t('attach.gallery'),
-                  style: GoogleFonts.inter(
-                    fontWeight: FontWeight.w600,
-                    color: isLight ? Colors.black87 : Colors.white,
-                  ),
-                ),
+              const SizedBox(height: 8),
+              _buildAttachmentOption(
+                icon: Icons.photo_library_rounded,
+                iconBg: const Color(0xFF3B82F6),
+                title: AppI18n.of(context).t('attach.gallery'),
+                subtitle: 'Fotos y capturas de la galería',
+                isLight: isLight,
                 onTap: () async {
                   Navigator.pop(ctx);
                   try {
                     final picker = ImagePicker();
-                    final media = await picker.pickImage(
-                      source: ImageSource.gallery,
-                      maxWidth: 1536,
-                      maxHeight: 1536,
-                      imageQuality: 80,
+                    final mediaList = await picker.pickMultiImage(
+                      maxWidth: 1600,
+                      maxHeight: 1600,
+                      imageQuality: 82,
                     );
-                    if (media != null && mounted) {
-                      final bytes = await media.readAsBytes();
-                      final mime = mimeFromExtension(media.name);
-                      // Misma copia inmediata a almacenamiento permanente
-                      // que en el flujo de cámara.
-                      final permanentPath =
-                          await AttachmentStorage.instance.persistPickedFile(
-                        sourcePath: media.path,
-                        fileName: media.name,
-                      );
-                      setState(() {
-                        _hasAttachment = true;
+                    if (mediaList.isNotEmpty && mounted) {
+                      for (final media in mediaList) {
+                        final bytes = await media.readAsBytes();
+                        final mime = mimeFromExtension(media.name);
+                        final permanentPath =
+                            await AttachmentStorage.instance.persistPickedFile(
+                          sourcePath: media.path,
+                          fileName: media.name,
+                        );
                         _pendingAttachments.add(
                           PendingAttachment(
                             name: media.name,
@@ -975,25 +1049,19 @@ class _ChatComposerState extends State<ChatComposer>
                             filePath: permanentPath,
                           ),
                         );
-                      });
+                      }
+                      setState(() => _hasAttachment = true);
                     }
-                  } catch (e) {
-                    // Error silencioso
-                  }
+                  } catch (_) {}
                 },
               ),
-              ListTile(
-                leading: const Icon(
-                  Icons.folder_open_rounded,
-                  color: ExodoColors.amber,
-                ),
-                title: Text(
-                  AppI18n.of(context).t('attach.files'),
-                  style: GoogleFonts.inter(
-                    fontWeight: FontWeight.w600,
-                    color: isLight ? Colors.black87 : Colors.white,
-                  ),
-                ),
+              const SizedBox(height: 8),
+              _buildAttachmentOption(
+                icon: Icons.folder_open_rounded,
+                iconBg: const Color(0xFF10B981),
+                title: AppI18n.of(context).t('attach.files'),
+                subtitle: 'Documentos PDF, Word o texto',
+                isLight: isLight,
                 onTap: () async {
                   Navigator.pop(ctx);
                   try {
@@ -1005,8 +1073,6 @@ class _ChatComposerState extends State<ChatComposer>
                       int added = 0;
                       for (final f in res.files) {
                         if (f.bytes != null && f.bytes!.isNotEmpty) {
-                          // Documentos: misma garantía de persistencia que
-                          // las imágenes cuando el picker expone la ruta.
                           var permanentPath = '';
                           if (f.path != null && f.path!.isNotEmpty) {
                             permanentPath =
@@ -1031,10 +1097,70 @@ class _ChatComposerState extends State<ChatComposer>
                         setState(() => _hasAttachment = true);
                       }
                     }
-                  } catch (e) {
-                    // Error silencioso
-                  }
+                  } catch (_) {}
                 },
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAttachmentOption({
+    required IconData icon,
+    required Color iconBg,
+    required String title,
+    required String subtitle,
+    required bool isLight,
+    required VoidCallback onTap,
+  }) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+          child: Row(
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: iconBg.withValues(alpha: 0.15),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(icon, color: iconBg, size: 22),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: GoogleFonts.inter(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        color: isLight ? Colors.black87 : Colors.white,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      style: GoogleFonts.inter(
+                        fontSize: 12,
+                        color: isLight ? Colors.black54 : Colors.white60,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(
+                Icons.chevron_right_rounded,
+                size: 20,
+                color: isLight ? Colors.black26 : Colors.white24,
               ),
             ],
           ),

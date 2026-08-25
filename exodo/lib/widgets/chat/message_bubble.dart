@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:ui';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -92,27 +93,71 @@ class MessageBubble extends StatelessWidget {
                     padding: const EdgeInsets.only(bottom: 6),
                     child: GestureDetector(
                       onTap: () {
+                        HapticFeedback.selectionClick();
                         showDialog(
                           context: context,
                           builder: (ctx) => Dialog(
                             backgroundColor: Colors.transparent,
-                            insetPadding: const EdgeInsets.all(16),
+                            insetPadding: const EdgeInsets.symmetric(
+                              horizontal: 14,
+                              vertical: 24,
+                            ),
                             child: Stack(
                               alignment: Alignment.topRight,
                               children: [
-                                InteractiveViewer(
-                                  child: ClipRRect(
-                                    borderRadius: BorderRadius.circular(16),
-                                    child: _buildAttachmentFullScreen(att),
+                                ClipRRect(
+                                  borderRadius: BorderRadius.circular(20),
+                                  child: BackdropFilter(
+                                    filter: ImageFilter.blur(
+                                      sigmaX: 16,
+                                      sigmaY: 16,
+                                    ),
+                                    child: Container(
+                                      decoration: BoxDecoration(
+                                        color: Colors.black.withValues(alpha: 0.6),
+                                        borderRadius: BorderRadius.circular(20),
+                                        border: Border.all(
+                                          color: Colors.white24,
+                                          width: 1,
+                                        ),
+                                      ),
+                                      padding: const EdgeInsets.all(8),
+                                      child: InteractiveViewer(
+                                        minScale: 0.8,
+                                        maxScale: 4.0,
+                                        child: ClipRRect(
+                                          borderRadius: BorderRadius.circular(16),
+                                          child: _buildAttachmentFullScreen(att),
+                                        ),
+                                      ),
+                                    ),
                                   ),
                                 ),
-                                IconButton(
-                                  icon: const Icon(
-                                    Icons.close,
-                                    color: Colors.white,
-                                    size: 30,
+                                Positioned(
+                                  top: 16,
+                                  right: 16,
+                                  child: GestureDetector(
+                                    onTap: () {
+                                      HapticFeedback.lightImpact();
+                                      Navigator.pop(ctx);
+                                    },
+                                    child: Container(
+                                      width: 36,
+                                      height: 36,
+                                      decoration: BoxDecoration(
+                                        color: Colors.black.withValues(alpha: 0.5),
+                                        shape: BoxShape.circle,
+                                        border: Border.all(
+                                          color: Colors.white24,
+                                        ),
+                                      ),
+                                      child: const Icon(
+                                        Icons.close_rounded,
+                                        color: Colors.white,
+                                        size: 20,
+                                      ),
+                                    ),
                                   ),
-                                  onPressed: () => Navigator.pop(ctx),
                                 ),
                               ],
                             ),

@@ -188,6 +188,14 @@ function extractSourcesFromText(text, existingSources = [], contextChunks = [], 
  *   data: {"type":"error","content":"..."}\n\n
  */
 router.post('/', auth, planGuard, upload.array('files', 5), async (req, res) => {
+  // FIX scope: estas tres variables se usan en el catch externo, así que
+  // deben declararse ANTES del try — declaradas dentro, un error temprano
+  // (entre el inicio del try y la declaración) hacía que el catch lanzara
+  // ReferenceError y enmascarara el error real.
+  let clientConnected = true;
+  let heartbeatInterval = null;
+  const abortController = new AbortController();
+
   try {
     const { message, conversationId, model_override, attachments, subject } = req.body;
     const { userId, plan, anonymous } = req.user;
@@ -220,6 +228,9 @@ router.post('/', auth, planGuard, upload.array('files', 5), async (req, res) => 
     // rate-limit e IDOR — antes de adjuntos, Supabase o cualquier await.
     // El cliente abre el stream sin esperar la preparación del turno.
     res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache, no-transform');
+    res.setHeader('Connection', 'keep-alive');
+    res.setHeader('X-Accel-Buffering', 'no'); // nginx: desactiva buffering
     if (typeof res.flushHeaders === 'function') res.flushHeaders();
 
     // Construir mensaje enriquecido con adjuntos utilizando documentExtractor multiformato.
@@ -288,10 +299,9 @@ router.post('/', auth, planGuard, upload.array('files', 5), async (req, res) => 
         : parts.join('\n\n') + '\n\nPor favor analiza y describe detalladamente el contenido y los detalles clave de esta imagen o archivo adjunto para ayudar al usuario.';
     }
 
-// Flag para detectar si el cliente se desconectó a mitad de la respuesta.
-    let clientConnected = true;
-    let heartbeatInterval = null; // scope del handler: limpiable desde el catch externo
-    const abortController = new AbortController();
+    // (clientConnected/heartbeatInterval/abortController declarados al inicio
+    // del handler, antes del try — ver FIX scope arriba.)
+
     // FIX (Node 16+ / v24): `req.on('close')` se dispara cuando el CUERPO del
     // request termina de leerse (post-body), NO cuando el cliente se
     // desconecta. Usarlo como señal de desconexión marcaba clientConnected=false
@@ -306,13 +316,8 @@ router.post('/', auth, planGuard, upload.array('files', 5), async (req, res) => 
       }
     });
 
-    // Preparar SSE ANTES de cualquier await para que el cliente vea los
-    // headers inmediatamente y empiece a esperar chunks.
-    res.setHeader('Content-Type', 'text/event-stream');
-    res.setHeader('Cache-Control', 'no-cache, no-transform');
-    res.setHeader('Connection', 'keep-alive');
-    res.setHeader('X-Accel-Buffering', 'no'); // nginx: desactiva buffering
-    if (typeof res.flushHeaders === 'function') res.flushHeaders();
+    // Headers SSE y flush ya realizados al inicio del handler (PERF-2);
+    // aquí solo quedan el helper de envío y el heartbeat inicial.
 
     // Helper para enviar chunks forzando flush al cliente.
     const sendSse = (payload) => {
