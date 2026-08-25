@@ -22,11 +22,22 @@ const app = express();
 app.set('trust proxy', process.env.TRUST_PROXY === 'false' ? false : 1);
 
 // Middlewares globales
-// CORS configurado: en dev permite todo, en prod respeta lista blanca.
+// CORS: fail-closed en producción — sin CORS_ORIGIN configurado, los navegadores
+// quedan bloqueados (las apps nativas no usan CORS y no se afectan).
 app.use(cors({
-  origin: corsOrigins || true, // true = cualquiera (dev); array = whitelist (prod)
+  origin: corsOrigins || (NODE_ENV === 'production' ? false : true),
   credentials: true,
 }));
+
+// Security headers (equivalente Helmet para API JSON, sin dependencia extra).
+app.use((req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('Referrer-Policy', 'no-referrer');
+  res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+  next();
+});
+
 app.use(express.json({
   limit: '25mb',
   verify: (req, res, buf) => {
@@ -60,15 +71,10 @@ app.use('/api/voice', voiceRoutes);
 app.use('/api/images', imagesRoutes);
 app.use('/api/copilot', copilotRoutes);
 
-// Health check — Bible: verificar que el servidor está vivo
+// Health check — Bible: verificar que el servidor está vivo.
+// Mínima superficie: sin env/versión/timestamps (auditoría A4).
 app.get('/health', (req, res) => {
-  res.json({
-    status: 'ok',
-    service: 'exodo-backend',
-    version: '1.0.0',
-    env: NODE_ENV,
-    timestamp: new Date().toISOString(),
-  });
+  res.json({ status: 'ok' });
 });
 
 // Error handler centralizado

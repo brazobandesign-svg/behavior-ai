@@ -55,9 +55,13 @@ class ChatService {
 
     const prodUrl = 'https://behavior-ai-production.up.railway.app/api/chat';
 
-    // Priorizar local ADB reverse si está conectado por cable (latencia <5ms), con fallback a Railway
-    list.add('http://127.0.0.1:3000/api/chat');
-    list.add('http://192.168.8.223:3000/api/chat');
+    // SEGURIDAD (auditoría C3): candidatos HTTP locales SOLO en debug.
+    // En release el JWT viaja siempre por HTTPS al backend productivo; una IP
+    // LAN hostil o un endpoint http muerto jamás recibe el Bearer del usuario.
+    if (kDebugMode) {
+      list.add('http://127.0.0.1:3000/api/chat');
+      list.add('http://192.168.8.223:3000/api/chat');
+    }
     if (!list.contains(prodUrl)) list.add(prodUrl);
     return list;
   }

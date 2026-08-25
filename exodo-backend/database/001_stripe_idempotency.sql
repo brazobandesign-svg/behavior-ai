@@ -125,6 +125,11 @@ DECLARE
     v_current_status TEXT;
     v_target_user_id UUID;
 BEGIN
+    -- Hardening: sin event_id la idempotencia es imposible (NULL != NULL en PG).
+    IF p_event_id IS NULL OR p_event_id = '' THEN
+        RAISE EXCEPTION 'transition_subscription: p_event_id es obligatorio';
+    END IF;
+
     -- Parsear UUID de usuario si se proveyó
     IF p_user_id IS NOT NULL AND p_user_id != '' THEN
         BEGIN
@@ -193,8 +198,9 @@ BEGIN
     ELSE
         IF v_current_status = v_new_status THEN
             NULL;
-        ELSIF v_current_status = 'canceled' AND v_new_status = 'active' THEN
-            UPDATE subscriptions SET status = v_new_status, plan = 'hazak' WHERE id = v_sub_id;
+        ELSIF v_new_status = 'active' AND v_current_status <> 'active' THEN
+            -- Reactivación desde cualquier estado no-activo: alinear siempre el plan.
+            UPDATE subscriptions SET status = 'active', plan = 'hazak' WHERE id = v_sub_id;
             IF v_target_user_id IS NOT NULL THEN
                 UPDATE profiles SET plan = 'hazak' WHERE id = v_target_user_id;
             END IF;
@@ -244,7 +250,10 @@ BEGIN
 
     RETURN NEW;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
+-- FIX NO-OP: como INVOKER, current_user es quien ejecuta el DML
+-- (authenticated/anon -> bloqueado | postgres/service_role -> permitido).
+-- Con SECURITY DEFINER current_user siempre era el owner y el IF nunca disparaba.
+$$ LANGUAGE plpgsql;
 
 DROP TRIGGER IF EXISTS trg_protect_profile_plan ON profiles;
 CREATE TRIGGER trg_protect_profile_plan
