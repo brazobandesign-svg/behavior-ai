@@ -4,7 +4,7 @@
  * Usa deepseek-chat para consumir tácticamente el saldo del backend.
  */
 
-const deepseekProvider = require('./providers/deepseekProvider');
+const alibabaProvider = require('./providers/alibaba');
 
 const INTENT_SYSTEM_PROMPT = `Clasifica el siguiente mensaje del usuario en exactamente UNA de estas categorías. Responde SOLO con la categoría en mayúsculas, nada más.
 
@@ -23,7 +23,7 @@ async function classifyIntent(message) {
   }
 
   try {
-    const resultObj = await deepseekProvider.call(
+    const resultObj = await alibabaProvider.call(
       'deepseek-chat',
       [{ role: 'user', content: `Mensaje: "${message}"` }],
       INTENT_SYSTEM_PROMPT
