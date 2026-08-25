@@ -1,10 +1,42 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/models.dart';
 import 'supabase_service.dart';
+
+/// Encapsula una sesión atómica de generación de streaming LLM (F1).
+/// Cada mensaje enviado tiene su propio ciclo de vida, cliente HTTP y UUID,
+/// eliminando variables globales estáticas y carreras entre chats concurrentes.
+class GenerationSession {
+  final String id;
+  final String? conversationId;
+  final http.Client client;
+  final Completer<void> completer;
+  bool _isCancelled = false;
+
+  GenerationSession({
+    required this.id,
+    required this.conversationId,
+    http.Client? client,
+  })  : client = client ?? http.Client(),
+        completer = Completer<void>();
+
+  bool get isCancelled => _isCancelled;
+
+  void cancel() {
+    if (_isCancelled) return;
+    _isCancelled = true;
+    try {
+      client.close();
+    } catch (_) {}
+    if (!completer.isCompleted) {
+      completer.complete();
+    }
+  }
+}
 
 class ChatService {
   static String? _workingUrl;
@@ -102,20 +134,20 @@ class ChatService {
     return list;
   }
 
-  static bool _isCancelled = false;
-
-  /// Cliente HTTP persistente (keep-alive): reutiliza el pool de conexiones
-  /// TCP entre mensajes en lugar de abrir un socket nuevo por request. Al
-  /// cancelar un stream se recicla por completo para abortar el socket vivo.
-  static http.Client _sharedClient = http.Client();
-  static http.Client? _activeClient;
-
-  static void cancelStream() {
-    _isCancelled = true;
-    _activeClient = null;
-    _sharedClient.close();
-    _sharedClient = http.Client();
+  static String generateSessionId() {
+    final rnd = math.Random();
+    final bytes = List<int>.generate(16, (_) => rnd.nextInt(256));
+    bytes[6] = (bytes[6] & 0x0f) | 0x40; // v4
+    bytes[8] = (bytes[8] & 0x3f) | 0x80; // variant
+    return '${bytes.sublist(0, 4).map((b) => b.toRadixString(16).padLeft(2, '0')).join()}-'
+        '${bytes.sublist(4, 6).map((b) => b.toRadixString(16).padLeft(2, '0')).join()}-'
+        '${bytes.sublist(6, 8).map((b) => b.toRadixString(16).padLeft(2, '0')).join()}-'
+        '${bytes.sublist(8, 10).map((b) => b.toRadixString(16).padLeft(2, '0')).join()}-'
+        '${bytes.sublist(10, 16).map((b) => b.toRadixString(16).padLeft(2, '0')).join()}';
   }
+
+  /// [F1] Cancelación delegada: ahora se gestiona atómicamente por sesión vía GenerationSession.
+  static void cancelStream() {}
 
   /// Consulta el estado y consumo de cuota diaria del usuario desde /api/user/usage
   static Future<Map<String, dynamic>?> getUserUsage() async {
@@ -151,22 +183,23 @@ class ChatService {
     List<Map<String, dynamic>>? history,
     String? modelOverride,
     List<Attachment>? attachments, // [Punto 40] archivos para multimodal
+    GenerationSession? session, // [F1] Sesión atómica de generación
     void Function(Map<String, dynamic> meta)? onMeta,
     required void Function(String chunk) onChunk,
     required void Function(String fullText, List<Source> sources) onComplete,
     required void Function(String error) onError,
   }) async {
-    final session = SupabaseService.client.auth.currentSession;
-    final jwt = session?.accessToken;
+    final activeSession = session ??
+        GenerationSession(
+          id: generateSessionId(),
+          conversationId: conversationId,
+        );
+
+    final authSession = SupabaseService.client.auth.currentSession;
+    final jwt = authSession?.accessToken;
 
     try {
-      _isCancelled = false;
-      _activeClient?.close();
-
-      // [Punto 40+42] NO saltamos el backend cuando hay adjuntos.
-      // Los adjuntos se codifican en base64 y se mandan al backend,
-      // que los usa para enriquecer el mensaje antes de clasificar
-      // la intención y rutear al especialista correcto.
+      if (activeSession.isCancelled) return;
 
       http.StreamedResponse? response;
       http.Client? client;
@@ -183,11 +216,9 @@ class ChatService {
           .toList();
 
       for (final url in _candidateUrls) {
-        if (_isCancelled) return;
+        if (activeSession.isCancelled) return;
         try {
-          // Cliente compartido: la conexión TCP persiste en el pool keep-alive
-          // entre mensajes; no se abre un socket nuevo por request.
-          final reqClient = _sharedClient;
+          final reqClient = activeSession.client;
           final request = http.Request('POST', Uri.parse(url));
           request.headers.addAll({
             'Content-Type': 'application/json',
@@ -201,41 +232,39 @@ class ChatService {
             if (attachmentsJson != null && attachmentsJson.isNotEmpty)
               'attachments': attachmentsJson, // [Punto 40+42]
           });
-          // [Punto 2 Fix] Lógica de timeouts resiliente:
-          // Si la URL ya está validada como funcional, le damos los 45s completos para cold starts o razonamientos largos.
-          // Si estamos sondeando candidatos, usamos 8s para descartar rápido locales caídas y 45s para remotas.
+
           final isWorkingUrl = _workingUrl == url;
-          final isLocal = url.contains('localhost') || url.contains('10.0.2.2') || url.contains('192.168.');
+          final isLocal = url.contains('localhost') ||
+              url.contains('10.0.2.2') ||
+              url.contains('192.168.');
           final timeoutDuration = isWorkingUrl
               ? const Duration(seconds: 45)
               : (isLocal ? const Duration(seconds: 8) : const Duration(seconds: 45));
-          final resp = await reqClient
-              .send(request)
-              .timeout(timeoutDuration);
+          final resp = await reqClient.send(request).timeout(timeoutDuration);
           if (resp.statusCode == 200) {
             client = reqClient;
-            _activeClient = client;
             response = resp;
             _workingUrl = url;
             setWorkingUrl(url);
             break;
           }
-          // Non-200: probar siguiente candidato. NO se cierra el cliente
-          // compartido — el pool keep-alive sigue vivo para el resto.
         } catch (_) {}
       }
 
       if (response == null || client == null || response.statusCode != 200) {
-        if (_activeClient == client) _activeClient = null;
-        if (!_isCancelled) {
-          String errMsg = 'Sin conexión con el servidor. Verifica tu red e inténtalo de nuevo.';
+        if (!activeSession.isCancelled) {
+          String errMsg =
+              'Sin conexión con el servidor. Verifica tu red e inténtalo de nuevo.';
           if (response != null) {
             if (response.statusCode >= 500) {
-              errMsg = 'Error en el servidor (Cód. ${response.statusCode}). Intentando reiniciar...';
+              errMsg =
+                  'Error en el servidor (Cód. ${response.statusCode}). Intentando reiniciar...';
             } else if (response.statusCode == 413) {
-              errMsg = 'El archivo adjunto es demasiado grande. Por favor, intenta con uno más pequeño.';
+              errMsg =
+                  'El archivo adjunto es demasiado grande. Por favor, intenta con uno más pequeño.';
             } else if (response.statusCode != 200) {
-              errMsg = 'Hubo un error de conexión (Cód. ${response.statusCode}).';
+              errMsg =
+                  'Hubo un error de conexión (Cód. ${response.statusCode}).';
             }
           }
           onError(errMsg);
@@ -252,7 +281,7 @@ class ChatService {
           .transform(const LineSplitter())
           .listen(
             (line) {
-              if (_isCancelled) return;
+              if (activeSession.isCancelled) return;
               if (line.startsWith('data: ')) {
                 final dataStr = line.substring(6).trim();
                 if (dataStr == '[DONE]') return;
@@ -274,7 +303,7 @@ class ChatService {
                   } else if (type == 'done') {
                     if (isCompleted) return;
                     isCompleted = true;
-                    final message = data['message'] as String? ?? fullText;
+                    final msg = data['message'] as String? ?? fullText;
                     final rawSources = data['sources'];
                     if (rawSources is List) {
                       sources = rawSources
@@ -286,42 +315,39 @@ class ChatService {
                           )
                           .toList();
                     }
-                    _enrichSources(message, fullText, sources)
+                    _enrichSources(msg, fullText, sources)
                         .then((enriched) {
-                          onComplete(fullText, enriched);
+                          if (!activeSession.isCancelled) {
+                            onComplete(fullText, enriched);
+                          }
                         })
                         .catchError((_) {
-                          onComplete(fullText, sources);
+                          if (!activeSession.isCancelled) {
+                            onComplete(fullText, sources);
+                          }
                         });
                   } else if (type == 'error') {
-                    onError(data['content'] as String? ?? 'Error en streaming');
+                    if (!activeSession.isCancelled) {
+                      onError(data['content'] as String? ?? 'Error en streaming');
+                    }
                   }
                 } catch (_) {}
               }
             },
             onDone: () {
-              if (_activeClient == client) _activeClient = null;
-              // NO se cierra el cliente: la conexión TCP persiste en el pool
-              // keep-alive para el siguiente mensaje.
-              // Si el stream cerró sin enviar 'done', finalizar con lo que hay.
-              if (!_isCancelled && !isCompleted && fullText.isNotEmpty) {
+              if (!activeSession.isCancelled && !isCompleted && fullText.isNotEmpty) {
                 isCompleted = true;
                 onComplete(fullText, sources);
-              } else if (!_isCancelled && !isCompleted && fullText.isEmpty) {
-                // Stream cerró sin enviar nada — notificar error para
-                // desbloquear isGenerating en AppState.
+              } else if (!activeSession.isCancelled && !isCompleted && fullText.isEmpty) {
                 onError('La conexión se cerró inesperadamente.');
               }
             },
             onError: (e) {
-              if (_activeClient == client) _activeClient = null;
-              // Sin close(): el pool keep-alive se conserva; si el socket murió,
-              // el cliente abre uno nuevo de forma transparente.
-              if (!_isCancelled) onError(e.toString());
+              if (!activeSession.isCancelled) onError(e.toString());
             },
           );
     } catch (e) {
-      if (!_isCancelled) onError(e.toString());
+      if (!activeSession.isCancelled) onError(e.toString());
     }
   }
 
@@ -405,7 +431,7 @@ class ChatService {
           ],
         });
 
-        final resp = await _sharedClient
+        final resp = await http
             .post(
               Uri.parse(titleUrl),
               headers: headers,

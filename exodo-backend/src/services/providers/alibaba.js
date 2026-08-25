@@ -38,6 +38,20 @@ function resolveModelName(modelId) {
   return modelId;
 }
 
+// PERF-2: agente HTTPS con keep-Alive a nivel de módulo — reutiliza las
+// conexiones TLS a DashScope entre turnos (ahorra 150-300ms de handshake
+// por request) y con cliente memorizado evita reconstruir el SDK cada vez.
+const https = require('https');
+const _keepAliveAgent = new https.Agent({
+  keepAlive: true,
+  maxSockets: 50,
+  keepAliveMsecs: 30000,
+});
+
+let _cachedClient = null;
+let _cachedApiKey = null;
+let _cachedBaseURL = null;
+
 function getClient() {
   const apiKey = process.env.DASHSCOPE_API_KEY ||
                  process.env.ALIBABA_API_KEY ||
@@ -48,11 +62,19 @@ function getClient() {
                   ALIBABA_CONFIG.baseURL ||
                   'https://dashscope-intl.aliyuncs.com/compatible-mode/v1';
 
-  return new OpenAI({
+  if (_cachedClient && _cachedApiKey === apiKey && _cachedBaseURL === baseURL) {
+    return _cachedClient;
+  }
+
+  _cachedClient = new OpenAI({
     baseURL,
     apiKey,
     timeout: 60000,
+    httpAgent: _keepAliveAgent,
   });
+  _cachedApiKey = apiKey;
+  _cachedBaseURL = baseURL;
+  return _cachedClient;
 }
 
 function buildMessages(messages, systemPrompt, imageDataUris = []) {

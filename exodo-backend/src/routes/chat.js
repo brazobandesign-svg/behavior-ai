@@ -216,6 +216,12 @@ router.post('/', auth, planGuard, upload.array('files', 5), async (req, res) => 
       return res.status(400).json({ error: 'El campo "message" es requerido' });
     }
 
+    // PERF-2: headers SSE fuera INMEDIATAMENTE tras validar autenticación,
+    // rate-limit e IDOR — antes de adjuntos, Supabase o cualquier await.
+    // El cliente abre el stream sin esperar la preparación del turno.
+    res.setHeader('Content-Type', 'text/event-stream');
+    if (typeof res.flushHeaders === 'function') res.flushHeaders();
+
     // Construir mensaje enriquecido con adjuntos utilizando documentExtractor multiformato.
     let enhancedMessage = message || '';
     const imageDataUris = []; // data URIs para modelos con vision
@@ -322,17 +328,25 @@ router.post('/', auth, planGuard, upload.array('files', 5), async (req, res) => 
 
     let history = [];
     let intent = 'SIMPLE';
+    // PERF-2: prefetch del retrieval MINERD en paralelo con el historial
+    // cuando el mensaje ya parece consulta educativa. La compuerta
+    // isMinerdQuery se preserva (sin ella, cada mensaje gastaría embeddings).
+    let ragPrefetch = null;
 
     if (isGuest) {
       history = (Array.isArray(req.body.history) ? req.body.history.slice(-6) : []);
       intent = hasImages ? 'VISION' : 'SIMPLE';
     } else {
+      if (isMinerdQuery(enhancedMessage)) {
+        ragPrefetch = searchMinerdChunks(enhancedMessage, { limit: 3 }).catch(() => null);
+      }
       const [dbHistory, detectedIntent] = await Promise.all([
         getHistory(conversationId, 10),
         // FIX TTFT: clasificación local por keywords (O(1), sin roundtrip a
         // DeepSeek). El clasificador LLM bloqueaba el inicio del stream 1-5s
         // en CADA mensaje antes de enrutar el modelo.
         hasImages ? Promise.resolve('VISION') : Promise.resolve(classifyByKeywords(enhancedMessage)),
+        ragPrefetch, // PERF-2: RAG corre en paralelo (resultado ignorado aquí)
       ]);
       history = dbHistory;
       intent = detectedIntent;
@@ -374,7 +388,15 @@ router.post('/', auth, planGuard, upload.array('files', 5), async (req, res) => 
 
     if (isMinerdQuery(minerdContext)) {
       try {
-        const retrieval = await searchMinerdChunks(enhancedMessage, { limit: 3 });
+        // PERF-2: consumir el prefetch hecho en paralelo con el historial;
+        // si no se disparó (el historial cambió la clasificación), consulta
+        // secuencial como antes.
+        const retrieval = ragPrefetch != null
+            ? await ragPrefetch
+            : await searchMinerdChunks(enhancedMessage, { limit: 3 });
+        if (!retrieval) {
+          throw new Error('rag_unavailable');
+        }
         contextChunks = adaptChunksForPrompt(retrieval.chunks);
         if (contextChunks.length > 0) {
           console.log(`[chat] Grounding MINERD: ${contextChunks.length} chunk(s) recuperado(s) para la consulta educativa`);

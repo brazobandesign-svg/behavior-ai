@@ -87,6 +87,9 @@ class AppState extends ChangeNotifier {
     onCancelVoiceRecording?.call();
   }
 
+  /// [F1] Sesión activa de streaming LLM: garantiza aislamiento atómico y descarta carreras
+  GenerationSession? _activeSession;
+
   bool _initializedSupabase = false;
 
   AppState({
@@ -188,7 +191,8 @@ class AppState extends ChangeNotifier {
       final event = data.event;
       if (event == AuthChangeEvent.signedIn ||
           event == AuthChangeEvent.initialSession) {
-        ChatService.cancelStream();
+        _activeSession?.cancel();
+        _activeSession = null;
         // Si el usuario acaba de iniciar sesión de cero (signedIn), limpiamos los mensajes.
         // En initialSession (arranque de app con sesión ya activa), no borramos los mensajes
         // optimistas que ya estén en pantalla o cargados desde caché para evitar parpadeos.
@@ -199,7 +203,8 @@ class AppState extends ChangeNotifier {
         }
         await loadUserData();
       } else if (event == AuthChangeEvent.signedOut) {
-        ChatService.cancelStream();
+        _activeSession?.cancel();
+        _activeSession = null;
         profile = null;
         conversations = [];
         activeConversation = null;
@@ -1164,12 +1169,22 @@ class AppState extends ChangeNotifier {
     }
 
     final msgId = 'asst-${DateTime.now().microsecondsSinceEpoch}';
+    final capturedConvId = activeConversation?.id;
+
+    // [F1] Cancelar cualquier sesión anterior y crear una sesión limpia con ID único
+    _activeSession?.cancel();
+    final session = GenerationSession(
+      id: ChatService.generateSessionId(),
+      conversationId: capturedConvId,
+    );
+    _activeSession = session;
+
     try {
       bool msgIsDegraded = false;
 
       await ChatService.sendMessageStream(
         message: text,
-        conversationId: shouldSaveHistory ? activeConversation?.id : null,
+        conversationId: shouldSaveHistory ? capturedConvId : null,
         history: (isIncognito || isGuestUser)
             ? currentMessages
                   .where((m) => !m.isThinking)
@@ -1179,7 +1194,9 @@ class AppState extends ChangeNotifier {
         modelOverride: selectedModel.modelId,
         attachments:
             attachments, // [Punto 40] adjuntos con bytes para multimodal
+        session: session, // [F1] Sesión atómica
         onMeta: (meta) {
+          if (session.isCancelled || _activeSession?.id != session.id) return;
           if (meta['isDegraded'] == true) {
             msgIsDegraded = true;
             final idx = currentMessages.indexWhere((m) => m.id == msgId);
@@ -1198,12 +1215,14 @@ class AppState extends ChangeNotifier {
           }
         },
         onChunk: (chunk) {
+          if (session.isCancelled || _activeSession?.id != session.id) return;
           // FIX jerky streaming: append directo al buffer del mensaje activo;
           // la lista y los listeners se actualizan a cadencia de frame (~33ms)
           // en lugar de reconstruirse por cada token.
           _handleStreamChunk(msgId, chunk, isDegraded: msgIsDegraded);
         },
         onComplete: (fullText, sources) async {
+          if (session.isCancelled || _activeSession?.id != session.id) return;
           _endStreamingMessage();
           isGenerating = false;
           if (!isGuestUser) {
@@ -1287,6 +1306,7 @@ class AppState extends ChangeNotifier {
           notifyListeners();
         },
         onError: (err) {
+          if (session.isCancelled || _activeSession?.id != session.id) return;
           _endStreamingMessage();
           _revertTokens(userTokensEst);
           currentMessages.removeWhere((m) => m.id == msgId || m.isThinking);
@@ -1306,6 +1326,7 @@ class AppState extends ChangeNotifier {
         },
       );
     } catch (e) {
+      if (session.isCancelled || _activeSession?.id != session.id) return;
       _endStreamingMessage();
       _revertTokens(userTokensEst);
       currentMessages.removeWhere((m) => m.id == msgId || m.isThinking);
@@ -1321,6 +1342,7 @@ class AppState extends ChangeNotifier {
           createdAt: DateTime.now(),
         ),
       );
+      notifyListeners();
     }
 
     notifyListeners();
@@ -1355,12 +1377,14 @@ class AppState extends ChangeNotifier {
   }
 
   /// Cancela el stream de generación en curso y limpia el estado de UI
+  /// Cancela el stream de generación en curso y limpia el estado de UI
   /// (isThinking, isGenerating, mensajes "thinking").
   /// **NO** añade ningún mensaje al chat. Use esto siempre que quiera
   /// parar la generación sin dejar texto residual.
   void _cancelGeneration() {
     _endStreamingMessage(); // materializa deltas pendientes y limpia timers
-    ChatService.cancelStream();
+    _activeSession?.cancel();
+    _activeSession = null;
     currentMessages.removeWhere((m) => m.isThinking);
     isThinking = false;
     isGenerating = false;
@@ -1434,7 +1458,7 @@ class AppState extends ChangeNotifier {
     for (final msg in queued) {
       if (!_isOnline) break; // Si se pierde la red a mitad de cola, detener
       try {
-        await localChatRepo.updateMessageStatus(msg.id, LocalMessageStatus.sent);
+        await localChatRepo.updateMessageStatus(msg.id, LocalMessageStatus.sending);
         // Si el mensaje ya estaba en currentMessages como placeholder, remover para evitar duplicado
         currentMessages.removeWhere((m) => m.id == msg.id);
 
@@ -1442,6 +1466,7 @@ class AppState extends ChangeNotifier {
           msg.content,
           attachments: msg.attachments.isNotEmpty ? msg.attachments : null,
         );
+        await localChatRepo.updateMessageStatus(msg.id, LocalMessageStatus.sent);
       } catch (e) {
         debugPrint('[Outbox] Error enviando mensaje en cola: $e');
         await localChatRepo.updateMessageStatus(msg.id, LocalMessageStatus.failed);
