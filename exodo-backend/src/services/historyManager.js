@@ -18,15 +18,17 @@ async function getHistory(conversationId, limit = 10, maxTokens = 6000) {
   if (!conversationId || !supabase) return [];
 
   try {
+    // P1-4: Descargar únicamente los 30 turnos más recientes en SQL
     const { data, error } = await supabase
       .from('messages')
       .select('role, content, created_at')
       .eq('conversation_id', conversationId)
-      .order('created_at', { ascending: true });
+      .order('created_at', { ascending: false })
+      .limit(30);
 
     if (error || !data) return [];
 
-    // Defensive sort: garantizar orden cronológico estable
+    // Defensive sort: restaurar orden cronológico ascendente estable
     const sorted = [...data].sort((a, b) => {
       const ta = new Date(a.created_at).getTime();
       const tb = new Date(b.created_at).getTime();
@@ -167,6 +169,7 @@ async function saveMessage(conversationId, role, content, metadata = {}) {
  * - Si conversationId no está especificado o el usuario es anónimo/invitado, omite la validación.
  * - Si la conversación no existe aún en la base de datos (creación optimista en cliente), permite continuar.
  * - Si la conversación existe en Supabase pero pertenece a otro user_id, lanza error 403 Forbidden.
+ * - P0-5: Fail-Closed. En caso de error de BD o excepción, rechaza con 503/500 en lugar de permitir acceso.
  * @param {string} userId - UUID del usuario autenticado (req.user.userId)
  * @param {string} conversationId - UUID de la conversación
  * @returns {Promise<boolean>}
@@ -183,7 +186,10 @@ async function assertConversationOwner(userId, conversationId) {
 
     if (error) {
       console.error('[historyManager] Error verificando propiedad de conversación:', error.message);
-      return true; // En caso de fallo transitorio de BD
+      const err = new Error('Error al validar propiedad de la conversación');
+      err.status = 503;
+      err.code = 'DATABASE_UNAVAILABLE';
+      throw err;
     }
 
     // Si la conversación existe y su user_id no coincide con el usuario autenticado -> 403 Forbidden
@@ -196,9 +202,11 @@ async function assertConversationOwner(userId, conversationId) {
 
     return true;
   } catch (err) {
-    if (err.status === 403) throw err;
+    if (err.status) throw err;
     console.error('[historyManager] assertConversationOwner error:', err.message);
-    return true;
+    const fallbackErr = new Error('Error de validación de seguridad');
+    fallbackErr.status = 500;
+    throw fallbackErr;
   }
 }
 

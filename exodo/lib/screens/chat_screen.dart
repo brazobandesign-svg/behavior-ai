@@ -25,6 +25,7 @@ class _ChatScreenState extends State<ChatScreen>
     with TickerProviderStateMixin, WidgetsBindingObserver {
   final _inputCtrl = TextEditingController();
   final _scrollCtrl = ScrollController();
+  final _followBottomNotifier = ValueNotifier<bool>(true);
   late AnimationController _thinkingAnimCtrl;
   late AnimationController _ambientBgCtrl;
   late AnimationController _pulseCtrl;
@@ -86,6 +87,7 @@ class _ChatScreenState extends State<ChatScreen>
     WidgetsBinding.instance.removeObserver(this);
     _inputCtrl.dispose();
     _scrollCtrl.dispose();
+    _followBottomNotifier.dispose();
     _thinkingAnimCtrl.dispose();
     _ambientBgCtrl.dispose();
     _pulseCtrl.dispose();
@@ -152,6 +154,7 @@ class _ChatScreenState extends State<ChatScreen>
                       scrollCtrl: _scrollCtrl,
                       pulseAnim: _pulseCtrl,
                       isLight: isLight,
+                      followBottomNotifier: _followBottomNotifier,
                     ),
                     // Degradado inferior (borrado suave para que el texto fluya sin corte brusco)
                     Positioned(
@@ -190,6 +193,7 @@ class _ChatScreenState extends State<ChatScreen>
                       bottom: 240,
                       child: _ScrollToBottomHostSelector(
                         controller: _scrollCtrl,
+                        followBottomNotifier: _followBottomNotifier,
                       ),
                     ),
                     // Barra inferior entrelazada del Tab 1 (SIEMPRE en su sitio exacto flotando)
@@ -255,12 +259,14 @@ class ChatMessagesList extends StatefulWidget {
   final ScrollController scrollCtrl;
   final AnimationController pulseAnim;
   final bool isLight;
+  final ValueNotifier<bool> followBottomNotifier;
 
   const ChatMessagesList({
     super.key,
     required this.scrollCtrl,
     required this.pulseAnim,
     required this.isLight,
+    required this.followBottomNotifier,
   });
 
   @override
@@ -269,15 +275,40 @@ class ChatMessagesList extends StatefulWidget {
 
 class _ChatMessagesListState extends State<ChatMessagesList> {
   int _lastMessageCount = 0;
-  bool _followStreamingBottom = true;
+
+  @override
+  void initState() {
+    super.initState();
+    widget.followBottomNotifier.addListener(_onFollowToggled);
+  }
+
+  @override
+  void didUpdateWidget(covariant ChatMessagesList oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.followBottomNotifier != widget.followBottomNotifier) {
+      oldWidget.followBottomNotifier.removeListener(_onFollowToggled);
+      widget.followBottomNotifier.addListener(_onFollowToggled);
+    }
+  }
+
+  @override
+  void dispose() {
+    widget.followBottomNotifier.removeListener(_onFollowToggled);
+    super.dispose();
+  }
+
+  void _onFollowToggled() {
+    if (widget.followBottomNotifier.value) {
+      _scrollToBottom();
+    }
+  }
 
   void _scrollToBottom() {
-    _followStreamingBottom = true;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (widget.scrollCtrl.hasClients) {
         widget.scrollCtrl.animateTo(
           widget.scrollCtrl.position.maxScrollExtent,
-          duration: const Duration(milliseconds: 280),
+          duration: const Duration(milliseconds: 250),
           curve: Curves.easeOut,
         );
       }
@@ -292,16 +323,16 @@ class _ChatMessagesListState extends State<ChatMessagesList> {
 
     if (state.currentMessages.length > _lastMessageCount) {
       _lastMessageCount = state.currentMessages.length;
-      _followStreamingBottom = true;
+      widget.followBottomNotifier.value = true;
       _scrollToBottom();
     } else {
       _lastMessageCount = state.currentMessages.length;
-      if (_followStreamingBottom && state.isGenerating) {
+      if (widget.followBottomNotifier.value && state.isGenerating) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (_followStreamingBottom &&
+          if (widget.followBottomNotifier.value &&
               state.isGenerating &&
               widget.scrollCtrl.hasClients) {
-            if (widget.scrollCtrl.position.extentAfter > 2) {
+            if (widget.scrollCtrl.position.extentAfter > 1) {
               widget.scrollCtrl.jumpTo(
                 widget.scrollCtrl.position.maxScrollExtent,
               );
@@ -349,16 +380,13 @@ class _ChatMessagesListState extends State<ChatMessagesList> {
 
     return NotificationListener<ScrollNotification>(
       onNotification: (notification) {
-        if (notification is ScrollStartNotification &&
-            notification.dragDetails != null) {
-          _followStreamingBottom = false;
-        } else if (notification is ScrollUpdateNotification &&
-            notification.dragDetails != null) {
-          _followStreamingBottom = false;
-        } else if (notification is UserScrollNotification &&
-            notification.direction != ScrollDirection.idle &&
-            widget.scrollCtrl.position.isScrollingNotifier.value) {
-          _followStreamingBottom = false;
+        if (notification is UserScrollNotification &&
+            notification.direction == ScrollDirection.forward &&
+            notification.metrics.extentBefore > 40) {
+          // El usuario scrolleó hacia arriba: desanclar seguimiento automático
+          if (widget.followBottomNotifier.value) {
+            widget.followBottomNotifier.value = false;
+          }
         }
         return false;
       },
@@ -499,8 +527,10 @@ class _LongConversationBannerState extends State<_LongConversationBanner> {
 /// al padre (_ChatScreenState) a reconstruirse en cada chunk.
 class _ScrollToBottomHostSelector extends StatelessWidget {
   final ScrollController controller;
+  final ValueNotifier<bool> followBottomNotifier;
   const _ScrollToBottomHostSelector({
     required this.controller,
+    required this.followBottomNotifier,
   });
 
   @override
@@ -511,6 +541,9 @@ class _ScrollToBottomHostSelector extends StatelessWidget {
     return ScrollToBottomButton(
       controller: controller,
       messagesCount: messagesCount,
+      onPressed: () {
+        followBottomNotifier.value = true;
+      },
     );
   }
 }

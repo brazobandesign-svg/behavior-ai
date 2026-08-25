@@ -281,15 +281,6 @@ const List<ExodoModelOption> exodoModels = [
     description: 'Razonamiento avanzado para tareas exigentes.',
     descriptionEn: 'Advanced reasoning for demanding tasks.',
   ),
-  ExodoModelOption(
-    id: 'kimi',
-    modelId: 'kimi-k3',
-    title: 'K3',
-    subtitle: 'Kimi (1M)',
-    plan: 'genesis',
-    description: 'Ventana de 1M de tokens para libros y documentos extensos.',
-    descriptionEn: '1M tokens context for large documents and books.',
-  ),
 ];
 
 /// [Punto 40] Datos de un archivo adjunto listo para enviar a la API.

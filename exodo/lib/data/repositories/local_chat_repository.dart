@@ -234,22 +234,29 @@ class LocalChatRepository {
         '[LocalChatRepo] replaceMessages convId=$conversationId totalMsgs=${messages.length} msgsWithAttachments=$attCount',
       );
     }
-    final queuedRows = await db.messagesDao.getQueuedMessages();
-    final keptQueued = queuedRows
-        .where((q) => q.conversationId == conversationId)
-        .map(_toDomainMessage)
-        .where((q) => !messages.any((m) => m.id == q.id))
-        .toList();
-    await db.messagesDao.deleteByConversation(conversationId);
-    final all = [...messages, ...keptQueued];
-    if (all.isNotEmpty) {
-      await saveMessages(conversationId, all);
-    }
-    // saveMessages no persiste el status (usa el default 'pending');
-    // restaurar 'queued' para que el flush offline vuelva a encontrarlos.
-    for (final q in keptQueued) {
-      await db.messagesDao.updateStatus(q.id, LocalMessageStatus.queued);
-    }
+    // Qwen 1.1: Envolver en transaccion atomica de base de datos Drift para evitar borrado accidental si falla la insercion
+    await db.transaction(() async {
+      final queuedRows = await db.messagesDao.getQueuedMessages();
+      final keptQueued = queuedRows
+          .where((q) => q.conversationId == conversationId)
+          .map(_toDomainMessage)
+          .where((q) => !messages.any((m) => m.id == q.id))
+          .toList();
+      await db.messagesDao.deleteByConversation(conversationId);
+      final all = [...messages, ...keptQueued];
+      if (all.isNotEmpty) {
+        await saveMessages(conversationId, all);
+      }
+      // saveMessages no persiste el status (usa el default 'pending');
+      // restaurar 'queued' para que el flush offline vuelva a encontrarlos.
+      for (final q in keptQueued) {
+        await db.messagesDao.updateStatus(q.id, LocalMessageStatus.queued);
+      }
+    });
+  }
+
+  Future<void> deleteMessageById(String id) async {
+    await db.messagesDao.deleteById(id);
   }
 
   Future<void> updateMessageContent(

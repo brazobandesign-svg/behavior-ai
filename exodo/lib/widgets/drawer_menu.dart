@@ -653,12 +653,39 @@ void _showAddWidgetSheet(BuildContext context) {
     final active = state.activeConversation?.id == conv.id;
 
     return Container(
-      margin: EdgeInsets.symmetric(horizontal: (hPad - s(10)).clamp(0.0, 10.0), vertical: 1),
+      margin: EdgeInsets.symmetric(horizontal: (hPad - s(10)).clamp(0.0, 10.0), vertical: 2),
+      decoration: active
+          ? BoxDecoration(
+              color: isLight ? const Color(0xFFE6E6EB) : const Color(0xFF2C2C30),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: isLight ? const Color(0xFFD0D0D5) : ExodoColors.amber.withValues(alpha: 0.4),
+                width: 1.2,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: isLight ? 0.04 : 0.25),
+                  blurRadius: 6,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            )
+          : null,
       child: ListTile(
         dense: true,
-        contentPadding: EdgeInsets.symmetric(horizontal: s(12)),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        tileColor: active ? (isLight ? const Color(0xFFF0F0F0) : const Color(0xFF212121)) : Colors.transparent,
+        contentPadding: EdgeInsets.symmetric(horizontal: s(10), vertical: 1),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        leading: active
+            ? Container(
+                width: 4,
+                height: 20,
+                decoration: BoxDecoration(
+                  color: ExodoColors.amber,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              )
+            : null,
+        minLeadingWidth: active ? 4 : 0,
         onTap: () {
           state.selectConversation(conv);
           Navigator.pop(context);
@@ -671,15 +698,18 @@ void _showAddWidgetSheet(BuildContext context) {
           (conv.title == 'New chat' || conv.title == 'Nuevo chat' || conv.title == 'Nueva conversación' || conv.title == 'Nova conversa' || conv.title == 'Nouvelle conversation' || conv.title == 'Nuova chat' || conv.title == 'Neuer Chat' || conv.title == 'New conversation' || conv.title == 'Sin título') ? AppI18n.of(context).t('drawer.new_chat') : conv.title,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
-          style: TextStyle(fontFamily: 'AnthropicSans', 
-            fontSize: s(13),
-            fontWeight: active ? FontWeight.w600 : FontWeight.normal,
-            color: active ? (isLight ? Colors.black : ExodoColors.textPrimary) : (isLight ? const Color(0xFF171615) : ExodoColors.textPrimary),
+          style: TextStyle(
+            fontFamily: 'AnthropicSans', 
+            fontSize: s(13.5),
+            fontWeight: active ? FontWeight.w700 : FontWeight.normal,
+            color: active
+                ? (isLight ? Colors.black : Colors.white)
+                : (isLight ? const Color(0xFF555555) : const Color(0xFFB0B0B0)),
             letterSpacing: -0.1,
           ),
         ),
         trailing: isStarred
-            ? Icon(Icons.push_pin_rounded, size: s(14), color: isLight ? Colors.black54 : Colors.white70)
+            ? Icon(Icons.push_pin_rounded, size: s(14), color: active ? ExodoColors.amber : (isLight ? Colors.black54 : Colors.white60))
             : null,
       ),
     );
