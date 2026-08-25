@@ -312,8 +312,17 @@ class ChatService {
       String fullText = '';
       List<Source> sources = [];
       bool isCompleted = false;
+      bool errorSurfaced = false;
 
-      response.stream
+      // C4: watchdog de inactividad — si el servidor no manda NADA en 45s
+      // (red muerta en silencio), cortamos en vez de dejar "pensando" eterno.
+      final watchedStream = response.stream.timeout(
+        const Duration(seconds: 45),
+        onTimeout: (sink) =>
+            sink.addError(TimeoutException('Sin datos del servidor por 45s')),
+      );
+
+      watchedStream
           .transform(utf8.decoder)
           .transform(const LineSplitter())
           .listen(
@@ -339,6 +348,9 @@ class ChatService {
                     }
                   } else if (type == 'done') {
                     if (isCompleted) return;
+                    // C5: si ya se surfaceó un error, ignorar el done para no
+                    // crear una burbuja assistant VACÍA después del error.
+                    if (errorSurfaced) return;
                     isCompleted = true;
                     final msg = data['message'] as String? ?? fullText;
                     final rawSources = data['sources'];
@@ -365,6 +377,7 @@ class ChatService {
                         });
                   } else if (type == 'error') {
                     if (!activeSession.isCancelled) {
+                      errorSurfaced = true;
                       onError(data['content'] as String? ?? 'Error en streaming');
                     }
                   }
@@ -372,15 +385,23 @@ class ChatService {
               }
             },
             onDone: () {
-              if (!activeSession.isCancelled && !isCompleted && fullText.isNotEmpty) {
+              if (activeSession.isCancelled || isCompleted || errorSurfaced) {
+                return;
+              }
+              if (fullText.isNotEmpty) {
                 isCompleted = true;
                 onComplete(fullText, sources);
-              } else if (!activeSession.isCancelled && !isCompleted && fullText.isEmpty) {
+              } else {
                 onError('La conexión se cerró inesperadamente.');
               }
             },
             onError: (e) {
-              if (!activeSession.isCancelled) onError(e.toString());
+              if (activeSession.isCancelled || errorSurfaced) return;
+              if (e is TimeoutException) {
+                onError('La conexión se quedó sin respuesta. Inténtalo de nuevo.');
+                return;
+              }
+              onError(e.toString());
             },
           );
     } catch (e) {

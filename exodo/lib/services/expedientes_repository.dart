@@ -271,6 +271,26 @@ class ExpedientesRepository {
       ).timeout(const Duration(seconds: 10)).then((response) {
         if (response.statusCode == 201) {
           debugPrint('[ExpedientesRepository] Expediente sincronizado en Supabase.');
+          // C3: reconciliar identidad — la nube asignó su propio UUID; sustituir
+          // la fila local provisional por la oficial para que el merge del listado
+          // no produzca DUPLICADOS del mismo documento.
+          try {
+            final cloud = Expediente.fromJson(
+              jsonDecode(response.body) as Map<String, dynamic>,
+            );
+            if (cloud.id.isNotEmpty && cloud.id != localExpediente.id) {
+              () async {
+                final list = await _loadLocal();
+                list.removeWhere((e) => e.id == localExpediente.id);
+                if (!list.any((e) => e.id == cloud.id)) {
+                  list.insert(0, cloud);
+                }
+                await _saveLocal(list);
+              }();
+            }
+          } catch (e) {
+            debugPrint('[ExpedientesRepository] Reconciliación de id falló: $e');
+          }
         }
       }).catchError((e) {
         debugPrint('[ExpedientesRepository] Sync error (esperado si tabla aún no existe): $e');

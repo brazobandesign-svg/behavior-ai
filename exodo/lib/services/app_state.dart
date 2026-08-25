@@ -1415,12 +1415,17 @@ class AppState extends ChangeNotifier {
     await localChatRepo.updateMessageContent(id, newContent);
     if (!isIncognito && !isGuestUser && activeConversation != null) {
       try {
+        // C6: acotar el update por VENTANA DE TIEMPO del mensaje editado.
+        // Matchear solo por contenido tocaba TODAS las filas idénticas.
+        final t = currentMessages[idx].createdAt;
         await SupabaseService.client
             .from('messages')
             .update({'content': newContent})
             .eq('conversation_id', activeConversation!.id)
             .eq('role', 'user')
-            .eq('content', oldContent);
+            .eq('content', oldContent)
+            .gte('created_at', t.toUtc().subtract(const Duration(seconds: 10)).toIso8601String())
+            .lte('created_at', t.toUtc().add(const Duration(seconds: 10)).toIso8601String());
       } catch (_) {}
     }
   }
@@ -1670,6 +1675,18 @@ class AppState extends ChangeNotifier {
       if (!_isOnline) break; // Si se pierde la red a mitad de cola, detener
       try {
         await localChatRepo.updateMessageStatus(msg.id, LocalMessageStatus.sending);
+        // C2: reenviar al chat ORIGEN del mensaje, no al que esté abierto.
+        // Sin esto, un encolado del chat A aterrizaba en el chat B activo.
+        final targetId = msg.conversationId;
+        if (targetId.isNotEmpty && activeConversation?.id != targetId) {
+          final tIdx = conversations.indexWhere((c) => c.id == targetId);
+          if (tIdx == -1) {
+            // La conversación origen ya no existe: no hay dónde entregarlo.
+            await localChatRepo.updateMessageStatus(msg.id, LocalMessageStatus.failed);
+            continue;
+          }
+          await selectConversation(conversations[tIdx]);
+        }
         // Si el mensaje ya estaba en currentMessages como placeholder, remover para evitar duplicado
         currentMessages.removeWhere((m) => m.id == msg.id);
 
