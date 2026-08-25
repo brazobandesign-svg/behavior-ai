@@ -294,7 +294,10 @@ router.post('/tts', auth, requireVoiceUser, async (req, res, next) => {
     return res.status(200).send(audio.buffer);
   } catch (err) {
     console.error('[voice] TTS error:', err.message);
-    return res.status(500).json({ error: 'tts_generation_failed', message: err.message });
+    return res.status(502).json({
+      error: 'tts_generation_failed',
+      message: 'No se pudo generar el audio de voz. Por favor intenta de nuevo.',
+    });
   }
 });
 

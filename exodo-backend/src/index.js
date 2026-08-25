@@ -112,9 +112,12 @@ function runStartupChecks() {
   const { ALIBABA_CONFIG } = require('./config/models');
   const checks = [];
 
-  const hasAlibabaKey = process.env.ALIBABA_FREE_KEY || process.env.ALIBABA_API_KEY || ALIBABA_CONFIG.apiKey;
+  const hasAlibabaKey = process.env.DASHSCOPE_API_KEY ||
+                        process.env.ALIBABA_FREE_KEY ||
+                        process.env.ALIBABA_API_KEY ||
+                        ALIBABA_CONFIG.apiKey;
   if (!hasAlibabaKey) {
-    checks.push('⚠️  ALIBABA_API_KEY / ALIBABA_FREE_KEY no configurada — Modelos Free Tier no disponibles.');
+    checks.push('⚠️  DASHSCOPE_API_KEY / ALIBABA_API_KEY no configurada — Modelos Free Tier no disponibles.');
   }
   if (!process.env.GEMINI_API_KEY && !process.env.GOOGLE_API_KEY) {
     checks.push('⚠️  GEMINI_API_KEY / GOOGLE_API_KEY no configurada — Fallback de emergencia no disponible.');

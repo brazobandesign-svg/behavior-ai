@@ -5,8 +5,11 @@ const https = require('https');
 
 const router = express.Router();
 
-const ALIBABA_ENDPOINT = 'https://ws-x44vk2jvhv02xmc9.ap-southeast-1.maas.aliyuncs.com/compatible-mode/v1/chat/completions';
-const DEFAULT_KEY = process.env.ALIBABA_FREE_KEY || process.env.ALIBABA_API_KEY || 'sk-ws-H.DMYYXPE.O2s7.MEUCIGmY0b-amWFya_lKycZq8PsSSY5Oz8mK5-yWPwClhkD0AiEApnaqbz677_eGczcdvmh9urCcUO8MaE8FcZyWzLcNNOI';
+const ALIBABA_ENDPOINT = process.env.ALIBABA_KIMI_ENDPOINT || 'https://dashscope-intl.aliyuncs.com/compatible-mode/v1/chat/completions';
+const DEFAULT_KEY = process.env.DASHSCOPE_API_KEY ||
+                    process.env.ALIBABA_FREE_KEY ||
+                    process.env.ALIBABA_API_KEY ||
+                    '';
 
 /**
  * POST /api/copilot/kimi or /api/copilot/chat/completions

@@ -33,7 +33,10 @@ router.post('/generate', auth, planGuard, chatRateLimiter, async (req, res) => {
     });
   } catch (err) {
     console.error('[images] Error generando imagen:', err.message);
-    return res.status(500).json({ error: 'image_generation_failed', message: err.message });
+    return res.status(502).json({
+      error: 'image_generation_failed',
+      message: 'No se pudo generar la imagen. Por favor intenta de nuevo.',
+    });
   }
 });
 
