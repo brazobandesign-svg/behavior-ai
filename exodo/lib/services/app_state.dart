@@ -1360,10 +1360,12 @@ class AppState extends ChangeNotifier {
       intentDetected: currentMessages[idx].intentDetected,
       modelCalled: currentMessages[idx].modelCalled,
       sources: currentMessages[idx].sources,
+      attachments: currentMessages[idx].attachments,
       createdAt: currentMessages[idx].createdAt,
       isThinking: currentMessages[idx].isThinking,
     );
     notifyListeners();
+    await localChatRepo.updateMessageContent(id, newContent);
     if (!isIncognito && !isGuestUser && activeConversation != null) {
       try {
         await SupabaseService.client
@@ -1373,6 +1375,163 @@ class AppState extends ChangeNotifier {
             .eq('role', 'user')
             .eq('content', oldContent);
       } catch (_) {}
+    }
+  }
+
+  /// [F4] Edita un mensaje enviado por el usuario, limpia la respuesta vieja y regenera una nueva respuesta.
+  Future<void> editAndRegenerateUserMessage(
+    ChatMessage originalMsg,
+    String newContent,
+  ) async {
+    if (newContent.trim().isEmpty) return;
+
+    // 1. Cancelar cualquier generación activa previa
+    _cancelGeneration();
+
+    // 2. Encontrar índice del mensaje del usuario
+    final userIdx = currentMessages.indexWhere((m) => m.id == originalMsg.id);
+    if (userIdx == -1) return;
+
+    final editedUserMsg = ChatMessage(
+      id: originalMsg.id,
+      conversationId: originalMsg.conversationId,
+      role: originalMsg.role,
+      content: newContent.trim(),
+      intentDetected: originalMsg.intentDetected,
+      modelCalled: originalMsg.modelCalled,
+      sources: originalMsg.sources,
+      attachments: originalMsg.attachments,
+      createdAt: originalMsg.createdAt,
+      isThinking: false,
+      isDegraded: false,
+    );
+
+    // 3. Truncar mensajes posteriores (eliminar respuestas viejas)
+    currentMessages = currentMessages.sublist(0, userIdx + 1);
+    currentMessages[userIdx] = editedUserMsg;
+
+    // 4. Actualizar en SQLite (Drift)
+    await localChatRepo.updateMessageContent(
+      editedUserMsg.id,
+      editedUserMsg.content,
+    );
+    if (activeConversation != null) {
+      await localChatRepo.db.messagesDao.deleteAfter(
+        activeConversation!.id,
+        editedUserMsg.createdAt,
+      );
+    }
+
+    notifyListeners();
+
+    final shouldSaveHistory = !isIncognito && !isGuestUser;
+
+    // 5. Iniciar generación de la nueva respuesta
+    final asstMsgId = 'asst-${DateTime.now().microsecondsSinceEpoch}';
+    final capturedConvId = activeConversation?.id;
+
+    isThinking = true;
+    isGenerating = true;
+    final thinkingMsg = ChatMessage(
+      id: 'thinking',
+      conversationId: capturedConvId ?? 'guest',
+      role: 'assistant',
+      content: '',
+      createdAt: DateTime.now(),
+      isThinking: true,
+    );
+    currentMessages.add(thinkingMsg);
+    notifyListeners();
+
+    final session = GenerationSession(
+      id: ChatService.generateSessionId(),
+      conversationId: capturedConvId,
+    );
+    _activeSession = session;
+
+    try {
+      bool msgIsDegraded = false;
+      await ChatService.sendMessageStream(
+        message: newContent.trim(),
+        conversationId:
+            (shouldSaveHistory && activeConversation != null)
+                ? capturedConvId
+                : null,
+        history:
+            (isIncognito || isGuestUser)
+                ? currentMessages
+                    .where((m) => !m.isThinking && m.id != asstMsgId)
+                    .map((m) => {'role': m.role, 'content': m.content})
+                    .toList()
+                : null,
+        modelOverride: selectedModel.modelId,
+        attachments: editedUserMsg.attachments,
+        session: session,
+        onMeta: (meta) {
+          if (session.isCancelled || _activeSession?.id != session.id) return;
+          if (meta['isDegraded'] == true) {
+            msgIsDegraded = true;
+          }
+        },
+        onChunk: (chunk) {
+          if (session.isCancelled || _activeSession?.id != session.id) return;
+          _handleStreamChunk(asstMsgId, chunk, isDegraded: msgIsDegraded);
+        },
+        onComplete: (fullText, sources) async {
+          if (session.isCancelled || _activeSession?.id != session.id) return;
+          _endStreamingMessage();
+          isGenerating = false;
+          if (!isGuestUser) {
+            tokensUsed += (fullText.length ~/ 3) + 35;
+          }
+
+          final finalMsg = ChatMessage(
+            id: asstMsgId,
+            conversationId: capturedConvId ?? 'guest',
+            role: 'assistant',
+            content: fullText,
+            sources: sources,
+            createdAt: DateTime.now(),
+            isDegraded: msgIsDegraded,
+          );
+
+          if (shouldSaveHistory && activeConversation != null) {
+            await localChatRepo.saveMessage(finalMsg);
+            if (!isGuestUser && !isIncognito) {
+              SupabaseService.client
+                  .from('messages')
+                  .insert({
+                    'conversation_id': activeConversation!.id,
+                    'role': 'assistant',
+                    'content': fullText,
+                  })
+                  .then((_) {})
+                  .catchError((_) {});
+            }
+          }
+          notifyListeners();
+        },
+        onError: (err) {
+          if (session.isCancelled || _activeSession?.id != session.id) return;
+          _endStreamingMessage();
+          isGenerating = false;
+          final idx = currentMessages.indexWhere((m) => m.id == asstMsgId);
+          if (idx != -1) {
+            currentMessages[idx] = ChatMessage(
+              id: asstMsgId,
+              conversationId: capturedConvId ?? 'guest',
+              role: 'assistant',
+              content: '⚠️ $err',
+              createdAt: DateTime.now(),
+            );
+          }
+          notifyListeners();
+        },
+      );
+    } catch (_) {
+      isGenerating = false;
+      _endStreamingMessage();
+      notifyListeners();
     }
   }
 

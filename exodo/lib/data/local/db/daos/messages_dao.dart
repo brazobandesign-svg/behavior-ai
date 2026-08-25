@@ -62,6 +62,18 @@ class MessagesDao extends DatabaseAccessor<AppDatabase> with _$MessagesDaoMixin 
     return (delete(localMessages)..where((t) => t.conversationId.equals(conversationId))).go();
   }
 
+  /// Elimina los mensajes posteriores a una fecha dentro de una conversación (útil al editar/regenerar).
+  Future<void> deleteAfter(String conversationId, DateTime date) {
+    return (delete(localMessages)
+          ..where((t) => t.conversationId.equals(conversationId) & t.createdAt.isBiggerThanValue(date)))
+        .go();
+  }
+
+  /// Elimina un mensaje por su ID.
+  Future<void> deleteById(String id) {
+    return (delete(localMessages)..where((t) => t.id.equals(id))).go();
+  }
+
   /// Elimina todos los mensajes locales.
   Future<void> deleteAll() {
     return delete(localMessages).go();
