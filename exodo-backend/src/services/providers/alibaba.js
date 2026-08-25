@@ -34,6 +34,9 @@ function resolveModelName(modelId) {
   if (m === 'qwq') {
     return ALIBABA_CONFIG.models.hazakReasonerFallback; // qwq-plus
   }
+  if (m === 'kimi' || m === 'kimi-k3' || m === 'kimi-k3-1m' || m === 'moonshot' || m === 'moonshot-v1-1m') {
+    return 'kimi-k3';
+  }
 
   return modelId;
 }

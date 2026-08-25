@@ -16,6 +16,7 @@ const ALIBABA_CONFIG = {
     reasonerPrimary: 'qwq-plus',                 // Razonamiento lógico profundo y matemáticas
     coderPrimary: 'qwen3-coder-plus-2025-07-22', // Generación de código y artefactos interactivos
     visionPrimary: 'qwen-vl-max',                // Análisis de imágenes, visión multimodal y OCR
+    kimiPrimary: 'kimi-k3',                      // Kimi K3 (Moonshot AI) con 1M tokens de contexto
 
     // RAG MINERD y Embeddings
     embeddingModel: 'text-embedding-v4',
@@ -150,6 +151,10 @@ const MODEL_TO_PROVIDER = {
   'deepseek-v4-flash':              'alibaba',
   'deepseek-chat':                  'alibaba',
   'deepseek-reasoner':              'alibaba',
+  'kimi-k3':                        'alibaba',
+  'kimi-k3-1m':                     'alibaba',
+  'moonshot-v1-1m':                 'alibaba',
+  'moonshot-v1-128k':               'alibaba',
 };
 
 module.exports = {
