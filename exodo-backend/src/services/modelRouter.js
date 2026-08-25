@@ -51,7 +51,7 @@ function getExecutionChain(plan, intent, modelOverride, imageDataUris, taskType)
     ];
   }
 
-  // 4. Razonamiento Profundo y Matemáticas (con fallback robusto para evitar timeouts)
+  // 4. Razonamiento Profundo y Matemáticas (con fallback robusto)
   if (intent === 'RAZONAMIENTO' || taskType === 'reasoning') {
     return [
       ALIBABA_CONFIG.models.reasonerPrimary, // qwq-plus
@@ -60,7 +60,15 @@ function getExecutionChain(plan, intent, modelOverride, imageDataUris, taskType)
     ];
   }
 
-  // 5. Texto General, Conversación y Redacción (1 solo modelo unificado para ambos planes con fallback robusto)
+  // 5. Conversación Simple, Saludos y Consultas Directas (Respuesta Instantánea <200ms sin lag de thinking)
+  if (intent === 'SIMPLE' || taskType === 'simple') {
+    return [
+      ALIBABA_CONFIG.models.fastPrimary || 'qwen3.7-flash-2026-07-15',
+      ALIBABA_CONFIG.models.textPrimary,
+    ];
+  }
+
+  // 6. Redacción Compleja, Ensayos y Texto Extenso (Máxima Elocuencia)
   return [
     ALIBABA_CONFIG.models.textPrimary,  // qwen3.7-max-2026-05-20
     ALIBABA_CONFIG.models.textFallback, // qwen3.6-plus-2026-04-02
@@ -74,7 +82,7 @@ function getEffectiveModel(plan, intent, modelOverride, imageDataUris, taskType)
     modelId: chain[0],
     fallbackChain: chain,
     isEco: false,
-    maxTokens: (plan === 'pro' || plan === 'hazak') ? 8192 : 4096,
+    maxTokens: 8192,
   };
 }
 
@@ -84,7 +92,7 @@ function getEffectiveModel(plan, intent, modelOverride, imageDataUris, taskType)
 async function routeMessage(plan, intent, messages, systemPrompt, modelOverride, imageDataUris, taskType, isDegraded = false, isGuest = false, signal = null) {
   const chain = getExecutionChain(plan, intent, modelOverride, imageDataUris, taskType);
   const options = {
-    max_tokens: (plan === 'pro' || plan === 'hazak') ? 8192 : 4096,
+    max_tokens: 8192,
     signal,
     imageDataUris: Array.isArray(imageDataUris) ? imageDataUris : [],
   };
@@ -158,7 +166,7 @@ async function routeMessageStream(plan, intent, messages, systemPrompt, onChunk,
     }
 
     const attemptOptions = {
-      max_tokens: (plan === 'pro' || plan === 'hazak') ? 8192 : 4096,
+      max_tokens: 8192,
       signal: attemptCtrl.signal,
       imageDataUris: Array.isArray(imageDataUris) ? imageDataUris : [],
     };

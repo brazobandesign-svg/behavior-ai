@@ -223,10 +223,7 @@ class _ChatComposerState extends State<ChatComposer>
     // Timeout de 59 segundos si la sesión se queda abierta.
     _sessionCapTimer?.cancel();
     _sessionCapTimer = Timer(_kVoiceSessionMax, () {
-      if (!_isRecording) return;
-      if (_isStoppingVoice) {
-        _isStoppingVoice = false;
-      }
+      if (!_isRecording || _isStoppingVoice) return;
       debugPrint('[VOZ] 59s alcanzados sin confirmación: deteniendo automáticamente');
       unawaited(_stopAndTranscribe());
     });
@@ -380,10 +377,11 @@ class _ChatComposerState extends State<ChatComposer>
     // Conversión a dBFS logarítmico [-96.0 a 0.0]
     final dbfs = 20.0 * (math.log(rms / 32768.0) / math.ln10);
 
-    // Noise Gate estricto estilo Gemini/ChatGPT: piso en -35 dBFS
-    // Cualquier ruido ambiente/ventilador por debajo de -35 dBFS queda en 0.0 absoluto
-    const noiseFloorDb = -35.0;
-    const gateRangeDb = 22.0; // Rango dinámico útil (-35 a -13 dBFS)
+    // P1-1: Noise Gate dinámico adaptado al piso calibrado de la sala.
+    // Si la sala es silenciosa (_vadThresholdDb ~ -45dB), la visualización
+    // no se queda truncada en -35dB sino que responde fielmente a la voz.
+    final noiseFloorDb = _calibrating ? -35.0 : (_vadThresholdDb - 4.0).clamp(-52.0, -25.0);
+    const gateRangeDb = 24.0; // Rango dinámico útil sobre el piso
 
     if (dbfs < noiseFloorDb) {
       return 0.0; // Silencio absoluto -> onda plana (3.0px)
@@ -391,8 +389,8 @@ class _ChatComposerState extends State<ChatComposer>
 
     final gated = ((dbfs - noiseFloorDb) / gateRangeDb).clamp(0.0, 1.0);
 
-    // Curva de expansión cuadrática (potencia 2.0): suprime 100% de ruido y abre con voz real
-    final visual = math.pow(gated, 2.0).clamp(0.0, 1.0).toDouble();
+    // Curva de expansión cuadrática (potencia 1.8): abre reactivamente con voz real
+    final visual = math.pow(gated, 1.8).clamp(0.0, 1.0).toDouble();
     return visual;
   }
 
@@ -1653,12 +1651,18 @@ class _ChatComposerState extends State<ChatComposer>
                                               children: [
                                                 Flexible(
                                                   child: Text(
-                                                    selectedModel.title,
+                                                    state.chatMode == 'flash'
+                                                        ? '${selectedModel.title} · Flash'
+                                                        : (state.chatMode == 'deep'
+                                                            ? '${selectedModel.title} · Deep'
+                                                            : selectedModel.title),
                                                     overflow:
                                                         TextOverflow.ellipsis,
                                                     style:
-                                                        TextStyle(fontFamily: 'AnthropicSans', 
-                                                          fontSize: 13,
+                                                        const TextStyle(
+                                                          fontFamily:
+                                                              'AnthropicSans',
+                                                          fontSize: 12.5,
                                                           fontWeight:
                                                               FontWeight.bold,
                                                         ),

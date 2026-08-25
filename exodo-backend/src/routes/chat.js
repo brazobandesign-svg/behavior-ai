@@ -115,7 +115,7 @@ function extractSourcesFromText(text, existingSources = [], contextChunks = [], 
     }
   }
 
-  // 3. Extraer enlaces markdown [Título](URL)
+  // 3. Extraer enlaces markdown reales [Título](URL)
   const mdRegex = /\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g;
   let match;
   while ((match = mdRegex.exec(text)) !== null) {
@@ -126,49 +126,13 @@ function extractSourcesFromText(text, existingSources = [], contextChunks = [], 
     addSource(title || host, url, host.slice(0, 3));
   }
 
-  // 4. Extraer URLs en texto plano https://...
+  // 4. Extraer URLs explícitas en texto plano https://...
   const urlRegex = /(https?:\/\/[a-zA-Z0-9\-\.]+\.[a-zA-Z]{2,}(?:\/[^\s\)\]\>"]*)?)/g;
   while ((match = urlRegex.exec(text)) !== null) {
     const url = (match[1] || '').trim();
     let host = url;
     try { host = new URL(url).host.replace(/^www\./, ''); } catch (_) {}
     addSource(host, url, host.slice(0, 3));
-  }
-
-  // 5. Entidades de conocimiento, repositorios científicos y fuentes autorizadas
-  const knowledgeEntities = [
-    // Astronomía y Astrofísica
-    { keywords: [/sagitario\s*b2/i, /v[íi]a\s*l[áa]ctea/i, /astronom[íi]a/i, /interestelar/i, /astroqu[íi]mica/i, /galaxia/i, /telescopio/i], title: 'NASA · Astrophysics Data System', url: 'https://ui.adsabs.harvard.edu', favicon: 'ADS' },
-    { keywords: [/sagitario\s*b2/i, /nube\s*molecular/i, /espacio/i, /exoplaneta/i, /supernova/i], title: 'European Southern Observatory (ESO)', url: 'https://www.eso.org', favicon: 'ESO' },
-    // Física, Fusión Nuclear, Cuántica y Energía
-    { keywords: [/fusi[óo]n\s*nuclear/i, /tokamak/i, /plasma/i, /stellarator/i, /iter/i], title: 'ITER · International Thermonuclear Experimental Reactor', url: 'https://www.iter.org', favicon: 'ITR' },
-    { keywords: [/fusi[óo]n/i, /nuclear/i, /energ[íi]a\s*at[óo]mica/i, /radiaci[óo]n/i, /is[óo]topo/i], title: 'IAEA · International Atomic Energy Agency', url: 'https://www.iaea.org', favicon: 'IAE' },
-    { keywords: [/f[íi]sica/i, /cu[áa]ntic[ao]/i, /part[íi]cula/i, /bos[óo]n/i, /relatividad/i, /qu[íi]mica/i, /termodin[áa]mica/i], title: 'arXiv · Cornell University Library', url: 'https://arxiv.org', favicon: 'ARX' },
-    // Matemáticas y Filosofía
-    { keywords: [/pit[áa]goras/i, /teorema/i, /geometr[íi]a/i, /filosof[íi]a/i, /l[óo]gica/i, /epistemolog[íi]a/i], title: 'Stanford Encyclopedia of Philosophy', url: 'https://plato.stanford.edu', favicon: 'SEP' },
-    { keywords: [/pit[áa]goras/i, /matem[áa]tica/i, /c[áa]lculo/i, /ecuaci[óo]n/i, /algoritmo/i], title: 'Wolfram MathWorld', url: 'https://mathworld.wolfram.com', favicon: 'WMW' },
-    // Ciencias de la Salud y Biología
-    { keywords: [/medicina/i, /c[eé]lula/i, /gen[eé]tica/i, /adn/i, /arn/i, /prote[íi]na/i, /farmacolog[íi]a/i, /virus/i, /inmunolog[íi]a/i], title: 'PubMed · National Library of Medicine (NIH)', url: 'https://pubmed.ncbi.nlm.nih.gov', favicon: 'MED' },
-    { keywords: [/salud/i, /epidemia/i, /vacuna/i, /enfermedad/i, /oms/i, /who/i], title: 'World Health Organization (OMS)', url: 'https://www.who.int', favicon: 'OMS' },
-    // Leyes y Normativas Dominicanas
-    { keywords: [/constituci[óo]n/i, /c[óo]digo\s*civil/i, /ley\s*\d+/i, /jurisprudencia/i, /tribunal/i, /sentencia/i], title: 'Poder Judicial Dominicano · Repositorio Legal', url: 'https://poderjudicial.gob.do/servicios/consultas-de-leyes/', favicon: 'PJD' },
-    // Computación, Tecnología e Ingeniería
-    { keywords: [/inteligencia\s*artificial/i, /red\s*neuronal/i, /machine\s*learning/i, /deep\s*learning/i, /computaci[óo]n/i], title: 'IEEE Xplore Digital Library', url: 'https://ieeexplore.ieee.org', favicon: 'IEE' },
-  ];
-
-  for (const entity of knowledgeEntities) {
-    if (found.length >= 10) break;
-    const matches = entity.keywords.some((rx) => rx.test(text));
-    if (matches && !seenUrls.has(entity.url)) {
-      addSource(entity.title, entity.url, entity.favicon);
-    }
-  }
-
-  // 6. Si es consulta educativa/curricular dominicana y no hay fuentes específicas, adjuntar el marco normativo MINERD
-  if (isEducational && found.length === 0) {
-    addSource('MINERD · Diseño Curricular Nivel Secundario', 'https://ministeriodeeducacion.gob.do/servicios/docentes/diseno-curricular', 'DC');
-    addSource('MINERD · Ordenanza 04-2023 / 01-2021', 'https://ministeriodeeducacion.gob.do/transparencia/marco-legal/ordenanzas', 'ORD');
-    addSource('Ley General de Educación 66-97', 'https://ministeriodeeducacion.gob.do/transparencia/marco-legal/ley-general-de-educacion-66-97', 'LEY');
   }
 
   return found.slice(0, 10);
@@ -200,6 +164,9 @@ router.post('/', auth, planGuard, upload.array('files', 5), async (req, res) => 
     const { message, conversationId, model_override, attachments, subject } = req.body;
     const { userId, plan, anonymous } = req.user;
     const isGuest = !!req.user?.isGuest;
+    // taskType: el cliente puede forzar el modo de enrutado ('simple' | 'reasoning').
+    // 'auto' (default) o cualquier otro valor => comportamiento actual intacto.
+    const requestedTaskType = (req.body && typeof req.body.taskType === 'string') ? req.body.taskType.toLowerCase() : 'auto';
 
     // C1 (IDOR Guard): validar propiedad de la conversación antes de procesar
     if (conversationId && !isGuest && !anonymous && userId) {
@@ -357,6 +324,15 @@ router.post('/', auth, planGuard, upload.array('files', 5), async (req, res) => 
       intent = detectedIntent;
     }
 
+    // Override por cliente: solo 'simple'/'reasoning', sin imágenes y sin
+    // intención DOCUMENTO/VISION (esas rutas del router se respetan siempre).
+    if ((requestedTaskType === 'simple' || requestedTaskType === 'reasoning')
+        && !hasImages
+        && intent !== 'DOCUMENTO'
+        && intent !== 'VISION') {
+      intent = requestedTaskType === 'simple' ? 'SIMPLE' : 'RAZONAMIENTO';
+    }
+
     // 3. Construir mensajes con contexto
     const messages = [
       ...history,
@@ -498,11 +474,8 @@ router.post('/', auth, planGuard, upload.array('files', 5), async (req, res) => 
 
     if (conversationId && !isGuest && !anonymous) {
       try {
-        // FIX (no-mutación 2026-08-19): persistir SOLO el texto original que
-        // escribió el usuario. `enhancedMessage` (con etiquetas [Imagen:...] y
-        // el prompt sintético de análisis) se usa ÚNICAMENTE como payload al LLM,
-        // jamás se guarda en el historial ni se muestra en la burbuja del usuario.
-        await saveMessage(conversationId, 'user', message || '', { intent });
+        const userMsgToSave = (message && message.trim()) ? message.trim() : (hasImages ? '[Foto adjunta]' : '');
+        await saveMessage(conversationId, 'user', userMsgToSave, { intent });
         await saveMessage(conversationId, 'assistant', fullText, {
           intent,
           model: result.model,
