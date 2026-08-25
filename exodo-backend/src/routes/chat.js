@@ -411,6 +411,9 @@ router.post('/', auth, planGuard, upload.array('files', 5), async (req, res) => 
 
     let fullText = '';
     let result;
+    // C1: instrumentación de tiempos (handler→primer token→fin).
+    const __t0 = Date.now();
+    let __ttftLogged = false;
     try {
       // INTERCEPTOR DE ERRORES DEL STREAM SSE:
       // Cualquier error upstream (401/413/429/500, timeout, connection reset)
@@ -427,6 +430,10 @@ router.post('/', auth, planGuard, upload.array('files', 5), async (req, res) => 
           if (!clientConnected) return;
           const textChunk = typeof chunk === 'string' ? chunk : (chunk?.content || '');
           if (textChunk) {
+            if (!__ttftLogged) {
+              __ttftLogged = true;
+              console.log(`[chat][perf] ttft=${Date.now() - __t0}ms intent=${intent} model=${result?.model || model_override || 'auto'} guest=${isGuest}`);
+            }
             fullText += textChunk;
             sendSse({ type: 'chunk', content: textChunk });
           }

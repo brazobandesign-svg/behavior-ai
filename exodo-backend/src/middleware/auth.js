@@ -1,5 +1,10 @@
 const supabase = require('../config/supabase');
 
+// C1 (TTFT): caché de sesiones verificadas. Ver constantes en auth().
+const _sessionCache = new Map();
+const SESSION_TTL_MS = 60_000;
+const SESSION_CACHE_MAX = 500;
+
 /**
  * Middleware de autenticación.
  * Verifica JWT de Supabase Auth en el header Authorization.
@@ -21,6 +26,18 @@ async function auth(req, res, next) {
     return next();
   }
 
+  // C1 (TTFT): caché de sesión corta. Antes CADA mensaje pagaba 2 viajes de
+  // red (getUser + profiles). TTL 60s: suficiente para una conversación activa,
+  // corto para que cambios de plan/rol se propaguen rápido.
+  const now = Date.now();
+  const cached = _sessionCache.get(token);
+  if (cached && now - cached.ts < SESSION_TTL_MS) {
+    cached.ts = now; // deslizante mientras la conversación esté activa
+    req.user = cached.reqUser;
+    return next();
+  }
+
+  const __authT0 = Date.now();
   try {
     const { data: { user }, error } = await supabase.auth.getUser(token);
 
@@ -52,6 +69,15 @@ async function auth(req, res, next) {
       anonymous: isGuest,
       isGuest: isGuest,
     };
+
+    // Guardar en caché con tope de tamaño (evict simple del más viejo).
+    if (_sessionCache.size >= SESSION_CACHE_MAX) {
+      const oldest = _sessionCache.keys().next().value;
+      if (oldest !== undefined) _sessionCache.delete(oldest);
+    }
+    _sessionCache.set(token, { reqUser: req.user, ts: Date.now() });
+    const authMs = Date.now() - __authT0;
+    if (authMs > 5) console.log(`[auth][perf] miss ${authMs}ms`);
 
     next();
   } catch (err) {

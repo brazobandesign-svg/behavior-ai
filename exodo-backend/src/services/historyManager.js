@@ -165,6 +165,17 @@ async function saveMessage(conversationId, role, content, metadata = {}) {
 }
 
 /**
+ * C1 (TTFT): caché positiva de propiedad de conversación.
+ * Antes CADA mensaje pagaba un SELECT a Supabase ANTES de abrir el stream SSE.
+ * TTL 60s deslizante (misma política que la caché de sesión en middleware/auth):
+ * una revocación de acceso se propaga como mucho en 60s. Solo se cachean
+ * resultados exitosos (fail-closed intacto ante errores de BD).
+ */
+const _ownershipCache = new Map();
+const OWNERSHIP_TTL_MS = 60_000;
+const OWNERSHIP_CACHE_MAX = 1000;
+
+/**
  * C1 (IDOR): Valida que la conversación pertenezca al usuario autenticado.
  * - Si conversationId no está especificado o el usuario es anónimo/invitado, omite la validación.
  * - Si la conversación no existe aún en la base de datos (creación optimista en cliente), permite continuar.
@@ -176,6 +187,15 @@ async function saveMessage(conversationId, role, content, metadata = {}) {
  */
 async function assertConversationOwner(userId, conversationId) {
   if (!conversationId || !userId || !supabase) return true;
+
+  // C1 (TTFT): mensajes consecutivos en la misma conversación no repiten el round-trip.
+  const cacheKey = `${userId}:${conversationId}`;
+  const now = Date.now();
+  const cached = _ownershipCache.get(cacheKey);
+  if (cached && now - cached.ts < OWNERSHIP_TTL_MS) {
+    cached.ts = now;
+    return true;
+  }
 
   try {
     const { data, error } = await supabase
@@ -199,6 +219,13 @@ async function assertConversationOwner(userId, conversationId) {
       err.code = 'FORBIDDEN_CONVERSATION';
       throw err;
     }
+
+    // Cachear solo el resultado exitoso (la conversación es del usuario o aún no existe en BD).
+    if (_ownershipCache.size >= OWNERSHIP_CACHE_MAX) {
+      const oldest = _ownershipCache.keys().next().value;
+      if (oldest !== undefined) _ownershipCache.delete(oldest);
+    }
+    _ownershipCache.set(cacheKey, { ts: Date.now() });
 
     return true;
   } catch (err) {
