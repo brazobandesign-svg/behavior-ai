@@ -27,6 +27,13 @@ if (!SERVER_KEY) {
  * header entrante del cliente se descarta siempre.
  */
 router.post(['/kimi', '/chat/completions'], auth, chatRateLimiter, async (req, res) => {
+  // Gate duro (QA adversarial 1.3): el middleware auth ETIQUETA a los
+  // anónimos como isGuest y sigue; aquí SÍ los rechazamos antes de tocar
+  // Alibaba. Sin esto, cualquier anónimo quema la cuota del servidor.
+  if (!req.user || req.user.isGuest || !req.user.userId) {
+    return res.status(401).json({ error: 'authentication_required' });
+  }
+
   if (!SERVER_KEY) {
     return res.status(503).json({ error: 'proxy_unavailable' });
   }

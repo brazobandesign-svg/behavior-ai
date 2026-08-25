@@ -1,8 +1,7 @@
-import React, { useState, useEffect, useRef, useLayoutEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   ChevronRight, 
   ChevronUp,
-  ChevronLeft,
   ArrowLeft,
   Sun, 
   Moon, 
@@ -18,15 +17,10 @@ import {
   Lock,
   ChevronDown,
   PanelLeftClose,
-  SlidersHorizontal,
-  ChevronsUpDown,
-  Database,
   MoreVertical,
   Edit2,
   Trash2,
-  UserRound,
   Globe,
-  CircleDollarSign,
   Smartphone,
   Zap
 } from 'lucide-react';
@@ -71,11 +65,16 @@ export default function App() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [isIncognito, setIsIncognito] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [showSearchBox, setShowSearchBox] = useState(false);
+  const [showSearchBox] = useState(false);
   const [showTokenPopup, setShowTokenPopup] = useState(false);
   const [showAccountMenu, setShowAccountMenu] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [showLanguageMenu, setShowLanguageMenu] = useState(false);
+  const [locale, setLocale] = useState<string>(() => {
+    const saved = localStorage.getItem('exodo_web_locale') || localStorage.getItem('exodo_language');
+    if (saved) return saved;
+    return (navigator.language || 'es').toLowerCase();
+  });
   const [showBillingMenu, setShowBillingMenu] = useState(false);
   const [showPlansModal, setShowPlansModal] = useState(false);
   const [showModelSelector, setShowModelSelector] = useState(false);
@@ -356,7 +355,9 @@ export default function App() {
       if (!error && data) {
         currentConvId = data.id;
         setActiveConvId(currentConvId);
-        localStorage.setItem('exodo_web_active_conv', currentConvId);
+        if (currentConvId) {
+          localStorage.setItem('exodo_web_active_conv', currentConvId);
+        }
         localStorage.removeItem('exodo_web_temp_conv');
         
         setConversations((prev) => {
@@ -388,7 +389,11 @@ export default function App() {
     setTimeout(() => scrollToBottom(), 50);
 
     try {
-      const res = await fetch('http://localhost:3000/chat', {
+      const backendEndpoint = import.meta.env.PROD
+        ? 'https://behavior-ai-production.up.railway.app/api/chat'
+        : 'http://localhost:3000/api/chat';
+
+      const res = await fetch(backendEndpoint, {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
@@ -398,7 +403,8 @@ export default function App() {
           message: userText,
           conversationId: currentConvId && currentConvId.startsWith('conv-') ? undefined : currentConvId,
           model_override: selectedModel.id,
-          isIncognito
+          isIncognito,
+          locale: locale || 'es'
         })
       });
 
@@ -1591,7 +1597,13 @@ export default function App() {
                       justifyContent: 'space-between', 
                       cursor: 'pointer' 
                     }} 
-                    onClick={() => { setShowLanguageMenu(false); setShowAccountMenu(true); }}
+                    onClick={() => { 
+                      const selectedCode = lang.code || 'es';
+                      setLocale(selectedCode);
+                      localStorage.setItem('exodo_web_locale', selectedCode);
+                      setShowLanguageMenu(false); 
+                      setShowAccountMenu(true); 
+                    }}
                   >
                     <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
                       <div style={{ width: 28, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -1604,7 +1616,7 @@ export default function App() {
                       <div style={{ display: 'flex', flexDirection: 'column' }}>
                         <span style={{ 
                           fontSize: '1.05rem', 
-                          fontWeight: lang.code === 'en' ? 700 : 500, 
+                          fontWeight: (locale === lang.code || (!lang.code && locale.startsWith('es'))) ? 700 : 500, 
                           color: 'var(--text-primary)',
                           fontFamily: 'Inter, sans-serif'
                         }}>
@@ -1615,7 +1627,7 @@ export default function App() {
                         </span>
                       </div>
                     </div>
-                    {lang.code === 'en' && (
+                    {(locale === lang.code || (!lang.code && locale.startsWith('es'))) && (
                       <Check size={20} color="var(--amber-exodo)" />
                     )}
                   </div>
@@ -1922,9 +1934,10 @@ export default function App() {
                     Todo lo de Free y:
                   </span>
                   {[
-                    'Acceso a todos los modelos de Claude e IA avanzada',
+                    'Acceso a todos los modelos de IA avanzada',
                     'Límites de uso más altos (hasta 20x)',
                     'Acceso prioritario en momentos de alto tráfico',
+                    'Generación de imágenes con IA en alta resolución',
                     'Memoria que se mantiene entre conversaciones',
                     'Avanza rápidamente en tus tareas con Cowork',
                     'Acceso anticipado a funciones avanzadas'

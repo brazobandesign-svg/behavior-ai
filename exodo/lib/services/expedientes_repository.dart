@@ -66,6 +66,14 @@ class Expediente {
 }
 
 /// Repositorio para la gestión de expedientes privados (módulo "Expedientes").
+/// Clave de caché de expedientes por cuenta — función pura y testeable.
+/// [uid] null o vacío → scope 'anon' (mismo formato que usaba el getter).
+String expedientesPrefsKeyFor(String? uid) {
+  final scope = (uid == null || uid.isEmpty) ? 'anon' : uid;
+  return 'exodo_local_expedientes_$scope';
+}
+
+/// Combina persistencia local inmediata (SharedPreferences) con sincronización en la nube (Supabase).
 ///
 /// Combina persistencia local inmediata (SharedPreferences) con sincronización en la nube (Supabase).
 class ExpedientesRepository {
@@ -76,11 +84,8 @@ class ExpedientesRepository {
   /// La llave global antigua ('exodo_local_expedientes') mezclaba expedientes
   /// de todas las cuentas del dispositivo y se purga una sola vez (ver
   /// _purgeLegacyKeyIfNeeded); la nube es la fuente de verdad por RLS.
-  static String get _prefsKey {
-    final uid = SupabaseService.client.auth.currentUser?.id;
-    final scope = (uid == null || uid.isEmpty) ? 'anon' : uid;
-    return 'exodo_local_expedientes_$scope';
-  }
+  static String get _prefsKey =>
+      expedientesPrefsKeyFor(SupabaseService.client.auth.currentUser?.id);
 
   static const String _legacyPrefsKey = 'exodo_local_expedientes';
 
