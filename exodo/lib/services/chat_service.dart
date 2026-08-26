@@ -299,6 +299,18 @@ class ChatService {
             } else if (response.statusCode == 413) {
               errMsg =
                   'El archivo adjunto es demasiado grande. Por favor, intenta con uno más pequeño.';
+            } else if (response.statusCode == 429) {
+              // C9: el límite de invitados se aplica en servidor y su cuerpo
+              // JSON trae el mensaje real (límite diario alcanzado, etc.).
+              errMsg =
+                  'Alcanzaste el límite diario de mensajes como invitado. Crea una cuenta gratuita para continuar.';
+              try {
+                final body = await response.stream.bytesToString();
+                final serverMsg = body.contains('"message"')
+                    ? (body.split('"message":"').last.split('"').first)
+                    : '';
+                if (serverMsg.trim().isNotEmpty) errMsg = serverMsg;
+              } catch (_) {}
             } else if (response.statusCode != 200) {
               errMsg =
                   'Hubo un error de conexión (Cód. ${response.statusCode}).';
