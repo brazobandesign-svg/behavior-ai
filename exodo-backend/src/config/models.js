@@ -10,26 +10,27 @@ const ALIBABA_CONFIG = {
   // index.js avisa y el SDK de OpenAI falla ruidosamente en el primer request.
   apiKey: process.env.DASHSCOPE_API_KEY || process.env.ALIBABA_API_KEY || process.env.ALIBABA_FREE_KEY,
   models: {
-    // 4 Modelos Principales Unificados por Objetivo (Fase de Pruebas: Free & Pro idénticos)
-    textPrimary: 'qwen3.7-max-2026-05-20',       // Texto, conversación, redacción y asistencia general
+    // DOCTRINA (humano, 25-08): Kimi K3 y Qwen 3.7 Max RESERVADOS para Copilot (chatLanguageModels.json).
+    // Prohibidos en la cascada de Éxodo. Flagship = qwen3.6-max-preview.
+    textPrimary: 'qwen3.6-max-preview',       // Texto, conversación, redacción y asistencia general
     fastPrimary: 'qwen3.7-flash-2026-07-15',     // Conversación instantánea (<200ms TTFT) para saludos y mensajes simples
     textFallback: 'qwen3.6-plus-2026-04-02',     // Respaldo de alta elocuencia
     reasonerPrimary: 'qwq-plus',                 // Razonamiento lógico profundo y matemáticas
     coderPrimary: 'qwen3-coder-plus-2025-07-22', // Generación de código y artefactos interactivos
     visionPrimary: 'qwen-vl-max',                // Análisis de imágenes, visión multimodal y OCR
-    kimiPrimary: 'kimi-k3',                      // Kimi K3 (Moonshot AI) con 1M tokens de contexto
+    agenticLongContext: 'glm-5.1',               // Agéntico/review largo (rol previo de Kimi K3, desterrado)
 
     // RAG MINERD y Embeddings
     embeddingModel: 'text-embedding-v4',
     rerankModel: 'qwen3-rerank',
 
     // Compatibilidad de nombres
-    hazakPrimary: 'qwen3.7-max-2026-05-20',
+    hazakPrimary: 'qwen3.6-max-preview',
     hazakReasoner: 'qwq-plus',
     hazakCoder: 'qwen3-coder-plus-2025-07-22',
     hazakVision: 'qwen-vl-max',
     genesisSimple: 'qwen3.7-flash-2026-07-15',
-    genesisRedaccion: 'qwen3.7-max-2026-05-20',
+    genesisRedaccion: 'qwen3.6-max-preview',
     genesisReasoner: 'qwq-plus',
     genesisCoder: 'qwen3-coder-plus-2025-07-22',
     genesisVision: 'qwen-vl-max',
@@ -43,9 +44,9 @@ const PLAN_CONFIG = {
     maxOutputTokensNormal: 8192,
     monthlyVisionLimit: 1000,
     allowThinking: true,
-    primaryModel: 'qwen3.7-max-2026-05-20',
+    primaryModel: 'qwen3.6-max-preview',
     fallbackChain: [
-      'qwen3.7-max-2026-05-20',
+      'qwen3.6-max-preview',
     ],
     visionModels: ['qwen-vl-max'],
     isDegradable: false,
@@ -57,9 +58,9 @@ const PLAN_CONFIG = {
     maxOutputTokens: 8192,
     monthlyVisionLimit: 2000,
     allowThinking: true,
-    primaryModel: 'qwen3.7-max-2026-05-20',
+    primaryModel: 'qwen3.6-max-preview',
     fallbackChain: [
-      'qwen3.7-max-2026-05-20',
+      'qwen3.6-max-preview',
     ],
     visionModels: ['qwen-vl-max'],
     isDegradable: false,
@@ -97,15 +98,15 @@ const ECO_MODELS = {
 const MODEL_MAP = {
   SIMPLE: {
     genesis: 'qwen3.7-flash',
-    hazak:   'qwen3.7-max-2026-06-08',
+    hazak:   'qwen3.6-max-preview',
     free:    'qwen3.7-flash',
-    pro:     'qwen3.7-max-2026-06-08',
+    pro:     'qwen3.6-max-preview',
   },
   REDACCION: {
     genesis: 'qwen3.6-plus',
-    hazak:   'qwen3.7-max-2026-06-08',
+    hazak:   'qwen3.6-max-preview',
     free:    'qwen3.6-plus',
-    pro:     'qwen3.7-max-2026-06-08',
+    pro:     'qwen3.6-max-preview',
   },
   RAZONAMIENTO: {
     genesis: 'qwen3.7-flash',
@@ -115,9 +116,9 @@ const MODEL_MAP = {
   },
   DOCUMENTO: {
     genesis: 'qwen3.6-plus',
-    hazak:   'qwen3.7-max-2026-06-08',
+    hazak:   'qwen3.6-max-preview',
     free:    'qwen3.6-plus',
-    pro:     'qwen3.7-max-2026-06-08',
+    pro:     'qwen3.6-max-preview',
   },
   VISION: {
     genesis: 'qwen3-vl-plus',
@@ -135,7 +136,7 @@ const MODEL_MAP = {
 
 const MODEL_TO_PROVIDER = {
   // DashScope Qwen / DeepSeek Models
-  'qwen3.7-max-2026-06-08':         'alibaba',
+  'qwen3.6-max-preview':         'alibaba',
   'qwen3-235b-a22b-thinking-2507':  'alibaba',
   'qwen-vl-max':                    'alibaba',
   'qwen3.5-omni-plus':              'alibaba',

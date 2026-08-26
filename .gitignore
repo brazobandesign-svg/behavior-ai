@@ -33,3 +33,4 @@ Thumbs.db
 *.log
 crash.log
 crash_check.log
+..../.secrets/*
