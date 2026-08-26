@@ -101,7 +101,7 @@ class ChatAppBar extends StatelessWidget {
                     ? Colors.black87
                     : ExodoColors.textSecondary,
               ),
-              tooltip: 'Nuevo chat',
+              tooltip: AppI18n.of(context).t('drawer.new_chat'),
               onPressed: () => state.startNewChat(),
             ),
 
@@ -116,7 +116,7 @@ class ChatAppBar extends StatelessWidget {
                     ? Colors.black87
                     : ExodoColors.textSecondary,
               ),
-              tooltip: isDarkMode ? 'Modo claro' : 'Modo oscuro',
+              tooltip: AppI18n.of(context).t(isDarkMode ? 'drawer.light_mode' : 'drawer.dark_mode'),
               onPressed: () => state.toggleTheme(),
             ),
           ],

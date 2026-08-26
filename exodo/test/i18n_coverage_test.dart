@@ -23,4 +23,43 @@ void main() {
     expect(br.length, greaterThanOrEqualTo(198));
     expect(br['artifacts.title'], isNot(equals('artifacts.title')));
   });
+
+  // P2 (2026-08-26): _ht se re-tradujó de francés heredado a Kreyòl real.
+  // Guard de regresión: si alguien revierte el diccionario al stub francés,
+  // estos asserts fallan antes de llegar al dispositivo.
+  test('P2 i18n: _ht en Kreyòl real (sin francés heredado)', () {
+    final ht = translationsFor('ht');
+    const expected = <String, String>{
+      'greeting.morning': 'Bonjou',
+      'greeting.afternoon': 'Bonswa',
+      'greeting.evening': 'Bonswa',
+      'drawer.search_chats': 'Chèche',
+      'drawer.starred': 'Mete anlè',
+      'drawer.incognito': 'Mòd Enkoyito',
+      'drawer.light_mode': 'Mòd Klè',
+      'drawer.dark_mode': 'Mòd Nwa',
+      'ctx.rename': 'Chanje non',
+      'act.copy': 'Kopye',
+      'act.like': 'M renmen',
+      'common.yes': 'Wi',
+      'lang.sheet_title': 'Lang aplikasyon an',
+      'starter.1': 'Rezime nouvèl jodi a',
+      'starter.4': 'Lide pou yon pwoje inovatè',
+      'settings.logout': 'Dekonekte',
+    };
+    expected.forEach((k, v) {
+      expect(ht[k], v, reason: '_ht["$k"] debe ser Kreyòl "$v", no francés heredado');
+    });
+    // Marcas intocables (regla de nombres propios).
+    expect(ht['app.title'], anyOf(contains('Éxodo'), contains('Exodo')));
+    expect(ht['widget.square_genesis'], contains('Genesis'));
+  });
+
+  test('P2 i18n: sin fugas de inglés fuera de _en (Settings modal)', () {
+    final fr = translationsFor('fr');
+    expect(fr['settings.title'], 'Paramètres');
+    expect(fr['settings.profile'], 'Profil');
+    final ht = translationsFor('ht');
+    expect(ht['settings.title'], 'Paramèt');
+  });
 }
