@@ -26,27 +26,30 @@ class _ChatScreenState extends State<ChatScreen>
   final _inputCtrl = TextEditingController();
   final _scrollCtrl = ScrollController();
   final _followBottomNotifier = ValueNotifier<bool>(true);
-  late AnimationController _thinkingAnimCtrl;
+  // P3 batería: los controladores NO repiten en initState. Se encienden solo
+  // mientras hay generación activa (isGenerating) y se detienen al terminar.
+  // Antes animaban 24/7 en primer plano aunque la pantalla estuviera quieta.
   late AnimationController _ambientBgCtrl;
   late AnimationController _pulseCtrl;
+  AppState? _observedState;
 
   @override
   void initState() {
     WidgetsBinding.instance.addObserver(this);
     super.initState();
-    _thinkingAnimCtrl = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1400),
-    )..repeat(reverse: true);
     _ambientBgCtrl = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 7),
-    )..repeat(reverse: true);
+    );
     // Regla 5 & 9: Pulso continuo para cambio de tamaño de puntos aleatorio
     _pulseCtrl = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 2200),
-    )..repeat(reverse: true);
+    );
+    final state = context.read<AppState>();
+    _observedState = state;
+    state.addListener(_syncAnimations);
+    _syncAnimations();
 
     // Trigger reload
     WidgetService.instance.getInitialPrompt().then((prompt) {
@@ -61,34 +64,41 @@ class _ChatScreenState extends State<ChatScreen>
     });
   }
 
+  void _syncAnimations() {
+    if (!mounted) return;
+    final generating = context.read<AppState>().isGenerating;
+    if (generating) {
+      if (!_ambientBgCtrl.isAnimating) _ambientBgCtrl.repeat(reverse: true);
+      if (!_pulseCtrl.isAnimating) _pulseCtrl.repeat(reverse: true);
+    } else {
+      _ambientBgCtrl.stop();
+      _pulseCtrl.stop();
+    }
+  }
+
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    final appState = context.read<AppState>();
     if (state == AppLifecycleState.inactive ||
         state == AppLifecycleState.paused ||
         state == AppLifecycleState.hidden ||
         state == AppLifecycleState.detached) {
       // App minimizada, oculta o inactiva: pausar animaciones
-      _thinkingAnimCtrl.stop();
       _ambientBgCtrl.stop();
       _pulseCtrl.stop();
     } else if (state == AppLifecycleState.resumed) {
-      // App vuelve a primer plano: reanudar animaciones.
-      if (appState.isGenerating) {
-        _thinkingAnimCtrl.repeat(reverse: true);
-      }
-      _pulseCtrl.repeat(reverse: true);
+      // App vuelve a primer plano: reanudar solo si corresponde (isGenerating).
+      _syncAnimations();
     }
   }
 
   @override
   void dispose() {
     ChatService.cancelStream();
+    _observedState?.removeListener(_syncAnimations);
     WidgetsBinding.instance.removeObserver(this);
     _inputCtrl.dispose();
     _scrollCtrl.dispose();
     _followBottomNotifier.dispose();
-    _thinkingAnimCtrl.dispose();
     _ambientBgCtrl.dispose();
     _pulseCtrl.dispose();
     super.dispose();

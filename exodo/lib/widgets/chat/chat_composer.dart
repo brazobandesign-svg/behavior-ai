@@ -191,6 +191,13 @@ class _ChatComposerState extends State<ChatComposer>
         !_isStoppingVoice) {
       unawaited(_stopAndTranscribe());
     }
+    // P3 batería: el aura del chip de modelo no se ve en background; pausarla
+    // evita ticks de animación con la app minimizada.
+    if (state == AppLifecycleState.paused || state == AppLifecycleState.hidden) {
+      _auraController.stop();
+    } else if (state == AppLifecycleState.resumed) {
+      if (!_auraController.isAnimating) _auraController.repeat();
+    }
   }
 
   // ── Motor de ondas ─────────────────────────────────────────────────────────
