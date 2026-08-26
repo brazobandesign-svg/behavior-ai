@@ -12,11 +12,15 @@ const express = require('express');
 const multer = require('multer');
 const auth = require('../middleware/auth');
 const { synthesizeSpeech } = require('../services/ttsService');
+const { ALIBABA_CONFIG } = require('../config/models');
 const { OpenAI, toFile } = require('openai');
 
 const router = express.Router();
 
 const GROQ_WHISPER_MODEL = 'whisper-large-v3-turbo';
+// Fallback real (2026-08-25): si Groq falla (429/5xx/outage), STT pasa a
+// Alibaba qwen3-asr-flash vía compatible-mode — $0 en Free Tier, español OK.
+const ALIBABA_ASR_MODEL = 'qwen3-asr-flash';
 const MAX_AUDIO_BYTES = 25 * 1024 * 1024; // 25 MB
 
 // ---------------------------------------------------------------------------
@@ -153,6 +157,46 @@ function runUploadMiddleware(req, res) {
 // lógicas/min y agotaría el presupuesto GLOBAL del chat del usuario (medido:
 // el mensaje de chat posterior fallaba con "sin conexión" tras una sesión
 // de dictado larga). El abuso de voz lo frena el limitador por sesión propio.
+// POST /api/voice/transcribe
+// ---------------------------------------------------------------------------
+
+/** STT via Alibaba qwen3-asr-flash (compatible-mode, input_audio base64). */
+async function transcribeAlibaba(buffer, mime) {
+  const key = process.env.DASHSCOPE_API_KEY || process.env.ALIBABA_API_KEY || process.env.ALIBABA_FREE_KEY;
+  if (!key) throw new Error('no_alibaba_key');
+  const client = new OpenAI({
+    apiKey: key,
+    baseURL: ALIBABA_CONFIG.baseURL,
+    timeout: 15000,
+  });
+  const fmt = (mime.split("/")[1] || "m4a").replace(";base64", "").toLowerCase();
+  const resp = await client.chat.completions.create({
+    model: ALIBABA_ASR_MODEL,
+    messages: [{ role: "user", content: [
+      { type: "input_audio", input_audio: { data: buffer.toString("base64"), format: fmt } },
+    ] }],
+  });
+  return (resp.choices?.[0]?.message?.content || "").trim();
+}
+
+/** Cadena STT con failover: Groq Whisper -> Alibaba qwen3-asr-flash. */
+async function transcribeWithFallback(client, params, buffer, mime) {
+  if (client) {
+    try {
+      const r = await client.audio.transcriptions.create(params);
+      r.__provider = "groq";
+      r.__model = GROQ_WHISPER_MODEL;
+      return r;
+    } catch (e) {
+      console.warn(`[voice] Groq fallo (${e.message}); failover -> Alibaba ${ALIBABA_ASR_MODEL}`);
+    }
+  } else {
+    console.warn("[voice] Sin GROQ_API_KEY; usando Alibaba directamente");
+  }
+  const text = await transcribeAlibaba(buffer, mime);
+  return { text, __provider: "alibaba", __model: ALIBABA_ASR_MODEL };
+}
+
 router.post('/transcribe', auth, requireVoiceUser, async (req, res, next) => {
   const startedAt = Date.now();
   try {
@@ -194,15 +238,12 @@ router.post('/transcribe', auth, requireVoiceUser, async (req, res, next) => {
       : `clip.${ext}`;
 
     const groqKey = process.env.GROQ_API_KEY;
-    if (!groqKey) {
-      return res.status(500).json({ error: 'groq_api_key_missing' });
-    }
 
-    const client = new OpenAI({
+    const client = groqKey ? new OpenAI({
       apiKey: groqKey,
       baseURL: 'https://api.groq.com/openai/v1',
       timeout: 10000,
-    });
+    }) : null;
 
     const fileObj = await toFile(req.file.buffer, filename, {
       type: mime === 'application/octet-stream' ? 'audio/m4a' : mime,
@@ -237,11 +278,13 @@ router.post('/transcribe', auth, requireVoiceUser, async (req, res, next) => {
       transcriptionParams.prompt = DOMINICAN_PROMPT;
     }
 
-    const transcription = await client.audio.transcriptions.create(transcriptionParams);
+    const transcription = await transcribeWithFallback(client, transcriptionParams, req.file.buffer, mime);
 
     let text = (transcription && typeof transcription.text === 'string')
       ? transcription.text.trim()
       : '';
+    const provider = transcription.__provider || 'groq';
+    const usedModel = transcription.__model || GROQ_WHISPER_MODEL;
 
     // Filtrar alucinaciones comunes de Whisper generadas en clips con silencio o ruido de fondo leve
     const SILENCE_HALLUCINATIONS = [
@@ -256,14 +299,23 @@ router.post('/transcribe', auth, requireVoiceUser, async (req, res, next) => {
       text = '';
     }
 
+    // Fallback secundario: si Groq respondio vacio/alucinacion, intenta Alibaba.
+    if (!text && provider === 'groq') {
+      try {
+        text = await transcribeAlibaba(req.file.buffer, mime);
+      } catch (e2) {
+        console.warn(`[voice] fallback Alibaba fallo tambien: ${e2.message}`);
+      }
+    }
+
     const elapsedMs = Date.now() - startedAt;
     // P2-1: Privacidad — No loguear PII/texto de estudiantes en stdout de Railway
-    console.log(`[voice] Groq Whisper OK: len=${text.length} chars (${elapsedMs}ms)`);
+    console.log(`[voice] STT OK via ${provider}/${usedModel}: len=${text.length} chars (${elapsedMs}ms)`);
 
     return res.status(200).json({
       text: text,
-      provider: 'groq',
-      model: GROQ_WHISPER_MODEL,
+      provider: provider,
+      model: usedModel,
       elapsedMs: elapsedMs,
     });
   } catch (err) {
