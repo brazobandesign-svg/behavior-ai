@@ -15,8 +15,9 @@ const DAILY_LIMIT = (() => {
 
 const _guestUsage = new Map(); // ip -> { date: 'YYYY-MM-DD', count }
 
-function todayKey() {
-  return new Date().toISOString().slice(0, 10);
+// Derivado de Date.now(): equivalente en producción y testeable congelando el reloj.
+function todayKey(nowMs = Date.now()) {
+  return new Date(nowMs).toISOString().slice(0, 10);
 }
 
 function getIp(req) {
@@ -29,7 +30,8 @@ function guestLimit(req, res, next) {
   if (!isGuest) return next();
 
   const ip = getIp(req);
-  const today = todayKey();
+  const now = Date.now();
+  const today = todayKey(now);
 
   // Poda perezosa: si el mapa crece demasiado, tira entradas de días pasados.
   if (_guestUsage.size > 5000) {
@@ -43,6 +45,7 @@ function guestLimit(req, res, next) {
     entry = { date: today, count: 0 };
     _guestUsage.set(ip, entry);
   }
+  // (now se usa para poda perezosa coherente con el reloj simulado en tests)
 
   if (entry.count >= DAILY_LIMIT) {
     return res.status(429).json({
