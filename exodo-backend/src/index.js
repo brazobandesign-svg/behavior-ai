@@ -81,7 +81,7 @@ app.get('/health', (req, res) => {
 app.use(errorHandler);
 
 // Iniciar servidor
-app.listen(PORT, HOST, () => {
+const server = app.listen(PORT, HOST, () => {
   runStartupChecks();
   // Banner con la URL exacta para el frontend (evita el problema del LG V60
   // apuntando a 'localhost' que no resuelve desde el dispositivo).
@@ -108,6 +108,34 @@ app.listen(PORT, HOST, () => {
   console.log('  ╚════════════════════════════════════════════════════════════╝');
   console.log('');
 });
+
+// ============================================================================
+// C12: Apagado limpio (SIGTERM en Railway, SIGINT local con Ctrl+C).
+// 1) Dejar de aceptar conexiones nuevas. 2) Terminar los streams SSE vivos
+// (los clientes ya manejan la desconexión y su outbox reintenta). 3) Cerrar
+// el servidor esperando hasta 10s a las respuestas en curso antes de salir.
+// Sin esto, un redeploy mataba el proceso a mitad de stream: mensaje
+// "pensando..." eterno en el cliente.
+// ============================================================================
+const SHUTDOWN_TIMEOUT_MS = 10_000;
+
+function gracefulShutdown(signal) {
+  console.log(`[shutdown] ${signal} recibido: cerrando limpiamente...`);
+  // Detener peticiones nuevas inmediatamente.
+  server.close(() => {
+    console.log('[shutdown] Servidor cerrado.');
+    process.exit(0);
+  });
+
+  // Forzar salida si alguna conexión (SSE largo) se resiste.
+  setTimeout(() => {
+    console.error('[shutdown] Timeout alcanzado; forzando salida.');
+    process.exit(1);
+  }, SHUTDOWN_TIMEOUT_MS).unref();
+}
+
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 
 
 /**
