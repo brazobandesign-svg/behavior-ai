@@ -14,6 +14,8 @@ library;
 
 import 'package:flutter/material.dart';
 
+import 'app_translations_p3.dart';
+
 /// Idiomas disponibles en la app. El primero es el default.
 class AppLocale {
   final String code; // 'en', 'es', ...
@@ -57,35 +59,40 @@ const List<AppLocale> kAppLocales = <AppLocale>[
 
 /// Punto de entrada principal: devuelve el mapa de traducciones para un código.
 /// Si el código no existe, cae a español (es).
+///
+/// P3 i18n: cada locale se fusiona con su parche `kP3*` (claves que faltaban:
+/// Expedientes, historial, offline, disclaimer). El spread del parche va
+/// ÚLTIMO para ganar, pero nunca introduce claves nuevas fuera del universo ES.
+/// pt_BR: el stub histórico se cubre con _pt completo (pt-PT ≈ pt-BR).
 Map<String, String> translationsFor(String code) {
   switch (code) {
     case 'en':
     case 'en_GB':
-      return _en;
+      return {..._en, ...kP3En};
     case 'fr':
-      return _fr;
+      return {..._fr, ...kP3Fr};
     case 'ht':
-      return _ht;
+      return {..._ht, ...kP3Ht};
     case 'pt':
-      return _pt;
+      return {..._pt, ...kP3Pt};
     case 'pt_BR':
-      return _ptBR;
+      return {..._ptBR, ..._pt, ...kP3Pt};
     case 'it':
-      return _it;
+      return {..._it, ...kP3It};
     case 'de':
-      return _de;
+      return {..._de, ...kP3De};
     case 'ru':
-      return _ru;
+      return {..._ru, ...kP3Ru};
     case 'zh':
-      return _zh;
+      return {..._zh, ...kP3Zh};
     case 'ja':
-      return _ja;
+      return {..._ja, ...kP3Ja};
     case 'ar':
-      return _ar;
+      return {..._ar, ...kP3Ar};
     case 'ko':
-      return _ko;
+      return {..._ko, ...kP3Ko};
     case 'hi':
-      return _hi;
+      return {..._hi, ...kP3Hi};
     case 'es':
     default:
       return _es;

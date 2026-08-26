@@ -173,7 +173,11 @@ function containsVendorLeak(text) {
   const leakPatterns = [
     /api\.groq\.com/i,
     /api\.deepseek\.com/i,
-    /dashscope\.aliyuncs\.com/i,
+    // FIX (2026-08-25): el endpoint real usa el subdominio dashscope-intl;
+    // el patrón anterior solo casaba dashscope.aliyuncs.com y dejaba pasar
+    // fugas con URL del vendor.
+    /dashscope(-intl)?\.aliyuncs\.com/i,
+    /aliyuncs\.com/i,
     /generativelanguage\.googleapis\.com/i,
     /organization\s*[:=]/i,
     /org[_-]?[a-z0-9]{8,}/i,
