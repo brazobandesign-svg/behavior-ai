@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:archive/archive.dart';
 import 'package:excel/excel.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/services.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
@@ -1066,7 +1067,12 @@ class ExportResult {
 class ExportRepositoryHelpers {
   ExportRepositoryHelpers._();
 
+  /// P3: los exportes a archivo usan dart:io (File/temporarios) y share_plus
+  /// de sistema; en web crashean. La UI muestra un mensaje limpio con null.
+  static bool get _webUnsupported => kIsWeb;
+
   static Future<File?> exportStandaloneHtml(Artifact artifact) async {
+    if (_webUnsupported) return null;
     final dir = await getTemporaryDirectory();
     final filename =
         'exodo-${ExporterHelpers.safeFilename(artifact.title ?? artifact.kind.name)}-${_tail(artifact.id)}.html';
@@ -1076,23 +1082,30 @@ class ExportRepositoryHelpers {
     return file;
   }
 
-  static Future<ExportResult?> exportArtifactAsPdf(Artifact a) =>
-      _wrap(PdfExporter().exportArtifact(a), ExportFormat.pdf,
-          title: a.title ?? a.kind.name);
+  static Future<ExportResult?> exportArtifactAsPdf(Artifact a) {
+    if (_webUnsupported) return Future.value(null);
+    return _wrap(PdfExporter().exportArtifact(a), ExportFormat.pdf,
+        title: a.title ?? a.kind.name);
+  }
 
-  static Future<ExportResult?> exportArtifactAsDocx(Artifact a) =>
-      _wrap(DocxExporter().exportArtifact(a), ExportFormat.docx,
-          title: a.title ?? a.kind.name);
+  static Future<ExportResult?> exportArtifactAsDocx(Artifact a) {
+    if (_webUnsupported) return Future.value(null);
+    return _wrap(DocxExporter().exportArtifact(a), ExportFormat.docx,
+        title: a.title ?? a.kind.name);
+  }
 
-  static Future<ExportResult?> exportArtifactAsXlsx(Artifact a) =>
-      _wrap(XlsxExporter().exportArtifact(a), ExportFormat.xlsx,
-          title: a.title ?? a.kind.name);
+  static Future<ExportResult?> exportArtifactAsXlsx(Artifact a) {
+    if (_webUnsupported) return Future.value(null);
+    return _wrap(XlsxExporter().exportArtifact(a), ExportFormat.xlsx,
+        title: a.title ?? a.kind.name);
+  }
 
   static Future<ExportResult> exportConversationAsPdf({
     required String title,
     required List<ChatMessage> messages,
     required List<Artifact> artifacts,
   }) async {
+    if (_webUnsupported) throw UnsupportedError('Export PDF no soportado en web');
     final file = await PdfExporter().exportConversation(
       conversationTitle: title,
       messages: messages,
@@ -1112,6 +1125,7 @@ class ExportRepositoryHelpers {
     required List<ChatMessage> messages,
     required List<Artifact> artifacts,
   }) async {
+    if (_webUnsupported) throw UnsupportedError('Export DOCX no soportado en web');
     final file = await DocxExporter().exportConversation(
       conversationTitle: title,
       messages: messages,

@@ -764,6 +764,34 @@ class AppState extends ChangeNotifier {
     return false;
   }
 
+  /// P3 monetización: revalida el perfil contra la nube. Se llama al volver a
+  /// primer plano: si el usuario pagó en el navegador (Stripe), el webhook ya
+  /// actualizó `profiles.plan` y Pro se activa SIN reiniciar la app.
+  Future<void> refreshProfileFromCloud() async {
+    try {
+      if (!hasSession || isGuestUser || isIncognito) return;
+      final fetched = await SupabaseService.getProfile().catchError((_) => null);
+      if (fetched != null && fetched.plan != (profile?.plan ?? '')) {
+        final old = profile;
+        profile = fetched;
+        try {
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setString('exodo_cached_profile', jsonEncode({
+            'id': fetched.id,
+            'full_name': fetched.fullName,
+            'plan': fetched.plan,
+            'avatar_url': fetched.avatarUrl,
+            'onboarding': fetched.onboarding,
+          }));
+        } catch (_) {}
+        debugPrint('[AppState] plan actualizado tras resume: ${old?.plan} -> ${fetched.plan}');
+        notifyListeners();
+      } else if (fetched != null) {
+        profile = fetched;
+      }
+    } catch (_) {}
+  }
+
   Future<void> deleteAccount() async {
     final userId = SupabaseService.client.auth.currentUser?.id;
     if (userId != null) {

@@ -88,6 +88,9 @@ class _ChatScreenState extends State<ChatScreen>
     } else if (state == AppLifecycleState.resumed) {
       // App vuelve a primer plano: reanudar solo si corresponde (isGenerating).
       _syncAnimations();
+      // P3 monetización: si el usuario volvió de la pasarela de pago (Stripe
+      // en el navegador), revalidar el plan sin reiniciar la app.
+      context.read<AppState>().refreshProfileFromCloud();
     }
   }
 
