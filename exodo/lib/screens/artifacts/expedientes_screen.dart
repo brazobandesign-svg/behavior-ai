@@ -537,7 +537,7 @@ class _ExpedientesScreenState extends State<ExpedientesScreen> {
               ),
               const SizedBox(height: 6),
               Text(
-                'No se encontró ningún expediente con "$_searchQuery"',
+                i18n.t('artifacts.search_empty').replaceAll('{query}', _searchQuery),
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontFamily: 'AnthropicSans',
@@ -557,7 +557,7 @@ class _ExpedientesScreenState extends State<ExpedientesScreen> {
                   _searchCtrl.clear();
                   setState(() => _searchQuery = '');
                 },
-                child: const Text('Limpiar búsqueda', style: TextStyle(fontFamily: 'AnthropicSans', fontSize: 12)),
+                child: Text(i18n.t('artifacts.clear_search'), style: const TextStyle(fontFamily: 'AnthropicSans', fontSize: 12)),
               ),
             ],
           ),
