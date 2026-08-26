@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../../l10n/app_i18n.dart';
 import '../../theme/exodo_theme.dart';
 
 /// Widget interactivo TokenProgressBar:
@@ -29,12 +30,25 @@ class _TokenProgressBarState extends State<TokenProgressBar> with SingleTickerPr
   bool _isExpanded = false;
   Timer? _timer;
 
+  // P3 batería: el timer de 1s SOLO vive mientras el panel está expandido
+  // (es lo único que muestra la cuenta regresiva con segundos).
+  void _setExpanded(bool expanded) {
+    if (_isExpanded == expanded) return;
+    setState(() => _isExpanded = expanded);
+    if (expanded) {
+      _timer?.cancel();
+      _timer = Timer.periodic(const Duration(seconds: 1), (_) {
+        if (mounted) setState(() {});
+      });
+    } else {
+      _timer?.cancel();
+      _timer = null;
+    }
+  }
+
   @override
   void initState() {
     super.initState();
-    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (mounted && _isExpanded) setState(() {});
-    });
   }
 
   @override
@@ -103,9 +117,7 @@ class _TokenProgressBarState extends State<TokenProgressBar> with SingleTickerPr
     return GestureDetector(
       onTap: () {
         HapticFeedback.selectionClick();
-        setState(() {
-          _isExpanded = !_isExpanded;
-        });
+        _setExpanded(!_isExpanded);
       },
       behavior: HitTestBehavior.opaque,
       child: AnimatedContainer(
@@ -177,20 +189,20 @@ class _TokenProgressBarState extends State<TokenProgressBar> with SingleTickerPr
                   mainAxisAlignment: MainAxisAlignment.spaceAround,
                   children: [
                     _infoPill(
-                      'Used',
+                      AppI18n.of(context).t('tokens.used'),
                       '${widget.used} ($pct%)',
                       isLight,
                       false,
                     ),
                     if (widget.isPro)
                       _infoPill(
-                        'Available',
+                        AppI18n.of(context).t('tokens.available'),
                         '$remaining tk',
                         isLight,
                         false,
                       ),
                     _infoPill(
-                      'Resets in',
+                      AppI18n.of(context).t('tokens.reset_in'),
                       _getCountdown(),
                       isLight,
                       true,

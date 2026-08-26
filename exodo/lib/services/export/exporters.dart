@@ -843,7 +843,19 @@ class XlsxExporter {
         final cell = sheet.cell(
           CellIndex.indexByColumnRow(columnIndex: c, rowIndex: r + 1),
         );
-        cell.value = TextCellValue(rows[r][c]);
+        // P3 calidad: números como valores numéricos reales (Excel puede
+        // sumar/ordenar/filtrar). Texto si no parsea.
+        final raw = rows[r][c].trim();
+        final numeric = num.tryParse(raw.replaceAll(',', ''));
+        if (raw.isNotEmpty && numeric != null) {
+          if (numeric is int) {
+            cell.value = IntCellValue(numeric);
+          } else {
+            cell.value = DoubleCellValue(numeric.toDouble());
+          }
+        } else {
+          cell.value = TextCellValue(rows[r][c]);
+        }
       }
     }
 
@@ -899,7 +911,17 @@ class XlsxExporter {
         final cell = sheet.cell(
           CellIndex.indexByColumnRow(columnIndex: c, rowIndex: r + 1),
         );
-        cell.value = TextCellValue(rows[r][c]);
+        final raw = rows[r][c].trim();
+        final numeric = num.tryParse(raw.replaceAll(',', ''));
+        if (raw.isNotEmpty && numeric != null) {
+          if (numeric is int) {
+            cell.value = IntCellValue(numeric);
+          } else {
+            cell.value = DoubleCellValue(numeric.toDouble());
+          }
+        } else {
+          cell.value = TextCellValue(rows[r][c]);
+        }
       }
     }
 

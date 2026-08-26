@@ -767,9 +767,24 @@ class AppState extends ChangeNotifier {
   Future<void> deleteAccount() async {
     final userId = SupabaseService.client.auth.currentUser?.id;
     if (userId != null) {
+      var remoteDeleted = false;
       try {
         await SupabaseService.client.from('profiles').delete().eq('id', userId);
-      } catch (_) {}
+        remoteDeleted = true;
+      } catch (e) {
+        // P3: un DELETE remoto fallido (RLS/red) no debe dejar un perfil
+        // huérfano en la nube con los datos locales ya borrados.
+        debugPrint('[AppState] deleteAccount: fallo borrando perfil: $e');
+        try {
+          await SupabaseService.client.from('profiles').delete().eq('id', userId);
+          remoteDeleted = true;
+        } catch (e2) {
+          debugPrint('[AppState] deleteAccount: reintento falló, se aborta limpieza: $e2');
+        }
+      }
+      // Si el perfil sigue vivo en la nube, conservar sesión y datos locales
+      // para que el usuario reintente (consistencia > apariencia).
+      if (!remoteDeleted) return;
     }
     profile = null;
     _hasCachedSession = false;

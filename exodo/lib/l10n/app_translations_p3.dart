@@ -8,12 +8,18 @@ library;
 /// Español no necesita parche (mapa base de referencia).
 
 const Map<String, String> kP3En = <String, String>{
+  'thinking.phase_1': 'Reasoning',
+  'thinking.phase_2': 'Analyzing context',
+  'thinking.phase_3': 'Structuring response',
   'chat.disclaimer_original': 'Exodo is AI and may make mistakes. Please verify responses.',
   'artifacts.search_empty': 'No records found for "{query}"',
   'artifacts.clear_search': 'Clear search',
 };
 
 const Map<String, String> kP3Fr = <String, String>{
+  'thinking.phase_1': 'Raisonnement',
+  'thinking.phase_2': 'Analyse du contexte',
+  'thinking.phase_3': 'Structuration de la réponse',
   'greeting.flirt': 'Toi, moi, une bonne conversation… Je ne sais pas, réfléchis-y',
   'drawer.shared_artifacts': 'Dossiers',
   'artifacts.title': 'Dossiers',
@@ -55,6 +61,9 @@ const Map<String, String> kP3Fr = <String, String>{
 };
 
 const Map<String, String> kP3Pt = <String, String>{
+  'thinking.phase_1': 'Raciocinando',
+  'thinking.phase_2': 'Analisando contexto',
+  'thinking.phase_3': 'Estruturando resposta',
   'greeting.flirt': 'Você, eu, uma boa conversa… Não sei, pense nisso',
   'drawer.shared_artifacts': 'Arquivos',
   'artifacts.title': 'Arquivos',
@@ -96,6 +105,9 @@ const Map<String, String> kP3Pt = <String, String>{
 };
 
 const Map<String, String> kP3It = <String, String>{
+  'thinking.phase_1': 'Ragionamento',
+  'thinking.phase_2': 'Analisi del contesto',
+  'thinking.phase_3': 'Strutturazione della risposta',
   'greeting.flirt': 'Tu, io, una buona chiacchierata… Non so, pensaci',
   'drawer.shared_artifacts': 'Documenti',
   'artifacts.title': 'Documenti',
@@ -137,6 +149,9 @@ const Map<String, String> kP3It = <String, String>{
 };
 
 const Map<String, String> kP3De = <String, String>{
+  'thinking.phase_1': 'Denkt nach',
+  'thinking.phase_2': 'Kontext wird analysiert',
+  'thinking.phase_3': 'Antwort wird strukturiert',
   'greeting.flirt': 'Du, ich, ein gutes Gespräch… Ich weiß nicht, überleg es dir',
   'drawer.shared_artifacts': 'Ablagen',
   'artifacts.title': 'Ablage',
@@ -178,6 +193,9 @@ const Map<String, String> kP3De = <String, String>{
 };
 
 const Map<String, String> kP3Ru = <String, String>{
+  'thinking.phase_1': 'Размышляет',
+  'thinking.phase_2': 'Анализ контекста',
+  'thinking.phase_3': 'Формирование ответа',
   'greeting.flirt': 'Ты, я, хороший разговор… Не знаю, подумай',
   'drawer.shared_artifacts': 'Файлы',
   'artifacts.title': 'Файлы',
@@ -219,6 +237,9 @@ const Map<String, String> kP3Ru = <String, String>{
 };
 
 const Map<String, String> kP3Zh = <String, String>{
+  'thinking.phase_1': '思考中',
+  'thinking.phase_2': '分析上下文',
+  'thinking.phase_3': '组织回复',
   'greeting.flirt': '你、我，一次愉快的交谈……不知道，考虑一下吧',
   'drawer.shared_artifacts': '档案',
   'artifacts.title': '档案',
@@ -260,6 +281,9 @@ const Map<String, String> kP3Zh = <String, String>{
 };
 
 const Map<String, String> kP3Ja = <String, String>{
+  'thinking.phase_1': '思考中',
+  'thinking.phase_2': 'コンテキストを分析中',
+  'thinking.phase_3': '回答を構成中',
   'greeting.flirt': '君と僕、いい話をしよう……なんてね、考えてみて',
   'drawer.shared_artifacts': 'ファイル',
   'artifacts.title': 'ファイル',
@@ -302,6 +326,9 @@ const Map<String, String> kP3Ja = <String, String>{
 };
 
 const Map<String, String> kP3Ar = <String, String>{
+  'thinking.phase_1': 'يفكر',
+  'thinking.phase_2': 'يحلل السياق',
+  'thinking.phase_3': 'ينظم الإجابة',
   'greeting.flirt': 'أنت وأنا، محادثة جيدة... لا أعرف، فكّر في الأمر',
   'drawer.shared_artifacts': 'الملفات',
   'artifacts.title': 'الملفات',
@@ -344,6 +371,9 @@ const Map<String, String> kP3Ar = <String, String>{
 };
 
 const Map<String, String> kP3Ko = <String, String>{
+  'thinking.phase_1': '추론 중',
+  'thinking.phase_2': '컨텍스트 분석 중',
+  'thinking.phase_3': '응답 구성 중',
   'greeting.flirt': '너와 나, 좋은 대화… 글쎄, 생각해 봐',
   'drawer.shared_artifacts': '파일',
   'artifacts.title': '파일',
@@ -388,6 +418,9 @@ const Map<String, String> kP3Ko = <String, String>{
 };
 
 const Map<String, String> kP3Hi = <String, String>{
+  'thinking.phase_1': 'तर्क कर रहा है',
+  'thinking.phase_2': 'संदर्भ का विश्लेषण',
+  'thinking.phase_3': 'उत्तर तैयार कर रहा है',
   'greeting.flirt': 'तुम, मैं, एक अच्छी बातचीत… पता नहीं, सोचो',
   'drawer.shared_artifacts': 'फ़ाइलें',
   'artifacts.title': 'फ़ाइलें',
@@ -432,6 +465,9 @@ const Map<String, String> kP3Hi = <String, String>{
 };
 
 const Map<String, String> kP3Ht = <String, String>{
+  'thinking.phase_1': 'Rezonman',
+  'thinking.phase_2': 'Analize kontèks',
+  'thinking.phase_3': 'Estrikti repons',
   'greeting.flirt': 'Ou, mwen, yon bon pale… Pa konnen, panse sou li',
   'drawer.shared_artifacts': 'Fichye',
   'artifacts.title': 'Fichye',

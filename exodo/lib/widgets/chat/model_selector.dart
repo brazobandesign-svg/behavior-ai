@@ -138,55 +138,8 @@ class ModelSelectorSheet extends StatelessWidget {
   }
 }
 
-class PulsingXpiAura extends StatefulWidget {
-  final Widget child;
-  const PulsingXpiAura({super.key, required this.child});
-  @override
-  State<PulsingXpiAura> createState() => _PulsingXpiAuraState();
-}
-
-class _PulsingXpiAuraState extends State<PulsingXpiAura>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _ctrl;
-  @override
-  void initState() {
-    super.initState();
-    _ctrl = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1500),
-    )..repeat(reverse: true);
-  }
-
-  @override
-  void dispose() {
-    _ctrl.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _ctrl,
-      builder: (context, _) {
-        final blur = 3.0 + _ctrl.value * 12.0;
-        final op = 0.2 + _ctrl.value * 0.5;
-        return Container(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(20),
-            boxShadow: [
-              BoxShadow(
-                color: ExodoColors.amber.withValues(alpha: op),
-                blurRadius: blur,
-                spreadRadius: 1,
-              ),
-            ],
-          ),
-          child: widget.child,
-        );
-      },
-    );
-  }
-}
+// P3: clase muerta eliminada (PulsingXpiAura) — duplicaba el aura del chip de
+// chat_composer con su propia animación infinita; cero referencias en el repo.
 
 class UpgradeModal {
   static void show(BuildContext context) {

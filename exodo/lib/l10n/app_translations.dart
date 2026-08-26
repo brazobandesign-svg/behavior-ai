@@ -116,6 +116,9 @@ const Map<String, String> _es = <String, String>{
   'chat.placeholder_en': 'Reply to Exodo...',
   'chat.edit_message': 'Editar mensaje',
   'chat.thinking': 'Exodo razonando...',
+  'thinking.phase_1': 'Razonando',
+  'thinking.phase_2': 'Analizando contexto',
+  'thinking.phase_3': 'Estructurando respuesta',
   'chat.thinking_en': 'Exodo reasoning...',
   // Indicador en burbuja del chat (palabra suelta, sin puntos suspensivos).
   // Localizado a 13 idiomas; clave aparte de 'chat.thinking' para no

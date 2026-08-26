@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../l10n/app_i18n.dart';
 import '../../services/app_state.dart';
 import '../../theme/exodo_theme.dart';
 
@@ -41,7 +42,9 @@ class _ExodoThinkingIndicatorState extends State<ExodoThinkingIndicator>
     )..repeat();
 
     _stopwatch = Stopwatch()..start();
-    _timer = Timer.periodic(const Duration(milliseconds: 100), (_) {
+    // P3 batería: el display muestra segundos enteros; con 1s de periodo el
+    // isolate despierta 10 veces menos que antes (100ms) sin pérdida visual.
+    _timer = Timer.periodic(const Duration(milliseconds: 1000), (_) {
       if (mounted) {
         final sec = (_stopwatch.elapsedMilliseconds / 1000).floor();
         if (sec != _elapsedSeconds) {
@@ -62,12 +65,13 @@ class _ExodoThinkingIndicatorState extends State<ExodoThinkingIndicator>
   }
 
   String _getPhaseText(BuildContext context, int sec) {
+    final t = AppI18n.of(context).t;
     if (sec < 3) {
-      return 'Razonando';
+      return t('thinking.phase_1');
     } else if (sec < 6) {
-      return 'Analizando contexto';
+      return t('thinking.phase_2');
     } else {
-      return 'Estructurando respuesta';
+      return t('thinking.phase_3');
     }
   }
 

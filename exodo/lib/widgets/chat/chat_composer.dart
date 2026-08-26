@@ -171,7 +171,9 @@ class _ChatComposerState extends State<ChatComposer>
     _auraController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 3200),
-    )..repeat();
+    );
+    // P3 batería: el aura solo anima cuando el glow XPi es visible
+    // (ver _syncAura); para free/otros modelos el controller queda parado.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
         context.read<AppState>().onCancelVoiceRecording = () {
@@ -192,11 +194,29 @@ class _ChatComposerState extends State<ChatComposer>
       unawaited(_stopAndTranscribe());
     }
     // P3 batería: el aura del chip de modelo no se ve en background; pausarla
-    // evita ticks de animación con la app minimizada.
+    // evita ticks de animación con la app minimizada. Al volver, solo reanuda
+    // si el glow XPi está activo (_auraWanted).
     if (state == AppLifecycleState.paused || state == AppLifecycleState.hidden) {
       _auraController.stop();
     } else if (state == AppLifecycleState.resumed) {
-      if (!_auraController.isAnimating) _auraController.repeat();
+      if (_auraWanted && !_auraController.isAnimating) _auraController.repeat();
+    }
+  }
+
+  /// P3 batería: enciende/apaga la animación del aura según visibilidad real
+  /// del glow (solo chip XPi Pro). Sin ticks cuando el efecto es invisible.
+  bool _auraWanted = false;
+  void _syncAura(bool wanted) {
+    if (wanted != _auraWanted) {
+      _auraWanted = wanted;
+      if (wanted) {
+        if (!_auraController.isAnimating) _auraController.repeat();
+      } else {
+        if (_auraController.isAnimating) _auraController.stop();
+      }
+    } else if (wanted && !_auraController.isAnimating) {
+      // Cubre el caso: wanted=true y lifecycle lo pausó sin cambiar wanted.
+      _auraController.repeat();
     }
   }
 
@@ -1274,6 +1294,11 @@ class _ChatComposerState extends State<ChatComposer>
     final state = context.read<AppState>();
     final editingMessage = context.select<AppState, ChatMessage?>((s) => s.editingMessage);
 
+    // P3 batería: el aura del chip solo corre si el glow XPi es visible.
+    _syncAura(
+      isPro && (selectedModel.id == 'ehyeh' || selectedModel.title == 'XPi'),
+    );
+
     if (editingMessage != null && editingMessage.id != _lastLoadedEditMsgId) {
       _lastLoadedEditMsgId = editingMessage.id;
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -1846,14 +1871,38 @@ class _ShimmeringUpgradeTextState extends State<_ShimmeringUpgradeText>
     super.initState();
     // Ciclo total: ~6.2 segundos. Durante el primer 45% (~2.8s) la luz
     // cruza lentamente de forma inclinada. El 55% restante permanece en reposo ámbar.
+    // P3 batería: durante el reposo el controller se DETIENE (cero ticks y
+    // cero regeneraciones del shader); un Timer reanuda el siguiente barrido.
     _controller = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 6200),
-    )..repeat();
+    );
+    _controller.addListener(_onShimmerTick);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _runSweep());
+  }
+
+  Timer? _restTimer;
+
+  void _onShimmerTick() {
+    if (_controller.value >= 0.45 && _controller.isAnimating) {
+      // Entró en fase de reposo: congelar animación (sweep constante en 3.5).
+      _controller.stop();
+      _restTimer?.cancel();
+      _restTimer = Timer(
+        const Duration(milliseconds: 3410),
+        _runSweep,
+      );
+    }
+  }
+
+  void _runSweep() {
+    if (!mounted) return;
+    _controller.forward(from: 0);
   }
 
   @override
   void dispose() {
+    _restTimer?.cancel();
     _controller.dispose();
     super.dispose();
   }
