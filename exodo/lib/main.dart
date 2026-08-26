@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'app/bootstrap.dart';
 import 'app/root_switcher.dart';
 import 'l10n/app_i18n.dart';
 import 'l10n/app_translations.dart';
+import 'l10n/localizations_fallback.dart';
 import 'services/supabase_service.dart';
 import 'services/app_state.dart';
 import 'services/chat_service.dart';
@@ -99,11 +99,10 @@ class ExodoApp extends StatelessWidget {
           : ThemeMode.light,
       themeAnimationDuration: Duration.zero,
       themeAnimationCurve: Curves.linear,
-      localizationsDelegates: const [
-        GlobalMaterialLocalizations.delegate,
-        GlobalWidgetsLocalizations.delegate,
-        GlobalCupertinoLocalizations.delegate,
-      ],
+      // Delegates con fallback ht→fr: flutter_localizations no soporta
+      // Kreyòl (`ht`) y sin este wrapper cualquier widget que pida
+      // MaterialLocalizations tumba el build con pantalla gris.
+      localizationsDelegates: kExodoLocalizationsDelegates,
       supportedLocales: kAppLocales
           .map((l) {
             final parts = l.code.split('_');

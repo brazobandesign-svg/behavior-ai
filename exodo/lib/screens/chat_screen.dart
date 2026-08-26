@@ -13,6 +13,7 @@ import '../widgets/chat/message_bubble.dart';
 import '../widgets/chat/model_selector.dart';
 import '../services/chat_service.dart';
 import '../theme/exodo_theme.dart';
+import '../l10n/app_i18n.dart';
 
 class ChatScreen extends StatefulWidget {
   const ChatScreen({super.key});
@@ -482,10 +483,10 @@ class _LongConversationBannerState extends State<_LongConversationBanner> {
             color: ExodoColors.amber,
           ),
           const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              'Esta conversación es extensa. Para consultas complejas o máxima retención de contexto, considera iniciar un nuevo chat.',
-              style: TextStyle(
+            Expanded(
+              child: Text(
+                AppI18n.of(context).t('banner.long_conversation'),
+                style: TextStyle(
                 fontFamily: 'AnthropicSans',
                 fontSize: 12,
                 color: widget.isLight ? const Color(0xFF555555) : Colors.white70,
@@ -506,9 +507,9 @@ class _LongConversationBannerState extends State<_LongConversationBanner> {
                 color: ExodoColors.amber.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: const Text(
-                'Nuevo',
-                style: TextStyle(
+              child: Text(
+                AppI18n.of(context).t('banner.new_chat'),
+                style: const TextStyle(
                   fontFamily: 'AnthropicSans',
                   fontSize: 11.5,
                   fontWeight: FontWeight.bold,

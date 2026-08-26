@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:google_fonts/google_fonts.dart';
 import '../../services/app_state.dart';
 import '../../theme/exodo_theme.dart';
 import '../../l10n/app_i18n.dart';
@@ -134,9 +133,12 @@ class _ChatStageState extends State<ChatStage> {
                       const SizedBox(width: 8),
                       Text(
                         AppI18n.of(context).t('network.offline_title'),
-                        style: GoogleFonts.inter(
+                        // Fuente empaquetada: sin fetch de red en el frame offline.
+                        style: TextStyle(
+                          fontFamily: 'AnthropicSans',
                           fontSize: 12.5,
                           fontWeight: FontWeight.w600,
+                          letterSpacing: -0.1,
                           color: ExodoColors.textSecondary,
                         ),
                       ),
@@ -197,9 +199,12 @@ class _ChatStageState extends State<ChatStage> {
                     const SizedBox(width: 8),
                     Text(
                       AppI18n.of(context).t('network.offline_title'),
-                      style: GoogleFonts.inter(
+                      // Fuente empaquetada: sin fetch de red en el frame offline.
+                      style: TextStyle(
+                        fontFamily: 'AnthropicSans',
                         fontSize: 12.5,
                         fontWeight: FontWeight.w600,
+                        letterSpacing: -0.1,
                         color: isLight ? const Color(0xFF171615) : ExodoColors.textSecondary,
                       ),
                     ),

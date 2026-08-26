@@ -959,7 +959,9 @@ class _ClaudeAccountModal {
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                       decoration: BoxDecoration(color: isLight ? const Color(0xFF171615) : ExodoColors.textPrimary, borderRadius: BorderRadius.circular(20)),
                       child: Text(
-                        state.profile?.plan == 'hazak' ? 'Pro' : 'Free',
+                        state.profile?.plan == 'hazak'
+                            ? AppI18n.of(context).t('plan.pro')
+                            : AppI18n.of(context).t('plan.free'),
                         style: TextStyle(fontFamily: 'AnthropicSans', fontSize: 12, fontWeight: FontWeight.bold, color: isLight ? Colors.white : ExodoColors.background, letterSpacing: -0.2),
                       ),
                     ),

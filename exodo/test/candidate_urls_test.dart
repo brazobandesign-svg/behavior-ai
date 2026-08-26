@@ -10,11 +10,15 @@ import 'package:exodo/services/chat_service.dart';
 ///   flutter test                    (debug: kDebugMode == true)
 ///   flutter test --release          (release: kDebugMode == false)
 void main() {
+  // P1 (2026-08-26): el backend productivo migró de Railway a Cloud Run;
+  // el test apuntaba a la URL antigua y fallaba en cualquier modo.
+  const prodUrl = 'https://exodo-api-4tdhiyieea-ue.a.run.app/api/chat';
+
   group('ChatService.candidateUrls — gate kDebugMode', () {
-    test('Railway HTTPS siempre presente como destino productivo', () {
+    test('Backend productivo HTTPS siempre presente como destino productivo', () {
       final urls = ChatService.candidateUrls;
       expect(
-        urls.any((u) => u.startsWith('https://behavior-ai-production')),
+        urls.any((u) => u.startsWith('https://exodo-api-4tdhiyieea-ue.a.run.app')),
         isTrue,
         reason: 'El fallback productivo HTTPS debe existir en todo modo',
       );
@@ -30,7 +34,7 @@ void main() {
           reason: 'Release no puede contener candidatos http://: '
               'encontrados=$plainHttp',
         );
-        expect(urls, contains('https://behavior-ai-production.up.railway.app/api/chat'));
+        expect(urls, contains(prodUrl));
       } else {
         // En debug los candidatos LAN son intencionales y permitidos.
         expect(urls, everyElement(isNotEmpty));

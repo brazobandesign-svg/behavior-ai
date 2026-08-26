@@ -64,6 +64,10 @@ class _AppI18nState {
     final prefs = await SharedPreferences.getInstance();
     currentLocale = prefs.getString('exodo_locale');
     AppI18n.setInstance(currentLocale);
+    // P1: notificar el locale persistido. Sin este callback el arranque en
+    // frío pintaba el frame 0 (y toda la pantalla si no había otro rebuild)
+    // en el idioma del sistema en vez del idioma elegido por el usuario.
+    onChange?.call();
   }
 
   Future<void> setLocale(String? code) async {

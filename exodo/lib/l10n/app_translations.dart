@@ -357,6 +357,13 @@ const Map<String, String> _es = <String, String>{
 
   'billing.header_sub': 'Elige el plan ideal para ti',
   'billing.title': 'Más capacidad en Exodo',
+
+  // P1 i18n (2026-08-26): plan + banner conversación extensa (antes hardcodeados).
+  'plan.free': 'Gratis',
+  'plan.pro': 'Pro',
+  'banner.long_conversation':
+      'Esta conversación es extensa. Para consultas complejas o máxima retención de contexto, considera iniciar un nuevo chat.',
+  'banner.new_chat': 'Nuevo',
 };
 
 const Map<String, String> _en = <String, String>{
@@ -591,6 +598,13 @@ const Map<String, String> _en = <String, String>{
 
   'billing.header_sub': 'Choose the plan right for you',
   'billing.title': 'Get more Exodo',
+
+  // P1 i18n (2026-08-26)
+  'plan.free': 'Free',
+  'plan.pro': 'Pro',
+  'banner.long_conversation':
+      'This conversation is long. For complex queries or maximum context retention, consider starting a new chat.',
+  'banner.new_chat': 'New',
 };
 
 const Map<String, String> _fr = <String, String>{
@@ -792,6 +806,13 @@ const Map<String, String> _fr = <String, String>{
 
   'billing.header_sub': 'Choisissez le plan qui vous convient',
   'billing.title': 'Plus de capacité sur Exodo',
+
+  // P1 i18n (2026-08-26)
+  'plan.free': 'Gratuit',
+  'plan.pro': 'Pro',
+  'banner.long_conversation':
+      'Cette conversation est longue. Pour des requêtes complexes ou une rétention maximale du contexte, pensez à démarrer un nouveau chat.',
+  'banner.new_chat': 'Nouveau',
 };
 
 const Map<String, String> _pt = <String, String>{
@@ -991,6 +1012,13 @@ const Map<String, String> _pt = <String, String>{
 
   'billing.header_sub': 'Escolha o plano ideal para você',
   'billing.title': 'Mais capacidade no Exodo',
+
+  // P1 i18n (2026-08-26)
+  'plan.free': 'Grátis',
+  'plan.pro': 'Pro',
+  'banner.long_conversation':
+      'Esta conversa está longa. Para consultas complexas ou máxima retenção de contexto, considere iniciar um novo chat.',
+  'banner.new_chat': 'Novo',
 };
 
 const Map<String, String> _it = <String, String>{
@@ -1189,6 +1217,13 @@ const Map<String, String> _it = <String, String>{
 
   'billing.header_sub': 'Scegli il piano giusto per te',
   'billing.title': 'Più capacità su Exodo',
+
+  // P1 i18n (2026-08-26)
+  'plan.free': 'Gratuito',
+  'plan.pro': 'Pro',
+  'banner.long_conversation':
+      'Questa conversazione è lunga. Per domande complesse o massima ritenzione del contesto, valuta di iniziare una nuova chat.',
+  'banner.new_chat': 'Nuovo',
 };
 
 const Map<String, String> _de = <String, String>{
@@ -1392,6 +1427,13 @@ const Map<String, String> _de = <String, String>{
 
   'billing.header_sub': 'Wählen Sie den passenden Plan für sich',
   'billing.title': 'Mehr Kapazität bei Exodo',
+
+  // P1 i18n (2026-08-26)
+  'plan.free': 'Kostenlos',
+  'plan.pro': 'Pro',
+  'banner.long_conversation':
+      'Diese Unterhaltung ist lang. Für komplexe Anfragen oder maximalen Kontext, beginne am besten einen neuen Chat.',
+  'banner.new_chat': 'Neu',
 };
 
 final Map<String, String> _ru = <String, String>{
@@ -1573,6 +1615,13 @@ final Map<String, String> _ru = <String, String>{
 
   'billing.header_sub': 'Выберите подходящий вам тариф',
   'billing.title': 'Больше возможностей в Exodo',
+
+  // P1 i18n (2026-08-26)
+  'plan.free': 'Бесплатно',
+  'plan.pro': 'Pro',
+  'banner.long_conversation':
+      'Этот диалог длинный. Для сложных запросов и максимального контекста начните новый чат.',
+  'banner.new_chat': 'Новый',
 };
 
 final Map<String, String> _zh = <String, String>{
@@ -1740,6 +1789,12 @@ final Map<String, String> _zh = <String, String>{
 
   'billing.header_sub': '选择最适合您的套餐',
   'billing.title': '获取更多 Exodo 算力',
+
+  // P1 i18n (2026-08-26)
+  'plan.free': '免费',
+  'plan.pro': 'Pro',
+  'banner.long_conversation': '此对话较长。如需复杂查询或最大化上下文保留，建议开始新对话。',
+  'banner.new_chat': '新建',
 };
 
 final Map<String, String> _ja = <String, String>{
@@ -1907,6 +1962,13 @@ final Map<String, String> _ja = <String, String>{
 
   'billing.header_sub': 'あなたに最適なプランを選択',
   'billing.title': 'Exodoをさらに活用',
+
+  // P1 i18n (2026-08-26)
+  'plan.free': '無料',
+  'plan.pro': 'Pro',
+  'banner.long_conversation':
+      'この会話は長くなっています。複雑な質問や最大限のコンテキスト保持には、新しいチャットの開始をご検討ください。',
+  'banner.new_chat': '新規',
 };
 
 final Map<String, String> _ar = <String, String>{
@@ -2081,6 +2143,13 @@ final Map<String, String> _ar = <String, String>{
 
   'billing.header_sub': 'اختر الخطة المناسبة لك',
   'billing.title': 'احصل على المزيد من Exodo',
+
+  // P1 i18n (2026-08-26)
+  'plan.free': 'مجاني',
+  'plan.pro': 'Pro',
+  'banner.long_conversation':
+      'هذه المحادثة طويلة. للاستعلامات المعقدة أو أقصى احتفاظ بالسياق، فكّر في بدء محادثة جديدة.',
+  'banner.new_chat': 'جديد',
 };
 
 final Map<String, String> _ko = <String, String>{
@@ -2246,6 +2315,13 @@ final Map<String, String> _ko = <String, String>{
 
   'billing.header_sub': '나에게 맞는 플랜 선택',
   'billing.title': 'Exodo 더 많은 용량 얻기',
+
+  // P1 i18n (2026-08-26)
+  'plan.free': '무료',
+  'plan.pro': 'Pro',
+  'banner.long_conversation':
+      '이 대화는 깁니다. 복잡한 질문이나 최대 컨텍스트 유지를 위해서는 새 채팅을 시작하는 것이 좋습니다.',
+  'banner.new_chat': '새로 만들기',
 };
 
 final Map<String, String> _hi = <String, String>{
@@ -2420,6 +2496,13 @@ final Map<String, String> _hi = <String, String>{
 
   'billing.header_sub': 'अपने लिए सही योजना चुनें',
   'billing.title': 'Exodo में अधिक क्षमता प्राप्त करें',
+
+  // P1 i18n (2026-08-26)
+  'plan.free': 'मुफ़्त',
+  'plan.pro': 'Pro',
+  'banner.long_conversation':
+      'यह बातचीत लंबी है। जटिल प्रश्नों या अधिकतम संदर्भ के लिए नई चैट शुरू करने पर विचार करें।',
+  'banner.new_chat': 'नया',
 };
 
 final Map<String, String> _ht = <String, String>{
@@ -2495,7 +2578,6 @@ final Map<String, String> _ht = <String, String>{
   'starter.2': 'Explique un concept complexe',
   'starter.3': 'Écris un e-mail professionnel',
   'starter.4': 'Idées pour un projet innovant',
-  'settings.title': 'Settings',
   'settings.profile': 'Pwofil',
   'settings.billing': 'Abonnman ak Plan',
   'settings.logout': 'Déconnexion',
@@ -2571,6 +2653,7 @@ final Map<String, String> _ht = <String, String>{
   'profile.update_btn': 'Mete pwofil la aktyalize',
   'settings.legal_body':
       'Tout dwa rezève. Itilizasyon Exodo sijè ak kondisyon ak règleman konfidansyalite nou yo.',
+  'settings.title': 'Paramèt',
   'sources.consulted': 'Sous ki te konsilte sou entènèt',
   'tokens.more_cap': 'Plis kapasite ak XPi PRO',
   'tokens.upgrade_btn': 'Amelyore nan XPi PRO',
@@ -2593,6 +2676,13 @@ final Map<String, String> _ht = <String, String>{
   'models.origo_desc': 'Modèl pèfòman pou travay chak jou.',
   'billing.header_sub': 'Chwazi plan ki bon pou ou a',
   'billing.title': 'Jwenn plis Exodo',
+
+  // P1 i18n (2026-08-26)
+  'plan.free': 'Gratis',
+  'plan.pro': 'Pro',
+  'banner.long_conversation':
+      'Konvèsasyon sa a long. Pou rekèt konplèks oswa pi bon memwa kontèks, kòmanse yon nouvo chat.',
+  'banner.new_chat': 'Nouvo',
 };
 
 final Map<String, String> _ptBR = <String, String>{
