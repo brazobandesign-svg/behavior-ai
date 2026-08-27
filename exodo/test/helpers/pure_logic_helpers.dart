@@ -61,3 +61,24 @@ List<String> candidateUrls({
   if (!list.contains(prodUrl)) list.add(prodUrl);
   return list;
 }
+
+// ─── [Punto 4] Compuertas silenciosas de pago (billing) ──────────────────────
+// Réplicas exactas de la política implementada en producción:
+// - StripeService.startCheckoutSession (guard interno JWT + conectividad)
+// - UpgradeModal botón "Adquirir Pro" (invitado u offline → no-op con háptica)
+// - Drawer botón de portal (sólo cuentas Pro; offline → no-op silencioso)
+
+/// ¿Puede ejecutarse un checkout de Stripe? Réplica exacta del guard interno
+/// de `StripeService.startCheckoutSession`: requiere JWT presente y no vacío
+/// Y conectividad activa. Cualquier otra cosa → retorno silencioso `false`.
+bool canStartCheckout({String? jwt, required bool isOnline}) =>
+    !(jwt == null || jwt.isEmpty || !isOnline);
+
+/// ¿El botón "Adquirir Pro" es un no-op silencioso? Réplica exacta del guard
+/// de `UpgradeModal`: invitado u offline → sí (retorno temprano + háptica).
+bool purchaseButtonIsNoOp({required bool isGuestUser, required bool isOnline}) =>
+    isGuestUser || !isOnline;
+
+/// ¿El botón del portal de gestión (drawer, cuentas Pro) es no-op? Réplica
+/// del guard añadido en `DrawerMenu._showBillingModal`: offline → sí.
+bool portalButtonIsNoOp({required bool isOnline}) => !isOnline;

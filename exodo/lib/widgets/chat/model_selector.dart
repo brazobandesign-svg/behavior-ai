@@ -414,9 +414,17 @@ class UpgradeModal {
                           onPressed: isLoadingCheckout
                               ? null
                               : () async {
+                                  // [Punto 4] Invitado u offline → no-op
+                                  // silencioso: retorno temprano con háptica
+                                  // suave. CERO pop-ups ni SnackBars.
+                                  final appState = context.read<AppState>();
+                                  if (appState.isGuestUser || !appState.isOnline) {
+                                    HapticFeedback.selectionClick();
+                                    return;
+                                  }
                                   HapticFeedback.mediumImpact();
                                   setModalState(() => isLoadingCheckout = true);
-                                  final success = await StripeService.startCheckoutSession(context, isAnnual: isAnnual);
+                                  final success = await StripeService.startCheckoutSession(isAnnual: isAnnual);
                                   if (context.mounted && success) {
                                     Navigator.pop(ctx);
                                   } else if (context.mounted) {

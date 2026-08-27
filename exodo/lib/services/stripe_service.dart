@@ -1,13 +1,17 @@
 import 'dart:convert';
-import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:url_launcher/url_launcher.dart';
-import '../theme/exodo_palette.dart';
 import 'chat_service.dart';
+import 'connectivity_service.dart';
 import 'supabase_service.dart';
 
 /// Servicio de Stripe para Éxodo.
 /// Crea Checkout Sessions y abre el portal de gestión.
+///
+/// [Punto 4] POLÍTICA DE SILENCIO EN PAGOS: ningún método de este servicio
+/// muestra SnackBars ni diálogos nativos. Sin sesión iniciada (invitado) o
+/// sin conexión el flujo simplemente NO OCURRE (retorno limpio `false`),
+/// y la UI queda muda; puede añadir háptica suave si el botón se presiona.
 class StripeService {
   static bool _isCheckingOut = false;
 
@@ -69,56 +73,35 @@ class StripeService {
     throw lastError ?? Exception('No se pudo conectar con el servidor de pagos');
   }
 
-  /// Inicia el flujo de checkout de Stripe en el navegador externo con feedback visual.
-  static Future<bool> startCheckoutSession(BuildContext context, {bool isAnnual = false}) async {
+  /// Inicia el flujo de checkout de Stripe en el navegador externo.
+  ///
+  /// [Punto 4] Si no hay sesión (invitado) o no hay conexión, retorna `false`
+  /// de inmediato y EN SILENCIO: cero pop-ups, cero SnackBars. Los fallos de
+  /// red/backend también se tragan aquí — para el usuario el botón es un
+  /// no-op. La háptica suave (si se desea) vive en la capa UI, no aquí.
+  static Future<bool> startCheckoutSession({bool isAnnual = false}) async {
     if (_isCheckingOut) return false;
+
+    final session = SupabaseService.client.auth.currentSession;
+    final jwt = session?.accessToken;
+
+    // Guest / sin sesión / sin conexión → retorno limpio y silencioso.
+    if (jwt == null || jwt.isEmpty || !ConnectivityService().isOnline) {
+      return false;
+    }
+
     _isCheckingOut = true;
-
     try {
-      final session = SupabaseService.client.auth.currentSession;
-      final jwt = session?.accessToken;
-
-      if (jwt == null) {
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).hideCurrentSnackBar();
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Debes iniciar sesión con tu cuenta para adquirir una suscripción.'),
-              backgroundColor: ExodoPalette.danger,
-            ),
-          );
-        }
-        return false;
-      }
-
       final url = await createCheckoutSession(isAnnual: isAnnual);
       if (url != null && url.isNotEmpty) {
         final uri = Uri.parse(url);
         final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
         return launched;
-      } else {
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).hideCurrentSnackBar();
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('No se pudo generar el enlace de pago de Stripe. Intenta más tarde.'),
-              backgroundColor: ExodoPalette.danger,
-            ),
-          );
-        }
-        return false;
       }
-    } catch (e) {
-      if (context.mounted) {
-        final cleanMsg = e.toString().replaceAll('Exception: ', '');
-        ScaffoldMessenger.of(context).hideCurrentSnackBar();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error de suscripción: $cleanMsg'),
-            backgroundColor: ExodoPalette.danger,
-          ),
-        );
-      }
+      // El backend no devolvió URL → silencio total.
+      return false;
+    } catch (_) {
+      // Fallo de red/backend → silencio total (criterio auditor: cero pop-ups).
       return false;
     } finally {
       _isCheckingOut = false;

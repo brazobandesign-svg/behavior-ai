@@ -1350,17 +1350,20 @@ class _ClaudeAccountModal {
                   child: OutlinedButton(
                     style: OutlinedButton.styleFrom(side: const BorderSide(color: Color(0xFFE57373)), padding: const EdgeInsets.symmetric(vertical: 14)),
                     onPressed: () async {
+                      // [Punto 4] Flujo de pago/portal: política de silencio.
+                      // Sin conexión → no-op con háptica suave, sin pop-ups.
+                      if (!state.isOnline) {
+                        HapticFeedback.selectionClick();
+                        return;
+                      }
                       try {
                         final url = await StripeService.createPortalSession();
                         if (url != null && ctx.mounted) {
                           await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
                         }
-                      } catch (e) {
-                        if (ctx.mounted) {
-                          ScaffoldMessenger.of(ctx).showSnackBar(
-                            SnackBar(content: Text(e.toString().replaceFirst('Exception: ', ''))),
-                          );
-                        }
+                      } catch (_) {
+                        // Silencio total: cero SnackBar/diálogos nativos aquí.
+                        debugPrint('[Billing] Portal de Stripe no disponible: no-op silencioso.');
                       }
                     },
                     child: Text(

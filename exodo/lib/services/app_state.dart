@@ -2,11 +2,9 @@ import 'dart:convert';
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:url_launcher/url_launcher.dart';
 import '../models/models.dart';
 import '../app/bootstrap.dart';
 import '../data/repositories/local_chat_repository.dart';
@@ -14,8 +12,6 @@ import '../data/local/db/tables/messages.dart'; // Import LocalMessageStatus enu
 import 'supabase_service.dart';
 import 'chat_service.dart';
 import 'connectivity_service.dart';
-import 'stripe_service.dart';
-import '../theme/exodo_palette.dart';
 import '../l10n/app_i18n.dart';
 
 class AppState extends ChangeNotifier {
@@ -821,40 +817,9 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> upgradeToProPlan(BuildContext context, {bool isAnnual = false}) async {
-    try {
-      final url = await StripeService.createCheckoutSession(isAnnual: isAnnual);
-      if (url != null && url.isNotEmpty) {
-        final uri = Uri.parse(url);
-        final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
-        if (!launched && context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('No se pudo abrir el enlace de pago. Intenta de nuevo.'),
-              backgroundColor: ExodoPalette.danger,
-            ),
-          );
-        }
-      } else if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('No se pudo generar el enlace de pago de Stripe. Intenta más tarde.'),
-            backgroundColor: ExodoPalette.danger,
-          ),
-        );
-      }
-    } catch (e) {
-      if (context.mounted) {
-        final cleanMsg = e.toString().replaceAll('Exception: ', '');
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error de suscripción: $cleanMsg'),
-            backgroundColor: ExodoPalette.danger,
-          ),
-        );
-      }
-    }
-  }
+  // [Punto 4] `upgradeToProPlan` eliminado: era código muerto (cero callers;
+  // el flujo real vive en StripeService.startCheckoutSession vía UpgradeModal)
+  // y sus 3 SnackBars violaban la política de silencio en pagos.
 
   // [Punto 39] Borra todo el historial de conversaciones del usuario.
   // conecta con Supabase: elimina todas las conversations del user_id actual
