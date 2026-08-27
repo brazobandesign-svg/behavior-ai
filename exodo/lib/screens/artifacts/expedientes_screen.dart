@@ -359,7 +359,7 @@ class _ExpedientesScreenState extends State<ExpedientesScreen> {
                   ),
                   cursorColor: ExodoPalette.gold,
                   decoration: InputDecoration(
-                    hintText: 'Buscar en expedientes...',
+                    hintText: i18n.t('artifacts.search_hint'),
                     hintStyle: TextStyle(
                       fontFamily: 'AnthropicSans',
                       color: neutralGray,
@@ -399,7 +399,7 @@ class _ExpedientesScreenState extends State<ExpedientesScreen> {
         actions: [
           if (_isSearching)
             IconButton(
-              tooltip: 'Cerrar búsqueda',
+              tooltip: i18n.t('action.close'),
               icon: const Icon(Icons.close_rounded),
               onPressed: () {
                 _searchCtrl.clear();
@@ -411,7 +411,7 @@ class _ExpedientesScreenState extends State<ExpedientesScreen> {
             )
           else if (!_guestLocked) ...[
             IconButton(
-              tooltip: 'Buscar expediente',
+              tooltip: i18n.t('drawer.search_chats'),
               icon: const Icon(Icons.search_rounded),
               onPressed: () {
                 setState(() => _isSearching = true);

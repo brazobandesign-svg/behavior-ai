@@ -19,6 +19,7 @@ import '../../services/expedientes_repository.dart';
 import '../../widgets/artifacts/github_commit_sheet.dart';
 import '../../services/export/exporters.dart';
 import '../../theme/exodo_palette.dart';
+import '../../l10n/app_i18n.dart';
 
 import '../../templates/sandbox_template.dart';
 
@@ -77,7 +78,7 @@ class _ArtifactFullscreenState extends State<ArtifactFullscreen>
     HapticFeedback.lightImpact();
 
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
+      SnackBar(
         content: Row(
           children: [
             SizedBox(
@@ -86,7 +87,7 @@ class _ArtifactFullscreenState extends State<ArtifactFullscreen>
               child: CircularProgressIndicator(strokeWidth: 2, color: ExodoPalette.gold),
             ),
             SizedBox(width: 12),
-            Text('Generando enlace web público...'),
+            Expanded(child: Text(AppI18n.of(context).t('artifacts.generating_link'))),
           ],
         ),
         duration: Duration(seconds: 4),
@@ -100,8 +101,8 @@ class _ArtifactFullscreenState extends State<ArtifactFullscreen>
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
       if (url != null && url.isNotEmpty) {
         await ShareService.instance.shareText(
-          'Consulta este recurso en Éxodo: $url',
-          subject: a.title ?? 'Artefacto Éxodo',
+          '${AppI18n.of(context).t('artifacts.share_text')}: $url',
+          subject: a.title ?? 'Éxodo',
         );
       } else {
         await _shareSource();
@@ -111,7 +112,7 @@ class _ArtifactFullscreenState extends State<ArtifactFullscreen>
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Error al compartir: $e'),
+          content: Text('${AppI18n.of(context).t('artifacts.error_share')}: $e'),
           backgroundColor: ExodoPalette.danger,
         ),
       );
@@ -208,7 +209,7 @@ class _ArtifactFullscreenState extends State<ArtifactFullscreen>
     if (convId.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: const Text('Conversación original no disponible.'),
+          content: Text(AppI18n.of(context).t('artifacts.original_chat_missing')),
           backgroundColor: const Color(0xFF252525),
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
@@ -295,19 +296,19 @@ class _ArtifactFullscreenState extends State<ArtifactFullscreen>
         actions: [
           if (widget.artifact.conversationId.isNotEmpty)
             IconButton(
-              tooltip: 'Ir a la conversación',
+              tooltip: AppI18n.of(context).t('artifacts.back_chat'),
               icon: const Icon(Icons.forum_outlined, color: Color(0xFF8E8E93)),
               onPressed: _navigateToConversation,
             ),
           if (canSave)
             IconButton(
-              tooltip: 'Commitear a GitHub',
+              tooltip: AppI18n.of(context).t('github.commit_chip'),
               icon: const Icon(Icons.account_tree_outlined, color: Color(0xFF8E8E93)),
               onPressed: _openGithubCommitSheet,
             ),
           if (canSave)
             IconButton(
-              tooltip: 'Guardar en Expedientes',
+              tooltip: AppI18n.of(context).t('artifacts.action_save'),
               icon: _savingExpediente
                   ? const SizedBox(
                       width: 18,
@@ -321,17 +322,17 @@ class _ArtifactFullscreenState extends State<ArtifactFullscreen>
               onPressed: _savingExpediente ? null : _saveToExpedientes,
             ),
           IconButton(
-            tooltip: 'Copiar código',
+            tooltip: AppI18n.of(context).t('act.copy'),
             icon: const Icon(Icons.copy_rounded, color: Color(0xFF8E8E93)),
             onPressed: _copy,
           ),
           IconButton(
-            tooltip: 'Compartir enlace web',
+            tooltip: AppI18n.of(context).t('artifacts.share_web'),
             icon: const Icon(Icons.share_outlined, color: Color(0xFF8E8E93)),
             onPressed: _shareWebLink,
           ),
           IconButton(
-            tooltip: 'Exportar archivo',
+            tooltip: AppI18n.of(context).t('artifacts.tooltip_export'),
             icon: const Icon(Icons.ios_share_rounded, color: Color(0xFF8E8E93)),
             onPressed: _openExportSheet,
           ),
@@ -343,9 +344,15 @@ class _ArtifactFullscreenState extends State<ArtifactFullscreen>
           labelColor: const Color(0xFFF5F2EB),
           unselectedLabelColor: const Color(0xFF8E8E93),
           labelStyle: const TextStyle(fontFamily: 'AnthropicSans', fontWeight: FontWeight.w600, fontSize: 12, letterSpacing: 0.4),
-          tabs: const [
-            Tab(icon: Icon(Icons.visibility_rounded, size: 18), text: 'VISTA PREVIA'),
-            Tab(icon: Icon(Icons.code_rounded, size: 18), text: 'CÓDIGO'),
+          tabs: [
+            Tab(
+              icon: const Icon(Icons.visibility_rounded, size: 18),
+              text: AppI18n.of(context).t('artifacts.tab_preview').toUpperCase(),
+            ),
+            Tab(
+              icon: const Icon(Icons.code_rounded, size: 18),
+              text: AppI18n.of(context).t('artifacts.tab_code').toUpperCase(),
+            ),
           ],
         ),
       ),
@@ -503,13 +510,13 @@ class _StaticViewer extends StatelessWidget {
     if (artifact.kind == ArtifactKind.json) {
       return _CodeView(artifact: artifact);
     }
-    return const Center(
+    return Center(
       child: Padding(
-        padding: EdgeInsets.all(24),
+        padding: const EdgeInsets.all(24),
         child: Text(
-          'Este artefacto no tiene una vista previa interactiva.\nAbre la pestaña Código para inspeccionarlo.',
+          AppI18n.of(context).t('artifacts.no_preview_desc'),
           textAlign: TextAlign.center,
-          style: TextStyle(
+          style: const TextStyle(
             color: ExodoPalette.textMuted,
             fontSize: 13,
             height: 1.5,
@@ -541,10 +548,10 @@ class _TableDataViewer extends StatelessWidget {
         : <List<String>>[];
 
     if (headers.isEmpty && rows.isEmpty) {
-      return const Center(
+      return Center(
         child: Text(
-          'Tabla sin datos detectables.',
-          style: TextStyle(color: ExodoPalette.textMuted),
+          AppI18n.of(context).t('artifacts.table_empty'),
+          style: const TextStyle(color: ExodoPalette.textMuted),
         ),
       );
     }
@@ -746,7 +753,7 @@ class _ExportSheetState extends State<ExportSheet> {
       final file = await task();
       if (!mounted) return;
       if (file == null) {
-        setState(() => _error = 'Esta opción no aplica a este artefacto.');
+        setState(() => _error = AppI18n.of(context).t('artifacts.export_na'));
         return;
       }
       Navigator.of(context).pop();
@@ -757,7 +764,7 @@ class _ExportSheetState extends State<ExportSheet> {
       );
     } catch (e) {
       if (!mounted) return;
-      setState(() => _error = 'Error al exportar: $e');
+      setState(() => _error = '${AppI18n.of(context).t('artifacts.error_export')}: $e');
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -773,17 +780,17 @@ class _ExportSheetState extends State<ExportSheet> {
       final url = await ArtifactsService.publishArtifact(widget.artifact);
       if (!mounted) return;
       if (url == null || url.isEmpty) {
-        setState(() => _error = 'No se pudo generar el enlace web.');
+        setState(() => _error = AppI18n.of(context).t('artifacts.web_link_failed'));
         return;
       }
       Navigator.of(context).pop();
       await ShareService.instance.shareText(
-        'Consulta este recurso en Éxodo: $url',
-        subject: widget.artifact.title ?? 'Artefacto Éxodo',
+        '${AppI18n.of(context).t('artifacts.share_text')}: $url',
+        subject: widget.artifact.title ?? 'Éxodo',
       );
     } catch (e) {
       if (!mounted) return;
-      setState(() => _error = 'Error al publicar enlace: $e');
+      setState(() => _error = '${AppI18n.of(context).t('artifacts.error_publish')}: $e');
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -810,7 +817,7 @@ class _ExportSheetState extends State<ExportSheet> {
                 Icon(Icons.ios_share_rounded, color: primaryTextColor, size: 20),
                 const SizedBox(width: 8),
                 Text(
-                  'Exportar artefacto',
+                  AppI18n.of(context).t('artifacts.export_sheet_title'),
                   style: TextStyle(
                     fontFamily: 'AnthropicSans',
                     color: primaryTextColor,
@@ -823,7 +830,7 @@ class _ExportSheetState extends State<ExportSheet> {
             ),
             const SizedBox(height: 6),
             Text(
-              'Elige un formato. El archivo se generará y se abrirá el menú de compartir.',
+              AppI18n.of(context).t('artifacts.export_sheet_desc'),
               style: TextStyle(
                 fontFamily: 'AnthropicSans',
                 color: secondaryTextColor,
@@ -834,22 +841,22 @@ class _ExportSheetState extends State<ExportSheet> {
             const SizedBox(height: 16),
             _ExportTile(
               icon: Icons.link_rounded,
-              label: 'Compartir enlace web',
-              description: 'Genera una URL pública interactiva en exodo.app',
+              label: AppI18n.of(context).t('artifacts.share_web'),
+              description: AppI18n.of(context).t('artifacts.export_desc_web'),
               onTap: _publishWebLink,
               enabled: !_busy,
             ),
             _ExportTile(
               icon: Icons.picture_as_pdf_rounded,
               label: 'PDF',
-              description: 'Maquetado limpio para lectura e impresión',
+              description: AppI18n.of(context).t('artifacts.export_desc_pdf'),
               onTap: () => _run(() => PdfExporter().exportArtifact(a), 'PDF'),
               enabled: !_busy,
             ),
             _ExportTile(
               icon: Icons.description_rounded,
               label: 'DOCX',
-              description: 'Documento Word con títulos y estructura nativa',
+              description: AppI18n.of(context).t('artifacts.export_desc_docx'),
               onTap: () => _run(() => DocxExporter().exportArtifact(a), 'DOCX'),
               enabled: !_busy,
             ),
@@ -857,7 +864,7 @@ class _ExportSheetState extends State<ExportSheet> {
               _ExportTile(
                 icon: Icons.table_view_rounded,
                 label: 'XLSX',
-                description: 'Hoja de cálculo con celdas formateadas',
+                description: AppI18n.of(context).t('artifacts.export_desc_xlsx'),
                 onTap: () => _run(() => XlsxExporter().exportArtifact(a), 'XLSX'),
                 enabled: !_busy,
               ),
@@ -865,7 +872,7 @@ class _ExportSheetState extends State<ExportSheet> {
               _ExportTile(
                 icon: Icons.code_rounded,
                 label: 'HTML standalone',
-                description: 'Archivo HTML independiente sanitizado',
+                description: AppI18n.of(context).t('artifacts.export_desc_html'),
                 onTap: () => _run(() => ExportRepositoryHelpers.exportStandaloneHtml(a), 'HTML'),
                 enabled: !_busy,
               ),
@@ -892,7 +899,7 @@ class _ExportSheetState extends State<ExportSheet> {
             TextButton(
               onPressed: _busy ? null : () => Navigator.of(context).pop(),
               child: Text(
-                'CANCELAR',
+                AppI18n.of(context).t('ctx.cancel').toUpperCase(),
                 style: TextStyle(
                   fontFamily: 'AnthropicSans',
                   color: secondaryTextColor,

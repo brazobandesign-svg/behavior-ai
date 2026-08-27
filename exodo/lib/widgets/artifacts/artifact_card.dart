@@ -9,6 +9,7 @@ import '../../screens/artifacts/expedientes_screen.dart';
 import '../../services/app_state.dart';
 import '../../services/expedientes_access_policy.dart';
 import '../../services/expedientes_repository.dart';
+import '../../l10n/app_i18n.dart';
 import '../../theme/exodo_palette.dart';
 import '../../widgets/artifacts/github_commit_sheet.dart';
 
@@ -619,7 +620,7 @@ class _Actions extends StatelessWidget {
           children: [
             actionBtn(
               icon: Icons.visibility_outlined,
-              label: 'Vista previa',
+              label: AppI18n.of(context).t('artifacts.action_preview'),
               onTap: onPreview,
             ),
             if (showSaveAction) ...[
@@ -631,10 +632,10 @@ class _Actions extends StatelessWidget {
                         ? Icons.hourglass_top_rounded
                         : Icons.bookmark_add_outlined),
                 label: savedToExpedientes
-                    ? 'Guardado'
+                    ? AppI18n.of(context).t('artifacts.action_saved')
                     : (savingExpediente
-                        ? 'Guardando...'
-                        : 'Guardar en Expedientes'),
+                        ? AppI18n.of(context).t('artifacts.action_saving')
+                        : AppI18n.of(context).t('artifacts.action_save')),
                 onTap: savedToExpedientes
                     ? () {
                         Navigator.push(
@@ -654,21 +655,23 @@ class _Actions extends StatelessWidget {
               const SizedBox(width: 4),
               actionBtn(
                 icon: Icons.account_tree_outlined,
-                label: 'Commitear a GitHub',
+                label: AppI18n.of(context).t('github.commit_chip'),
                 onTap: onCommitToGitHub,
               ),
             ],
             const SizedBox(width: 4),
             actionBtn(
               icon: copied ? Icons.check_rounded : Icons.copy_rounded,
-              label: copied ? 'Copiado' : 'Copiar',
+              label: copied
+                  ? AppI18n.of(context).t('code.copied')
+                  : AppI18n.of(context).t('act.copy'),
               onTap: onCopy,
               color: copied ? ExodoPalette.gold : actionColor,
             ),
             const SizedBox(width: 4),
             actionBtn(
               icon: Icons.open_in_new_rounded,
-              label: 'Abrir',
+              label: AppI18n.of(context).t('artifacts.open_fullscreen'),
               onTap: onOpen,
             ),
           ],
