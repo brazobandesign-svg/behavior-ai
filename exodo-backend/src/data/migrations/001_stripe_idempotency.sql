@@ -1,11 +1,19 @@
 -- =====================================================================
 -- ÉXODO BY BEHAVIOR — SCRIPT CONSOLIDADO DE PRODUCCIÓN (SUPABASE SQL)
--- Fecha: 2026-08-24 (100% Validado & Alineado al Schema Real)
+-- Fecha: 2026-08-27 (Blindado Cloud Run + 3 eventos Stripe)
 -- Instrucciones: Abre el SQL Editor de tu Dashboard de Supabase, pega
 -- este script completo y haz clic en "Run".
 -- =====================================================================
 
 BEGIN;
+
+-- ---------------------------------------------------------------------
+-- 0. EXTENSIÓN PROFILES PARA SPEC is_pro + alias free/genesis
+-- ---------------------------------------------------------------------
+-- Compatibilidad TAREA 2: spec exige is_pro boolean y plan='free' vs 'hazak'
+-- La app usa 'genesis' como canónico para free; aquí soportamos ambos.
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS is_pro BOOLEAN DEFAULT FALSE;
+-- Comentario: is_pro = true  <=> plan in ('hazak','pro'); is_pro=false <=> plan in ('genesis','free')
 
 -- ---------------------------------------------------------------------
 -- 1. TABLA WEBHOOK_EVENTS (CREACIÓN / MIGRACIÓN IDEMPOTENTE)
@@ -99,6 +107,8 @@ CREATE POLICY subscriptions_service_role ON subscriptions
 
 -- ---------------------------------------------------------------------
 -- 3. FUNCIÓN RPC TRANSITION_SUBSCRIPTION (REVOCADA DE POSTGREST PÚBLICO)
+--    Blindada para 3 eventos: checkout.session.completed, customer.subscription.deleted,
+--    customer.subscription.updated. Maneja plan='hazak'/'genesis'/'free' + is_pro.
 -- ---------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION transition_subscription(
     p_event_id               TEXT,
@@ -124,6 +134,7 @@ DECLARE
     v_new_status     TEXT;
     v_current_status TEXT;
     v_target_user_id UUID;
+    v_payload_status TEXT;
 BEGIN
     -- Hardening: sin event_id la idempotencia es imposible (NULL != NULL en PG).
     IF p_event_id IS NULL OR p_event_id = '' THEN
@@ -155,6 +166,21 @@ BEGIN
         v_new_status := 'active';
     ELSIF p_event_type = 'customer.subscription.deleted' THEN
         v_new_status := 'canceled';
+    ELSIF p_event_type = 'customer.subscription.updated' THEN
+        -- Sincronizar estado actual: extraer status del payload
+        BEGIN
+            v_payload_status := COALESCE(p_payload->'data'->'object'->>'status', 'active');
+        EXCEPTION WHEN OTHERS THEN
+            v_payload_status := 'active';
+        END;
+        IF v_payload_status IN ('active','trialing') THEN
+            v_new_status := 'active';
+        ELSIF v_payload_status = 'canceled' THEN
+            v_new_status := 'canceled';
+        ELSE
+            -- past_due, unpaid, incomplete, incomplete_expired, paused -> almacenar tal cual
+            v_new_status := v_payload_status;
+        END IF;
     ELSE
         UPDATE webhook_events SET status = 'ignored', processed_at = now()
          WHERE id = v_webhook_id;
@@ -177,14 +203,39 @@ BEGIN
             ON CONFLICT (stripe_subscription_id) DO UPDATE 
                SET status = EXCLUDED.status,
                    user_id = COALESCE(EXCLUDED.user_id, subscriptions.user_id),
-                   plan = 'hazak'
+                   plan = 'hazak',
+                   updated_at = now()
             RETURNING id INTO v_sub_id;
 
-            -- Activar el plan Hazak en el perfil del usuario
+            -- Activar el plan Hazak en el perfil del usuario (con is_pro)
             IF v_target_user_id IS NOT NULL THEN
-                UPDATE profiles SET plan = 'hazak' WHERE id = v_target_user_id;
+                BEGIN
+                    UPDATE profiles SET plan = 'hazak', is_pro = true WHERE id = v_target_user_id;
+                EXCEPTION WHEN undefined_column THEN
+                    UPDATE profiles SET plan = 'hazak' WHERE id = v_target_user_id;
+                END;
             END IF;
 
+            UPDATE webhook_events SET status = 'processed', processed_at = now()
+             WHERE id = v_webhook_id;
+            RETURN QUERY SELECT TRUE::BOOLEAN, 'processed'::TEXT, v_sub_id;
+            RETURN;
+        ELSIF p_event_type = 'customer.subscription.updated' AND v_new_status = 'active' THEN
+            -- Updated activo sin fila previa: crear (edge: webhook updated antes que checkout)
+            INSERT INTO subscriptions (user_id, stripe_customer_id, stripe_subscription_id, provider_sub_id, status, plan, provider)
+            VALUES (v_target_user_id, p_stripe_customer_id, p_stripe_subscription_id, p_stripe_subscription_id, v_new_status, 'hazak', 'stripe')
+            ON CONFLICT (stripe_subscription_id) DO UPDATE 
+               SET status = EXCLUDED.status,
+                   plan = 'hazak',
+                   updated_at = now()
+            RETURNING id INTO v_sub_id;
+            IF v_target_user_id IS NOT NULL THEN
+                BEGIN
+                    UPDATE profiles SET plan = 'hazak', is_pro = true WHERE id = v_target_user_id;
+                EXCEPTION WHEN undefined_column THEN
+                    UPDATE profiles SET plan = 'hazak' WHERE id = v_target_user_id;
+                END;
+            END IF;
             UPDATE webhook_events SET status = 'processed', processed_at = now()
              WHERE id = v_webhook_id;
             RETURN QUERY SELECT TRUE::BOOLEAN, 'processed'::TEXT, v_sub_id;
@@ -197,21 +248,53 @@ BEGIN
         END IF;
     ELSE
         IF v_current_status = v_new_status THEN
+            -- Idempotente pero para updated sincronizar plan por si diverge
+            IF p_event_type = 'customer.subscription.updated' THEN
+                IF v_new_status = 'active' THEN
+                    UPDATE subscriptions SET status = 'active', plan = 'hazak', updated_at = now() WHERE id = v_sub_id;
+                    IF v_target_user_id IS NOT NULL THEN
+                        BEGIN UPDATE profiles SET plan = 'hazak', is_pro = true WHERE id = v_target_user_id; EXCEPTION WHEN undefined_column THEN UPDATE profiles SET plan = 'hazak' WHERE id = v_target_user_id; END;
+                    ELSE
+                        BEGIN UPDATE profiles SET plan = 'hazak', is_pro = true WHERE id IN (SELECT user_id FROM subscriptions WHERE id = v_sub_id AND user_id IS NOT NULL); EXCEPTION WHEN undefined_column THEN UPDATE profiles SET plan = 'hazak' WHERE id IN (SELECT user_id FROM subscriptions WHERE id = v_sub_id AND user_id IS NOT NULL); END;
+                    END IF;
+                ELSE
+                    UPDATE subscriptions SET status = v_new_status, plan = 'genesis', updated_at = now() WHERE id = v_sub_id;
+                    BEGIN UPDATE profiles SET plan = 'genesis', is_pro = false WHERE id IN (SELECT user_id FROM subscriptions WHERE id = v_sub_id AND user_id IS NOT NULL); EXCEPTION WHEN undefined_column THEN UPDATE profiles SET plan = 'genesis' WHERE id IN (SELECT user_id FROM subscriptions WHERE id = v_sub_id AND user_id IS NOT NULL); END;
+                    IF v_target_user_id IS NOT NULL THEN
+                        BEGIN UPDATE profiles SET plan = 'genesis', is_pro = false WHERE id = v_target_user_id; EXCEPTION WHEN undefined_column THEN UPDATE profiles SET plan = 'genesis' WHERE id = v_target_user_id; END;
+                    END IF;
+                END IF;
+            END IF;
             NULL;
         ELSIF v_new_status = 'active' AND v_current_status <> 'active' THEN
             -- Reactivación desde cualquier estado no-activo: alinear siempre el plan.
-            UPDATE subscriptions SET status = 'active', plan = 'hazak' WHERE id = v_sub_id;
+            UPDATE subscriptions SET status = 'active', plan = 'hazak', updated_at = now() WHERE id = v_sub_id;
             IF v_target_user_id IS NOT NULL THEN
-                UPDATE profiles SET plan = 'hazak' WHERE id = v_target_user_id;
+                BEGIN UPDATE profiles SET plan = 'hazak', is_pro = true WHERE id = v_target_user_id; EXCEPTION WHEN undefined_column THEN UPDATE profiles SET plan = 'hazak' WHERE id = v_target_user_id; END;
+            ELSE
+                BEGIN UPDATE profiles SET plan = 'hazak', is_pro = true WHERE id IN (SELECT user_id FROM subscriptions WHERE id = v_sub_id AND user_id IS NOT NULL); EXCEPTION WHEN undefined_column THEN UPDATE profiles SET plan = 'hazak' WHERE id IN (SELECT user_id FROM subscriptions WHERE id = v_sub_id AND user_id IS NOT NULL); END;
             END IF;
         ELSIF v_new_status = 'canceled'
               AND v_current_status IN ('canceled','incomplete','incomplete_expired') THEN
             NULL;
         ELSE
-            UPDATE subscriptions SET status = v_new_status WHERE id = v_sub_id;
-            IF v_new_status = 'canceled' THEN
-                UPDATE profiles SET plan = 'genesis' 
-                 WHERE id IN (SELECT user_id FROM subscriptions WHERE id = v_sub_id AND user_id IS NOT NULL);
+            -- Transición genérica
+            IF v_new_status = 'active' THEN
+                UPDATE subscriptions SET status = v_new_status, plan = 'hazak', updated_at = now() WHERE id = v_sub_id;
+                IF v_target_user_id IS NOT NULL THEN
+                    BEGIN UPDATE profiles SET plan = 'hazak', is_pro = true WHERE id = v_target_user_id; EXCEPTION WHEN undefined_column THEN UPDATE profiles SET plan = 'hazak' WHERE id = v_target_user_id; END;
+                END IF;
+                BEGIN UPDATE profiles SET plan = 'hazak', is_pro = true WHERE id IN (SELECT user_id FROM subscriptions WHERE id = v_sub_id AND user_id IS NOT NULL); EXCEPTION WHEN undefined_column THEN UPDATE profiles SET plan = 'hazak' WHERE id IN (SELECT user_id FROM subscriptions WHERE id = v_sub_id AND user_id IS NOT NULL); END;
+            ELSE
+                UPDATE subscriptions SET status = v_new_status, plan = 'genesis', updated_at = now() WHERE id = v_sub_id;
+                -- Degradar a plan='free'/'genesis' + is_pro=false (spec)
+                IF v_new_status IN ('canceled','past_due','unpaid','incomplete','incomplete_expired','paused') THEN
+                    BEGIN UPDATE profiles SET plan = 'genesis', is_pro = false WHERE id IN (SELECT user_id FROM subscriptions WHERE id = v_sub_id AND user_id IS NOT NULL); EXCEPTION WHEN undefined_column THEN UPDATE profiles SET plan = 'genesis' WHERE id IN (SELECT user_id FROM subscriptions WHERE id = v_sub_id AND user_id IS NOT NULL); END;
+                    -- Alias spec: plan='free' es equivalente a 'genesis'; dejamos 'genesis' como canónico
+                    IF v_target_user_id IS NOT NULL THEN
+                        BEGIN UPDATE profiles SET plan = 'genesis', is_pro = false WHERE id = v_target_user_id; EXCEPTION WHEN undefined_column THEN UPDATE profiles SET plan = 'genesis' WHERE id = v_target_user_id; END;
+                    END IF;
+                END IF;
             END IF;
         END IF;
     END IF;
@@ -230,13 +313,14 @@ GRANT EXECUTE ON FUNCTION transition_subscription(TEXT, TEXT, TEXT, TEXT, TEXT, 
 
 -- ---------------------------------------------------------------------
 -- 4. TRIGGER DE SEGURIDAD EN PROFILES (INSERT + UPDATE BLINDADOS)
+--    Soporta alias: 'genesis'/'free' = free tier, 'hazak'/'pro' = pro tier
 -- ---------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION protect_profile_plan()
 RETURNS trigger AS $$
 BEGIN
-    -- En INSERT: impedir que un registro nuevo se cree directamente como 'hazak'
+    -- En INSERT: impedir que un registro nuevo se cree directamente como 'hazak'/'pro'
     IF TG_OP = 'INSERT' THEN
-        IF NEW.plan IS NOT NULL AND NEW.plan != 'genesis' AND current_user NOT IN ('service_role', 'postgres', 'supabase_admin') THEN
+        IF NEW.plan IS NOT NULL AND NEW.plan NOT IN ('genesis','free') AND current_user NOT IN ('service_role', 'postgres', 'supabase_admin') THEN
             RAISE EXCEPTION 'No puedes auto-asignarte un plan de pago al registrarte';
         END IF;
     END IF;

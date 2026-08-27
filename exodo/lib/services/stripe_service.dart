@@ -1,9 +1,12 @@
+import 'dart:async';
 import 'dart:convert';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:http/http.dart' as http;
 import 'package:url_launcher/url_launcher.dart';
 import 'chat_service.dart';
 import 'connectivity_service.dart';
 import 'supabase_service.dart';
+import 'web_billing_adapter.dart';
 
 /// Servicio de Stripe para Éxodo.
 /// Crea Checkout Sessions y abre el portal de gestión.
@@ -94,6 +97,14 @@ class StripeService {
     try {
       final url = await createCheckoutSession(isAnnual: isAnnual);
       if (url != null && url.isNotEmpty) {
+        if (kIsWeb) {
+          // Web: delegar al adaptador de navegador. Misma pestaña (`_self`) para
+          // que Stripe retorne sobre la SPA con ?session_id=...&status=success.
+          // El consumo de parámetros pendientes corre fire-and-forget: refresca
+          // el perfil en silencio si el usuario volvió a esta página tras pagar.
+          unawaited(WebBillingAdapter.processReturnParameters());
+          return await WebBillingAdapter.openCheckoutInSameTab(url);
+        }
         final uri = Uri.parse(url);
         final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
         return launched;

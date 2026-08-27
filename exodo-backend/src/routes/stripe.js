@@ -4,6 +4,8 @@ const supabase = require('../config/supabase');
 const auth = require('../middleware/auth');
 const { createStripeIdempotencyMiddleware } = require('../middleware/stripeIdempotency');
 const dbPool = require('../config/database');
+// Servicio blindado para fallback y sincronización (TAREA 2)
+const stripeService = require('../services/stripeService');
 
 const router = express.Router();
 
@@ -88,32 +90,92 @@ router.post('/checkout', auth, async (req, res) => {
 
 /**
  * POST /api/stripe/webhook
- * Recibe webhooks de Stripe de forma IDEMPOTENTE y ATOMICA.
+ * Recibe webhooks de Stripe de forma IDEMPOTENTE y ATOMICA. Blindado para Cloud Run.
  * La funcion RPC `transition_subscription` es la unica capa duena de reclamar
  * el evento, transicionar la suscripcion y marcarlo (idempotencia por event_id).
  *
- * Eventos objetivo:
- *   - checkout.session.completed    -> activa la suscripcion (status 'active').
- *   - customer.subscription.deleted -> cancela la suscripcion (status 'canceled').
+ * Eventos objetivo (idempotentes):
+ *   - checkout.session.completed    -> activa la suscripcion (status 'active') => plan='hazak' / is_pro=true
+ *   - customer.subscription.deleted -> cancela la suscripcion (status 'canceled') => plan='free'/'genesis' / is_pro=false
+ *   - customer.subscription.updated -> sincroniza estado actual (active/trialing => hazak, resto => free)
+ *
+ * Seguridad:
+ *   - Valida firma criptográfica con stripe.webhooks.constructEvent(req.rawBody, sig, endpointSecret)
+ *   - Responde 200 OK inmediato ante errores downstream para evitar reintentos de Stripe
+ *   - Raw body preservado via express.json({verify: (req,res,buf)=> req.rawBody=buf}) o express.raw()
  */
 const stripeWebhookMiddleware = (() => {
-  if (!dbPool || !process.env.STRIPE_SECRET_KEY || !process.env.STRIPE_WEBHOOK_SECRET) {
-    console.warn('[stripe] Idempotencia no disponible: verifica DATABASE_URL, STRIPE_SECRET_KEY y STRIPE_WEBHOOK_SECRET en .env');
+  const stripeSecret = process.env.STRIPE_SECRET_KEY;
+  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+
+  if (!stripeSecret || !webhookSecret) {
+    console.warn('[stripe] Idempotencia no disponible: verifica STRIPE_SECRET_KEY y STRIPE_WEBHOOK_SECRET en .env');
     return null;
   }
-  try {
-    return createStripeIdempotencyMiddleware({
-      stripeSecretKey: process.env.STRIPE_SECRET_KEY,
-      webhookSecret: process.env.STRIPE_WEBHOOK_SECRET,
-      pool: dbPool,
-      logger: console,
-    });
-  } catch (err) {
-    console.warn('[stripe] Middleware de idempotencia no disponible:', err.message);
-    return null;
+
+  // Ruta preferida: pg Pool + RPC atómico (performance óptima, FOR UPDATE)
+  if (dbPool) {
+    try {
+      return createStripeIdempotencyMiddleware({
+        stripeSecretKey: stripeSecret,
+        webhookSecret,
+        pool: dbPool,
+        logger: console,
+      });
+    } catch (err) {
+      console.warn('[stripe] Middleware pg no disponible, probando fallback Supabase:', err.message);
+    }
+  } else {
+    console.warn('[stripe] DATABASE_URL no configurado: pg Pool no disponible, usando fallback Supabase.');
   }
+
+  // Fallback blindado: valida firma y delega a stripeService (Supabase RPC/directo)
+  // Mantiene idempotencia via webhook_events + Supabase, y responde 200 OK siempre.
+  console.info('[stripe] Webhook en modo fallback Supabase (sin pg Pool).');
+  const stripe = Stripe(stripeSecret);
+  return async function stripeSupabaseFallbackMiddleware(req, res) {
+    const signature = req.headers['stripe-signature'];
+    if (!signature) {
+      res.status(400).json({ error: 'Falta el header Stripe-Signature' });
+      return;
+    }
+
+    // Obtener rawBody de forma robusta para Cloud Run
+    let rawBody = null;
+    if (Buffer.isBuffer(req.rawBody)) rawBody = req.rawBody;
+    else if (typeof req.rawBody === 'string') rawBody = Buffer.from(req.rawBody, 'utf8');
+    else if (Buffer.isBuffer(req.body)) rawBody = req.body;
+    else if (typeof req.body === 'string') rawBody = Buffer.from(req.body, 'utf8');
+    else {
+      console.error('[stripe] Cuerpo RAW no disponible en fallback');
+      res.status(400).json({ error: 'Cuerpo RAW no disponible' });
+      return;
+    }
+
+    let event;
+    try {
+      // Validación criptográfica blindada
+      event = stripe.webhooks.constructEvent(rawBody, signature, webhookSecret);
+    } catch (err) {
+      console.error('[stripe] Firma inválida (fallback):', err.message);
+      res.status(400).json({ error: 'Firma del webhook inválida' });
+      return;
+    }
+
+    try {
+      const outcome = await stripeService.processStripeEvent(event, rawBody);
+      // Siempre 200 para evitar reintentos, incluso en error downstream
+      res.status(200).json({ received: true, ...outcome });
+    } catch (err) {
+      console.error(`[stripe] Fallback error evento ${event.id}:`, err.message);
+      res.status(200).json({ received: true, error: 'Error interno procesando webhook', details: err.message, processed: false });
+    }
+  };
 })();
 
+// Nota: el webhook debe recibir el raw body exacto. index.js ya captura req.rawBody
+// via express.json({ verify: (req,res,buf)=> req.rawBody=buf }). Para Cloud Run,
+// también soportamos express.raw() si se monta antes del json parser.
 router.post('/webhook', stripeWebhookMiddleware || ((req, res) => {
   res.status(503).send('Webhook no configurado (verifica DATABASE_URL y STRIPE_* en .env)');
 }));
