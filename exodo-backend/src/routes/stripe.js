@@ -65,14 +65,19 @@ router.post('/checkout', auth, async (req, res) => {
       mode: 'subscription',
       line_items: [{
         quantity: 1,
-        price_data: {
-          currency: 'usd',
-          unit_amount: isAnnual ? 4999 : 499, // centavos USD
-          recurring: { interval: isAnnual ? 'year' : 'month' },
-          product_data: {
-            name: isAnnual ? 'Hazak Anual' : 'Hazak Mensual',
-          },
-        },
+        ...(isAnnual 
+          ? {
+              price_data: {
+                currency: 'usd',
+                unit_amount: 4999, // centavos USD
+                recurring: { interval: 'year' },
+                product_data: { name: 'Hazak Anual' },
+              }
+            } 
+          : {
+              price: 'price_1U92MtBg1fTdi6UM67WbnavU', // Precio $0.50 para pruebas
+            }
+        ),
       }],
       client_reference_id: userId,
       metadata: { userId, plan: 'hazak' },
