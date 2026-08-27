@@ -158,76 +158,40 @@ class _AuthScreenState extends State<AuthScreen> {
 
                 const SizedBox(height: 16),
 
-                // 3. Opciones sociales en círculos (X / Twitter y GitHub)
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    // Botón circular X / Twitter — [Punto 5] operativos con OAuth
-                    InkWell(
-                      onTap: isLoading
-                          ? null
-                          : () async {
-                              HapticFeedback.selectionClick();
-                              setState(() => isLoading = true);
-                              try {
-                                await SupabaseService.signInWithTwitter();
-                              } catch (_) {
-                                // Error silencioso — sin SnackBar (política de pop-ups)
-                              } finally {
-                                if (mounted) setState(() => isLoading = false);
-                              }
-                            },
-                      borderRadius: BorderRadius.circular(25),
-                      child: Container(
-                        width: 50,
-                        height: 50,
-                        decoration: const BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: ExodoColors.surface,
-                        ),
-                        child: const Center(
-                          child: Text(
-                            '𝕏',
-                            style: TextStyle(fontSize: 22, color: ExodoColors.textPrimary, fontWeight: FontWeight.bold),
-                          ),
+                // 3. Opción social GitHub — [Punto 5] operativo (scope repo)
+                Center(
+                  child: InkWell(
+                    onTap: isLoading
+                        ? null
+                        : () async {
+                            HapticFeedback.selectionClick();
+                            setState(() => isLoading = true);
+                            try {
+                              await SupabaseService.signInWithGithub();
+                            } catch (_) {
+                              // Error silencioso — sin SnackBar (política de pop-ups)
+                            } finally {
+                              if (mounted) setState(() => isLoading = false);
+                            }
+                          },
+                    borderRadius: BorderRadius.circular(25),
+                    child: Container(
+                      width: 50,
+                      height: 50,
+                      decoration: const BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: ExodoColors.surface,
+                      ),
+                      child: Center(
+                        child: Image.asset(
+                          'assets/images/github_logo.png',
+                          width: 26,
+                          height: 26,
+                          color: ExodoColors.textPrimary,
                         ),
                       ),
                     ),
-                    const SizedBox(width: 20),
-                    // Botón circular GitHub — [Punto 5] operativo (scope repo)
-                    InkWell(
-                      onTap: isLoading
-                          ? null
-                          : () async {
-                              HapticFeedback.selectionClick();
-                              setState(() => isLoading = true);
-                              try {
-                                await SupabaseService.signInWithGithub();
-                              } catch (_) {
-                                // Error silencioso — sin SnackBar (política de pop-ups)
-                              } finally {
-                                if (mounted) setState(() => isLoading = false);
-                              }
-                            },
-                      borderRadius: BorderRadius.circular(25),
-                      child: Container(
-                        width: 50,
-                        height: 50,
-                        decoration: const BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: ExodoColors.surface,
-                        ),
-                        child: Center(
-                          child: Image.asset(
-                            'assets/images/github_logo.png',
-                            width: 26,
-                            height: 26,
-                            color: ExodoColors.textPrimary,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
 
                 const SizedBox(height: 24),
