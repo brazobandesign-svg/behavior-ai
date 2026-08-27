@@ -286,7 +286,7 @@ class UpgradeModal {
                                     ),
                                     const SizedBox(height: 10),
                                     Text(
-                                      '\$4.99',
+                                      '\$0.50',
                                       style: TextStyle(fontFamily: 'AnthropicSans', 
                                         fontSize: 18,
                                         fontWeight: FontWeight.bold,
