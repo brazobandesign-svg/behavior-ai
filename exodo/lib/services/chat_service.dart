@@ -54,7 +54,7 @@ class ChatService {
     }
 
     const prodUrl =
-        'https://exodo-api-4tdhiyieea-ue.a.run.app/api/chat';
+        'https://exodo-api-23368377903.us-east1.run.app/api/chat';
 
     // SEGURIDAD (auditoría C3): candidatos HTTP locales SOLO en debug.
     // En release el JWT viaja siempre por HTTPS al backend productivo; una IP
@@ -67,7 +67,7 @@ class ChatService {
     return list;
   }
 
-  static String get backendUrl => _workingUrl ?? (_candidateUrls.isNotEmpty ? _candidateUrls.first : 'https://exodo-api-4tdhiyieea-ue.a.run.app/api/chat');
+  static String get backendUrl => _workingUrl ?? (_candidateUrls.isNotEmpty ? _candidateUrls.first : 'https://exodo-api-23368377903.us-east1.run.app/api/chat');
 
   static List<String> get candidateUrls => List.unmodifiable(_candidateUrls);
 
