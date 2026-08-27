@@ -8,6 +8,19 @@ library;
 /// Español no necesita parche (mapa base de referencia).
 
 const Map<String, String> kP3En = <String, String>{
+  'github.sheet_title': 'Commit to GitHub',
+  'github.sheet_desc': 'Publish this artifact as a file in your repository. Everything is reviewed before confirming.',
+  'github.repo_hint': 'owner/repository or GitHub URL',
+  'github.path_hint': 'File path, e.g. src/artifacts/app.html',
+  'github.msg_hint': 'Commit message',
+  'github.branch_hint': 'Branch (defaults to main)',
+  'github.pat_hint': 'GitHub Personal Access Token (optional)',
+  'github.link_btn': 'Link account / use PAT',
+  'github.commit_btn': 'CONFIRM COMMIT',
+  'github.success': 'File committed!',
+  'github.error': 'Could not commit. Check the details and your connection.',
+  'github.link_required': 'Link your account: sign in with GitHub or paste a repo-scoped PAT.',
+
   'artifacts.guest_title': 'Éxodo accounts only',
   'artifacts.guest_desc': 'Create an account or sign in to save your records and access them from any device.',
 
@@ -20,6 +33,19 @@ const Map<String, String> kP3En = <String, String>{
 };
 
 const Map<String, String> kP3Fr = <String, String>{
+  'github.sheet_title': 'Committer sur GitHub',
+  'github.sheet_desc': 'Publie cet artefact comme fichier dans ton dépôt. Tout est vérifié avant de confirmer.',
+  'github.repo_hint': 'propriétaire/dépôt ou URL GitHub',
+  'github.path_hint': "Chemin du fichier, ex. src/artifacts/app.html",
+  'github.msg_hint': 'Message du commit',
+  'github.branch_hint': 'Branche (main par défaut)',
+  'github.pat_hint': 'Token d’accès personnel GitHub (optionnel)',
+  'github.link_btn': 'Lier le compte / utiliser un PAT',
+  'github.commit_btn': 'CONFIRMER LE COMMIT',
+  'github.success': 'Fichier committé !',
+  'github.error': 'Impossible de committer. Vérifie les données et ta connexion.',
+  'github.link_required': 'Lie ton compte : connecte-toi avec GitHub ou colle un PAT scope repo.',
+
   'artifacts.guest_title': 'Réservé aux comptes',
   'artifacts.guest_desc': 'Créez un compte ou connectez-vous pour enregistrer vos dossiers et les consulter sur tous vos appareils.',
 
@@ -67,6 +93,19 @@ const Map<String, String> kP3Fr = <String, String>{
 };
 
 const Map<String, String> kP3Pt = <String, String>{
+  'github.sheet_title': 'Enviar ao GitHub',
+  'github.sheet_desc': 'Publica este artefato como arquivo no teu repositório. Tudo é revisado antes de confirmar.',
+  'github.repo_hint': 'proprietário/repositório ou URL do GitHub',
+  'github.path_hint': 'Caminho do arquivo, ex.: src/artifacts/app.html',
+  'github.msg_hint': 'Mensagem do commit',
+  'github.branch_hint': 'Branch (padrão main)',
+  'github.pat_hint': 'Token de acesso pessoal do GitHub (opcional)',
+  'github.link_btn': 'Vincular conta / usar PAT',
+  'github.commit_btn': 'CONFIRMAR COMMIT',
+  'github.success': 'Arquivo enviado!',
+  'github.error': 'Não foi possível enviar. Verifique os dados e sua conexão.',
+  'github.link_required': 'Vincule sua conta: entre com GitHub ou cole um PAT com escopo repo.',
+
   'artifacts.guest_title': 'Apenas para contas',
   'artifacts.guest_desc': 'Crie uma conta ou entre para guardar seus documentos e consultá-los em qualquer dispositivo.',
 
@@ -114,6 +153,19 @@ const Map<String, String> kP3Pt = <String, String>{
 };
 
 const Map<String, String> kP3It = <String, String>{
+  'github.sheet_title': 'Committa su GitHub',
+  'github.sheet_desc': 'Pubblica questo artefatto come file nel tuo repository. Tutto viene verificato prima di confermare.',
+  'github.repo_hint': 'proprietario/repository o URL GitHub',
+  'github.path_hint': 'Percorso del file, es. src/artifacts/app.html',
+  'github.msg_hint': 'Messaggio del commit',
+  'github.branch_hint': 'Branch (predefinito main)',
+  'github.pat_hint': 'Token di accesso personale GitHub (opzionale)',
+  'github.link_btn': 'Collega account / usa PAT',
+  'github.commit_btn': 'CONFERMA COMMIT',
+  'github.success': 'File committato!',
+  'github.error': 'Impossibile fare il commit. Controlla i dati e la connessione.',
+  'github.link_required': 'Collega il tuo account: accedi con GitHub o incolla un PAT con scope repo.',
+
   'artifacts.guest_title': 'Solo per gli account',
   'artifacts.guest_desc': 'Crea un account o accedi per salvare i tuoi fascicoli e consultarli da qualsiasi dispositivo.',
 
@@ -161,6 +213,19 @@ const Map<String, String> kP3It = <String, String>{
 };
 
 const Map<String, String> kP3De = <String, String>{
+  'github.sheet_title': 'Zu GitHub committen',
+  'github.sheet_desc': 'Veröffentlicht dieses Artefakt als Datei in deinem Repository. Alles wird vor dem Bestätigen geprüft.',
+  'github.repo_hint': 'eigentümer/repository oder GitHub-URL',
+  'github.path_hint': 'Dateipfad, z. B. src/artifacts/app.html',
+  'github.msg_hint': 'Commit-Nachricht',
+  'github.branch_hint': 'Branch (Standard: main)',
+  'github.pat_hint': 'GitHub Personal Access Token (optional)',
+  'github.link_btn': 'Konto verknüpfen / PAT nutzen',
+  'github.commit_btn': 'COMMIT BESTÄTIGEN',
+  'github.success': 'Datei committet!',
+  'github.error': 'Commit fehlgeschlagen. Prüfe die Angaben und deine Verbindung.',
+  'github.link_required': 'Verknüpfe dein Konto: mit GitHub anmelden oder PAT mit repo-Scope einfügen.',
+
   'artifacts.guest_title': 'Nur mit Konto',
   'artifacts.guest_desc': 'Erstelle ein Konto oder melde dich an, um deine Unterlagen zu speichern und auf jedem Gerät abzurufen.',
 
@@ -208,6 +273,19 @@ const Map<String, String> kP3De = <String, String>{
 };
 
 const Map<String, String> kP3Ru = <String, String>{
+  'github.sheet_title': 'Коммит в GitHub',
+  'github.sheet_desc': 'Публикует этот артефакт как файл в вашем репозитории. Всё проверяется перед подтверждением.',
+  'github.repo_hint': 'владелец/репозиторий или ссылка GitHub',
+  'github.path_hint': 'Путь к файлу, напр. src/artifacts/app.html',
+  'github.msg_hint': 'Сообщение коммита',
+  'github.branch_hint': 'Ветка (по умолчанию main)',
+  'github.pat_hint': 'Персональный токен доступа GitHub (необязательно)',
+  'github.link_btn': 'Привязать аккаунт / использовать PAT',
+  'github.commit_btn': 'ПОДТВЕРДИТЬ КОММИТ',
+  'github.success': 'Файл закоммичен!',
+  'github.error': 'Не удалось выполнить коммит. Проверьте данные и подключение.',
+  'github.link_required': 'Привяжите аккаунт: войдите через GitHub или вставьте PAT со scope repo.',
+
   'artifacts.guest_title': 'Только для аккаунтов',
   'artifacts.guest_desc': 'Создайте аккаунт или войдите, чтобы сохранять свои материалы и открывать их с любого устройства.',
 
@@ -255,6 +333,19 @@ const Map<String, String> kP3Ru = <String, String>{
 };
 
 const Map<String, String> kP3Zh = <String, String>{
+  'github.sheet_title': '提交到 GitHub',
+  'github.sheet_desc': '将此工件作为文件发布到你的仓库。确认前会检查所有内容。',
+  'github.repo_hint': '所有者/仓库 或 GitHub 链接',
+  'github.path_hint': '文件路径，如 src/artifacts/app.html',
+  'github.msg_hint': '提交信息',
+  'github.branch_hint': '分支（默认 main）',
+  'github.pat_hint': 'GitHub 个人访问令牌（可选）',
+  'github.link_btn': '绑定账号 / 使用 PAT',
+  'github.commit_btn': '确认提交',
+  'github.success': '文件已提交！',
+  'github.error': '提交失败。请检查填写内容与网络连接。',
+  'github.link_required': '请先绑定账号：用 GitHub 登录或粘贴具有 repo 权限的 PAT。',
+
   'artifacts.guest_title': '需要账户',
   'artifacts.guest_desc': '创建账户或登录后即可保存档案，并可在任意设备上查看。',
 
@@ -302,6 +393,19 @@ const Map<String, String> kP3Zh = <String, String>{
 };
 
 const Map<String, String> kP3Ja = <String, String>{
+  'github.sheet_title': 'GitHub へコミット',
+  'github.sheet_desc': 'このアーティファクトをリポジトリ内のファイルとして公開します。確定前に内容を確認できます。',
+  'github.repo_hint': 'オーナー/リポジトリ または GitHub URL',
+  'github.path_hint': 'ファイルパス（例: src/artifacts/app.html）',
+  'github.msg_hint': 'コミットメッセージ',
+  'github.branch_hint': 'ブランチ（既定は main）',
+  'github.pat_hint': 'GitHub 個人アクセストークン（任意）',
+  'github.link_btn': 'アカウント連携 / PAT を使用',
+  'github.commit_btn': 'コミットを確定',
+  'github.success': 'コミットしました！',
+  'github.error': 'コミットできませんでした。入力内容と接続を確認してください。',
+  'github.link_required': 'アカウントを連携してください：GitHub でログインするか repo 権限の PAT を貼り付け。',
+
   'artifacts.guest_title': 'アカウント限定の機能です',
   'artifacts.guest_desc': 'アカウントを作成またはログインすると、レコードを保存してどのデバイスからでも閲覧できます。',
 
@@ -350,6 +454,19 @@ const Map<String, String> kP3Ja = <String, String>{
 };
 
 const Map<String, String> kP3Ar = <String, String>{
+  'github.sheet_title': 'إرسال إلى GitHub',
+  'github.sheet_desc': 'ينشر هذا الإخراج كملف في مستودعك. يُراجَع كل شيء قبل التأكيد.',
+  'github.repo_hint': 'المالك/المستودع أو رابط GitHub',
+  'github.path_hint': 'مسار الملف، مثل src/artifacts/app.html',
+  'github.msg_hint': 'رسالة الالتزام',
+  'github.branch_hint': 'الفرع (الافتراضي main)',
+  'github.pat_hint': 'رمز وصول شخصي لـ GitHub (اختياري)',
+  'github.link_btn': 'ربط الحساب / استخدام رمز PAT',
+  'github.commit_btn': 'تأكيد الالتزام',
+  'github.success': 'تم إرسال الملف!',
+  'github.error': 'تعذر الالتزام. تحقق من البيانات واتصالك.',
+  'github.link_required': 'اربط حسابك: سجّل الدخول عبر GitHub أو الصق رمز PAT بصلاحية repo.',
+
   'artifacts.guest_title': 'للحسابات فقط',
   'artifacts.guest_desc': 'أنشئ حسابًا أو سجّل الدخول لحفظ ملفاتك والاطلاع عليها من أي جهاز.',
 
@@ -398,6 +515,19 @@ const Map<String, String> kP3Ar = <String, String>{
 };
 
 const Map<String, String> kP3Ko = <String, String>{
+  'github.sheet_title': 'GitHub에 커밋',
+  'github.sheet_desc': '이 아티팩트를 저장소의 파일로 게시합니다. 확정 전에 모두 검토됩니다.',
+  'github.repo_hint': '소유자/저장소 또는 GitHub URL',
+  'github.path_hint': '파일 경로, 예: src/artifacts/app.html',
+  'github.msg_hint': '커밋 메시지',
+  'github.branch_hint': '브랜치(기본값 main)',
+  'github.pat_hint': 'GitHub 개인 액세스 토큰(선택)',
+  'github.link_btn': '계정 연결 / PAT 사용',
+  'github.commit_btn': '커밋 확인',
+  'github.success': '파일이 커밋되었습니다!',
+  'github.error': '커밋하지 못했습니다. 내용과 연결을 확인하세요.',
+  'github.link_required': '계정을 연결하세요: GitHub로 로그인하거나 repo 권한 PAT를 붙여넣으세요.',
+
   'artifacts.guest_title': '계정 전용 기능입니다',
   'artifacts.guest_desc': '계정을 만들거나 로그인하면 기록을 저장하고 어떤 기기에서나 볼 수 있습니다.',
 
@@ -448,6 +578,19 @@ const Map<String, String> kP3Ko = <String, String>{
 };
 
 const Map<String, String> kP3Hi = <String, String>{
+  'github.sheet_title': 'GitHub पर कमिट करें',
+  'github.sheet_desc': 'इस आर्टिफैक्ट को अपने रिपॉज़िटरी में फ़ाइल के रूप में प्रकाशित करें। पुष्टि से पहले सब जाँचा जाता है।',
+  'github.repo_hint': 'मालिक/रिपॉज़िटरी या GitHub URL',
+  'github.path_hint': 'फ़ाइल पथ, जैसे src/artifacts/app.html',
+  'github.msg_hint': 'कमिट संदेश',
+  'github.branch_hint': 'ब्रांच (डिफ़ॉल्ट main)',
+  'github.pat_hint': 'GitHub पर्सनल एक्सेस टोकन (वैकल्पिक)',
+  'github.link_btn': 'खाता लिंक करें / PAT उपयोग करें',
+  'github.commit_btn': 'कमिट की पुष्टि करें',
+  'github.success': 'फ़ाइल कमिट हो गई!',
+  'github.error': 'कमिट नहीं हो सका। विवरण और कनेक्शन जाँचें।',
+  'github.link_required': 'अपना खाता लिंक करें: GitHub से लॉग इन करें या repo स्कोप वाला PAT पेस्ट करें।',
+
   'artifacts.guest_title': 'केवल खातों के लिए',
   'artifacts.guest_desc': 'अपनी फ़ाइलें सहेजने और किसी भी डिवाइस से देखने के लिए खाता बनाएँ या लॉग इन करें।',
 
@@ -498,6 +641,19 @@ const Map<String, String> kP3Hi = <String, String>{
 };
 
 const Map<String, String> kP3Ht = <String, String>{
+  'github.sheet_title': 'Kite sou GitHub',
+  'github.sheet_desc': 'Piblie atifa sa a kòm yon dosye nan depo ou. Tout ap revize anvan konfime.',
+  'github.repo_hint': 'pwopriyetè/repo oswa lyen GitHub',
+  'github.path_hint': 'Chemen dosye a, eg. src/artifacts/app.html',
+  'github.msg_hint': 'Mesaj komit la',
+  'github.branch_hint': 'Branch (main pa default)',
+  'github.pat_hint': 'Token Aksè Pèsonèl GitHub (opsyonèl)',
+  'github.link_btn': 'Lyen kont / sèvi ak PAT',
+  'github.commit_btn': 'KONFIME KOMIT LA',
+  'github.success': 'Dosye a kite!',
+  'github.error': 'Pa t kapab kite a. Verifye done yo ak koneksyon ou.',
+  'github.link_required': 'Lyen kont ou: konekte ak GitHub oswa kole yon PAT scope repo.',
+
   'artifacts.guest_title': 'Sèlman pou kont',
   'artifacts.guest_desc': 'Kreye yon kont oswa konekte pou sove dosye ou yo epi konsilte yo sou nenpòt aparèy.',
 

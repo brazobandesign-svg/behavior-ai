@@ -67,6 +67,28 @@ class SupabaseService {
     );
   }
 
+  /// [Punto 5] OAuth con X (Twitter).
+  /// El navegador externo completa el flujo; el deep link `login-callback`
+  /// retorna a la app y el listener de AuthState en AppState refresca perfil.
+  static Future<bool> signInWithTwitter() async {
+    return await client.auth.signInWithOAuth(
+      OAuthProvider.twitter,
+      redirectTo: kIsWeb ? null : 'io.supabase.exodo://login-callback',
+    );
+  }
+
+  /// [Punto 5] OAuth con GitHub.
+  /// [scope] por defecto 'repo': permite commitear artefactos a los
+  /// repositorios propios (privados incluidos) desde GithubService usando el
+  /// `providerToken` que Supabase deja en la sesión tras el login social.
+  static Future<bool> signInWithGithub({String scope = 'repo'}) async {
+    return await client.auth.signInWithOAuth(
+      OAuthProvider.github,
+      scopes: scope.trim().isEmpty ? null : scope.trim(),
+      redirectTo: kIsWeb ? null : 'io.supabase.exodo://login-callback',
+    );
+  }
+
   static Future<AuthResponse> signInAnonymously() async {
     return await client.auth.signInAnonymously(
       data: {'full_name': 'Invitado Éxodo'},

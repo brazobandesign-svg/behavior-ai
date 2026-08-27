@@ -162,11 +162,21 @@ class _AuthScreenState extends State<AuthScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    // Botón circular X / Twitter
+                    // Botón circular X / Twitter — [Punto 5] operativos con OAuth
                     InkWell(
-                      onTap: () {
-                        HapticFeedback.selectionClick();
-                      },
+                      onTap: isLoading
+                          ? null
+                          : () async {
+                              HapticFeedback.selectionClick();
+                              setState(() => isLoading = true);
+                              try {
+                                await SupabaseService.signInWithTwitter();
+                              } catch (_) {
+                                // Error silencioso — sin SnackBar (política de pop-ups)
+                              } finally {
+                                if (mounted) setState(() => isLoading = false);
+                              }
+                            },
                       borderRadius: BorderRadius.circular(25),
                       child: Container(
                         width: 50,
@@ -184,11 +194,21 @@ class _AuthScreenState extends State<AuthScreen> {
                       ),
                     ),
                     const SizedBox(width: 20),
-                    // Botón circular GitHub
+                    // Botón circular GitHub — [Punto 5] operativo (scope repo)
                     InkWell(
-                      onTap: () {
-                        HapticFeedback.selectionClick();
-                      },
+                      onTap: isLoading
+                          ? null
+                          : () async {
+                              HapticFeedback.selectionClick();
+                              setState(() => isLoading = true);
+                              try {
+                                await SupabaseService.signInWithGithub();
+                              } catch (_) {
+                                // Error silencioso — sin SnackBar (política de pop-ups)
+                              } finally {
+                                if (mounted) setState(() => isLoading = false);
+                              }
+                            },
                       borderRadius: BorderRadius.circular(25),
                       child: Container(
                         width: 50,

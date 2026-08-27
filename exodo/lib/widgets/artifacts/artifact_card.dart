@@ -10,6 +10,7 @@ import '../../services/app_state.dart';
 import '../../services/expedientes_access_policy.dart';
 import '../../services/expedientes_repository.dart';
 import '../../theme/exodo_palette.dart';
+import '../../widgets/artifacts/github_commit_sheet.dart';
 
 /// Single, cohesive, minimal artifact container.
 /// Background: #1E1E1E (Dark) / #F4F2EB (Light) with subtle 1px border.
@@ -124,6 +125,24 @@ class _ArtifactCardState extends State<ArtifactCard> {
     }
   }
 
+  /// [Punto 5] Abre el modal de consentimiento GitHub para este artefacto.
+  void _commitToGitHub() {
+    if (!canSaveExpediente(isGuestUser: context.read<AppState>().isGuestUser)) {
+      HapticFeedback.vibrate();
+      return;
+    }
+    HapticFeedback.lightImpact();
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.black87,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (_) => GithubCommitSheet(artifact: widget.artifact),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     const cardBg = Color(0xFF1E1E1E);
@@ -163,6 +182,8 @@ class _ArtifactCardState extends State<ArtifactCard> {
             borderColor: borderColor,
             copied: _copied,
             showSaveAction: canSave,
+            showGithubAction: canSave,
+            onCommitToGitHub: _commitToGitHub,
             savedToExpedientes: _savedToExpedientes,
             savingExpediente: _savingExpediente,
             onPreview: _preview,
@@ -522,9 +543,14 @@ class _Actions extends StatelessWidget {
 
   /// [Punto 3] false para invitados: el botón "Guardar en Expedientes" no
   /// se dibuja (tampoco su separador), evitando cualquier acceso al módulo.
-  final bool showSaveAction;
+   final bool showSaveAction;
   final bool savedToExpedientes;
   final bool savingExpediente;
+
+  /// [Punto 5] false para invitados: la acción "Commitear a GitHub" no se
+  /// dibuja (mismo criterio de ocultación que Guardar en Expedientes).
+  final bool showGithubAction;
+  final VoidCallback onCommitToGitHub;
   final VoidCallback onPreview;
   final VoidCallback onCopy;
   final VoidCallback onOpen;
@@ -536,6 +562,8 @@ class _Actions extends StatelessWidget {
     required this.borderColor,
     required this.copied,
     required this.showSaveAction,
+    required this.showGithubAction,
+    required this.onCommitToGitHub,
     required this.savedToExpedientes,
     required this.savingExpediente,
     required this.onPreview,
@@ -620,6 +648,14 @@ class _Actions extends StatelessWidget {
                 color: savedToExpedientes
                     ? ExodoPalette.gold
                     : (savingExpediente ? ExodoPalette.gold : actionColor),
+              ),
+            ],
+            if (showGithubAction) ...[
+              const SizedBox(width: 4),
+              actionBtn(
+                icon: Icons.account_tree_outlined,
+                label: 'Commitear a GitHub',
+                onTap: onCommitToGitHub,
               ),
             ],
             const SizedBox(width: 4),

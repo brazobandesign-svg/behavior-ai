@@ -16,6 +16,7 @@ import '../../services/app_state.dart';
 import '../../services/artifacts_service.dart';
 import '../../services/expedientes_access_policy.dart';
 import '../../services/expedientes_repository.dart';
+import '../../widgets/artifacts/github_commit_sheet.dart';
 import '../../services/export/exporters.dart';
 import '../../theme/exodo_palette.dart';
 
@@ -181,6 +182,27 @@ class _ArtifactFullscreenState extends State<ArtifactFullscreen>
     }
   }
 
+  /// [Punto 5] Abre el modal de consentimiento para commitear a GitHub.
+  void _openGithubCommitSheet() {
+    // Regla de acceso: sólo cuentas autenticadas; invitados fuera (y el
+    // icono ni siquiera se dibuja para ellos — defensa extra aquí).
+    if (!canSaveExpediente(isGuestUser: context.read<AppState>().isGuestUser)) {
+      HapticFeedback.vibrate();
+      return;
+    }
+    HapticFeedback.lightImpact();
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: isDark ? const Color(0xFF191919) : Colors.white,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (_) => GithubCommitSheet(artifact: widget.artifact),
+    );
+  }
+
   Future<void> _navigateToConversation() async {
     final convId = widget.artifact.conversationId;
     if (convId.isEmpty) {
@@ -276,6 +298,12 @@ class _ArtifactFullscreenState extends State<ArtifactFullscreen>
               tooltip: 'Ir a la conversación',
               icon: const Icon(Icons.forum_outlined, color: Color(0xFF8E8E93)),
               onPressed: _navigateToConversation,
+            ),
+          if (canSave)
+            IconButton(
+              tooltip: 'Commitear a GitHub',
+              icon: const Icon(Icons.account_tree_outlined, color: Color(0xFF8E8E93)),
+              onPressed: _openGithubCommitSheet,
             ),
           if (canSave)
             IconButton(
