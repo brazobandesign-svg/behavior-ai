@@ -8,6 +8,9 @@ library;
 /// Español no necesita parche (mapa base de referencia).
 
 const Map<String, String> kP3En = <String, String>{
+  'artifacts.guest_title': 'Éxodo accounts only',
+  'artifacts.guest_desc': 'Create an account or sign in to save your records and access them from any device.',
+
   'thinking.phase_1': 'Reasoning',
   'thinking.phase_2': 'Analyzing context',
   'thinking.phase_3': 'Structuring response',
@@ -17,6 +20,9 @@ const Map<String, String> kP3En = <String, String>{
 };
 
 const Map<String, String> kP3Fr = <String, String>{
+  'artifacts.guest_title': 'Réservé aux comptes',
+  'artifacts.guest_desc': 'Créez un compte ou connectez-vous pour enregistrer vos dossiers et les consulter sur tous vos appareils.',
+
   'thinking.phase_1': 'Raisonnement',
   'thinking.phase_2': 'Analyse du contexte',
   'thinking.phase_3': 'Structuration de la réponse',
@@ -61,6 +67,9 @@ const Map<String, String> kP3Fr = <String, String>{
 };
 
 const Map<String, String> kP3Pt = <String, String>{
+  'artifacts.guest_title': 'Apenas para contas',
+  'artifacts.guest_desc': 'Crie uma conta ou entre para guardar seus documentos e consultá-los em qualquer dispositivo.',
+
   'thinking.phase_1': 'Raciocinando',
   'thinking.phase_2': 'Analisando contexto',
   'thinking.phase_3': 'Estruturando resposta',
@@ -105,6 +114,9 @@ const Map<String, String> kP3Pt = <String, String>{
 };
 
 const Map<String, String> kP3It = <String, String>{
+  'artifacts.guest_title': 'Solo per gli account',
+  'artifacts.guest_desc': 'Crea un account o accedi per salvare i tuoi fascicoli e consultarli da qualsiasi dispositivo.',
+
   'thinking.phase_1': 'Ragionamento',
   'thinking.phase_2': 'Analisi del contesto',
   'thinking.phase_3': 'Strutturazione della risposta',
@@ -149,6 +161,9 @@ const Map<String, String> kP3It = <String, String>{
 };
 
 const Map<String, String> kP3De = <String, String>{
+  'artifacts.guest_title': 'Nur mit Konto',
+  'artifacts.guest_desc': 'Erstelle ein Konto oder melde dich an, um deine Unterlagen zu speichern und auf jedem Gerät abzurufen.',
+
   'thinking.phase_1': 'Denkt nach',
   'thinking.phase_2': 'Kontext wird analysiert',
   'thinking.phase_3': 'Antwort wird strukturiert',
@@ -193,6 +208,9 @@ const Map<String, String> kP3De = <String, String>{
 };
 
 const Map<String, String> kP3Ru = <String, String>{
+  'artifacts.guest_title': 'Только для аккаунтов',
+  'artifacts.guest_desc': 'Создайте аккаунт или войдите, чтобы сохранять свои материалы и открывать их с любого устройства.',
+
   'thinking.phase_1': 'Размышляет',
   'thinking.phase_2': 'Анализ контекста',
   'thinking.phase_3': 'Формирование ответа',
@@ -237,6 +255,9 @@ const Map<String, String> kP3Ru = <String, String>{
 };
 
 const Map<String, String> kP3Zh = <String, String>{
+  'artifacts.guest_title': '需要账户',
+  'artifacts.guest_desc': '创建账户或登录后即可保存档案，并可在任意设备上查看。',
+
   'thinking.phase_1': '思考中',
   'thinking.phase_2': '分析上下文',
   'thinking.phase_3': '组织回复',
@@ -281,6 +302,9 @@ const Map<String, String> kP3Zh = <String, String>{
 };
 
 const Map<String, String> kP3Ja = <String, String>{
+  'artifacts.guest_title': 'アカウント限定の機能です',
+  'artifacts.guest_desc': 'アカウントを作成またはログインすると、レコードを保存してどのデバイスからでも閲覧できます。',
+
   'thinking.phase_1': '思考中',
   'thinking.phase_2': 'コンテキストを分析中',
   'thinking.phase_3': '回答を構成中',
@@ -326,6 +350,9 @@ const Map<String, String> kP3Ja = <String, String>{
 };
 
 const Map<String, String> kP3Ar = <String, String>{
+  'artifacts.guest_title': 'للحسابات فقط',
+  'artifacts.guest_desc': 'أنشئ حسابًا أو سجّل الدخول لحفظ ملفاتك والاطلاع عليها من أي جهاز.',
+
   'thinking.phase_1': 'يفكر',
   'thinking.phase_2': 'يحلل السياق',
   'thinking.phase_3': 'ينظم الإجابة',
@@ -371,6 +398,9 @@ const Map<String, String> kP3Ar = <String, String>{
 };
 
 const Map<String, String> kP3Ko = <String, String>{
+  'artifacts.guest_title': '계정 전용 기능입니다',
+  'artifacts.guest_desc': '계정을 만들거나 로그인하면 기록을 저장하고 어떤 기기에서나 볼 수 있습니다.',
+
   'thinking.phase_1': '추론 중',
   'thinking.phase_2': '컨텍스트 분석 중',
   'thinking.phase_3': '응답 구성 중',
@@ -418,6 +448,9 @@ const Map<String, String> kP3Ko = <String, String>{
 };
 
 const Map<String, String> kP3Hi = <String, String>{
+  'artifacts.guest_title': 'केवल खातों के लिए',
+  'artifacts.guest_desc': 'अपनी फ़ाइलें सहेजने और किसी भी डिवाइस से देखने के लिए खाता बनाएँ या लॉग इन करें।',
+
   'thinking.phase_1': 'तर्क कर रहा है',
   'thinking.phase_2': 'संदर्भ का विश्लेषण',
   'thinking.phase_3': 'उत्तर तैयार कर रहा है',
@@ -465,6 +498,9 @@ const Map<String, String> kP3Hi = <String, String>{
 };
 
 const Map<String, String> kP3Ht = <String, String>{
+  'artifacts.guest_title': 'Sèlman pou kont',
+  'artifacts.guest_desc': 'Kreye yon kont oswa konekte pou sove dosye ou yo epi konsilte yo sou nenpòt aparèy.',
+
   'thinking.phase_1': 'Rezonman',
   'thinking.phase_2': 'Analize kontèks',
   'thinking.phase_3': 'Estrikti repons',

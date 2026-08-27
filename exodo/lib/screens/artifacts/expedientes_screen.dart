@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../../models/models.dart';
 import '../../services/app_state.dart';
+import '../../services/expedientes_access_policy.dart';
 import '../../services/expedientes_repository.dart';
 import '../../services/export/exporters.dart';
 import '../../data/artifacts/artifact.dart';
@@ -52,6 +53,12 @@ class ExpedientesScreen extends StatefulWidget {
 class _ExpedientesScreenState extends State<ExpedientesScreen> {
   bool _isLoading = true;
   String? _errorMessage;
+
+  /// [Punto 3] true cuando la pantalla se abre en modo invitado: nunca se
+  /// consulta el repositorio y el cuerpo muestra un estado seguro e
+  /// informativo (sin listas huérfanas ni llamadas no autorizadas).
+  bool _guestLocked = false;
+
   List<Expediente> _expedientes = [];
   final Set<String> _deletingIds = {};
   _FilterCategory _activeFilter = _FilterCategory.all;
@@ -63,7 +70,15 @@ class _ExpedientesScreenState extends State<ExpedientesScreen> {
   @override
   void initState() {
     super.initState();
-    _loadExpedientes();
+    // [Punto 3] Guard de apertura: si por cualquier ruta (deep link,
+    // restauración de navegación, código futuro) esta pantalla llegara a
+    // abrirse siendo invitado, NO se toca ExpedientesRepository.
+    _guestLocked = !expedientesModuleVisible(
+      isGuestUser: context.read<AppState>().isGuestUser,
+    );
+    if (!_guestLocked) {
+      _loadExpedientes();
+    }
   }
 
   @override
@@ -92,6 +107,9 @@ class _ExpedientesScreenState extends State<ExpedientesScreen> {
   }
 
   Future<void> _loadExpedientes() async {
+    // [Punto 3] Los invitados no cargan nada: sin red, sin caché, sin ruido.
+    if (_guestLocked) return;
+
     setState(() {
       _isLoading = true;
       _errorMessage = null;
@@ -391,7 +409,7 @@ class _ExpedientesScreenState extends State<ExpedientesScreen> {
                 });
               },
             )
-          else ...[
+          else if (!_guestLocked) ...[
             IconButton(
               tooltip: 'Buscar expediente',
               icon: const Icon(Icons.search_rounded),
@@ -407,24 +425,27 @@ class _ExpedientesScreenState extends State<ExpedientesScreen> {
           ],
         ],
       ),
-      body: Column(
-        children: [
-          // Filter chips row
-          _FilterChipsRow(
-            activeFilter: _activeFilter,
-            isDark: isDark,
-            i18n: i18n,
-            onFilterChanged: (f) {
-              setState(() => _activeFilter = f);
-              _loadExpedientes();
-            },
-          ),
-          // Content body
-          Expanded(
-            child: _buildBody(isDark, chalk, neutralGray, primaryTextColor, i18n),
-          ),
-        ],
-      ),
+      // [Punto 3] Invitado: cuerpo seguro reemplaza chips/lista por completo.
+      body: _guestLocked
+          ? const _GuestLockPanel()
+          : Column(
+              children: [
+                // Filter chips row
+                _FilterChipsRow(
+                  activeFilter: _activeFilter,
+                  isDark: isDark,
+                  i18n: i18n,
+                  onFilterChanged: (f) {
+                    setState(() => _activeFilter = f);
+                    _loadExpedientes();
+                  },
+                ),
+                // Content body
+                Expanded(
+                  child: _buildBody(isDark, chalk, neutralGray, primaryTextColor, i18n),
+                ),
+              ],
+            ),
     );
   }
 
@@ -1069,6 +1090,64 @@ class _ExpedienteCard extends StatelessWidget {
 // ═══════════════════════════════════════════════════════════════════════════════
 // Format Badge
 // ═══════════════════════════════════════════════════════════════════════════════
+
+/// [Punto 3] Panel seguro para cuentas invitado dentro de Expedientes.
+/// Sin pop-ups nativos ni diálogos: sólo una explicación inline del bloqueo.
+/// Reemplaza por completo chips/filtros/lista cuando `_guestLocked == true`.
+class _GuestLockPanel extends StatelessWidget {
+  const _GuestLockPanel();
+
+  @override
+  Widget build(BuildContext context) {
+    final i18n = AppI18n.of(context);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final titleColor = isDark ? const Color(0xFFF5F2EB) : const Color(0xFF191919);
+    final descColor = isDark ? const Color(0xFF8E8E93) : const Color(0xFF636366);
+
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 64,
+              height: 64,
+              decoration: BoxDecoration(
+                color: ExodoPalette.gold.withValues(alpha: 0.12),
+                shape: BoxShape.circle,
+                border: Border.all(color: ExodoPalette.gold.withValues(alpha: 0.35)),
+              ),
+              child: const Icon(Icons.lock_outline_rounded, size: 28, color: ExodoPalette.gold),
+            ),
+            const SizedBox(height: 18),
+            Text(
+              i18n.t('artifacts.guest_title'),
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontFamily: 'AnthropicSans',
+                color: titleColor,
+                fontWeight: FontWeight.w700,
+                fontSize: 16,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              i18n.t('artifacts.guest_desc'),
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontFamily: 'AnthropicSans',
+                color: descColor,
+                fontSize: 13,
+                height: 1.5,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
 
 class _FormatBadge extends StatelessWidget {
   final String format;

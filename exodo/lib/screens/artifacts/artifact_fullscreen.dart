@@ -14,6 +14,7 @@ import '../../data/artifacts/artifact.dart';
 import '../../models/models.dart';
 import '../../services/app_state.dart';
 import '../../services/artifacts_service.dart';
+import '../../services/expedientes_access_policy.dart';
 import '../../services/expedientes_repository.dart';
 import '../../services/export/exporters.dart';
 import '../../theme/exodo_palette.dart';
@@ -121,6 +122,12 @@ class _ArtifactFullscreenState extends State<ArtifactFullscreen>
   bool _savingExpediente = false;
 
   Future<void> _saveToExpedientes() async {
+    // [Punto 3] Defensa en profundidad: un invitado jamás persiste un
+    // expediente, aunque este método sea invocado por cualquier vía.
+    if (!canSaveExpediente(isGuestUser: context.read<AppState>().isGuestUser)) {
+      HapticFeedback.vibrate();
+      return;
+    }
     if (_savingExpediente) return;
     final a = widget.artifact;
     setState(() => _savingExpediente = true);
@@ -221,6 +228,10 @@ class _ArtifactFullscreenState extends State<ArtifactFullscreen>
   @override
   Widget build(BuildContext context) {
     final a = widget.artifact;
+    // [Punto 3] En modo invitado la acción de guardar no existe: el botón
+    // de la AppBar ni siquiera se dibuja (opción preferida: ocultar).
+    final bool canSave =
+        canSaveExpediente(isGuestUser: context.watch<AppState>().isGuestUser);
     final title = a.title?.trim();
     final hasDistinctTitle = title != null &&
         title.isNotEmpty &&
@@ -266,20 +277,21 @@ class _ArtifactFullscreenState extends State<ArtifactFullscreen>
               icon: const Icon(Icons.forum_outlined, color: Color(0xFF8E8E93)),
               onPressed: _navigateToConversation,
             ),
-          IconButton(
-            tooltip: 'Guardar en Expedientes',
-            icon: _savingExpediente
-                ? const SizedBox(
-                    width: 18,
-                    height: 18,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: ExodoPalette.gold,
-                    ),
-                  )
-                : const Icon(Icons.bookmark_add_outlined, color: Color(0xFF8E8E93)),
-            onPressed: _savingExpediente ? null : _saveToExpedientes,
-          ),
+          if (canSave)
+            IconButton(
+              tooltip: 'Guardar en Expedientes',
+              icon: _savingExpediente
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: ExodoPalette.gold,
+                      ),
+                    )
+                  : const Icon(Icons.bookmark_add_outlined, color: Color(0xFF8E8E93)),
+              onPressed: _savingExpediente ? null : _saveToExpedientes,
+            ),
           IconButton(
             tooltip: 'Copiar código',
             icon: const Icon(Icons.copy_rounded, color: Color(0xFF8E8E93)),

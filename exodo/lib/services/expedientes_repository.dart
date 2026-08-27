@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'chat_service.dart';
+import 'expedientes_access_policy.dart';
 import 'supabase_service.dart';
 
 /// Modelo que representa un expediente privado del usuario.
@@ -235,6 +236,20 @@ class ExpedientesRepository {
     String? chatId,
     Map<String, dynamic> metadata = const {},
   }) async {
+    // ── [Punto 3] Guest hard-guard ────────────────────────────────────────
+    // Cero persistencia para invitados: ni caché local por uid/anon ni
+    // sincronización REST con Supabase. Devuelve null y los llamadores
+    // (ArtifactCard / ArtifactFullscreen) reaccionan con feedback háptico.
+    final sessionUser = SupabaseService.client.auth.currentUser;
+    if (isGuestIdentity(
+      userId: sessionUser?.id,
+      isAnonymous: sessionUser?.isAnonymous ?? false,
+      email: sessionUser?.email,
+    )) {
+      debugPrint('[ExpedientesRepository] Cuenta invitado: creación de expediente bloqueada.');
+      return null;
+    }
+
     final now = DateTime.now();
     final localExpediente = Expediente(
       id: _generateUuid(),

@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_highlight/flutter_highlight.dart';
+import 'package:provider/provider.dart';
+
 import '../../data/artifacts/artifact.dart';
 import '../../screens/artifacts/artifact_fullscreen.dart';
 import '../../screens/artifacts/expedientes_screen.dart';
+import '../../services/app_state.dart';
+import '../../services/expedientes_access_policy.dart';
 import '../../services/expedientes_repository.dart';
 import '../../theme/exodo_palette.dart';
 
@@ -59,6 +63,12 @@ class _ArtifactCardState extends State<ArtifactCard> {
   }
 
   Future<void> _saveToExpedientes() async {
+    // [Punto 3] Defensa en profundidad: un invitado jamás persiste un
+    // expediente aunque este método sea invocado por cualquier vía.
+    if (!canSaveExpediente(isGuestUser: context.read<AppState>().isGuestUser)) {
+      HapticFeedback.vibrate();
+      return;
+    }
     if (_savingExpediente) return;
     final a = widget.artifact;
     setState(() => _savingExpediente = true);
@@ -84,7 +94,7 @@ class _ArtifactCardState extends State<ArtifactCard> {
               ? 'Artefacto ${a.language.toUpperCase()}'
               : 'Expediente Éxodo');
 
-      await ExpedientesRepository.instance.createExpediente(
+      final saved = await ExpedientesRepository.instance.createExpediente(
         title: title,
         category: category,
         fileFormat: fileFormat,
@@ -98,10 +108,14 @@ class _ArtifactCardState extends State<ArtifactCard> {
       );
 
       if (!mounted) return;
-      HapticFeedback.lightImpact();
-      setState(() {
-        _savedToExpedientes = true;
-      });
+      // [Punto 3] El repositorio devuelve null para invitados: nunca marcar
+      // "Guardado" ni navegar al módulo si no se persistió realmente.
+      if (saved != null) {
+        HapticFeedback.lightImpact();
+        setState(() => _savedToExpedientes = true);
+      } else {
+        HapticFeedback.vibrate();
+      }
     } catch (e) {
       if (!mounted) return;
       HapticFeedback.vibrate();
@@ -114,6 +128,11 @@ class _ArtifactCardState extends State<ArtifactCard> {
   Widget build(BuildContext context) {
     const cardBg = Color(0xFF1E1E1E);
     const borderColor = Color(0xFF2E2E2E);
+
+    // [Punto 3] El guardado de expedientes es exclusivo de cuentas; para
+    // invitados la acción desaparece por completo de la fila de opciones.
+    final canSave =
+        canSaveExpediente(isGuestUser: context.watch<AppState>().isGuestUser);
 
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 12),
@@ -143,6 +162,7 @@ class _ArtifactCardState extends State<ArtifactCard> {
             isDark: true,
             borderColor: borderColor,
             copied: _copied,
+            showSaveAction: canSave,
             savedToExpedientes: _savedToExpedientes,
             savingExpediente: _savingExpediente,
             onPreview: _preview,
@@ -499,6 +519,10 @@ class _Actions extends StatelessWidget {
   final bool isDark;
   final Color borderColor;
   final bool copied;
+
+  /// [Punto 3] false para invitados: el botón "Guardar en Expedientes" no
+  /// se dibuja (tampoco su separador), evitando cualquier acceso al módulo.
+  final bool showSaveAction;
   final bool savedToExpedientes;
   final bool savingExpediente;
   final VoidCallback onPreview;
@@ -511,6 +535,7 @@ class _Actions extends StatelessWidget {
     required this.isDark,
     required this.borderColor,
     required this.copied,
+    required this.showSaveAction,
     required this.savedToExpedientes,
     required this.savingExpediente,
     required this.onPreview,
@@ -569,32 +594,34 @@ class _Actions extends StatelessWidget {
               label: 'Vista previa',
               onTap: onPreview,
             ),
-            const SizedBox(width: 4),
-            actionBtn(
-              icon: savedToExpedientes
-                  ? Icons.check_circle_rounded
-                  : (savingExpediente
-                      ? Icons.hourglass_top_rounded
-                      : Icons.bookmark_add_outlined),
-              label: savedToExpedientes
-                  ? 'Guardado'
-                  : (savingExpediente
-                      ? 'Guardando...'
-                      : 'Guardar en Expedientes'),
-              onTap: savedToExpedientes
-                  ? () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const ExpedientesScreen(),
-                        ),
-                      );
-                    }
-                  : onSaveToExpedientes,
-              color: savedToExpedientes
-                  ? ExodoPalette.gold
-                  : (savingExpediente ? ExodoPalette.gold : actionColor),
-            ),
+            if (showSaveAction) ...[
+              const SizedBox(width: 4),
+              actionBtn(
+                icon: savedToExpedientes
+                    ? Icons.check_circle_rounded
+                    : (savingExpediente
+                        ? Icons.hourglass_top_rounded
+                        : Icons.bookmark_add_outlined),
+                label: savedToExpedientes
+                    ? 'Guardado'
+                    : (savingExpediente
+                        ? 'Guardando...'
+                        : 'Guardar en Expedientes'),
+                onTap: savedToExpedientes
+                    ? () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const ExpedientesScreen(),
+                          ),
+                        );
+                      }
+                    : onSaveToExpedientes,
+                color: savedToExpedientes
+                    ? ExodoPalette.gold
+                    : (savingExpediente ? ExodoPalette.gold : actionColor),
+              ),
+            ],
             const SizedBox(width: 4),
             actionBtn(
               icon: copied ? Icons.check_rounded : Icons.copy_rounded,
