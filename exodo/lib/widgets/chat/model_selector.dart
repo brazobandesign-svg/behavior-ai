@@ -143,6 +143,13 @@ class ModelSelectorSheet extends StatelessWidget {
 
 class UpgradeModal {
   static void show(BuildContext context) {
+    // [Punto 6] Guard CENTRAL: un invitado jamás abre el modal de compra,
+    // sin importar el trigger (chip bloqueado, píldora en burbuja,
+    // límite de tokens o drawer). Va antes de toda vibración/pop-up.
+    if (context.read<AppState>().isGuestUser) {
+      HapticFeedback.selectionClick();
+      return;
+    }
     HapticFeedback.vibrate();
     bool isAnnual = false;
     bool isLoadingCheckout = false;

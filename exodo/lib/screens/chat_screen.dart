@@ -109,7 +109,9 @@ class _ChatScreenState extends State<ChatScreen>
   }
 
   void _showModelSheet() {
-    if (context.read<AppState>().isIncognito) {
+    // [Punto 6] Incógnito E invitado: la hoja no abre; sólo háptica sutil.
+    final appState = context.read<AppState>();
+    if (appState.isIncognito || appState.isGuestUser) {
       HapticFeedback.selectionClick();
       return;
     }
@@ -250,7 +252,15 @@ class _ChatScreenState extends State<ChatScreen>
                           state.sendUserMessage(text, attachments: attachments);
                         },
                         onModelTap: _showModelSheet,
-                        onUpgradeTap: () => UpgradeModal.show(context),
+                        onUpgradeTap: () {
+                          // [Punto 6] Invitado: no-op silencioso con háptica
+                          // suave; nunca abre el modal de compra.
+                          if (context.read<AppState>().isGuestUser) {
+                            HapticFeedback.selectionClick();
+                            return;
+                          }
+                          UpgradeModal.show(context);
+                        },
                       ),
                     ),
                   ],

@@ -1285,6 +1285,11 @@ class _ChatComposerState extends State<ChatComposer>
     final isGenerating = context.select<AppState, bool>((s) => s.isGenerating);
     final showTab2Banner = context.select<AppState, bool>((s) => s.showTab2Banner);
     final isIncognito = context.select<AppState, bool>((s) => s.isIncognito);
+    // [Punto 6] Guest reactivo: login/logout repinta candado y banner al momento.
+    final isGuestUser = context.select<AppState, bool>((s) => s.isGuestUser);
+    // Un solo criterio de bloqueo del selector de modelos, idéntico al de
+    // incógnito: tap = háptica sutil, candado en lugar de flecha.
+    final modelLocked = isIncognito || isGuestUser;
     final isPro = context.select<AppState, bool>((s) => s.isPro);
     final isDarkMode = context.select<AppState, bool>((s) => s.isDarkMode);
     final selectedModel = context.select<AppState, ExodoModelOption>((s) => s.selectedModel);
@@ -1324,6 +1329,7 @@ class _ChatComposerState extends State<ChatComposer>
                 showTab2Banner &&
                 !isIncognito &&
                 !isPro &&
+                !isGuestUser && // [Punto 6]: nunca visible en modo invitado
                 profile != null,
             maintainSize: true,
             maintainAnimation: true,
@@ -1580,7 +1586,7 @@ class _ChatComposerState extends State<ChatComposer>
                                   const SizedBox(width: 8),
                                   Flexible(
                                     child: GestureDetector(
-                                      onTap: isIncognito
+                                      onTap: modelLocked
                                           ? () {
                                               HapticFeedback.selectionClick();
                                             }
@@ -1698,10 +1704,10 @@ class _ChatComposerState extends State<ChatComposer>
                                                 ),
                                                 const SizedBox(width: 4),
                                                 Icon(
-                                                  isIncognito
+                                                  modelLocked
                                                       ? Icons.lock_outline
                                                       : Icons.keyboard_arrow_down,
-                                                  size: isIncognito ? 13 : 16,
+                                                  size: modelLocked ? 13 : 16,
                                                   color: isLight
                                                       ? const Color(0xFF171615)
                                                       : Colors.white70,

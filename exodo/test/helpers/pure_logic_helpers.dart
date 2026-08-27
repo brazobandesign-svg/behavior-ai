@@ -82,3 +82,33 @@ bool purchaseButtonIsNoOp({required bool isGuestUser, required bool isOnline}) =
 /// ¿El botón del portal de gestión (drawer, cuentas Pro) es no-op? Réplica
 /// del guard añadido en `DrawerMenu._showBillingModal`: offline → sí.
 bool portalButtonIsNoOp({required bool isOnline}) => !isOnline;
+
+// ─── [Punto 6] Compuertas Guest del composer/chat (banner, chip, modal) ──────
+
+/// Visibilidad del banner "More capacity with...". Réplica exacta de la
+/// condición `Visibility.visible` en ChatComposer (P6: añade !isGuestUser).
+bool bannerCapacityVisible({
+  required bool showTab2Banner,
+  required bool isIncognito,
+  required bool isPro,
+  required bool isGuestUser,
+  required bool hasProfile,
+}) =>
+    showTab2Banner && !isIncognito && !isPro && !isGuestUser && hasProfile;
+
+/// ¿El chip del selector de modelos está bloqueado (candado + tap mudo)?
+/// Réplica exacta de `modelLocked` en ChatComposer: incógnito O invitado.
+bool modelChipLocked({required bool isIncognito, required bool isGuestUser}) =>
+    isIncognito || isGuestUser;
+
+/// ¿La hoja de modelos puede abrirse? Réplica del guard de
+/// `_showModelSheet` en ChatScreen (P6: incógnito o invitado → cerrada).
+bool modelSheetCanOpen({
+  required bool isIncognito,
+  required bool isGuestUser,
+}) =>
+    !(isIncognito || isGuestUser);
+
+/// ¿UpgradeModal.show realmente abre el sheet? Réplica del guard central
+/// en `UpgradeModal.show` (P6): invitado → nunca.
+bool upgradeModalOpens({required bool isGuestUser}) => !isGuestUser;
