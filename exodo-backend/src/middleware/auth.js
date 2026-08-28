@@ -82,6 +82,15 @@ async function auth(req, res, next) {
     next();
   } catch (err) {
     console.error('[auth] Error verificando token:', err.message);
+    // P2 auditoría: si el cliente envió token y no pudimos verificarlo por
+    // un fallo de red/timeout hacia Supabase, NO degradar a guest (daría
+    // cuota guest a un usuario legítimo y enmascararía el incidente).
+    if (token) {
+      return res.status(503).json({
+        error: 'auth_service_unavailable',
+        message: 'Servicio de autenticación no disponible temporalmente.',
+      });
+    }
     req.user = { userId: null, plan: 'guest', anonymous: true, isGuest: true };
     next();
   }

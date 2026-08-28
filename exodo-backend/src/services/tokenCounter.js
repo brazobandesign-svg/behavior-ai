@@ -71,19 +71,33 @@ async function updateTokenUsage(userId, newTokens, hasImage = false, currentUsag
       p_tokens: Math.max(1, Math.round(newTokens)),
       p_images: imagesToAdd,
     });
-    if (error) throw new Error(error.message);
+    if (error) {
+      const e = new Error(error.message);
+      e.code = error.code;
+      throw e;
+    }
   } catch (err) {
-    console.error('[tokenCounter] RPC atómica falló, usando fallback legado:', err.message);
-    try {
-      const updatePayload = {
-        tokens_used: mem.dailyTokensUsed,
-        images_used: mem.monthlyVisionUsed,
-        period: currentDate,
-        updated_at: new Date().toISOString(),
-      };
-      await supabase.from('user_usage').update(updatePayload).eq('user_id', userId);
-    } catch (err2) {
-      console.error('[tokenCounter] Error actualizando uso en DB:', err2.message);
+    // P1 auditoría: el fallback legado escribía el total absoluto del mapa
+    // local _memUsage, reintroduciendo lost-updates entre instancias. Ahora
+    // ese write absoluto solo se permite si la RPC no existe (migración 005
+    // sin aplicar); ante errores transitorios (red/timeout) el delta no se
+    // persiste pero la memoria local mantiene el conteo hasta la próxima
+    // re-sincronización de planGuard.
+    if (err.code === 'PGRST202' || err.code === '404') {
+      console.warn('[tokenCounter] increment_user_usage no existe (¿falta migración 005?), usando fallback legado:', err.message);
+      try {
+        const updatePayload = {
+          tokens_used: mem.dailyTokensUsed,
+          images_used: mem.monthlyVisionUsed,
+          period: currentDate,
+          updated_at: new Date().toISOString(),
+        };
+        await supabase.from('user_usage').update(updatePayload).eq('user_id', userId);
+      } catch (err2) {
+        console.error('[tokenCounter] Error actualizando uso en DB:', err2.message);
+      }
+    } else {
+      console.error('[tokenCounter] RPC atómica falló (delta no persistido, conteo retenido en memoria):', err.message);
     }
   }
 }

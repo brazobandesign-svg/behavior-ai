@@ -13,7 +13,10 @@ import 'theme/exodo_theme.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  // Permitir descarga HTTP de Google Fonts mientras no están bundled.
+  // P2 auditoría: Inter (400/500/600/700) está empaquetada en assets/fonts/ y
+  // declarada en pubspec.yaml → google_fonts la carga del AssetManifest local,
+  // cero dependencias de red en el arranque en frío. allowRuntimeFetching se
+  // conserva solo como red de seguridad ante una variante futura no empaquetada.
   GoogleFonts.config.allowRuntimeFetching = true;
 
   // 1. CAPA SÍNCRONA (0–15 ms, sin red)

@@ -24,6 +24,15 @@ router.post('/generate', auth, planGuard, chatRateLimiter, async (req, res) => {
 
     const { userId, plan } = req.user || {};
 
+    // P1 auditoría: enforce de plan antes de procesar el prompt (coste real
+    // de DashScope solo para suscriptores Hazak).
+    if (plan !== 'hazak') {
+      return res.status(403).json({
+        error: 'plan_upgrade_required',
+        message: 'La generación de imágenes requiere una suscripción al Plan Hazak activa.',
+      });
+    }
+
     const result = await generateImage(prompt, { size });
 
     return res.status(200).json({

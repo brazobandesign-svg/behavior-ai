@@ -3,6 +3,12 @@ const { PLAN_CONFIG } = require('../config/models');
 
 const _memUsage = new Map();
 
+// P1 auditoría: TTL de sincronización del caché local con el contador atómico
+// en DB (RPC increment_user_usage, 005_atomic_usage.sql). En Cloud Run
+// multi-instancia otras réplicas incrementan la DB; pasado este TTL se
+// relee la DB en vez de confiar en el mapa local (_memUsage) indefinidamente.
+const USAGE_SYNC_TTL_MS = 30_000;
+
 function getAstDates() {
   const now = new Date();
   const astOffset = 4 * 60 * 60 * 1000; // UTC-4
@@ -43,9 +49,11 @@ async function planGuard(req, res, next) {
   const config = PLAN_CONFIG[planKey];
   const { currentDate, currentMonth } = getAstDates();
 
-  // 2. Revisar memoria para usuarios registrados
+  // 2. Revisar memoria para usuarios registrados (solo si está fresca; si no,
+  //    re-sincronizar desde DB más abajo)
+  const now = Date.now();
   let mem = _memUsage.get(userId);
-  if (mem) {
+  if (mem && now - (mem.ts || 0) < USAGE_SYNC_TTL_MS) {
     if (mem.lastTokenReset !== currentDate) {
       mem.dailyTokensUsed = 0;
       mem.lastTokenReset = currentDate;
@@ -128,6 +136,7 @@ async function planGuard(req, res, next) {
       lastTokenReset,
       lastVisionReset,
       isDegraded,
+      ts: Date.now(), // marca de frescura para USAGE_SYNC_TTL_MS
     };
 
     _memUsage.set(userId, userState);

@@ -793,20 +793,24 @@ class AppState extends ChangeNotifier {
     if (userId != null) {
       var remoteDeleted = false;
       try {
-        await SupabaseService.client.from('profiles').delete().eq('id', userId);
+        // P0 auditoría: purga total vía RPC SECURITY DEFINER
+        // (007_delete_user_account.sql). Antes era un DELETE directo sobre
+        // profiles que RLS rechazaba al no existir política DELETE.
+        // La RPC purga profiles + conversations + expedientes + auth.users.
+        await SupabaseService.client.rpc('delete_user_account');
         remoteDeleted = true;
       } catch (e) {
-        // P3: un DELETE remoto fallido (RLS/red) no debe dejar un perfil
-        // huérfano en la nube con los datos locales ya borrados.
-        debugPrint('[AppState] deleteAccount: fallo borrando perfil: $e');
+        // P3: una purga remota fallida (RLS/red) no debe dejar datos
+        // huérfanos en la nube con los datos locales ya borrados.
+        debugPrint('[AppState] deleteAccount: fallo RPC delete_user_account: $e');
         try {
-          await SupabaseService.client.from('profiles').delete().eq('id', userId);
+          await SupabaseService.client.rpc('delete_user_account');
           remoteDeleted = true;
         } catch (e2) {
           debugPrint('[AppState] deleteAccount: reintento falló, se aborta limpieza: $e2');
         }
       }
-      // Si el perfil sigue vivo en la nube, conservar sesión y datos locales
+      // Si la cuenta sigue viva en la nube, conservar sesión y datos locales
       // para que el usuario reintente (consistencia > apariencia).
       if (!remoteDeleted) return;
     }

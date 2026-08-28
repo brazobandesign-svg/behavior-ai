@@ -75,7 +75,9 @@ router.post('/checkout', auth, async (req, res) => {
               }
             } 
           : {
-              price: 'price_1U92MtBg1fTdi6UM67WbnavU', // Precio $0.50 para pruebas
+              // P0 auditoría: precio mensual parametrizado por entorno.
+              // El fallback es el price ID de pruebas ($0.50) para no romper staging.
+              price: process.env.STRIPE_PRICE_ID_MONTHLY || 'price_1U92MtBg1fTdi6UM67WbnavU',
             }
         ),
       }],
