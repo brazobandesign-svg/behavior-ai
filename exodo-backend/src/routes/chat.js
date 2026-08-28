@@ -174,6 +174,14 @@ router.post('/', auth, guestLimit, planGuard, upload.array('files', 5), async (r
       : 'es';
 
     // C1 (IDOR Guard): validar propiedad de la conversación antes de procesar
+    // PERF (TTFT): el SELECT de historial se dispara ANTES del guard para que
+    // ambos roundtrips a Supabase viajen en paralelo. El guard sigue
+    // decidiendo el 403 ANTES de abrir el stream SSE; si falla, el prefetch
+    // se descarta sin usarse (getHistory nunca rechaza: catch interno → []).
+    const historyPrefetch = (!isGuest && conversationId)
+      ? getHistory(conversationId, 10)
+      : null;
+
     if (conversationId && !isGuest && !anonymous && userId) {
       try {
         await assertConversationOwner(userId, conversationId);
@@ -318,7 +326,7 @@ router.post('/', auth, guestLimit, planGuard, upload.array('files', 5), async (r
         ragPrefetch = searchMinerdChunks(enhancedMessage, { limit: 3 }).catch(() => null);
       }
       const [dbHistory, detectedIntent] = await Promise.all([
-        getHistory(conversationId, 10),
+        historyPrefetch ?? getHistory(conversationId, 10),
         // FIX TTFT: clasificación local por keywords (O(1), sin roundtrip a
         // DeepSeek). El clasificador LLM bloqueaba el inicio del stream 1-5s
         // en CADA mensaje antes de enrutar el modelo.

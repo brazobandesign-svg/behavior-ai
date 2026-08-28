@@ -39,6 +39,29 @@ async function auth(req, res, next) {
 
   const __authT0 = Date.now();
   try {
+    // PERF (TTFT): perfilar el payload del JWT (sin verificar firma — la
+    // verificación la hace getUser abajo) para conocer el `sub` ANTES del
+    // roundtrip y lanzar el SELECT de profiles EN PARALELO con getUser.
+    // Antes: getUser → profiles secuenciales = 2 RTT de latencia por miss
+    // de caché. Si getUser falla, el perfil paralelo se descarta (no se
+    // usa jamás un perfil de un token no verificado).
+    let jwtSub = null;
+    try {
+      const payloadPart = token.split('.')[1];
+      const payload = JSON.parse(Buffer.from(payloadPart, 'base64').toString('utf8'));
+      if (typeof payload.sub === 'string' && payload.sub) jwtSub = payload.sub;
+    } catch (_) {}
+
+    const profilesPromise = jwtSub
+      ? supabase
+          .from('profiles')
+          .select('plan, full_name, onboarding')
+          .eq('id', jwtSub)
+          .single()
+          .then((r) => r.data)
+          .catch(() => null)
+      : Promise.resolve(null);
+
     const { data: { user }, error } = await supabase.auth.getUser(token);
 
     if (error || !user) {
@@ -49,15 +72,9 @@ async function auth(req, res, next) {
     const isGuest = user.is_anonymous === true;
 
     let profile = null;
-    if (!isGuest) {
-      try {
-        const { data } = await supabase
-          .from('profiles')
-          .select('plan, full_name, onboarding')
-          .eq('id', user.id)
-          .single();
-        profile = data;
-      } catch (_) {}
+    if (!isGuest && jwtSub === user.id) {
+      // El SELECT ya voló en paralelo; solo falta esperarlo.
+      profile = await profilesPromise;
     }
 
     req.user = {

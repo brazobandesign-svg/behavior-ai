@@ -162,11 +162,15 @@ class SupabaseService {
     return (res as List).map((json) => Conversation.fromJson(json)).toList();
   }
 
-  static Future<Conversation> createConversation(String title, String modelPlan, bool isIncognito) async {
+  /// [id] (opcional): UUID v4 generado por el cliente. Permite conocer el ID
+  /// de la conversación ANTES del roundtrip de inserción, para que el envío
+  /// del primer mensaje no quede bloqueado esperando la creación en la nube.
+  static Future<Conversation> createConversation(String title, String modelPlan, bool isIncognito, {String? id}) async {
     final user = currentUser;
     if (user == null) throw Exception('No autenticado');
 
     final res = await client.from('conversations').insert({
+      if (id != null && id.isNotEmpty) 'id': id,
       'user_id': user.id,
       'title': title,
       'model_plan': modelPlan,

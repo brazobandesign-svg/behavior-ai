@@ -1,0 +1,12 @@
+# Archivos subidos a Cloud Build en cada deploy --source.
+# .env NUNCA va en la imagen: dotenv override:true pisaría PORT=8080 de
+# Cloud Run (causa del fallo de la revisión exodo-api-00006-fpz) y hornearía
+# secretos en el artefacto. Las claves viven como env vars del servicio.
+.env
+node_modules/
+logs/
+.test_logs_2026-08-18/
+server.err.log
+server.out.log
+.git/
+.gitignore

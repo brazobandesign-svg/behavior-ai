@@ -1149,6 +1149,12 @@ class AppState extends ChangeNotifier {
     notifyListeners(); // ¡Aparece en pantalla en el milisegundo que el usuario pulsa Enviar!
 
     // 2. CREAR CONVERSACIÓN EN BD (si no existe) SIN DETENER LA UI
+    // PERF (TTFT): el ID de la conversación se genera EN EL CLIENTE (UUID v4)
+    // y la inserción en la nube vuela en background. Así el primer mensaje
+    // sale de inmediato sin esperar el roundtrip de creación (~300-800 ms).
+    // El backend tolera la creación optimista: assertConversationOwner admite
+    // conversaciones aún no insertadas y su saveMessage ocurre cuando el LLM
+    // termina (varios segundos después, con la inserción ya completada).
     if (activeConversation == null && shouldSaveHistory) {
       // Título inicial provisional: texto del usuario o 'Nuevo chat'
       final effectiveTitleRaw = text.trim().isNotEmpty
@@ -1156,60 +1162,59 @@ class AppState extends ChangeNotifier {
           : 'Nuevo chat';
       final effectiveTitle = _makeUniqueTitle(effectiveTitleRaw);
 
-      // FIX split-brain: el placeholder es SOLO visual (drawer instantáneo).
-      // La persistencia (Drift, capturedConvId y backend) usa SIEMPRE el UUID
-      // real de Supabase: jamás enviar al backend un conversation_id que no
-      // existe en la FK de la nube.
-      final tempConvId = 'conv-${DateTime.now().millisecondsSinceEpoch}';
+      final convId = ChatService.generateSessionId(); // UUID v4 real
       final placeholder = Conversation(
-        id: tempConvId,
+        id: convId,
         userId: SupabaseService.client.auth.currentUser?.id ?? 'local',
         title: effectiveTitle,
         modelPlan: selectedModel.plan,
         createdAt: DateTime.now(),
       );
       conversations.insert(0, placeholder);
+      activeConversation = placeholder;
+      localChatRepo.saveConversation(placeholder);
+
+      // Re-etiquetar los mensajes en pantalla (user + thinking) al UUID real.
+      for (int i = 0; i < currentMessages.length; i++) {
+        final cid = currentMessages[i].conversationId;
+        if (cid == 'guest' || cid == 'incognito' || cid.isEmpty) {
+          currentMessages[i] = ChatMessage(
+            id: currentMessages[i].id,
+            conversationId: convId,
+            role: currentMessages[i].role,
+            content: currentMessages[i].content,
+            attachments: currentMessages[i].attachments,
+            sources: currentMessages[i].sources,
+            createdAt: currentMessages[i].createdAt,
+            isThinking: currentMessages[i].isThinking,
+          );
+        }
+      }
       notifyListeners(); // El chat ya aparece en el Drawer sin esperar red
 
-      try {
-        final remoteConv = await SupabaseService.createConversation(
+      // Inserción en la nube SIN bloquear el envío del mensaje.
+      unawaited(
+        SupabaseService.createConversation(
           effectiveTitle,
           selectedModel.plan,
           false,
-        );
-        final idx = conversations.indexWhere((c) => c.id == tempConvId);
-        if (idx != -1) {
-          conversations[idx] = remoteConv;
-        } else {
-          conversations.insert(0, remoteConv);
-        }
-        activeConversation = remoteConv;
-        localChatRepo.saveConversation(remoteConv);
-
-        for (int i = 0; i < currentMessages.length; i++) {
-          final cid = currentMessages[i].conversationId;
-          if (cid == 'guest' || cid == 'incognito' || cid.isEmpty || cid == tempConvId) {
-            currentMessages[i] = ChatMessage(
-              id: currentMessages[i].id,
-              conversationId: remoteConv.id,
-              role: currentMessages[i].role,
-              content: currentMessages[i].content,
-              attachments: currentMessages[i].attachments,
-              sources: currentMessages[i].sources,
-              createdAt: currentMessages[i].createdAt,
-              isThinking: currentMessages[i].isThinking,
-            );
+          id: convId,
+        ).then((remoteConv) {
+          final idx = conversations.indexWhere((c) => c.id == convId);
+          if (idx != -1) {
+            conversations[idx] = remoteConv;
           }
-        }
-        notifyListeners();
-      } catch (e) {
-        // Degradado: sin nube se conserva la conversación local bajo tempConvId
-        // para que nada se pierda en el dispositivo; el historial en la nube se
-        // recuperará cuando exista conectividad (la fila local queda en Drift).
-        debugPrint('[AppState] createConversation falló, modo solo-local: $e');
-        activeConversation = placeholder;
-        localChatRepo.saveConversation(placeholder);
-      }
+          if (activeConversation?.id == convId) {
+            activeConversation = remoteConv;
+          }
+          localChatRepo.saveConversation(remoteConv);
+          notifyListeners();
+        }).catchError((Object e) {
+          // Degradado: sin nube se conserva la conversación local bajo el
+          // mismo UUID; el historial en la nube se recuperará con conectividad.
+          debugPrint('[AppState] createConversation falló, modo solo-local: $e');
+        }),
+      );
     } else if (shouldSaveHistory) {
       _bubbleConversationToTop(activeConversation!.id);
     }

@@ -12,13 +12,13 @@ import 'package:exodo/services/chat_service.dart';
 void main() {
   // P1 (2026-08-26): el backend productivo migró de Railway a Cloud Run;
   // el test apuntaba a la URL antigua y fallaba en cualquier modo.
-  const prodUrl = 'https://exodo-api-4tdhiyieea-ue.a.run.app/api/chat';
+  const prodUrl = 'https://exodo-api-23368377903.us-east1.run.app/api/chat';
 
   group('ChatService.candidateUrls — gate kDebugMode', () {
     test('Backend productivo HTTPS siempre presente como destino productivo', () {
       final urls = ChatService.candidateUrls;
       expect(
-        urls.any((u) => u.startsWith('https://exodo-api-4tdhiyieea-ue.a.run.app')),
+        urls.any((u) => u.startsWith('https://exodo-api-23368377903.us-east1.run.app')),
         isTrue,
         reason: 'El fallback productivo HTTPS debe existir en todo modo',
       );

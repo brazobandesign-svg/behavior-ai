@@ -23,7 +23,12 @@ void main() async {
   // Lectura síncrona de SharedPreferences antes del primer frame en el frame 0.
   // NO toca red ni bloquea la interfaz.
   final bootstrap = await Bootstrap.readSync();
-  await ChatService.loadSavedWorkingUrl();
+  // PERF (arranque): la validación de red del backend guardado (GET /health,
+  // hasta 3s de timeout) NO debe bloquear el primer frame. Corre en background;
+  // si el usuario envía un mensaje antes de que termine, sendMessageStream ya
+  // tiene su propia sonda paralela (600 ms) para elegir el backend vivo.
+  // ignore: unawaited_futures
+  ChatService.loadSavedWorkingUrl();
 
   // 2. CAPA ASÍNCRONA (fire-and-forget)
   // Supabase se inicializa en background en paralelo sin bloquear el arranque.
