@@ -560,9 +560,48 @@ router.post('/', auth, guestLimit, planGuard, upload.array('files', 5), async (r
 });
 
 /**
+ * Títulos estilo ChatGPT/Claude:
+ * 1. Saludos triviales → el título SON las palabras del usuario ("Hi" → "Hi").
+ *    Jamás se inventa hora del día (el LLM no la conoce: un "Hola" a las 8:57pm
+ *    producía "morning greetings") ni contexto ajeno a la conversación.
+ * 2. Mensajes con tema → LLM con prompt basado 100% en el contenido, temp 0.3.
+ */
+const GREETING_FIRST_WORDS = new Set([
+  'hi', 'hey', 'hello', 'yo', 'hiya', 'howdy', 'greetings', 'greeting',
+  'hola', 'holi', 'buenas', 'buenos', 'saludos', 'salut', 'bonjour', 'bonsoir',
+  'coucou', 'allo', 'allô', 'olá', 'ola', 'oi', 'bonjou', 'bonswa', 'alo', 'aloha',
+  'hallo', 'ciao', 'namaste', 'salam', 'marhaba', 'привет', '안녕', '你好', 'こんにちは',
+]);
+
+const PURE_GREETINGS = new Set([
+  'what s up', 'whats up', 'what s up', 'wassup', 'wsp', 'sup',
+  'qué onda', 'que onda', 'qué tal', 'que tal', 'qué pasa', 'que pasa',
+  'buenas tardes', 'buenas noches', 'buenos días', 'buenos dias', 'buen día', 'buen dia',
+]);
+
+// Si el mensaje pide algo (ayuda, creación, pregunta real), NO es saludo
+// trivial aunque empiece con "hi" — el título debe reflejar la petición.
+const REQUEST_HINTS = /\b(help|ayuda|ay[uú]dame|necesito|quiero|deseo|busco|dime|dame|escribe|redacta|traduce|resume|res[uú]me|genera|crea|hazme|haz|explica|expl[íi]came|analiza|can|could|would|please|por\s+favor|favor|write|make|generate|summarize|translate|create|explain|need|want|tell|cu[eé]ntame|where|when|why|what|which|who)\b/i;
+
+function isTrivialGreeting(text) {
+  if (typeof text !== 'string') return false;
+  const normalized = text
+    .toLowerCase()
+    .replace(/[¿?¡!.,;:()"'*~\-_#]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (!normalized) return false;
+  if (PURE_GREETINGS.has(normalized)) return true;
+  if (REQUEST_HINTS.test(normalized)) return false;
+  const words = normalized.split(' ');
+  if (words.length > 4) return false;
+  return GREETING_FIRST_WORDS.has(words[0]);
+}
+
+/**
  * POST /api/chat/title
- * Genera un título ultra-conciso (2 a 4 palabras) usando LLM (qwen3.7-flash)
- * con temperatura 0.0 y zero-shot.
+ * Genera un título ultra-conciso (2 a 4 palabras) usando LLM (qwen3.7-flash).
+ * Saludos triviales NO gastan LLM: el título son las palabras del usuario.
  */
 router.post('/title', auth, async (req, res) => {
   try {
@@ -595,11 +634,18 @@ router.post('/title', auth, async (req, res) => {
     const asstMsg = messages.find((m) => m.role === 'assistant');
 
     const userText = (userMsg?.content || '').trim();
-    const asstSnippet = (asstMsg?.content || '').trim().slice(0, 300);
 
-    if (!userText && !asstSnippet) {
+    if (!userText && !(asstMsg?.content || '').trim()) {
       return res.json({ title: 'Nueva conversación' });
     }
+
+    // Saludo trivial: el título es el mensaje del usuario, sin LLM, sin
+    // invención de hora/ánimo. "Hi" → "Hi"; "Buenas tardes" → "Buenas tardes".
+    if (isTrivialGreeting(userText)) {
+      return res.json({ title: userText.slice(0, 40) });
+    }
+
+    const asstSnippet = (asstMsg?.content || '').trim().slice(0, 300);
 
     const TITLE_LANGS = {
       en: 'English', fr: 'Français', pt: 'Português', ht: 'Kreyòl Ayisyen',
@@ -608,29 +654,40 @@ router.post('/title', auth, async (req, res) => {
     };
     const titleLang = TITLE_LANGS[locale] || 'español';
     const systemPrompt =
-      `Eres un generador de títulos concisos. Genera un título temático de 2 a 4 palabras EN ${titleLang} (el idioma del mensaje del usuario) que resuma el núcleo de la conversación. ` +
-      `PROHIBIDO usar títulos genéricos o repetitivos como "Saludo inicial", "Nueva conversación", "Consulta", "Chat" o traducciones de estos. ` +
-      `Si el mensaje es trivial (un saludo), crea algo breve pero ORIGINAL y variado: puede aludir a la hora del día, el ánimo o el contexto. Ejemplos de estilo: "Café y preguntas", "Tarde creativa", "Buen día, ideas". ` +
-      `Devuelve ÚNICAMENTE el título limpio, sin comillas, sin formato Markdown y sin punto final.`;
+      `Eres el generador de títulos de una app de chat con IA (estilo ChatGPT/Claude). ` +
+      `Crea un título de 2 a 4 palabras EN ${titleLang} que refleje el TEMA REAL de la conversación (asunto, intención o entidad principal del mensaje del usuario). ` +
+      `REGLAS ESTRICTAS: ` +
+      `(1) Basa el título SOLO en el contenido de la conversación; PROHIBIDO inventar hora del día, fecha, ánimo, lugar o cualquier contexto no mencionado en el mensaje. ` +
+      `(2) PROHIBIDO números, numeración, comillas, markdown, emojis o punto final. ` +
+      `(3) Conserva la capitalización natural de ${titleLang}: primera letra mayúscula, nunca todo minúsculas. ` +
+      `(4) Si el mensaje ya es breve y claro, usa sus propias palabras sin adornos. ` +
+      `Devuelve ÚNICAMENTE el título.`;
 
     const prompt = `Usuario: ${userText || '(Imagen / archivo adjunto)'}\nAsistente: ${asstSnippet}`;
 
     const alibaba = require('../services/providers/alibaba');
     const result = await alibaba.call('qwen3.7-flash', [prompt], systemPrompt, {
       max_tokens: 40,
-      temperature: 0.9,
+      temperature: 0.3,
     });
 
     let rawTitle = (result.text || '').trim();
-    // Limpieza de comillas, markdown y puntuación terminal
+    // Limpieza de comillas, markdown, puntuación terminal y numeración alucinada
+    // ("morning greetings 2" → "morning greetings"): los dígitos sueltos al
+    // final provienen del "2 a 4 palabras" del prompt en modelos débiles.
     rawTitle = rawTitle
       .replace(/^["'«“`]+|["'»”`]+$/g, '')
       .replace(/[#*_`~]/g, '')
       .replace(/\.+$/, '')
+      .replace(/\s+\d{1,3}$/, '')
       .trim();
 
     if (!rawTitle || rawTitle.length > 50) {
       rawTitle = rawTitle.slice(0, 40).trim();
+    }
+
+    if (rawTitle) {
+      rawTitle = rawTitle.charAt(0).toUpperCase() + rawTitle.slice(1);
     }
 
     return res.json({ title: rawTitle || 'Conversación' });
