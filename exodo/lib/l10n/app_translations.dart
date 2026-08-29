@@ -15,6 +15,7 @@ library;
 import 'package:flutter/material.dart';
 
 import 'app_translations_p3.dart';
+import 'app_translations_p4.dart';
 
 /// Idiomas disponibles en la app. El primero es el default.
 class AppLocale {
@@ -68,34 +69,34 @@ Map<String, String> translationsFor(String code) {
   switch (code) {
     case 'en':
     case 'en_GB':
-      return {..._en, ...kP3En};
+      return {..._en, ...kP3En, ...kP4En};
     case 'fr':
-      return {..._fr, ...kP3Fr};
+      return {..._fr, ...kP3Fr, ...kP4Fr};
     case 'ht':
-      return {..._ht, ...kP3Ht};
+      return {..._ht, ...kP3Ht, ...kP4Ht};
     case 'pt':
-      return {..._pt, ...kP3Pt};
+      return {..._pt, ...kP3Pt, ...kP4Pt};
     case 'pt_BR':
-      return {..._ptBR, ..._pt, ...kP3Pt};
+      return {..._ptBR, ..._pt, ...kP3Pt, ...kP4Pt};
     case 'it':
-      return {..._it, ...kP3It};
+      return {..._it, ...kP3It, ...kP4It};
     case 'de':
-      return {..._de, ...kP3De};
+      return {..._de, ...kP3De, ...kP4De};
     case 'ru':
-      return {..._ru, ...kP3Ru};
+      return {..._ru, ...kP3Ru, ...kP4Ru};
     case 'zh':
-      return {..._zh, ...kP3Zh};
+      return {..._zh, ...kP3Zh, ...kP4Zh};
     case 'ja':
-      return {..._ja, ...kP3Ja};
+      return {..._ja, ...kP3Ja, ...kP4Ja};
     case 'ar':
-      return {..._ar, ...kP3Ar};
+      return {..._ar, ...kP3Ar, ...kP4Ar};
     case 'ko':
-      return {..._ko, ...kP3Ko};
+      return {..._ko, ...kP3Ko, ...kP4Ko};
     case 'hi':
-      return {..._hi, ...kP3Hi};
+      return {..._hi, ...kP3Hi, ...kP4Hi};
     case 'es':
     default:
-      return _es;
+      return {..._es, ...kP4Es};
   }
 }
 

@@ -12,6 +12,7 @@ import '../widgets/chat/chat_composer.dart';
 import '../widgets/chat/message_bubble.dart';
 import '../widgets/chat/model_selector.dart';
 import '../services/chat_service.dart';
+import '../services/context_export_service.dart';
 import '../theme/exodo_theme.dart';
 import '../l10n/app_i18n.dart';
 
@@ -422,12 +423,16 @@ class _ChatMessagesListState extends State<ChatMessagesList> {
           top: 8,
           bottom: 200,
         ),
-        itemCount: state.currentMessages.length + (state.currentMessages.length >= 24 && !state.isGenerating ? 1 : 0),
+        itemCount: state.currentMessages.length + (state.currentMessages.length >= 40 && !state.isGenerating ? 1 : 0),
         itemBuilder: (context, index) {
           if (index == state.currentMessages.length) {
+            // Límite de contexto inteligente: 40 mensajes = ventana de 25 ya
+            // recortando el inicio; 60 = urgente (instrucciones de 3 puntos).
             return _LongConversationBanner(
               isLight: widget.isLight,
+              urgent: state.currentMessages.length >= 60,
               onNewChat: () => state.startNewChat(),
+              onExport: () => _exportConversationContext(context, state),
             );
           }
           final msg = state.currentMessages[index];
@@ -450,14 +455,20 @@ class _ChatMessagesListState extends State<ChatMessagesList> {
   }
 }
 
-/// Banner preventivo estilo Claude cuando la conversación acumula muchos turnos
+/// Banner preventivo estilo Claude cuando la conversación acumula muchos turnos.
+/// A partir de 40 mensajes avisa; a partir de 60 se vuelve URGENTE y explica
+/// los 3 pasos: límite inminente → exportar contexto HTML → chat nuevo.
 class _LongConversationBanner extends StatefulWidget {
   final bool isLight;
+  final bool urgent;
   final VoidCallback onNewChat;
+  final VoidCallback onExport;
 
   const _LongConversationBanner({
     required this.isLight,
+    this.urgent = false,
     required this.onNewChat,
+    required this.onExport,
   });
 
   @override
@@ -470,6 +481,9 @@ class _LongConversationBannerState extends State<_LongConversationBanner> {
   @override
   Widget build(BuildContext context) {
     if (_dismissed) return const SizedBox.shrink();
+
+    final t = AppI18n.of(context).t;
+    final accent = widget.urgent ? const Color(0xFFDC2626) : ExodoColors.amber;
 
     return Container(
       margin: const EdgeInsets.only(top: 14, bottom: 8),
@@ -484,64 +498,141 @@ class _LongConversationBannerState extends State<_LongConversationBanner> {
           width: 1,
         ),
       ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(
-            Icons.auto_awesome_outlined,
-            size: 18,
-            color: ExodoColors.amber,
-          ),
-          const SizedBox(width: 10),
-            Expanded(
-              child: Text(
-                AppI18n.of(context).t('banner.long_conversation'),
-                style: TextStyle(
-                fontFamily: 'AnthropicSans',
-                fontSize: 12,
-                color: widget.isLight ? const Color(0xFF555555) : Colors.white70,
-                height: 1.35,
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Icon(
+                widget.urgent ? Icons.warning_amber_rounded : Icons.auto_awesome_outlined,
+                size: 18,
+                color: accent,
               ),
-            ),
-          ),
-          const SizedBox(width: 8),
-          InkWell(
-            onTap: () {
-              HapticFeedback.lightImpact();
-              widget.onNewChat();
-            },
-            borderRadius: BorderRadius.circular(8),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-              decoration: BoxDecoration(
-                color: ExodoColors.amber.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Text(
-                AppI18n.of(context).t('banner.new_chat'),
-                style: const TextStyle(
-                  fontFamily: 'AnthropicSans',
-                  fontSize: 11.5,
-                  fontWeight: FontWeight.bold,
-                  color: ExodoColors.amber,
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  widget.urgent ? t('banner.context_limit_urgent') : t('banner.long_conversation'),
+                  style: TextStyle(
+                    fontFamily: 'AnthropicSans',
+                    fontSize: 12,
+                    fontWeight: widget.urgent ? FontWeight.w600 : FontWeight.w400,
+                    color: widget.isLight ? const Color(0xFF555555) : Colors.white70,
+                    height: 1.35,
+                  ),
                 ),
               ),
+              const SizedBox(width: 8),
+              IconButton(
+                icon: const Icon(Icons.close, size: 16),
+                color: widget.isLight ? Colors.black45 : Colors.white38,
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
+                onPressed: () {
+                  setState(() => _dismissed = true);
+                },
+              ),
+            ],
+          ),
+          if (widget.urgent) ...[
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Expanded(
+                  child: _bannerAction(
+                    label: t('banner.export_context'),
+                    icon: Icons.ios_share_rounded,
+                    background: accent.withValues(alpha: 0.15),
+                    foreground: accent,
+                    onTap: widget.onExport,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _bannerAction(
+                    label: t('banner.new_chat'),
+                    icon: Icons.add_comment_outlined,
+                    background: accent.withValues(alpha: 0.15),
+                    foreground: accent,
+                    onTap: widget.onNewChat,
+                  ),
+                ),
+              ],
             ),
-          ),
-          const SizedBox(width: 4),
-          IconButton(
-            icon: const Icon(Icons.close, size: 16),
-            color: widget.isLight ? Colors.black45 : Colors.white38,
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
-            onPressed: () {
-              setState(() => _dismissed = true);
-            },
-          ),
+          ] else ...[
+            Align(
+              alignment: Alignment.centerRight,
+              child: _bannerAction(
+                label: t('banner.new_chat'),
+                icon: Icons.add_comment_outlined,
+                background: accent.withValues(alpha: 0.15),
+                foreground: accent,
+                onTap: widget.onNewChat,
+              ),
+            ),
+          ],
         ],
       ),
     );
   }
+
+  Widget _bannerAction({
+    required String label,
+    required IconData icon,
+    required Color background,
+    required Color foreground,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: () {
+        HapticFeedback.lightImpact();
+        onTap();
+      },
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+        decoration: BoxDecoration(
+          color: background,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, size: 14, color: foreground),
+            const SizedBox(width: 6),
+            Flexible(
+              child: Text(
+                label,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontFamily: 'AnthropicSans',
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.bold,
+                  color: foreground,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Exporta el contexto del chat activo como HTML reimportable y abre el
+/// Share Sheet nativo (guardar, enviar, etc.). Usado por el banner de límite.
+Future<void> _exportConversationContext(BuildContext context, AppState state) async {
+  final t = AppI18n.of(context).t;
+  await ContextExportService.exportAndShare(
+    title: state.activeConversation?.title ?? t('banner.context_default_title'),
+    locale: state.effectiveLocale,
+    messages: state.currentMessages,
+    transcriptLabel: t('banner.context_transcript'),
+    roleUserLabel: t('banner.context_role_user'),
+    roleAiLabel: t('banner.context_role_ai'),
+    reimportHint: t('banner.context_reimport_hint'),
+  );
 }
 
 

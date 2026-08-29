@@ -20,12 +20,14 @@ import 'chat/model_selector.dart';
 class _DrawerItem extends StatelessWidget {
   final Widget icon;
   final Widget title;
+  final Widget? subtitle;
   final VoidCallback onTap;
   final double horizontalPad;
 
   const _DrawerItem({
     required this.icon,
     required this.title,
+    this.subtitle,
     required this.onTap,
     required this.horizontalPad,
   });
@@ -37,6 +39,7 @@ class _DrawerItem extends StatelessWidget {
       contentPadding: EdgeInsets.symmetric(horizontal: horizontalPad),
       leading: icon,
       title: title,
+      subtitle: subtitle,
       onTap: onTap,
     );
   }
@@ -217,6 +220,41 @@ class _DrawerMenuState extends State<DrawerMenu> {
                                 state.toggleIncognito();
                               },
                             ),
+                            // Privacidad: guardar (o no) el historial en la nube.
+                            // Solo cuentas registradas — guests/incógnito ya son
+                            // efímeros por diseño y el toggle no les aplica.
+                            if (!state.isGuestUser)
+                              _DrawerItem(
+                                horizontalPad: hPad,
+                                icon: Icon(
+                                  state.cloudHistoryEnabled ? Icons.cloud_done_outlined : Icons.cloud_off_outlined,
+                                  size: s(20),
+                                  color: state.cloudHistoryEnabled ? textCol : ExodoColors.amber,
+                                ),
+                                title: Text(
+                                  AppI18n.of(context).t('settings.cloud_history'),
+                                  style: TextStyle(
+                                    fontFamily: 'AnthropicSans',
+                                    fontSize: s(14),
+                                    color: state.cloudHistoryEnabled ? textCol : ExodoColors.amber,
+                                    fontWeight: FontWeight.w600,
+                                    letterSpacing: -0.2,
+                                  ),
+                                ),
+                                subtitle: Text(
+                                  AppI18n.of(context).t('settings.cloud_history_desc'),
+                                  style: TextStyle(
+                                    fontFamily: 'AnthropicSans',
+                                    fontSize: s(10.5),
+                                    color: subTextCol,
+                                    height: 1.3,
+                                  ),
+                                ),
+                                onTap: () {
+                                  HapticFeedback.vibrate();
+                                  state.setCloudHistoryEnabled(!state.cloudHistoryEnabled);
+                                },
+                              ),
                             // [Punto 3] Expedientes es exclusivo de cuentas.
                             // Decisión de producto: en modo invitado el ítem
                             // se OCULTA por completo — sin opacidad reducida

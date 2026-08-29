@@ -94,6 +94,9 @@ const MIME_TO_FORMAT = {
   'application/csv': 'csv',
   'text/json': 'json',
   'application/json': 'json',
+  // HTML: contexto exportado de Éxodo ("Exportar contexto") y páginas web
+  'text/html': 'html',
+  'application/xhtml+xml': 'html',
 };
 
 const EXT_TO_FORMAT = {
@@ -106,6 +109,9 @@ const EXT_TO_FORMAT = {
   '.markdown': 'txt',
   '.csv': 'csv',
   '.json': 'json',
+  '.html': 'html',
+  '.htm': 'html',
+  '.xhtml': 'html',
 };
 
 const DEFAULT_OPTIONS = {
@@ -359,6 +365,43 @@ function extractJsonText(buffer) {
   return JSON.stringify(parsed, null, 2);
 }
 
+// HTML → texto plano sin dependencias: elimina script/style/head/comentarios,
+// conserva saltos de bloque (<p>, <br>, <li>, headings, tablas) y decodifica
+// entidades básicas. Suficiente para reimportar el contexto exportado por
+// Éxodo (semantic HTML) sin arriesgar un parser completo en el event loop.
+const HTML_ENTITIES = {
+  '&amp;': '&', '&lt;': '<', '&gt;': '>', '&quot;': '"',
+  '&#39;': "'", '&apos;': "'", '&nbsp;': ' ', '&mdash;': '—', '&ndash;': '–',
+  '&aacute;': 'á', '&eacute;': 'é', '&iacute;': 'í', '&oacute;': 'ó', '&uacute;': 'ú',
+  '&ntilde;': 'ñ', '&Aacute;': 'Á', '&Eacute;': 'É', '&Iacute;': 'Í',
+  '&Oacute;': 'Ó', '&Uacute;': 'Ú', '&Ntilde;': 'Ñ',
+};
+
+function decodeHtmlEntities(text) {
+  return text
+    .replace(/&#(\d+);/g, (_, dec) => {
+      try { return String.fromCodePoint(parseInt(dec, 10)); } catch (_) { return ''; }
+    })
+    .replace(/&[a-zA-Z#0-9]+;/g, (ent) => HTML_ENTITIES[ent] !== undefined ? HTML_ENTITIES[ent] : ent);
+}
+
+function extractHtmlText(buffer) {
+  let html = stripBom(buffer.toString('utf8'));
+  html = html
+    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<head[\s\S]*?<\/head>/gi, ' ')
+    .replace(/<!--[\s\S]*?-->/g, ' ')
+    // Etiquetas de bloque → salto de línea para no aplastar los párrafos
+    .replace(/<\/(p|div|section|article|li|tr|blockquote|h[1-6])>/gi, '\n')
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<(td|th)\b[^>]*>/gi, ' | ')
+    .replace(/<[^>]+>/g, ' ');
+  return decodeHtmlEntities(html)
+    .replace(/[ \t]+/g, ' ')
+    .replace(/\n{3,}/g, '\n\n');
+}
+
 async function extractByFormat(format, buffer, cfg) {
   switch (format) {
     case 'pdf':
@@ -371,6 +414,8 @@ async function extractByFormat(format, buffer, cfg) {
       return extractPlainText(buffer);
     case 'csv':
       return extractCsvText(buffer);
+    case 'html':
+      return extractHtmlText(buffer);
     case 'json':
       return extractJsonText(buffer);
     default:

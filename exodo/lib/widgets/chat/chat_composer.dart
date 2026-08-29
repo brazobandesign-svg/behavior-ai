@@ -66,6 +66,10 @@ String mimeFromExtension(String fileName) {
       return 'application/xml';
     case 'csv':
       return 'text/csv';
+    case 'html':
+    case 'htm':
+      // Contexto exportado de Éxodo: el backend lo extrae con documentExtractor
+      return 'text/html';
     case 'doc':
     case 'docx':
       return 'application/msword';

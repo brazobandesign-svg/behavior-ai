@@ -63,6 +63,32 @@ class AppState extends ChangeNotifier {
   String? errorMessage;
   int guestMessagesSessionCount = 0;
 
+  // ── Privacidad: historial en la nube (elección del usuario) ────────────
+  // ON (default): los chats se guardan en Supabase + Drift, visibles en
+  // cualquier dispositivo. OFF: los chats NO se persisten en ningún lado
+  // (semántica incógnito: solo viven en RAM mientras están en pantalla) —
+  // ni el backend de Éxodo guarda el contenido. Solo aplica a usuarios
+  // registrados; guests/incógnito ya son efímeros por diseño.
+  bool cloudHistoryEnabled = true;
+  static const String _cloudHistoryPrefKey = 'exodo_cloud_history';
+
+  Future<void> setCloudHistoryEnabled(bool enabled) async {
+    if (cloudHistoryEnabled == enabled) return;
+    cloudHistoryEnabled = enabled;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(_cloudHistoryPrefKey, enabled);
+    } catch (_) {}
+    notifyListeners();
+  }
+
+  Future<void> _loadCloudHistoryPref() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      cloudHistoryEnabled = prefs.getBool(_cloudHistoryPrefKey) ?? true;
+    } catch (_) {}
+  }
+
   // ── Streaming suavizado (FIX jerky rendering 2026-08-20) ──────────────
   // Los deltas del stream se acumulan en un buffer mutable y se materializan
   // en currentMessages a cadencia de frame (~33ms). Antes, CADA token hacía
@@ -118,6 +144,9 @@ class AppState extends ChangeNotifier {
     String? savedProfileJson,
     Bootstrap? bootstrap,
   }) {
+    // Preferencia de privacidad (fire-and-forget: el default true solo
+    // afecta el guardado al ENVIAR, no hay UI que parpadee).
+    _loadCloudHistoryPref();
     if (bootstrap != null) {
       _hasCachedSession = bootstrap.hasAuthToken;
       if (bootstrap.selectedModelId != null) {
@@ -1027,7 +1056,7 @@ class AppState extends ChangeNotifier {
     await ChatService.sendMessageStream(
       conversationId: activeConversation?.id ?? '',
       message: lastUserText,
-      history: (isIncognito || isGuestUser)
+      history: (isIncognito || isGuestUser || !cloudHistoryEnabled)
           ? currentMessages
                 .where((m) => !m.isThinking)
                 .map((m) => {'role': m.role, 'content': m.content})
@@ -1098,7 +1127,10 @@ class AppState extends ChangeNotifier {
     final isGuest = isGuestUser;
     errorMessage = null;
 
-    final shouldSaveHistory = !isIncognito && !isGuest;
+    // Privacidad: OFF ⇒ semántica incógnito (nada se persiste en la nube ni
+    // en el dispositivo; el chat vive solo en RAM mientras está en pantalla).
+    final shouldSaveHistory = !isIncognito && !isGuest && cloudHistoryEnabled;
+    final ephemeralTurn = isIncognito || isGuest || !cloudHistoryEnabled;
 
     // 1. AÑADIR MENSAJE DE USUARIO Y THINKING BUBBLE A LA UI INMEDIATAMENTE (Optimistic UI 0 ms lag)
     currentMessages.removeWhere((m) => m.id == 'error');
@@ -1254,7 +1286,9 @@ class AppState extends ChangeNotifier {
       await ChatService.sendMessageStream(
         message: text,
         conversationId: shouldSaveHistory ? capturedConvId : null,
-        history: (isIncognito || isGuestUser)
+        // Sin historial en nube (privacidad OFF) el backend no puede leer la
+        // conversación de la DB: se envía la ventana local como en incógnito.
+        history: ephemeralTurn
             ? currentMessages
                   .where((m) => !m.isThinking)
                   .map((m) => {'role': m.role, 'content': m.content})
