@@ -599,6 +599,58 @@ function isTrivialGreeting(text) {
 }
 
 /**
+ * Detección ligera del idioma del MENSAJE (stopwords + diacríticos + rango Unicode).
+ * El título debe estar en el idioma en que ESCRIBE el usuario, no en el de la
+ * interfaz: UI en inglés + mensaje en español → título en español. Si la señal
+ * es ambigua (empate o texto sin palabras funcionales), se usa el locale de la
+ * interfaz como fallback.
+ */
+const LANG_STOPWORDS = {
+  es: new Set(['el','la','los','las','un','una','unos','unas','de','del','al','y','o','u','que','qué','cómo','como','para','por','con','sin','sobre','entre','mi','mis','tu','tus','su','sus','nuestro','es','está','esta','estoy','son','fue','ser','hace','hay','más','mas','pero','si','sí','no','ya','muy','necesito','quiero','deseo','dime','dame','hola','gracias','favor','cuál','cual','quién','quien','dónde','donde','cuándo','cuando','cuánto','cuanto','porque','planificación','grado','clase','tarea','aula','alumno','alumnos','enseñar','aprender','matemáticas','lengua','ciencias','sociales','naturales','evaluación','rubrica','rúbrica']),
+  en: new Set(['the','a','an','of','to','in','on','for','with','and','or','is','are','was','were','be','been','am','do','does','did','have','has','had','will','would','can','could','should','i','you','he','she','it','we','they','my','your','his','her','our','their','this','that','these','those','what','which','who','whom','where','when','why','how','not','yes','please','thanks','thank','hello','hi','hey','need','want','make','write','tell','give','me','about','from','at','by','if','then','than','so','very','just','now','get','got','let','lesson','grade','plan','help']),
+  fr: new Set(['le','la','les','un','une','des','du','de','au','aux','et','ou','que','qui','pour','par','avec','sans','sur','dans','mon','ma','mes','ton','ta','tes','son','sa','ses','notre','nos','votre','vos','leur','leurs','est','sont','était','être','faire','fait','il','elle','je','tu','nous','vous','ils','elles','ce','cet','cette','ces','plus','mais','oui','non','bonjour','salut','merci','besoin','veux','comment','pourquoi','où','quand','combien','cours','classe']),
+  pt: new Set(['o','a','os','as','um','uma','uns','umas','de','do','da','dos','das','em','no','na','para','por','com','sem','sobre','entre','meu','minha','meus','minhas','seu','sua','é','são','foi','ser','fazer','faz','há','mais','mas','não','sim','obrigado','olá','oi','preciso','quero','como','porque','porquê','qual','quem','onde','quando','quanto','aula','turma','plano']),
+  ht: new Set(['nan','yo','ki','mwen','nou','ak','pou','poukisa','kijan','kòman','bonjou','bonswa','mèsi','bezwen','vle','fè','genyen','gen','yon','lekòl','timoun','se','sa','la']),
+};
+
+const DIACRITIC_HINTS = {
+  es: /[ñáéíóúü¿¡]/g,
+  pt: /[ãõâêç]/g,
+  fr: /[àèùœîï]/g,
+};
+
+function detectMessageLang(text) {
+  if (!text || typeof text !== 'string' || text.trim().length < 2) return null;
+
+  // Scripts no latinos: detección directa por rango Unicode (kana antes que
+  // han: el japonés mezcla kanji + kana; el chino puro no tiene kana).
+  if (/[\u3040-\u30FF]/.test(text)) return 'ja';
+  if (/[\uAC00-\uD7AF]/.test(text)) return 'ko';
+  if (/[\u4E00-\u9FFF]/.test(text)) return 'zh';
+  if (/[\u0400-\u04FF]/.test(text)) return 'ru';
+  if (/[\u0600-\u06FF]/.test(text)) return 'ar';
+  if (/[\u0900-\u097F]/.test(text)) return 'hi';
+
+  const lower = text.toLowerCase();
+  const tokens = lower.split(/[^a-zà-ÿñ']+/).filter(Boolean);
+  const scores = { es: 0, en: 0, fr: 0, pt: 0, ht: 0 };
+  for (const w of tokens) {
+    for (const lang of Object.keys(scores)) {
+      if (LANG_STOPWORDS[lang].has(w)) scores[lang] += 1;
+    }
+  }
+  for (const [lang, re] of Object.entries(DIACRITIC_HINTS)) {
+    const hits = lower.match(re);
+    if (hits) scores[lang] += hits.length * 0.5;
+  }
+  const sorted = Object.entries(scores).sort((a, b) => b[1] - a[1]);
+  const [topLang, topScore] = sorted[0];
+  const secondScore = sorted[1][1];
+  // Dominancia estricta: empate o cero señales → null (fallback al locale UI).
+  return topScore >= 1 && topScore > secondScore ? topLang : null;
+}
+
+/**
  * POST /api/chat/title
  * Genera un título ultra-conciso (2 a 4 palabras) usando LLM (qwen3.7-flash).
  * Saludos triviales NO gastan LLM: el título son las palabras del usuario.
@@ -652,7 +704,12 @@ router.post('/title', auth, async (req, res) => {
       de: 'Deutsch', it: 'Italiano', ru: 'Русский', zh: '中文',
       ja: '日本語', ko: '한국어', hi: 'हिन्दी', ar: 'العربية',
     };
-    const titleLang = TITLE_LANGS[locale] || 'español';
+    // Idioma del título = idioma en que ESCRIBE el usuario (detectado), no el
+    // de la interfaz. UI en inglés + mensaje en español → título en español.
+    // Solo si el mensaje es ambiguo se respeta el locale de la interfaz.
+    const uiLocale = TITLE_LANGS[locale] ? locale : 'es';
+    const titleLocale = detectMessageLang(userText) || detectMessageLang(asstSnippet) || uiLocale;
+    const titleLang = TITLE_LANGS[titleLocale] || 'español';
     const systemPrompt =
       `Eres el generador de títulos de una app de chat con IA (estilo ChatGPT/Claude). ` +
       `Crea un título de 2 a 4 palabras EN ${titleLang} que refleje el TEMA REAL de la conversación (asunto, intención o entidad principal del mensaje del usuario). ` +
