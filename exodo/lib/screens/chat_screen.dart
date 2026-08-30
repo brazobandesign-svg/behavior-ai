@@ -13,6 +13,7 @@ import '../widgets/chat/message_bubble.dart';
 import '../widgets/chat/model_selector.dart';
 import '../services/chat_service.dart';
 import '../services/context_export_service.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../theme/exodo_theme.dart';
 import '../l10n/app_i18n.dart';
 
@@ -429,7 +430,6 @@ class _ChatMessagesListState extends State<ChatMessagesList> {
             // Límite de contexto inteligente: 40 mensajes = ventana de 25 ya
             // recortando el inicio; 60 = urgente (instrucciones de 3 puntos).
             return _LongConversationBanner(
-              isLight: widget.isLight,
               urgent: state.currentMessages.length >= 60,
               onNewChat: () => state.startNewChat(),
               onExport: () => _exportConversationContext(context, state),
@@ -455,17 +455,16 @@ class _ChatMessagesListState extends State<ChatMessagesList> {
   }
 }
 
-/// Banner preventivo estilo Claude cuando la conversación acumula muchos turnos.
-/// A partir de 40 mensajes avisa; a partir de 60 se vuelve URGENTE y explica
-/// los 3 pasos: límite inminente → exportar contexto HTML → chat nuevo.
+/// Aviso de límite de contexto, estilo disclaimer (texto tenue, sin tarjeta):
+/// mismo lenguaje visual que "Éxodo es IA y puede cometer errores" — discreto,
+/// elegante y no invasivo. A los 40 mensajes avisa; a los 60 añade acciones
+/// inline (Exportar contexto · Nuevo chat) y el texto de los 3 pasos.
 class _LongConversationBanner extends StatefulWidget {
-  final bool isLight;
   final bool urgent;
   final VoidCallback onNewChat;
   final VoidCallback onExport;
 
   const _LongConversationBanner({
-    required this.isLight,
     this.urgent = false,
     required this.onNewChat,
     required this.onExport,
@@ -476,145 +475,78 @@ class _LongConversationBanner extends StatefulWidget {
 }
 
 class _LongConversationBannerState extends State<_LongConversationBanner> {
-  bool _dismissed = false;
-
   @override
   Widget build(BuildContext context) {
-    if (_dismissed) return const SizedBox.shrink();
-
     final t = AppI18n.of(context).t;
-    final accent = widget.urgent ? const Color(0xFFDC2626) : ExodoColors.amber;
+    final isLight = Theme.of(context).brightness == Brightness.light;
+    final textCol = isLight ? Colors.black : ExodoColors.textPrimary;
 
-    return Container(
-      margin: const EdgeInsets.only(top: 14, bottom: 8),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-      decoration: BoxDecoration(
-        color: widget.isLight ? const Color(0xFFF7F5EE) : const Color(0xFF1E1E1E),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: widget.isLight
-              ? const Color(0xFFE2DCD2)
-              : const Color(0xFF333336),
-          width: 1,
-        ),
-      ),
+    return Padding(
+      padding: const EdgeInsets.only(top: 16, bottom: 6),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Icon(
-                widget.urgent ? Icons.warning_amber_rounded : Icons.auto_awesome_outlined,
-                size: 18,
-                color: accent,
+          Opacity(
+            opacity: 0.5,
+            child: Text(
+              widget.urgent ? t('banner.context_limit_urgent') : t('banner.long_conversation'),
+              textAlign: TextAlign.center,
+              style: GoogleFonts.inter(
+                fontSize: 10.5,
+                height: 1.35,
+                color: textCol,
               ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  widget.urgent ? t('banner.context_limit_urgent') : t('banner.long_conversation'),
-                  style: TextStyle(
-                    fontFamily: 'AnthropicSans',
-                    fontSize: 12,
-                    fontWeight: widget.urgent ? FontWeight.w600 : FontWeight.w400,
-                    color: widget.isLight ? const Color(0xFF555555) : Colors.white70,
-                    height: 1.35,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              GestureDetector(
+                onTap: () {
+                  HapticFeedback.lightImpact();
+                  widget.onExport();
+                },
+                child: Opacity(
+                  opacity: 0.65,
+                  child: Text(
+                    t('banner.export_context'),
+                    style: GoogleFonts.inter(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      decoration: TextDecoration.underline,
+                      color: textCol,
+                    ),
                   ),
                 ),
               ),
-              const SizedBox(width: 8),
-              IconButton(
-                icon: const Icon(Icons.close, size: 16),
-                color: widget.isLight ? Colors.black45 : Colors.white38,
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
-                onPressed: () {
-                  setState(() => _dismissed = true);
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 10),
+                child: Opacity(
+                  opacity: 0.35,
+                  child: Text('·', style: TextStyle(fontSize: 11, color: textCol)),
+                ),
+              ),
+              GestureDetector(
+                onTap: () {
+                  HapticFeedback.lightImpact();
+                  widget.onNewChat();
                 },
+                child: Opacity(
+                  opacity: 0.65,
+                  child: Text(
+                    t('banner.new_chat'),
+                    style: GoogleFonts.inter(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      decoration: TextDecoration.underline,
+                      color: textCol,
+                    ),
+                  ),
+                ),
               ),
             ],
           ),
-          if (widget.urgent) ...[
-            const SizedBox(height: 10),
-            Row(
-              children: [
-                Expanded(
-                  child: _bannerAction(
-                    label: t('banner.export_context'),
-                    icon: Icons.ios_share_rounded,
-                    background: accent.withValues(alpha: 0.15),
-                    foreground: accent,
-                    onTap: widget.onExport,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: _bannerAction(
-                    label: t('banner.new_chat'),
-                    icon: Icons.add_comment_outlined,
-                    background: accent.withValues(alpha: 0.15),
-                    foreground: accent,
-                    onTap: widget.onNewChat,
-                  ),
-                ),
-              ],
-            ),
-          ] else ...[
-            Align(
-              alignment: Alignment.centerRight,
-              child: _bannerAction(
-                label: t('banner.new_chat'),
-                icon: Icons.add_comment_outlined,
-                background: accent.withValues(alpha: 0.15),
-                foreground: accent,
-                onTap: widget.onNewChat,
-              ),
-            ),
-          ],
         ],
-      ),
-    );
-  }
-
-  Widget _bannerAction({
-    required String label,
-    required IconData icon,
-    required Color background,
-    required Color foreground,
-    required VoidCallback onTap,
-  }) {
-    return InkWell(
-      onTap: () {
-        HapticFeedback.lightImpact();
-        onTap();
-      },
-      borderRadius: BorderRadius.circular(8),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-        decoration: BoxDecoration(
-          color: background,
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, size: 14, color: foreground),
-            const SizedBox(width: 6),
-            Flexible(
-              child: Text(
-                label,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontFamily: 'AnthropicSans',
-                  fontSize: 11.5,
-                  fontWeight: FontWeight.bold,
-                  color: foreground,
-                ),
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }

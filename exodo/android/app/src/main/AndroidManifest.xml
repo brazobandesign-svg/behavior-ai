@@ -4,6 +4,10 @@
     <uses-permission android:name="android.permission.CAMERA"/>
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32"/>
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES"/>
+    <!-- Notificaciones de respuesta lista (Android 13+) y respuesta en background -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+    <!-- Auto-actualización por APK directo (instalador nativo) -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES"/>
     <application
         android:label="Exodo"
         android:name="${applicationName}"

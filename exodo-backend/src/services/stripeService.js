@@ -143,7 +143,7 @@ async function downgradeToFree(userId) {
 /**
  * Activa plan hazak (pro).
  */
-async function activateHazak(userId) {
+async function activateXPi(userId) {
   return updateProfilePlan(userId, 'hazak', true);
 }
 
@@ -283,7 +283,7 @@ async function processStripeEvent(event, rawBody) {
 
     // 2. Ejecutar transición según tipo
     if (type === 'checkout.session.completed') {
-      await activateHazak(userId);
+      await activateXPi(userId);
       // Crear/actualizar subscription vía supabase (best-effort)
       if (supabase && subscriptionId) {
         await supabase.from('subscriptions').upsert({
@@ -340,7 +340,7 @@ module.exports = {
   resolvePlanFromSubscription,
   updateProfilePlan,
   downgradeToFree,
-  activateHazak,
+  activateXPi,
   syncSubscriptionState,
   processStripeEvent,
   PLAN_ALIASES,

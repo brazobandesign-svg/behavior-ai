@@ -76,6 +76,16 @@ async function planGuard(req, res, next) {
       _memMode: true,
       _userId: userId,
     };
+    // ENFORCEMENT REAL (antes el límite era decorativo: isDegraded se calculaba
+    // y nadie lo consumía). Cuota diaria agotada => 429 con mensaje claro.
+    if (mem.dailyTokensUsed >= config.dailyTokensLimit) {
+      return res.status(429).json({
+        error: 'daily_limit_reached',
+        message: `Alcanzaste tu límite diario de ${config.dailyTokensLimit.toLocaleString('en-US')} tokens. Tu cuota se renueva mañana.`,
+        dailyTokensUsed: mem.dailyTokensUsed,
+        dailyTokensLimit: config.dailyTokensLimit,
+      });
+    }
     return next();
   }
 
@@ -141,6 +151,16 @@ async function planGuard(req, res, next) {
 
     _memUsage.set(userId, userState);
     req.usage = userState;
+
+    // ENFORCEMENT REAL: idéntico al path de caché. Cuota diaria agotada => 429.
+    if (dailyTokensUsed >= config.dailyTokensLimit) {
+      return res.status(429).json({
+        error: 'daily_limit_reached',
+        message: `Alcanzaste tu límite diario de ${config.dailyTokensLimit.toLocaleString('en-US')} tokens. Tu cuota se renueva mañana.`,
+        dailyTokensUsed,
+        dailyTokensLimit: config.dailyTokensLimit,
+      });
+    }
 
     next();
   } catch (err) {

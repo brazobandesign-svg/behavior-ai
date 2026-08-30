@@ -52,7 +52,9 @@ void main() {
     });
     // Marcas intocables (regla de nombres propios).
     expect(ht['app.title'], anyOf(contains('Éxodo'), contains('Exodo')));
-    expect(ht['widget.square_genesis'], contains('Genesis'));
+    // 2026-08-28: rebranding de modelos — G1.1/XPi sustituyen a las
+    // variantes anteriores (Genesis/Hazak/Ehyeh/Origo) por decisión de producto.
+    expect(ht['widget.square_genesis'], contains('G1.1'));
   });
 
   test('P2 i18n: sin fugas de inglés fuera de _en (Settings modal)', () {

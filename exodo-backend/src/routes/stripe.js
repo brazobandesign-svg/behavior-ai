@@ -18,7 +18,7 @@ function getStripe() {
 
 /**
  * POST /api/stripe/checkout
- * Crea una Stripe Checkout Session para suscripción mensual Hazak.
+ * Crea una Stripe Checkout Session para suscripción mensual XPi.
  * Requiere autenticación (no anónimo).
  */
 router.post('/checkout', auth, async (req, res) => {
@@ -37,9 +37,9 @@ router.post('/checkout', auth, async (req, res) => {
     return res.status(401).json({ error: 'Inicia sesión para suscribirte' });
   }
 
-  // Si ya es Hazak, no crear otra suscripción.
+  // Si ya es XPi, no crear otra suscripción.
   if (plan === 'hazak') {
-    return res.status(400).json({ error: 'Ya tienes el plan Hazak activo' });
+    return res.status(400).json({ error: 'Ya tienes el plan XPi activo' });
   }
 
   // Resolver email del usuario autenticado si no venía en req.user.
@@ -71,7 +71,7 @@ router.post('/checkout', auth, async (req, res) => {
                 currency: 'usd',
                 unit_amount: 4999, // centavos USD
                 recurring: { interval: 'year' },
-                product_data: { name: 'Hazak Anual' },
+                product_data: { name: 'XPi Anual' },
               }
             } 
           : {

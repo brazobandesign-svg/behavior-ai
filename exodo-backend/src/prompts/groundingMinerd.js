@@ -46,11 +46,11 @@ const SUBJECTS_VALIDOS = new Set([
 ]);
 
 const PLAN_LABELS = {
-  genesis: 'Genesis G1.1 (Qwen 3.7 Flash / Qwen 3.6 Plus)',
-  lux:     'Lux (gratuito extendido)',
-  ehyeh:   'Ehyeh (Pro Lite)',
-  hazak:   'Hazak J1.9 Pro (Qwen 3.7 Max / Qwen 3 Thinking / Qwen VL Max)',
-  guest:   'Invitado (cuenta anónima, sin historial persistente)',
+  genesis: 'G1.1 (Free)',
+  lux:     'G1.1 (Free)',
+  ehyeh:   'XPi (Pro)',
+  hazak:   'XPi (Pro)',
+  guest:   'Invitado',
 };
 
 const SUBJECT_LABELS = {

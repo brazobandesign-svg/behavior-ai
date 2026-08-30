@@ -15,8 +15,9 @@ const Map<String, String> kP4Es = <String, String>{
   'banner.context_reimport_hint':
       'Para continuar en un chat nuevo: adjunta o pega este archivo HTML y la IA retomará el contexto completo.',
   'settings.cloud_history': 'Guardar historial en la nube',
-  'settings.cloud_history_desc':
-      'Desactívalo para máxima privacidad: tus mensajes no se guardarán en ningún servidor ni en este dispositivo; al cerrar el chat desaparecen.',
+  'settings.cloud_history_desc': 'Desactívalo para máxima privacidad: tus chats se guardarán solo en este dispositivo (nunca en servidores) y seguirán disponibles aquí con todo su contexto.',
+  'notification.response_ready': 'Ver respuesta de Éxodo',
+  'notification.update_ready_body': 'Nueva versión descargada. Toca para instalarla.',
 };
 
 const Map<String, String> kP4En = <String, String>{
@@ -30,8 +31,9 @@ const Map<String, String> kP4En = <String, String>{
   'banner.context_reimport_hint':
       'To continue in a new chat: attach or paste this HTML file and the AI will pick up the full context.',
   'settings.cloud_history': 'Save history to cloud',
-  'settings.cloud_history_desc':
-      'Turn off for maximum privacy: your messages won\'t be stored on any server or on this device; they disappear when the chat closes.',
+  'settings.cloud_history_desc': 'Turn off for maximum privacy: your chats will be saved only on this device (never on servers) and remain available here with their full context.',
+  'notification.response_ready': 'View Éxodo\'s reply',
+  'notification.update_ready_body': 'New version downloaded. Tap to install it.',
 };
 
 const Map<String, String> kP4Fr = <String, String>{
@@ -45,8 +47,9 @@ const Map<String, String> kP4Fr = <String, String>{
   'banner.context_reimport_hint':
       'Pour continuer dans un nouveau chat : joignez ou collez ce fichier HTML et l\'IA reprendra tout le contexte.',
   'settings.cloud_history': 'Enregistrer l\'historique dans le cloud',
-  'settings.cloud_history_desc':
-      'Désactivez pour une confidentialité maximale : vos messages ne seront stockés sur aucun serveur ni sur cet appareil ; ils disparaissent à la fermeture du chat.',
+  'settings.cloud_history_desc': 'Désactivez pour une confidentialité maximale : vos conversations seront enregistrées uniquement sur cet appareil (jamais sur des serveurs) et resteront disponibles ici avec tout leur contexte.',
+  'notification.response_ready': 'Voir la réponse d\'Éxodo',
+  'notification.update_ready_body': 'Nouvelle version téléchargée. Touchez pour l\'installer.',
 };
 
 const Map<String, String> kP4Ht = <String, String>{
@@ -60,8 +63,9 @@ const Map<String, String> kP4Ht = <String, String>{
   'banner.context_reimport_hint':
       'Pou kontinye nan yon nouvo chat: mete oswa kole fichye HTML sa a epi IA a pral pran tout kontèks la.',
   'settings.cloud_history': 'Kenbe istwa diskisyon an nan kloud la',
-  'settings.cloud_history_desc':
-      'Fèmen l pou privasite maksimòm: mesaj ou yo pa ap konsève nan okenn sèvè ni sou aparèy sa a; yo disparèt lè w fèmen chat la.',
+  'settings.cloud_history_desc': 'Fèmen l pou privasite maksimòm: diskisyon ou yo ap konsève sèlman sou aparèy sa a (pa janm nan sèvè) epi yo ap disponib la a ak tout kontèks yo.',
+  'notification.response_ready': 'Gade repons Éxodo',
+  'notification.update_ready_body': 'Nouvo vèsyon telechaje. Touche pou enstale l.',
 };
 
 const Map<String, String> kP4Pt = <String, String>{
@@ -75,8 +79,9 @@ const Map<String, String> kP4Pt = <String, String>{
   'banner.context_reimport_hint':
       'Para continuar num novo chat: anexe ou cole este arquivo HTML e a IA retomará todo o contexto.',
   'settings.cloud_history': 'Salvar histórico na nuvem',
-  'settings.cloud_history_desc':
-      'Desative para privacidade máxima: suas mensagens não serão salvas em nenhum servidor nem neste aparelho; elas somem quando o chat fecha.',
+  'settings.cloud_history_desc': 'Desative para privacidade máxima: suas conversas serão salvas apenas neste aparelho (nunca em servidores) e continuarão disponíveis aqui com todo o contexto.',
+  'notification.response_ready': 'Ver a resposta do Éxodo',
+  'notification.update_ready_body': 'Nova versão baixada. Toque para instalá-la.',
 };
 
 const Map<String, String> kP4It = <String, String>{
@@ -90,8 +95,9 @@ const Map<String, String> kP4It = <String, String>{
   'banner.context_reimport_hint':
       'Per continuare in una nuova chat: allega o incolla questo file HTML e l\'IA riprenderà tutto il contesto.',
   'settings.cloud_history': 'Salva cronologia nel cloud',
-  'settings.cloud_history_desc':
-      'Disattiva per la massima privacy: i tuoi messaggi non saranno salvati su alcun server né su questo dispositivo; scompaiono quando chiudi la chat.',
+  'settings.cloud_history_desc': 'Disattiva per la massima privacy: le tue conversazioni saranno salvate solo su questo dispositivo (mai sui server) e resteranno disponibili qui con tutto il loro contesto.',
+  'notification.response_ready': 'Vedi la risposta di Éxodo',
+  'notification.update_ready_body': 'Nuova versione scaricata. Tocca per installarla.',
 };
 
 const Map<String, String> kP4De = <String, String>{
@@ -105,8 +111,9 @@ const Map<String, String> kP4De = <String, String>{
   'banner.context_reimport_hint':
       'Um in einem neuen Chat fortzufahren: Hänge diese HTML-Datei an oder füge sie ein — die KI übernimmt den vollständigen Kontext.',
   'settings.cloud_history': 'Verlauf in der Cloud speichern',
-  'settings.cloud_history_desc':
-      'Für maximale Privatsphäre deaktivieren: Deine Nachrichten werden auf keinem Server und nicht auf diesem Gerät gespeichert; sie verschwinden, wenn der Chat geschlossen wird.',
+  'settings.cloud_history_desc': 'Für maximale Privatsphäre deaktivieren: Deine Chats werden nur auf diesem Gerät gespeichert (nie auf Servern) und bleiben hier mit ihrem gesamten Kontext verfügbar.',
+  'notification.response_ready': 'Éxodos Antwort ansehen',
+  'notification.update_ready_body': 'Neue Version heruntergeladen. Zum Installieren tippen.',
 };
 
 const Map<String, String> kP4Ru = <String, String>{
@@ -120,8 +127,9 @@ const Map<String, String> kP4Ru = <String, String>{
   'banner.context_reimport_hint':
       'Чтобы продолжить в новом чате: прикрепите или вставьте этот HTML-файл — ИИ подхватит весь контекст.',
   'settings.cloud_history': 'Сохранять историю в облаке',
-  'settings.cloud_history_desc':
-      'Отключите для максимальной конфиденциальности: ваши сообщения не сохраняются ни на сервере, ни на этом устройстве и исчезают при закрытии чата.',
+  'settings.cloud_history_desc': 'Отключите для максимальной конфиденциальности: ваши чаты будут сохраняться только на этом устройстве (никогда на серверах) и останутся доступны здесь со всем контекстом.',
+  'notification.response_ready': 'Открыть ответ Éxodo',
+  'notification.update_ready_body': 'Новая версия загружена. Нажмите, чтобы установить.',
 };
 
 const Map<String, String> kP4Zh = <String, String>{
@@ -134,8 +142,9 @@ const Map<String, String> kP4Zh = <String, String>{
   'banner.context_role_ai': 'Éxodo',
   'banner.context_reimport_hint': '要在新对话中继续：附加或粘贴此 HTML 文件，AI 将接管完整上下文。',
   'settings.cloud_history': '将历史记录保存到云端',
-  'settings.cloud_history_desc':
-      '关闭以获得最大隐私：您的消息不会保存在任何服务器或本设备上；关闭聊天后即消失。',
+  'settings.cloud_history_desc': '关闭以获得最大隐私：您的对话将仅保存在本设备上（绝不保存在服务器上），并在此处保留完整上下文。',
+  'notification.response_ready': '查看 Éxodo 的回复',
+  'notification.update_ready_body': '新版本已下载，点按即可安装。',
 };
 
 const Map<String, String> kP4Ja = <String, String>{
@@ -149,8 +158,9 @@ const Map<String, String> kP4Ja = <String, String>{
   'banner.context_reimport_hint':
       '新しいチャットで続けるには：このHTMLファイルを添付・貼り付けすると、AIが完全な文脈を引き継ぎます。',
   'settings.cloud_history': '履歴をクラウドに保存',
-  'settings.cloud_history_desc':
-      'オフにすると最大限のプライバシーが得られます：メッセージはサーバーにもこの端末にも保存されず、チャットを閉じると消えます。',
+  'settings.cloud_history_desc': 'オフにすると最大限のプライバシーが得られます：チャットはこの端末にのみ保存され（サーバーには保存されません）、文脈ごとここで引き続き利用できます。',
+  'notification.response_ready': 'Éxodoの返信を見る',
+  'notification.update_ready_body': '新バージョンをダウンロードしました。タップしてインストール。',
 };
 
 const Map<String, String> kP4Ar = <String, String>{
@@ -163,8 +173,9 @@ const Map<String, String> kP4Ar = <String, String>{
   'banner.context_role_ai': 'Éxodo',
   'banner.context_reimport_hint': 'للمتابعة في محادثة جديدة: أرفق ملف HTML هذا أو الصقه وسيكمل الذكاء الاصطناعي السياق كاملاً.',
   'settings.cloud_history': 'حفظ السجل في السحابة',
-  'settings.cloud_history_desc':
-      'أوقفه لأقصى خصوصية: لن تُحفظ رسائلك على أي خادم أو على هذا الجهاز، وتختفي عند إغلاق المحادثة.',
+  'settings.cloud_history_desc': 'أوقفه لأقصى خصوصية: ستُحفظ محادثاتك على هذا الجهاز فقط (وليس على أي خادم) وستبقى متاحة هنا بسياقها الكامل.',
+  'notification.response_ready': 'عرض رد Éxodo',
+  'notification.update_ready_body': 'تم تنزيل الإصدار الجديد. انقر لتثبيته.',
 };
 
 const Map<String, String> kP4Ko = <String, String>{
@@ -177,8 +188,9 @@ const Map<String, String> kP4Ko = <String, String>{
   'banner.context_role_ai': 'Éxodo',
   'banner.context_reimport_hint': '새 채팅에서 계속하려면: 이 HTML 파일을 첨부하거나 붙여넣으면 AI가 전체 맥락을 이어받습니다.',
   'settings.cloud_history': '기록을 클라우드에 저장',
-  'settings.cloud_history_desc':
-      '끄면 최대한의 프라이버시를 제공합니다: 메시지는 어떤 서버나 이 기기에도 저장되지 않으며 채팅을 닫으면 사라집니다.',
+  'settings.cloud_history_desc': '끄면 최대한의 프라이버시를 제공합니다: 대화는 이 기기에만 저장되고(서버에는 저장되지 않음) 전체 맥락과 함께 여기서 계속 사용할 수 있습니다.',
+  'notification.response_ready': 'Éxodo의 답변 보기',
+  'notification.update_ready_body': '새 버전이 다운로드되었습니다. 눌러서 설치하세요.',
 };
 
 const Map<String, String> kP4Hi = <String, String>{
@@ -191,6 +203,7 @@ const Map<String, String> kP4Hi = <String, String>{
   'banner.context_role_ai': 'Éxodo',
   'banner.context_reimport_hint': 'नए चैट में जारी रखने के लिए: यह HTML फ़ाइल संलग्न या पेस्ट करें — AI पूरा संदर्भ ले लेगा।',
   'settings.cloud_history': 'इतिहास क्लाउड में सहेजें',
-  'settings.cloud_history_desc':
-      'अधिकतम गोपनीयता के लिए बंद करें: आपके संदेश किसी सर्वर या इस डिवाइस पर सहेजे नहीं जाएंगे; चैट बंद करने पर वे गायब हो जाएंगे।',
+  'settings.cloud_history_desc': 'अधिकतम गोपनीयता के लिए बंद करें: आपकी चैट केवल इस डिवाइस पर सहेजी जाएंगी (किसी सर्वर पर नहीं) और पूरे संदर्भ के साथ यहीं उपलब्ध रहेंगी।',
+  'notification.response_ready': 'Éxodo का उत्तर देखें',
+  'notification.update_ready_body': 'नया संस्करण डाउनलोड हुआ। इंस्टॉल करने के लिए टैप करें।',
 };

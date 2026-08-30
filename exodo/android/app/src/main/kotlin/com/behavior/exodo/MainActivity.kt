@@ -17,6 +17,7 @@ class MainActivity : FlutterActivity() {
     companion object {
         private const val TAG = "MainActivity"
         private const val CHANNEL = "com.behavior.exodo/widgets"
+        private const val APP_INFO_CHANNEL = "exodo/app_info"
         private const val EXTRA_WIDGET_PROMPT = "widget_prompt"
         private const val MAX_DELIVERY_RETRIES = 3
         private const val RETRY_DELAY_MS = 1500L
@@ -101,6 +102,30 @@ class MainActivity : FlutterActivity() {
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
+
+        // Auto-actualización: exponer el versionCode instalado a Dart
+        // (UpdateService compara contra version.json de GitHub Releases).
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, APP_INFO_CHANNEL).setMethodCallHandler { call, result ->
+            when (call.method) {
+                "versionCode" -> {
+                    try {
+                        val pm = packageManager
+                        val info = pm.getPackageInfo(packageName, 0)
+                        val code = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                            info.longVersionCode.toInt()
+                        } else {
+                            @Suppress("DEPRECATION")
+                            info.versionCode
+                        }
+                        result.success(code)
+                    } catch (e: Exception) {
+                        result.error("VERSION_ERROR", e.message, null)
+                    }
+                }
+                else -> result.notImplemented()
+            }
+        }
+
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL).setMethodCallHandler { call, result ->
             when (call.method) {
                 "getInitialPrompt" -> {

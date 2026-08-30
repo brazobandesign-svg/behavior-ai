@@ -245,8 +245,8 @@ class Source {
 class ExodoModelOption {
   final String id;
   final String modelId; // NIM model ID for backend routing (e.g. 'nim-nemotron-3-ultra')
-  final String title; // 'G1.1', 'G1.3', 'XPi', 'J1.9'
-  final String subtitle; // 'Origo', 'Lux', 'Ehyeh', 'Hazak'
+  final String title; // 'G1.1', 'XPi', ...
+  final String subtitle; // 'Free', 'Pro'
   final String plan; // 'genesis' | 'hazak'
   final String description;
   final String descriptionEn;
@@ -264,19 +264,19 @@ class ExodoModelOption {
 
 const List<ExodoModelOption> exodoModels = [
   ExodoModelOption(
-    id: 'origo',
+    id: 'g11',
     modelId: 'gpt-4o-mini',
     title: 'G1.1',
-    subtitle: 'Origo',
+    subtitle: 'Free',
     plan: 'genesis',
     description: 'Modelo capaz para tareas diarias.',
     descriptionEn: 'Capable model for everyday tasks.',
   ),
   ExodoModelOption(
-    id: 'ehyeh',
+    id: 'xpi',
     modelId: 'deepseek-chat',
     title: 'XPi',
-    subtitle: 'Ehyeh',
+    subtitle: 'Pro',
     plan: 'hazak',
     description: 'Razonamiento avanzado para tareas exigentes.',
     descriptionEn: 'Advanced reasoning for demanding tasks.',

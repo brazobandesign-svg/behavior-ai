@@ -1,28 +1,30 @@
-// Constantes de modelos, proveedores y límites — Matriz Éxodo DashScope Free Tier (1M tokens)
+﻿// Constantes de modelos, proveedores y límites — Matriz Éxodo DashScope Free Tier (1M tokens)
 
 const ALIBABA_CONFIG = {
   baseURL: process.env.ALIBABA_BASE_URL || 'https://dashscope-intl.aliyuncs.com/compatible-mode/v1',
-  // FIX (2026-08-20): había una key hardcodeada de respaldo aquí. Estaba
-  // INVALIDADA (DashScope respondía 401 "Invalid API-key") y enmascaraba los
-  // arranques sin .env (dotenv inyecta 0 vars si el CWD no es la raíz del
-  // backend): toda la cadena de modelos fallaba con 401s confusos en lugar de
-  // un "apiKey is required" evidente. Sin key en env, el check de arranque de
-  // index.js avisa y el SDK de OpenAI falla ruidosamente en el primer request.
   apiKey: process.env.DASHSCOPE_API_KEY || process.env.ALIBABA_API_KEY || process.env.ALIBABA_FREE_KEY,
   models: {
     // DOCTRINA (humano, 25-08): Kimi K3 y Qwen 3.7 Max RESERVADOS para Copilot (chatLanguageModels.json).
-    // Prohibidos en la cascada de Éxodo. Flagship = qwen3.6-max-preview.
+    // Flagship = qwen3.6-max-preview.
     textPrimary: 'qwen3.6-max-preview',       // Texto, conversación, redacción y asistencia general
     fastPrimary: 'qwen3.7-flash-2026-07-15',     // Conversación instantánea (<200ms TTFT) para saludos y mensajes simples
     textFallback: 'qwen3.6-plus-2026-04-02',     // Respaldo de alta elocuencia
     reasonerPrimary: 'qwq-plus',                 // Razonamiento lógico profundo y matemáticas
     coderPrimary: 'qwen3-coder-plus-2025-07-22', // Generación de código y artefactos interactivos
     visionPrimary: 'qwen-vl-max',                // Análisis de imágenes, visión multimodal y OCR
-    agenticLongContext: 'glm-5.1',               // Agéntico/review largo (rol previo de Kimi K3, desterrado)
+    agenticLongContext: 'glm-5.1',               // Agéntico/review largo
 
     // RAG MINERD y Embeddings
     embeddingModel: 'text-embedding-v4',
     rerankModel: 'qwen3-rerank',
+
+    // Modelos de Generación de Imágenes (DashScope Free Tier)
+    imageModel: 'wan2.2-t2i-flash',              // Primario: Wanx 2.2 Flash (rápido, ~8s)
+    imageFallback1: 'wan2.1-t2i-turbo',          // Respaldo 1: Wanx 2.1 Turbo (~8s)
+    imageFallback2: 'wan2.2-t2i-plus',           // Respaldo 2: Wanx 2.2 Plus (máxima calidad, ~12s)
+    imageFallback3: 'wan2.1-t2i-plus',           // Respaldo 3: Wanx 2.1 Plus (~12s)
+    imageFallback4: 'qwen-image',                // Respaldo 4: Qwen Image (~5s)
+    imageFallback5: 'qwen-image-plus',           // Respaldo 5: Qwen Image Plus (~5.6s)
 
     // Compatibilidad de nombres
     hazakPrimary: 'qwen3.6-max-preview',
@@ -39,8 +41,8 @@ const ALIBABA_CONFIG = {
 
 const PLAN_CONFIG = {
   free: {
-    name: 'Genesis G1.1',
-    dailyTokensLimit: 1000000,        // 1M tokens diarios activos
+    name: 'G1.1',
+    dailyTokensLimit: 6000,           // 6,000 tokens diarios (lo que promete la UI)
     maxOutputTokensNormal: 8192,
     monthlyVisionLimit: 1000,
     allowThinking: true,
@@ -52,9 +54,9 @@ const PLAN_CONFIG = {
     isDegradable: false,
   },
   pro: {
-    name: 'Hazak J1.9',
+    name: 'XPi',
     priceUsd: 4.99,
-    dailyTokensLimit: 1000000,        // 1M tokens diarios activos
+    dailyTokensLimit: 50000,          // 50,000 tokens diarios (lo que promete la UI)
     maxOutputTokens: 8192,
     monthlyVisionLimit: 2000,
     allowThinking: true,
@@ -110,9 +112,9 @@ const MODEL_MAP = {
   },
   RAZONAMIENTO: {
     genesis: 'qwen3.7-flash',
-    hazak:   'qwen3-235b-a22b-thinking-2507',
+    hazak:   'qwq-plus',
     free:    'qwen3.7-flash',
-    pro:     'qwen3-235b-a22b-thinking-2507',
+    pro:     'qwq-plus',
   },
   DOCUMENTO: {
     genesis: 'qwen3.6-plus',
@@ -127,21 +129,20 @@ const MODEL_MAP = {
     pro:     'qwen-vl-max',
   },
   IMAGEN: {
-    genesis: null,
-    hazak:   'qwen-image-3.0-pro',
-    free:    null,
-    pro:     'qwen-image-3.0-pro',
+    genesis: 'wan2.2-t2i-flash',
+    hazak:   'wan2.2-t2i-plus',
+    free:    'wan2.2-t2i-flash',
+    pro:     'wan2.2-t2i-plus',
   },
 };
 
 const MODEL_TO_PROVIDER = {
   // DashScope Qwen / DeepSeek Models
   'qwen3.6-max-preview':         'alibaba',
-  'qwen3-235b-a22b-thinking-2507':  'alibaba',
+  'qwq-plus':                       'alibaba',
   'qwen-vl-max':                    'alibaba',
   'qwen3.5-omni-plus':              'alibaba',
   'deepseek-v3.2':                  'alibaba',
-  'qwq-plus':                       'alibaba',
   'qwen3.7-flash':                  'alibaba',
   'qwen3.6-plus':                   'alibaba',
   'qwen3.5-plus':                   'alibaba',
@@ -157,6 +158,13 @@ const MODEL_TO_PROVIDER = {
   'kimi-k3-1m':                     'alibaba',
   'moonshot-v1-1m':                 'alibaba',
   'moonshot-v1-128k':               'alibaba',
+  // DashScope Image Models
+  'wan2.2-t2i-flash':               'alibaba',
+  'wan2.2-t2i-plus':                'alibaba',
+  'wan2.1-t2i-turbo':               'alibaba',
+  'wan2.1-t2i-plus':                'alibaba',
+  'qwen-image':                     'alibaba',
+  'qwen-image-plus':                'alibaba',
 };
 
 module.exports = {

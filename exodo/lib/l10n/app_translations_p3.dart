@@ -537,7 +537,7 @@ const Map<String, String> kP3Zh = <String, String>{
   'network.offline_title': '无连接',
   'network.offline_body': '请连接互联网以使用 Éxodo。',
   'chat.disclaimer_original': 'Exodo 是人工智能，可能会出错。请核实回答内容。',
-  'billing.not_available_yet': '支付功能即将上线。目前你可以继续探索 Genesis。',
+  'billing.not_available_yet': '支付功能即将上线。目前你可以继续探索 G1.1。',
   'artifacts.search_empty': '未找到包含"{query}"的档案',
   'artifacts.clear_search': '清除搜索',
 };
@@ -623,7 +623,7 @@ const Map<String, String> kP3Ja = <String, String>{
   'network.offline_title': 'オフライン',
   'network.offline_body': 'Éxodoを使うにはインターネットに接続してください。',
   'chat.disclaimer_original': 'ExodoはAIであり、誤りがある可能性があります。回答は必ずご確認ください。',
-  'billing.not_available_yet': '決済機能は近日公開予定です。今のままGenesisをお楽しみいただけます。',
+  'billing.not_available_yet': '決済機能は近日公開予定です。今のままG1.1をお楽しみいただけます。',
   'artifacts.search_empty': '「{query}」に一致するファイルは見つかりません',
   'artifacts.clear_search': '検索をクリア',
 };
@@ -709,7 +709,7 @@ const Map<String, String> kP3Ar = <String, String>{
   'network.offline_title': 'لا يوجد اتصال',
   'network.offline_body': 'اتصل بالإنترنت لاستخدام Éxodo.',
   'chat.disclaimer_original': 'Exodo ذكاء اصطناعي وقد يخطئ. يرجى التحقق من الإجابات.',
-  'billing.not_available_yet': 'المدفوعات قادمة قريبًا. يمكنك حاليًا مواصلة استكشاف Genesis.',
+  'billing.not_available_yet': 'المدفوعات قادمة قريبًا. يمكنك حاليًا مواصلة استكشاف G1.1.',
   'artifacts.search_empty': 'لا توجد ملفات مطابقة لـ"{query}"',
   'artifacts.clear_search': 'مسح البحث',
 };
@@ -797,7 +797,7 @@ const Map<String, String> kP3Ko = <String, String>{
   'chat.disclaimer_original': 'Exodo는 AI이며 실수를 할 수 있습니다. 답변을 꼭 확인하세요.',
   'feedback.thanks': '피드백 감사합니다!',
   'feedback.error': '피드백을 보내지 못했습니다. 다시 시도하세요.',
-  'billing.not_available_yet': '결제 기능이 곧 제공될 예정입니다. 지금은 Genesis를 계속 탐색하세요.',
+  'billing.not_available_yet': '결제 기능이 곧 제공될 예정입니다. 지금은 G1.1를 계속 탐색하세요.',
   'artifacts.search_empty': '"{query}"에 대한 파일을 찾을 수 없습니다',
   'artifacts.clear_search': '검색 지우기',
 };
@@ -885,7 +885,7 @@ const Map<String, String> kP3Hi = <String, String>{
   'chat.disclaimer_original': 'Exodo AI है और गलतियाँ कर सकता है। कृपया उत्तर जाँचें।',
   'feedback.thanks': 'प्रतिक्रिया के लिए धन्यवाद!',
   'feedback.error': 'प्रतिक्रिया भेजी नहीं जा सकी। फिर से प्रयास करें।',
-  'billing.not_available_yet': 'भुगतान जल्द आ रहे हैं। अभी आप Genesis को जारी रख सकते हैं।',
+  'billing.not_available_yet': 'भुगतान जल्द आ रहे हैं। अभी आप G1.1 को जारी रख सकते हैं।',
   'artifacts.search_empty': '"{query}" के लिए कोई फ़ाइल नहीं मिली',
   'artifacts.clear_search': 'खोज साफ़ करें',
 };
@@ -973,7 +973,7 @@ const Map<String, String> kP3Ht = <String, String>{
   'chat.disclaimer_original': 'Exodo se IA epi li ka fè erè. Tanpri verifye repons yo.',
   'feedback.thanks': 'Mèsi pou fidbak ou!',
   'feedback.error': 'Nou pa t ka voye fidbak la. Eseye ankò.',
-  'billing.not_available_yet': 'Peman ap vini byento. Pou kounye a ou ka kontinye explore Genesis.',
+  'billing.not_available_yet': 'Peman ap vini byento. Pou kounye a ou ka kontinye explore G1.1.',
   'artifacts.search_empty': 'Pa gen fichye ki jwenn pou "{query}"',
   'artifacts.clear_search': 'Efase rechèch la',
 };

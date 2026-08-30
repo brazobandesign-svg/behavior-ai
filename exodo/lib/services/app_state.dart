@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:async';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -12,9 +13,11 @@ import '../data/local/db/tables/messages.dart'; // Import LocalMessageStatus enu
 import 'supabase_service.dart';
 import 'chat_service.dart';
 import 'connectivity_service.dart';
+import 'notification_service.dart';
+import 'update_service.dart';
 import '../l10n/app_i18n.dart';
 
-class AppState extends ChangeNotifier {
+class AppState extends ChangeNotifier with WidgetsBindingObserver {
   final LocalChatRepository localChatRepo = LocalChatRepository();
 
   UserProfile? profile;
@@ -26,7 +29,7 @@ class AppState extends ChangeNotifier {
   bool showTab2Banner = true;
   bool isDarkMode = true;
   bool guestIsBlocked = false; // Sin bloqueo para guests: acceso ilimitado a Groq $0
-  ExodoModelOption selectedModel = exodoModels[0]; // Origo (G1.1)
+  ExodoModelOption selectedModel = exodoModels[0]; // G1.1 (Free)
   double? currentTempC;
 
   /// Switcher de intención del chat: auto | flash | deep.
@@ -102,6 +105,40 @@ class AppState extends ChangeNotifier {
   bool Function(String content)? _streamGuard;
   static const Duration _streamFlushInterval = Duration(milliseconds: 33);
 
+  // ── Segundo plano: notificación "Ver respuesta de Éxodo" ──────────────
+  // Si el usuario sale de la app mientras Éxodo sigue escribiendo, al
+  // terminar la generación se lanza una notificación local con el logo de
+  // la app y el texto localizado. El tap abre la app con la respuesta ahí.
+  AppLifecycleState _lifecycleStatus = AppLifecycleState.resumed;
+  bool get isAppInBackground => _lifecycleStatus != AppLifecycleState.resumed;
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    _lifecycleStatus = state;
+    // Al volver al primer plano con un APK de actualización ya descargado,
+    // mostrar la notificación de instalación (única interrupción del flujo).
+    if (state == AppLifecycleState.resumed) {
+      final apkPath = UpdateService.instance.readyToInstall.value;
+      if (apkPath != null && !_updateNotified) {
+        _updateNotified = true;
+        NotificationService.instance.showUpdateReady(
+          title: 'Éxodo',
+          body: AppI18n.instance.t('notification.update_ready_body'),
+          payload: 'install_update',
+        );
+      }
+    }
+  }
+
+  bool _updateNotified = false;
+
+  void _notifyIfBackground() {
+    if (!isAppInBackground) return;
+    NotificationService.instance.showReplyReady(
+      body: AppI18n.instance.t('notification.response_ready'),
+    );
+  }
+
   // [Punto 43] Conectividad: la app detecta si hay internet en tiempo real.
   bool _isOnline = true;
   bool get isOnline => _isOnline;
@@ -147,6 +184,21 @@ class AppState extends ChangeNotifier {
     // Preferencia de privacidad (fire-and-forget: el default true solo
     // afecta el guardado al ENVIAR, no hay UI que parpadee).
     _loadCloudHistoryPref();
+    WidgetsBinding.instance.addObserver(this);
+    // Auto-actualización silenciosa (APK directo): chequeo + descarga en
+    // background sin avisar; al terminar, notificación de instalación.
+    unawaited(UpdateService.instance.checkAndDownloadSilently());
+    UpdateService.instance.readyToInstall.addListener(() {
+      if (UpdateService.instance.readyToInstall.value != null &&
+          !isAppInBackground) {
+        _updateNotified = true;
+        NotificationService.instance.showUpdateReady(
+          title: 'Éxodo',
+          body: AppI18n.instance.t('notification.update_ready_body'),
+          payload: 'install_update',
+        );
+      }
+    });
     if (bootstrap != null) {
       _hasCachedSession = bootstrap.hasAuthToken;
       if (bootstrap.selectedModelId != null) {
@@ -286,6 +338,7 @@ class AppState extends ChangeNotifier {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _streamFlushTimer?.cancel();
     _connectivitySub?.cancel();
     _authSub?.cancel();
@@ -354,7 +407,12 @@ class AppState extends ChangeNotifier {
       if (activeConversation != null && !fetchedConvs.any((c) => c.id == activeConversation!.id)) {
         fetchedConvs.insert(0, activeConversation!);
       }
-      conversations = fetchedConvs;
+      // Privacidad (historial en nube OFF): conservar las conversaciones
+      // SOLO-dispositivo tras la sync — sin este merge, reemplazar la lista
+      // con las de la nube las borraba del drawer en cada arranque.
+      final cloudIds = fetchedConvs.map((c) => c.id).toSet();
+      final localOnly = conversations.where((c) => !cloudIds.contains(c.id)).toList();
+      conversations = [...localOnly, ...fetchedConvs];
       localChatRepo.saveConversations(fetchedConvs);
       Bootstrap.saveSnapshot(conversations: conversations);
 
@@ -584,7 +642,7 @@ class AppState extends ChangeNotifier {
             conversations[idx] = conversations[idx].copyWith(title: cleanTitle);
           }
           await localChatRepo.updateConversationTitle(conversationId, cleanTitle);
-          if (!isGuestUser && !isIncognito) {
+          if (!isGuestUser && !isIncognito && cloudHistoryEnabled) {
             SupabaseService.updateConversationTitle(conversationId, cleanTitle).catchError((_) {});
           }
           Bootstrap.saveSnapshot(conversations: conversations);
@@ -1090,6 +1148,7 @@ class AppState extends ChangeNotifier {
       onComplete: (fullText, sources) {
         _endStreamingMessage();
         isGenerating = false;
+        _notifyIfBackground();
         if (!isGuestUser) {
           tokensUsed += (fullText.length ~/ 3) + 35;
           if (tokensUsed > tokensLimit) tokensUsed = tokensLimit;
@@ -1113,6 +1172,7 @@ class AppState extends ChangeNotifier {
         _endStreamingMessage();
         _revertTokens(userTokensEst);
         isGenerating = false;
+        if (isAppInBackground) return;
         errorMessage = e.toString();
         notifyListeners();
       },
@@ -1127,10 +1187,15 @@ class AppState extends ChangeNotifier {
     final isGuest = isGuestUser;
     errorMessage = null;
 
-    // Privacidad: OFF ⇒ semántica incógnito (nada se persiste en la nube ni
-    // en el dispositivo; el chat vive solo en RAM mientras está en pantalla).
-    final shouldSaveHistory = !isIncognito && !isGuest && cloudHistoryEnabled;
-    final ephemeralTurn = isIncognito || isGuest || !cloudHistoryEnabled;
+    // Privacidad por capas: saveLocally ⇒ persiste en Drift (este
+    // dispositivo); syncToCloud ⇒ además persiste en Supabase. Con el toggle
+    // OFF el historial SOLO vive en el teléfono: sobrevive reinicios y Éxodo
+    // mantiene contexto (nada de "no me acuerdo"), pero ningún servidor
+    // guarda la conversación — el backend recibe únicamente la ventana del
+    // turno en curso, igual que en incógnito, y no la almacena.
+    final saveLocally = !isIncognito && !isGuest;
+    final syncToCloud = saveLocally && cloudHistoryEnabled;
+    final sendHistoryWindow = isIncognito || isGuest || !cloudHistoryEnabled;
 
     // 1. AÑADIR MENSAJE DE USUARIO Y THINKING BUBBLE A LA UI INMEDIATAMENTE (Optimistic UI 0 ms lag)
     currentMessages.removeWhere((m) => m.id == 'error');
@@ -1149,7 +1214,7 @@ class AppState extends ChangeNotifier {
 
     // OFFLINE OUTBOX: Si no hay conexión, guardar en Drift con status='queued' y retornar
     if (!_isOnline) {
-      if (shouldSaveHistory && activeConversation != null) {
+      if (saveLocally && activeConversation != null) {
         // Guardar en Drift con status queued
         await localChatRepo.saveMessage(userMsg);
         await localChatRepo.updateMessageStatus(userMsg.id, LocalMessageStatus.queued);
@@ -1187,7 +1252,7 @@ class AppState extends ChangeNotifier {
     // El backend tolera la creación optimista: assertConversationOwner admite
     // conversaciones aún no insertadas y su saveMessage ocurre cuando el LLM
     // termina (varios segundos después, con la inserción ya completada).
-    if (activeConversation == null && shouldSaveHistory) {
+    if (activeConversation == null && saveLocally) {
       // Título inicial provisional: texto del usuario o 'Nuevo chat'
       final effectiveTitleRaw = text.trim().isNotEmpty
           ? (text.trim().length > 30 ? '${text.trim().substring(0, 30)}...' : text.trim())
@@ -1224,7 +1289,10 @@ class AppState extends ChangeNotifier {
       }
       notifyListeners(); // El chat ya aparece en el Drawer sin esperar red
 
-      // Inserción en la nube SIN bloquear el envío del mensaje.
+      // Inserción en la nube SIN bloquear el envío del mensaje — solo cuando
+      // el usuario permite historial en la nube (privacidad ON). Con OFF, la
+      // conversación queda exclusivamente en Drift bajo el mismo UUID.
+      if (syncToCloud) {
       unawaited(
         SupabaseService.createConversation(
           effectiveTitle,
@@ -1247,12 +1315,13 @@ class AppState extends ChangeNotifier {
           debugPrint('[AppState] createConversation falló, modo solo-local: $e');
         }),
       );
-    } else if (shouldSaveHistory) {
+      }
+    } else if (saveLocally) {
       _bubbleConversationToTop(activeConversation!.id);
     }
 
     // 3. GUARDAR MENSAJE DE USUARIO EN BD LOCAL Y NUBE EN SEGUNDO PLANO
-    if (shouldSaveHistory && activeConversation != null) {
+    if (saveLocally && activeConversation != null) {
       final effectiveUserMsg = ChatMessage(
         id: userMsg.id,
         conversationId: activeConversation!.id,
@@ -1285,10 +1354,10 @@ class AppState extends ChangeNotifier {
 
       await ChatService.sendMessageStream(
         message: text,
-        conversationId: shouldSaveHistory ? capturedConvId : null,
+        conversationId: syncToCloud ? capturedConvId : null,
         // Sin historial en nube (privacidad OFF) el backend no puede leer la
         // conversación de la DB: se envía la ventana local como en incógnito.
-        history: ephemeralTurn
+        history: sendHistoryWindow
             ? currentMessages
                   .where((m) => !m.isThinking)
                   .map((m) => {'role': m.role, 'content': m.content})
@@ -1363,7 +1432,7 @@ class AppState extends ChangeNotifier {
               );
             }
           }
-          if (shouldSaveHistory && capturedConvId != null && !isGuest) {
+          if (saveLocally && capturedConvId != null && !isGuest) {
             final assistantMsg = ChatMessage(
               id: msgId,
               conversationId: capturedConvId,
@@ -1385,6 +1454,7 @@ class AppState extends ChangeNotifier {
               );
             }
           }
+          _notifyIfBackground();
           HapticFeedback.vibrate();
           notifyListeners();
         },

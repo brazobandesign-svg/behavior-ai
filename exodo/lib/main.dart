@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -8,7 +10,8 @@ import 'l10n/app_translations.dart';
 import 'l10n/localizations_fallback.dart';
 import 'services/supabase_service.dart';
 import 'services/app_state.dart';
-import 'services/chat_service.dart';
+import 'services/notification_service.dart';
+import 'services/update_service.dart';
 import 'theme/exodo_theme.dart';
 
 void main() async {
@@ -27,8 +30,15 @@ void main() async {
   // hasta 3s de timeout) NO debe bloquear el primer frame. Corre en background;
   // si el usuario envía un mensaje antes de que termine, sendMessageStream ya
   // tiene su propia sonda paralela (600 ms) para elegir el backend vivo.
-  // ignore: unawaited_futures
-  ChatService.loadSavedWorkingUrl();
+  // Notificaciones locales (respuesta lista en background / update listo).
+  // El tap sobre la notificación de update lanza el instalador del APK.
+  unawaited(NotificationService.instance.initialize(
+    onTap: (payload) {
+      if (payload == 'install_update') {
+        UpdateService.instance.install();
+      }
+    },
+  ));
 
   // 2. CAPA ASÍNCRONA (fire-and-forget)
   // Supabase se inicializa en background en paralelo sin bloquear el arranque.

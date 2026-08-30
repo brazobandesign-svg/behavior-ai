@@ -287,6 +287,33 @@ class ChatService {
             setWorkingUrl(url);
             break;
           }
+          // 429/403/402 son respuestas DEFINITIVAS del backend (límite diario,
+          // plan requerido): no tiene sentido probar más candidatos. Leer el
+          // mensaje del servidor y surfacearlo tal cual — antes un 429 caía
+          // al error genérico "Sin conexión con el servidor".
+          if (resp.statusCode == 429 || resp.statusCode == 403 || resp.statusCode == 402) {
+            try {
+              final body = await resp.stream.bytesToString();
+              final data = jsonDecode(body);
+              final serverMsg = (data is Map && data['message'] is String && (data['message'] as String).trim().isNotEmpty)
+                  ? data['message'] as String
+                  : null;
+              if (!activeSession.isCancelled) {
+                onError(serverMsg ??
+                    (resp.statusCode == 429
+                        ? 'Alcanzaste tu límite diario. Tu cuota se renueva mañana.'
+                        : 'Tu plan no incluye esta función.'));
+              }
+              return;
+            } catch (_) {
+              if (!activeSession.isCancelled) {
+                onError(resp.statusCode == 429
+                    ? 'Alcanzaste tu límite diario. Tu cuota se renueva mañana.'
+                    : 'Tu plan no incluye esta función.');
+              }
+              return;
+            }
+          }
         } catch (_) {}
       }
 

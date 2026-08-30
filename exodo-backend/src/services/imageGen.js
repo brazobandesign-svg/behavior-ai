@@ -1,12 +1,15 @@
-'use strict';
+﻿'use strict';
 
 /**
  * src/services/imageGen.js
  *
- * Generación de imágenes con Alibaba Cloud DashScope:
- *   - Primario: qwen-image-3.0-pro
- *   - Fallback 1: qwen-image-2.0-pro
- *   - Fallback 2: wan2.7-image-pro (o wan2.2-t2i-plus)
+ * Generación de imágenes con Alibaba Cloud DashScope (Free Tier activo):
+ *   - Primario: wan2.2-t2i-flash (Ultra Rápido, ~8s)
+ *   - Fallback 1: wan2.1-t2i-turbo (Alta Velocidad, ~8s)
+ *   - Fallback 2: wan2.2-t2i-plus (Máxima Calidad, ~12s)
+ *   - Fallback 3: wan2.1-t2i-plus (Alta Calidad, ~12s)
+ *   - Fallback 4: qwen-image (Equilibrado, ~5s)
+ *   - Fallback 5: qwen-image-plus (Detalle Fino, ~5.6s)
  */
 
 const { ALIBABA_CONFIG } = require('../config/models');
@@ -14,9 +17,14 @@ const { ALIBABA_CONFIG } = require('../config/models');
 const IMAGE_GEN_URL = 'https://dashscope-intl.aliyuncs.com/api/v1/services/aigc/text2image/image-synthesis';
 const TASKS_URL = 'https://dashscope-intl.aliyuncs.com/api/v1/tasks/';
 
-const PRIMARY_MODEL = ALIBABA_CONFIG.models.imageModel || 'qwen-image-3.0-pro';
-const FALLBACK_1 = ALIBABA_CONFIG.models.imageFallback1 || 'qwen-image-2.0-pro';
-const FALLBACK_2 = ALIBABA_CONFIG.models.imageFallback2 || 'wan2.7-image-pro';
+const ACTIVE_IMAGE_MODELS = [
+  ALIBABA_CONFIG.models.imageModel || 'wan2.2-t2i-flash',
+  ALIBABA_CONFIG.models.imageFallback1 || 'wan2.1-t2i-turbo',
+  ALIBABA_CONFIG.models.imageFallback2 || 'wan2.2-t2i-plus',
+  ALIBABA_CONFIG.models.imageFallback3 || 'wan2.1-t2i-plus',
+  ALIBABA_CONFIG.models.imageFallback4 || 'qwen-image',
+  ALIBABA_CONFIG.models.imageFallback5 || 'qwen-image-plus',
+];
 
 function getApiKey() {
   return process.env.DASHSCOPE_API_KEY ||
@@ -65,6 +73,7 @@ async function pollTask(taskId, apiKey, maxAttempts = 30, intervalMs = 2000) {
  * @param {string} prompt Prompt descriptivo de la imagen.
  * @param {object} [options]
  * @param {string} [options.size='1024*1024'] Tamaño de la imagen ('1024*1024', '720*1280', '1280*720')
+ * @param {string} [options.model] Modelo específico opcional
  * @returns {Promise<{ url: string, model: string }>}
  */
 async function generateImage(prompt, options = {}) {
@@ -79,7 +88,7 @@ async function generateImage(prompt, options = {}) {
   }
 
   const size = options.size || '1024*1024';
-  const models = [PRIMARY_MODEL, FALLBACK_1, FALLBACK_2];
+  const models = options.model ? [options.model, ...ACTIVE_IMAGE_MODELS.filter(m => m !== options.model)] : ACTIVE_IMAGE_MODELS;
 
   let lastError = null;
 
@@ -136,7 +145,8 @@ async function generateImage(prompt, options = {}) {
 
 module.exports = {
   generateImage,
-  PRIMARY_MODEL,
-  FALLBACK_1,
-  FALLBACK_2,
+  ACTIVE_IMAGE_MODELS,
+  PRIMARY_MODEL: ACTIVE_IMAGE_MODELS[0],
+  FALLBACK_1: ACTIVE_IMAGE_MODELS[1],
+  FALLBACK_2: ACTIVE_IMAGE_MODELS[2],
 };
