@@ -1,6 +1,6 @@
 {
-  "latest_version_code": 2,
-  "latest_version_name": "1.1.0",
-  "download_url": "https://github.com/brazobandesign-svg/behavior-ai/releases/download/v1.1.0/exodo-1.1.0.apk",
-  "changelog": "Contexto ampliado a 25 mensajes, exportar contexto HTML, aviso de límite de chat, privacidad del historial, notificaciones en segundo plano y auto-actualización."
+  "latest_version_code": 3,
+  "latest_version_name": "1.2.0",
+  "download_url": "https://github.com/brazobandesign-svg/behavior-ai/releases/download/v1.2.0/exodo-1.2.0.apk",
+  "changelog": "Aviso de imagen para invitados, notificaciones con logo, privacidad reforzada (sin HTTP en claro), verificación de edad, matriz de modelos Free/Pro lista para lanzamiento."
 }
