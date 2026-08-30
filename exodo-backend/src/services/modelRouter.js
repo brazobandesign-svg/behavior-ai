@@ -18,11 +18,20 @@ function sanitizedErrorResult() {
   return { text: '', error: true, message: USER_FACING_ERROR_MESSAGE };
 }
 
+// DOCTRINA 30-ago: matriz Free/Pro lista para el lanzamiento (30-sept-2026),
+// apagada durante la beta. PLAN_ROUTING_ENABLED=true activa la diferenciación:
+//   XPi (hazak)    → modelos flagship (max / qwq / coder / vl-max)
+//   G1.1 (genesis) → modelos rápidos/eco (flash / plus / vl-plus)
+const PLAN_ROUTING_ENABLED = process.env.PLAN_ROUTING_ENABLED === 'true';
+
 function getExecutionChain(plan, intent, modelOverride, imageDataUris, taskType) {
   const hasImages = imageDataUris && imageDataUris.length > 0;
 
-  // 1. Visión e Imágenes (1 solo modelo unificado para ambos planes)
+  // 1. Visión e Imágenes
   if (hasImages) {
+    if (PLAN_ROUTING_ENABLED && plan === 'genesis') {
+      return [ALIBABA_CONFIG.models.visionEco || 'qwen3-vl-plus', ALIBABA_CONFIG.models.visionPrimary];
+    }
     return [
       ALIBABA_CONFIG.models.visionPrimary, // qwen-vl-max
     ];
@@ -60,11 +69,29 @@ function getExecutionChain(plan, intent, modelOverride, imageDataUris, taskType)
     ];
   }
 
-  // 5. Conversación Simple, Saludos y Consultas Directas (Respuesta Instantánea <200ms sin lag de thinking)
+  // 5. Conversación Simple, Saludos y Consultas Directas
   if (intent === 'SIMPLE' || taskType === 'simple') {
+    if (PLAN_ROUTING_ENABLED && plan === 'genesis') {
+      // G1.1: rapidez primero; la cadena de fallback sube a plus si falla.
+      return [
+        ALIBABA_CONFIG.models.fastPrimary || 'qwen3.7-flash-2026-07-15',
+        ALIBABA_CONFIG.models.textFallback,
+      ];
+    }
     return [
-      ALIBABA_CONFIG.models.fastPrimary || 'qwen3.7-flash-2026-07-15',
+      PLAN_ROUTING_ENABLED
+        ? ALIBABA_CONFIG.models.textPrimary // XPi: flagship en todo
+        : (ALIBABA_CONFIG.models.fastPrimary || 'qwen3.7-flash-2026-07-15'),
       ALIBABA_CONFIG.models.textPrimary,
+    ];
+  }
+
+  // 5b. Redacción con matriz activa: XPi flagship, G1.1 plus.
+  if (PLAN_ROUTING_ENABLED && plan === 'genesis'
+      && (intent === 'REDACCION' || intent === 'DOCUMENTO')) {
+    return [
+      ALIBABA_CONFIG.models.textFallback,
+      ALIBABA_CONFIG.models.fastPrimary || 'qwen3.7-flash-2026-07-15',
     ];
   }
 

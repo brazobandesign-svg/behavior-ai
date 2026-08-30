@@ -77,10 +77,18 @@ async function auth(req, res, next) {
       profile = await profilesPromise;
     }
 
+    // DECISIÓN DEL DUEÑO (30-ago): brazobandesign@gmail.com es la cuenta
+    // interna sagrada — SIEMPRE Pro (hazak), incluso post-lanzamiento,
+    // independientemente del plan en la DB. Lista en env para futuro.
+    const adminEmails = (process.env.ADMIN_EMAILS || 'brazobandesign@gmail.com')
+      .split(',').map((e) => e.trim().toLowerCase()).filter(Boolean);
+    const isAdmin = !isGuest && adminEmails.includes((user.email || '').toLowerCase());
+
     req.user = {
       userId: user.id,
       email: user.email || null,
-      plan: isGuest ? 'guest' : (profile?.plan || 'genesis'),
+      plan: isAdmin ? 'hazak' : (isGuest ? 'guest' : (profile?.plan || 'genesis')),
+      isAdmin,
       fullName: profile?.full_name || (isGuest ? 'Invitado Éxodo' : null),
       onboarding: profile?.onboarding || null,
       anonymous: isGuest,

@@ -1,11 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Vacío intencionalmente. La app DEBE hablar HTTPS con un endpoint público.
-     Si necesitas cleartext HTTP (no recomendado), crea tu propio override en
-     android/app/src/debug/res/xml/ para builds de debug únicamente. -->
+<!-- Producción: HTTP en claro PROHIBIDO (todo via HTTPS). -->
 <network-security-config>
-    <base-config cleartextTrafficPermitted="false">
-        <trust-anchors>
-            <certificates src="system" />
-        </trust-anchors>
-    </base-config>
+    <base-config cleartextTrafficPermitted="false" />
 </network-security-config>

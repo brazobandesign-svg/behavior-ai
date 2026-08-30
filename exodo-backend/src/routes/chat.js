@@ -320,7 +320,9 @@ router.post('/', auth, guestLimit, planGuard, upload.array('files', 5), async (r
 
     if (isGuest) {
       history = (Array.isArray(req.body.history) ? req.body.history.slice(-20) : []);
-      intent = hasImages ? 'VISION' : 'SIMPLE';
+      // Clasificar también a los invitados: sin esto, "genera una imagen"
+      // caía a SIMPLE y el LLM respondía "no puedo generar imágenes".
+      intent = hasImages ? 'VISION' : classifyByKeywords(enhancedMessage);
     } else if (!conversationId && Array.isArray(req.body.history) && req.body.history.length > 0) {
       // PRIVACIDAD (historial en nube OFF): usuario registrado con chat
       // efémero (sin conversationId) manda su ventana local, igual que un
@@ -350,6 +352,15 @@ router.post('/', auth, guestLimit, planGuard, upload.array('files', 5), async (r
         && intent !== 'DOCUMENTO'
         && intent !== 'VISION') {
       intent = requestedTaskType === 'simple' ? 'SIMPLE' : 'RAZONAMIENTO';
+    }
+
+    // IMAGEN + invitado: no quemar tokens del LLM con un "no puedo generar
+    // imágenes". Aviso estructurado que la app pinta estilo disclaimer.
+    if (intent === 'IMAGEN' && isGuest) {
+      sendSse({ type: 'notice', code: 'image_login_required' });
+      sendSse({ type: 'done', content: '', sources: [] });
+      res.end();
+      return;
     }
 
     // 3. Construir mensajes con contexto

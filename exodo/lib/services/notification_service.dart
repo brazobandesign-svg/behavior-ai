@@ -27,7 +27,7 @@ class NotificationService {
     if (!Platform.isAndroid && !Platform.isIOS) return;
     try {
       const androidInit =
-          AndroidInitializationSettings('@mipmap/ic_launcher');
+          AndroidInitializationSettings('exodo_notification_icon');
       const iosInit = DarwinInitializationSettings(
         requestAlertPermission: false,
         requestBadgePermission: false,
@@ -88,7 +88,7 @@ class NotificationService {
         importance: Importance.high,
         priority: Priority.high,
         // Logo real de la app (ícono launcher), no un ícono genérico
-        icon: '@mipmap/ic_launcher',
+        icon: 'exodo_notification_icon',
         showWhen: true,
       );
       const iosDetails = DarwinNotificationDetails();
@@ -121,7 +121,7 @@ class NotificationService {
         channelDescription: 'Avisa cuando una nueva versión terminó de descargarse',
         importance: Importance.defaultImportance,
         priority: Priority.defaultPriority,
-        icon: '@mipmap/ic_launcher',
+        icon: 'exodo_notification_icon',
       );
       const iosDetails = DarwinNotificationDetails();
       await _plugin.show(

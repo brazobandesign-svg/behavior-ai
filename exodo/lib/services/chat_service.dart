@@ -212,6 +212,7 @@ class ChatService {
     List<Attachment>? attachments, // [Punto 40] archivos para multimodal
     GenerationSession? session, // [F1] Sesión atómica de generación
     void Function(Map<String, dynamic> meta)? onMeta,
+    void Function(String code)? onNotice, // avisos estructurados del backend
     required void Function(String chunk) onChunk,
     required void Function(String fullText, List<Source> sources) onComplete,
     required void Function(String error) onError,
@@ -378,6 +379,11 @@ class ChatService {
                   if (type == 'meta') {
                     if (onMeta != null && data is Map<String, dynamic>) {
                       onMeta(data);
+                    }
+                  } else if (type == 'notice') {
+                    // Aviso estructurado (p. ej. image_login_required)
+                    if (onNotice != null && data['code'] is String) {
+                      onNotice(data['code'] as String);
                     }
                   } else if (type == 'heartbeat') {
                     // [Punto 41+42] Heartbeat del backend para mantener viva la conexión SSE.

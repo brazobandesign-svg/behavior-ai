@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/rendering.dart';
 import 'package:provider/provider.dart';
@@ -26,6 +27,8 @@ class ChatScreen extends StatefulWidget {
 
 class _ChatScreenState extends State<ChatScreen>
     with TickerProviderStateMixin, WidgetsBindingObserver {
+  bool _ageGateChecked = false;
+
   final _inputCtrl = TextEditingController();
   final _scrollCtrl = ScrollController();
   final _followBottomNotifier = ValueNotifier<bool>(true);
@@ -65,6 +68,87 @@ class _ChatScreenState extends State<ChatScreen>
         context.read<AppState>().sendUserMessage(prompt.trim());
       }
     });
+
+    WidgetsBinding.instance.addPostFrameCallback((_) => _maybeShowAgeGate());
+  }
+
+  /// Edad mínima (decisión 30-ago, estilo de los grandes: 13+ / 16+ EEA):
+  /// checkbox UNA sola vez tras el primer login con Google. Éxodo no tiene
+  /// registro propio — Google ya valida la edad de la cuenta; este check es
+  /// el consentimiento explícito de nuestra política.
+  Future<void> _maybeShowAgeGate() async {
+    if (_ageGateChecked || !mounted) return;
+    final state = context.read<AppState>();
+    if (state.isGuestUser || !state.hasSession) return;
+    final prefs = await SharedPreferences.getInstance();
+    if (prefs.getBool('exodo_age_confirmed') == true) {
+      _ageGateChecked = true;
+      return;
+    }
+    _ageGateChecked = true;
+    if (!mounted) return;
+    bool accepted = false;
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          backgroundColor: Theme.of(context).brightness == Brightness.light
+              ? Colors.white : const Color(0xFF1E1E1E),
+          title: Text(
+            AppI18n.of(context).t('age.title'),
+            style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 17),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                AppI18n.of(context).t('age.body'),
+                style: GoogleFonts.inter(fontSize: 13.5, height: 1.4),
+              ),
+              const SizedBox(height: 14),
+              GestureDetector(
+                onTap: () {
+                  HapticFeedback.selectionClick();
+                  setDialogState(() => accepted = !accepted);
+                },
+                child: Row(
+                  children: [
+                    Icon(
+                      accepted ? Icons.check_box : Icons.check_box_outline_blank,
+                      size: 20,
+                      color: accepted ? ExodoColors.amber : Colors.grey,
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        AppI18n.of(context).t('age.checkbox'),
+                        style: GoogleFonts.inter(fontSize: 13),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: accepted
+                  ? () async {
+                      await prefs.setBool('exodo_age_confirmed', true);
+                      if (ctx.mounted) Navigator.pop(ctx);
+                    }
+                  : null,
+              child: Text(
+                AppI18n.of(context).t('age.continue'),
+                style: GoogleFonts.inter(fontWeight: FontWeight.bold),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   void _syncAnimations() {
@@ -454,6 +538,7 @@ class _ChatMessagesListState extends State<ChatMessagesList> {
     );
   }
 }
+
 
 /// Aviso de límite de contexto, estilo disclaimer (texto tenue, sin tarjeta):
 /// mismo lenguaje visual que "Éxodo es IA y puede cometer errores" — discreto,

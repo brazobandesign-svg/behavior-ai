@@ -73,6 +73,27 @@ class MessageBubble extends StatelessWidget {
   Widget build(BuildContext context) {
     final isUser = message.role == 'user';
     final isLight = Theme.of(context).brightness == Brightness.light;
+
+    // Mensajes de sistema (avisos estructurados: imagen sin sesión, offline):
+    // estilo disclaimer — texto tenue centrado, sin burbuja.
+    if (message.role == 'system') {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
+        child: Opacity(
+          opacity: 0.55,
+          child: Text(
+            message.content,
+            textAlign: TextAlign.center,
+            style: GoogleFonts.inter(
+              fontSize: 11.5,
+              height: 1.35,
+              color: isLight ? Colors.black : ExodoColors.textPrimary,
+            ),
+          ),
+        ),
+      );
+    }
+
     final isIncognito = context.select<AppState, bool>((s) => s.isIncognito);
     final copyLabel = AppI18n.of(context).t('act.copy');
     final copiedLabel = AppI18n.of(context).t('act.copied');
@@ -1376,7 +1397,7 @@ class _EcoModeNotice extends StatelessWidget {
         behavior: HitTestBehavior.opaque,
         child: Text.rich(
           TextSpan(
-            text: "You've reached your daily limit. Continuing in eco mode, resets at 00:00 AST. ",
+            text: AppI18n.of(context).t('chat.eco_notice'),
             style: TextStyle(
               fontFamily: 'AnthropicSans',
               fontSize: 11,
@@ -1386,7 +1407,7 @@ class _EcoModeNotice extends StatelessWidget {
             ),
             children: [
               TextSpan(
-                text: '[Upgrade]',
+                text: AppI18n.of(context).t('chat.eco_upgrade'),
                 style: TextStyle(
                   fontFamily: 'AnthropicSans',
                   fontSize: 11,

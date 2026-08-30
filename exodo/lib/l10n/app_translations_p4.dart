@@ -19,6 +19,14 @@ const Map<String, String> kP4Es = <String, String>{
   'notification.response_ready': 'Ver respuesta de Éxodo',
   'notification.update_ready_body': 'Nueva versión descargada. Toca para instalarla.',
   'notification.writing_in_background': 'Éxodo sigue escribiendo tu respuesta…',
+  'chat.eco_notice': 'Has alcanzado tu límite diario de alta potencia. Sigues en modo eco, se renueva a las 12:00 AM (AST).',
+  'chat.eco_upgrade': 'Mejorar',
+  'notice.image_login_required': 'La generación de imágenes requiere una cuenta gratuita. Inicia sesión para desbloquearla.',
+  'error.delete_account_failed': 'No se pudo borrar tu cuenta. Revisa tu conexión e inténtalo de nuevo.',
+  'age.title': 'Antes de empezar',
+  'age.body': 'Éxodo es para personas de 13 años en adelante (16 en Europa). Confirma tu edad para continuar.',
+  'age.checkbox': 'Tengo al menos 13 años',
+  'age.continue': 'Continuar',
 };
 
 const Map<String, String> kP4En = <String, String>{
@@ -36,6 +44,14 @@ const Map<String, String> kP4En = <String, String>{
   'notification.response_ready': 'View Éxodo\'s reply',
   'notification.update_ready_body': 'New version downloaded. Tap to install it.',
   'notification.writing_in_background': 'Éxodo is still writing your reply…',
+  'chat.eco_notice': 'You\'ve reached your daily high-power limit. Continuing in eco mode — resets at 12:00 AM (AST).',
+  'chat.eco_upgrade': 'Upgrade',
+  'notice.image_login_required': 'Image generation requires a free account. Sign in to unlock it.',
+  'error.delete_account_failed': 'We couldn\'t delete your account. Check your connection and try again.',
+  'age.title': 'Before you start',
+  'age.body': 'Éxodo is for people 13 and older (16 in Europe). Confirm your age to continue.',
+  'age.checkbox': 'I\'m at least 13 years old',
+  'age.continue': 'Continue',
 };
 
 const Map<String, String> kP4Fr = <String, String>{
@@ -53,6 +69,14 @@ const Map<String, String> kP4Fr = <String, String>{
   'notification.response_ready': 'Voir la réponse d\'Éxodo',
   'notification.update_ready_body': 'Nouvelle version téléchargée. Touchez pour l\'installer.',
   'notification.writing_in_background': 'Éxodo rédige toujours votre réponse…',
+  'chat.eco_notice': 'Vous avez atteint votre limite quotidienne de haute puissance. Vous continuez en mode éco — réinitialisation à 00h00 (AST).',
+  'chat.eco_upgrade': 'Améliorer',
+  'notice.image_login_required': 'La génération d\'images nécessite un compte gratuit. Connectez-vous pour la débloquer.',
+  'error.delete_account_failed': 'Impossible de supprimer votre compte. Vérifiez votre connexion et réessayez.',
+  'age.title': 'Avant de commencer',
+  'age.body': 'Éxodo s\'adresse aux personnes de 13 ans et plus (16 en Europe). Confirmez votre âge pour continuer.',
+  'age.checkbox': 'J\'ai au moins 13 ans',
+  'age.continue': 'Continuer',
 };
 
 const Map<String, String> kP4Ht = <String, String>{
@@ -70,6 +94,14 @@ const Map<String, String> kP4Ht = <String, String>{
   'notification.response_ready': 'Gade repons Éxodo',
   'notification.update_ready_body': 'Nouvo vèsyon telechaje. Touche pou enstale l.',
   'notification.writing_in_background': 'Éxodo ap kontinye ekri repons ou…',
+  'chat.eco_notice': 'Ou rive nan limit pwisans chak jou ou. Ou kontinye nan mòd éko — li renouye a 12:00 AM (AST).',
+  'chat.eco_upgrade': 'Amelyore',
+  'notice.image_login_required': 'Jenerasyon imaj bezwen yon kont gratis. Konekte pou ou debloke l.',
+  'error.delete_account_failed': 'Nou pa t ka efase kont ou. Gade koneksyon ou epi eseye ankò.',
+  'age.title': 'Anvan ou kòmanse',
+  'age.body': 'Éxodo se pou moun ki 13 an e plis (16 an Ewòp). Konfime laj ou pou ou kontinye.',
+  'age.checkbox': 'Mwen gen omwen 13 an',
+  'age.continue': 'Kontinye',
 };
 
 const Map<String, String> kP4Pt = <String, String>{
@@ -87,6 +119,14 @@ const Map<String, String> kP4Pt = <String, String>{
   'notification.response_ready': 'Ver a resposta do Éxodo',
   'notification.update_ready_body': 'Nova versão baixada. Toque para instalá-la.',
   'notification.writing_in_background': 'O Éxodo ainda está escrevendo sua resposta…',
+  'chat.eco_notice': 'Você atingiu seu limite diário de alta potência. Continuando em modo eco — renova à 00:00 (AST).',
+  'chat.eco_upgrade': 'Melhorar',
+  'notice.image_login_required': 'A geração de imagens requer uma conta gratuita. Entre para desbloquear.',
+  'error.delete_account_failed': 'Não conseguimos excluir sua conta. Verifique sua conexão e tente novamente.',
+  'age.title': 'Antes de começar',
+  'age.body': 'O Éxodo é para pessoas de 13 anos ou mais (16 na Europa). Confirme sua idade para continuar.',
+  'age.checkbox': 'Tenho pelo menos 13 anos',
+  'age.continue': 'Continuar',
 };
 
 const Map<String, String> kP4It = <String, String>{
@@ -104,6 +144,14 @@ const Map<String, String> kP4It = <String, String>{
   'notification.response_ready': 'Vedi la risposta di Éxodo',
   'notification.update_ready_body': 'Nuova versione scaricata. Tocca per installarla.',
   'notification.writing_in_background': 'Éxodo sta ancora scrivendo la tua risposta…',
+  'chat.eco_notice': 'Hai raggiunto il limite giornaliero di alta potenza. Continui in modalità eco — si rinnova alle 00:00 (AST).',
+  'chat.eco_upgrade': 'Migliora',
+  'notice.image_login_required': 'La generazione di immagini richiede un account gratuito. Accedi per sbloccarla.',
+  'error.delete_account_failed': 'Non siamo riusciti a eliminare il tuo account. Controlla la connessione e riprova.',
+  'age.title': 'Prima di iniziare',
+  'age.body': 'Éxodo è per persone di 13 anni o più (16 in Europa). Conferma la tua età per continuare.',
+  'age.checkbox': 'Ho almeno 13 anni',
+  'age.continue': 'Continua',
 };
 
 const Map<String, String> kP4De = <String, String>{
@@ -121,6 +169,14 @@ const Map<String, String> kP4De = <String, String>{
   'notification.response_ready': 'Éxodos Antwort ansehen',
   'notification.update_ready_body': 'Neue Version heruntergeladen. Zum Installieren tippen.',
   'notification.writing_in_background': 'Éxodo schreibt noch an deiner Antwort…',
+  'chat.eco_notice': 'Du hast dein tägliches High-Power-Limit erreicht. Es geht im Eco-Modus weiter — Reset um 00:00 Uhr (AST).',
+  'chat.eco_upgrade': 'Upgrade',
+  'notice.image_login_required': 'Die Bilderzeugung erfordert ein kostenloses Konto. Melde dich an, um sie freizuschalten.',
+  'error.delete_account_failed': 'Wir konnten dein Konto nicht löschen. Prüfe deine Verbindung und versuche es erneut.',
+  'age.title': 'Bevor du startest',
+  'age.body': 'Éxodo ist für Personen ab 13 Jahren (in Europa 16). Bestätige dein Alter, um fortzufahren.',
+  'age.checkbox': 'Ich bin mindestens 13 Jahre alt',
+  'age.continue': 'Weiter',
 };
 
 const Map<String, String> kP4Ru = <String, String>{
@@ -138,6 +194,14 @@ const Map<String, String> kP4Ru = <String, String>{
   'notification.response_ready': 'Открыть ответ Éxodo',
   'notification.update_ready_body': 'Новая версия загружена. Нажмите, чтобы установить.',
   'notification.writing_in_background': 'Éxodo всё ещё пишет ваш ответ…',
+  'chat.eco_notice': 'Вы достигли дневного лимита высокой мощности. Продолжаем в эко-режиме — обновление в 00:00 (AST).',
+  'chat.eco_upgrade': 'Улучшить',
+  'notice.image_login_required': 'Генерация изображений требует бесплатного аккаунта. Войдите, чтобы разблокировать.',
+  'error.delete_account_failed': 'Не удалось удалить ваш аккаунт. Проверьте соединение и попробуйте снова.',
+  'age.title': 'Перед началом',
+  'age.body': 'Éxodo предназначен для лиц от 13 лет (в Европе — 16). Подтвердите свой возраст, чтобы продолжить.',
+  'age.checkbox': 'Мне не менее 13 лет',
+  'age.continue': 'Продолжить',
 };
 
 const Map<String, String> kP4Zh = <String, String>{
@@ -154,6 +218,14 @@ const Map<String, String> kP4Zh = <String, String>{
   'notification.response_ready': '查看 Éxodo 的回复',
   'notification.update_ready_body': '新版本已下载，点按即可安装。',
   'notification.writing_in_background': 'Éxodo 正在继续撰写你的回复…',
+  'chat.eco_notice': '你已达到每日高功率上限。将继续以 eco 模式运行 — 凌晨 12:00（AST）重置。',
+  'chat.eco_upgrade': '升级',
+  'notice.image_login_required': '图片生成需要免费账户。请登录以解锁。',
+  'error.delete_account_failed': '无法删除你的账户。请检查网络后重试。',
+  'age.title': '开始之前',
+  'age.body': 'Éxodo 面向 13 岁及以上用户（欧洲为 16 岁）。请确认你的年龄以继续。',
+  'age.checkbox': '我已年满 13 岁',
+  'age.continue': '继续',
 };
 
 const Map<String, String> kP4Ja = <String, String>{
@@ -171,6 +243,14 @@ const Map<String, String> kP4Ja = <String, String>{
   'notification.response_ready': 'Éxodoの返信を見る',
   'notification.update_ready_body': '新バージョンをダウンロードしました。タップしてインストール。',
   'notification.writing_in_background': 'Éxodo がまだ返信を書いています…',
+  'chat.eco_notice': '1日の高パワー上限に達しました。エコモードで継続します — 午前0時（AST）にリセット。',
+  'chat.eco_upgrade': 'アップグレード',
+  'notice.image_login_required': '画像生成には無料アカウントが必要です。ログインして解放してください。',
+  'error.delete_account_failed': 'アカウントを削除できませんでした。接続を確認して再試行してください。',
+  'age.title': '始める前に',
+  'age.body': 'Éxodo は13歳以上（ヨーロッパは16歳）向けです。続行するには年齢を確認してください。',
+  'age.checkbox': '私は13歳以上です',
+  'age.continue': '続行',
 };
 
 const Map<String, String> kP4Ar = <String, String>{
@@ -187,6 +267,14 @@ const Map<String, String> kP4Ar = <String, String>{
   'notification.response_ready': 'عرض رد Éxodo',
   'notification.update_ready_body': 'تم تنزيل الإصدار الجديد. انقر لتثبيته.',
   'notification.writing_in_background': 'لا يزال Éxodo يكتب ردك…',
+  'chat.eco_notice': 'لقد وصلت إلى حد الطاقة العالية اليومي. ستستمر في الوضع الاقتصادي — يتجدد في 12:00 صباحاً (AST).',
+  'chat.eco_upgrade': 'ترقية',
+  'notice.image_login_required': 'توليد الصور يتطلب حساباً مجانياً. سجّل الدخول لفتحه.',
+  'error.delete_account_failed': 'لم نتمكن من حذف حسابك. تحقق من اتصالك وحاول مجدداً.',
+  'age.title': 'قبل أن تبدأ',
+  'age.body': 'Éxodo مخصص لمن هم في عمر 13 عاماً فأكثر (16 في أوروبا). أكّد عمرك للمتابعة.',
+  'age.checkbox': 'عمري 13 عاماً على الأقل',
+  'age.continue': 'متابعة',
 };
 
 const Map<String, String> kP4Ko = <String, String>{
@@ -203,6 +291,14 @@ const Map<String, String> kP4Ko = <String, String>{
   'notification.response_ready': 'Éxodo의 답변 보기',
   'notification.update_ready_body': '새 버전이 다운로드되었습니다. 눌러서 설치하세요.',
   'notification.writing_in_background': 'Éxodo가 아직 답변을 작성하고 있습니다…',
+  'chat.eco_notice': '오늘의 고성능 한도에 도달했습니다. 에코 모드로 계속합니다 — 오전 12시(AST)에 초기화됩니다.',
+  'chat.eco_upgrade': '업그레이드',
+  'notice.image_login_required': '이미지 생성에는 무료 계정이 필요합니다. 로그인하여 잠금을 해제하세요.',
+  'error.delete_account_failed': '계정을 삭제하지 못했습니다. 연결을 확인하고 다시 시도하세요.',
+  'age.title': '시작하기 전에',
+  'age.body': 'Éxodo는 만 13세 이상(유럽은 16세)을 위한 서비스입니다. 계속하려면 연령을 확인해 주세요.',
+  'age.checkbox': '저는 13세 이상입니다',
+  'age.continue': '계속',
 };
 
 const Map<String, String> kP4Hi = <String, String>{
@@ -219,4 +315,12 @@ const Map<String, String> kP4Hi = <String, String>{
   'notification.response_ready': 'Éxodo का उत्तर देखें',
   'notification.update_ready_body': 'नया संस्करण डाउनलोड हुआ। इंस्टॉल करने के लिए टैप करें।',
   'notification.writing_in_background': 'Éxodo अभी भी आपका उत्तर लिख रहा है…',
+  'chat.eco_notice': 'आप अपनी दैनिक हाई-पावर सीमा तक पहुँच गए हैं। इको मोड में जारी — सुबह 12 बजे (AST) रीसेट।',
+  'chat.eco_upgrade': 'अपग्रेड',
+  'notice.image_login_required': 'छवि जनरेशन के लिए मुफ़्त खाता चाहिए। अनलॉक करने के लिए साइन इन करें।',
+  'error.delete_account_failed': 'हम आपका खाता नहीं मिटा सके। अपना कनेक्शन जाँचें और फिर कोशिश करें।',
+  'age.title': 'शुरू करने से पहले',
+  'age.body': 'Éxodo 13 साल और अधिक (यूरोप में 16) के लिए है। जारी रखने के लिए अपनी उम्र की पुष्टि करें।',
+  'age.checkbox': 'मैं कम से कम 13 साल का हूँ',
+  'age.continue': 'जारी रखें',
 };

@@ -145,8 +145,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
             onPressed: () async {
               Navigator.pop(ctx); // Cierra modal
-              Navigator.pop(context); // Cierra ProfileScreen
-              await state.deleteAccount();
+              final ok = await state.deleteAccount();
+              if (!ok) {
+                // La purga remota falló: avisar y dejar en ProfileScreen
+                // para reintentar (consistencia > apariencia).
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        AppI18n.of(context).t('error.delete_account_failed'),
+                        style: GoogleFonts.inter(color: Colors.white),
+                      ),
+                      backgroundColor: const Color(0xFFB3261E),
+                    ),
+                  );
+                }
+                return;
+              }
+              if (context.mounted) Navigator.pop(context); // Cierra ProfileScreen
             },
             child: Text(AppI18n.of(context).t('profile.delete_confirm'), style: GoogleFonts.inter(fontWeight: FontWeight.bold)),
           ),

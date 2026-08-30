@@ -937,7 +937,9 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
     } catch (_) {}
   }
 
-  Future<void> deleteAccount() async {
+  /// Borra la cuenta del usuario. Devuelve false si la purga remota falló
+  /// (la UI debe avisar y permitir reintentar — ya no nos callamos).
+  Future<bool> deleteAccount() async {
     final userId = SupabaseService.client.auth.currentUser?.id;
     if (userId != null) {
       var remoteDeleted = false;
@@ -960,14 +962,19 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
         }
       }
       // Si la cuenta sigue viva en la nube, conservar sesión y datos locales
-      // para que el usuario reintente (consistencia > apariencia).
-      if (!remoteDeleted) return;
+      // para que el usuario reintente (consistencia > apariencia) Y AVISAR.
+      if (!remoteDeleted) {
+        errorMessage = AppI18n.instance.t('error.delete_account_failed');
+        notifyListeners();
+        return false;
+      }
     }
     profile = null;
     _hasCachedSession = false;
     localChatRepo.clearAll().catchError((_) {});
     await SupabaseService.signOut();
     notifyListeners();
+    return true;
   }
 
   // [Punto 4] `upgradeToProPlan` eliminado: era código muerto (cero callers;
@@ -1185,6 +1192,23 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
       modelOverride: selectedModel.modelId,
       taskType: effectiveTaskType,
       locale: effectiveLocale,
+      onNotice: (code) {
+        if (code != 'image_login_required') return;
+        currentMessages.removeWhere((m) => m.isThinking || m.id == thinkingId);
+        isThinking = false;
+        isGenerating = false;
+        currentMessages.add(
+          ChatMessage(
+            id: 'notice-${DateTime.now().microsecondsSinceEpoch}',
+            conversationId: activeConversation?.id ?? 'guest',
+            role: 'system',
+            content: AppI18n.instance.t('notice.image_login_required'),
+            createdAt: DateTime.now(),
+          ),
+        );
+        _endStreamingMessage();
+        notifyListeners();
+      },
       onChunk: (chunk) {
         // FIX jerky streaming: los deltas se acumulan en el buffer y se
         // materializan a cadencia de frame (~33ms), no por cada token.
@@ -1402,6 +1426,30 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
     );
     _activeSession = session;
 
+    // Aviso estructurado del backend (p. ej. imagen sin sesión): reemplaza la
+    // burbuja thinking por un mensaje de sistema estilo disclaimer.
+    var noticeShown = false;
+    void handleNotice(String code) {
+      if (session.isCancelled || _activeSession?.id != session.id) return;
+      if (code != 'image_login_required') return;
+      noticeShown = true;
+      currentMessages.removeWhere((m) => m.isThinking || m.id == msgId);
+      isThinking = false;
+      currentMessages.add(
+        ChatMessage(
+          id: 'notice-${DateTime.now().microsecondsSinceEpoch}',
+          conversationId: activeConversation?.id ?? 'guest',
+          role: 'system',
+          content: AppI18n.instance.t('notice.image_login_required'),
+          createdAt: DateTime.now(),
+        ),
+      );
+      isGenerating = false;
+      _endStreamingMessage();
+      HapticFeedback.selectionClick();
+      notifyListeners();
+    }
+
     try {
       bool msgIsDegraded = false;
 
@@ -1441,8 +1489,10 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
             }
           }
         },
+        onNotice: handleNotice,
         onChunk: (chunk) {
           if (session.isCancelled || _activeSession?.id != session.id) return;
+          if (noticeShown) return;
           // FIX jerky streaming: append directo al buffer del mensaje activo;
           // la lista y los listeners se actualizan a cadencia de frame (~33ms)
           // en lugar de reconstruirse por cada token.
@@ -1450,6 +1500,13 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
         },
         onComplete: (fullText, sources) async {
           if (session.isCancelled || _activeSession?.id != session.id) return;
+          if (noticeShown) {
+            _endStreamingMessage();
+            isGenerating = false;
+            HapticFeedback.vibrate();
+            notifyListeners();
+            return;
+          }
           _endStreamingMessage();
           isGenerating = false;
           if (!isGuestUser) {
