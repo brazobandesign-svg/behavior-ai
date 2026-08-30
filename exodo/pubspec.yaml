@@ -52,6 +52,7 @@ dependencies:
 
   # --- Notificaciones y auto-actualización (APK directo, fuera de Play Store) ---
   flutter_local_notifications: ^19.1.0
+  flutter_foreground_task: ^9.1.0
   open_filex: ^4.7.0
 
   # --- Database local (Drift SQLite) ---

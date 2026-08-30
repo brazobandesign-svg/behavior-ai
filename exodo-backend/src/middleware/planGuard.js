@@ -63,6 +63,13 @@ async function planGuard(req, res, next) {
       mem.lastVisionReset = currentMonth;
     }
 
+    // Reset perezoso del contador diario de imágenes (AST).
+    const todayKey = currentDate;
+    if (mem.lastImageReset !== todayKey) {
+      mem.dailyImagesUsed = 0;
+      mem.lastImageReset = todayKey;
+    }
+
     const isDegraded = !isPro && (mem.dailyTokensUsed >= config.dailyTokensLimit);
     req.user.isDegraded = isDegraded;
     req.usage = {
@@ -72,20 +79,15 @@ async function planGuard(req, res, next) {
       dailyTokensLimit: config.dailyTokensLimit,
       monthlyVisionUsed: mem.monthlyVisionUsed,
       monthlyVisionLimit: config.monthlyVisionLimit,
+      dailyImagesUsed: mem.dailyImagesUsed || 0,
+      dailyImagesLimit: config.dailyImagesLimit || 0,
       isDegraded,
       _memMode: true,
       _userId: userId,
     };
-    // ENFORCEMENT REAL (antes el límite era decorativo: isDegraded se calculaba
-    // y nadie lo consumía). Cuota diaria agotada => 429 con mensaje claro.
-    if (mem.dailyTokensUsed >= config.dailyTokensLimit) {
-      return res.status(429).json({
-        error: 'daily_limit_reached',
-        message: `Alcanzaste tu límite diario de ${config.dailyTokensLimit.toLocaleString('en-US')} tokens. Tu cuota se renueva mañana.`,
-        dailyTokensUsed: mem.dailyTokensUsed,
-        dailyTokensLimit: config.dailyTokensLimit,
-      });
-    }
+    // DOCTRINA ÉXODO (soft cap): cuota agotada => isDegraded=true y el flujo
+    // CONTINÚA (producción enrutará a Groq Modo Eco; jamás 429 duro).
+    // El contador atómico sigue siendo el trigger de la degradación.
     return next();
   }
 
@@ -143,6 +145,13 @@ async function planGuard(req, res, next) {
       dailyTokensLimit: config.dailyTokensLimit,
       monthlyVisionUsed,
       monthlyVisionLimit: config.monthlyVisionLimit,
+      // Contador diario de imágenes: vive en memoria. Al re-sincronizar desde
+      // DB (TTL vencido) se PRESERVA el conteo del día si la entrada anterior
+      // es de hoy — sin esto, cada resync regalaría 3/25 imágenes más.
+      dailyImagesUsed:
+        (mem && mem.lastImageReset === currentDate ? mem.dailyImagesUsed || 0 : 0),
+      dailyImagesLimit: config.dailyImagesLimit || 0,
+      lastImageReset: currentDate,
       lastTokenReset,
       lastVisionReset,
       isDegraded,
@@ -152,16 +161,7 @@ async function planGuard(req, res, next) {
     _memUsage.set(userId, userState);
     req.usage = userState;
 
-    // ENFORCEMENT REAL: idéntico al path de caché. Cuota diaria agotada => 429.
-    if (dailyTokensUsed >= config.dailyTokensLimit) {
-      return res.status(429).json({
-        error: 'daily_limit_reached',
-        message: `Alcanzaste tu límite diario de ${config.dailyTokensLimit.toLocaleString('en-US')} tokens. Tu cuota se renueva mañana.`,
-        dailyTokensUsed,
-        dailyTokensLimit: config.dailyTokensLimit,
-      });
-    }
-
+    // DOCTRINA ÉXODO (soft cap): idéntico al path de caché — sin 429.
     next();
   } catch (err) {
     console.warn('[planGuard] Excepción en planGuard:', err.message);

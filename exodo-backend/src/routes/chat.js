@@ -179,7 +179,7 @@ router.post('/', auth, guestLimit, planGuard, upload.array('files', 5), async (r
     // decidiendo el 403 ANTES de abrir el stream SSE; si falla, el prefetch
     // se descarta sin usarse (getHistory nunca rechaza: catch interno → []).
     const historyPrefetch = (!isGuest && conversationId)
-      ? getHistory(conversationId, 25)
+      ? getHistory(conversationId, 50)
       : null;
 
     if (conversationId && !isGuest && !anonymous && userId) {
@@ -319,20 +319,20 @@ router.post('/', auth, guestLimit, planGuard, upload.array('files', 5), async (r
     let ragPrefetch = null;
 
     if (isGuest) {
-      history = (Array.isArray(req.body.history) ? req.body.history.slice(-10) : []);
+      history = (Array.isArray(req.body.history) ? req.body.history.slice(-20) : []);
       intent = hasImages ? 'VISION' : 'SIMPLE';
     } else if (!conversationId && Array.isArray(req.body.history) && req.body.history.length > 0) {
       // PRIVACIDAD (historial en nube OFF): usuario registrado con chat
       // efémero (sin conversationId) manda su ventana local, igual que un
       // invitado. Es su propio contenido y solo afecta su propia respuesta.
-      history = req.body.history.slice(-10);
+      history = req.body.history.slice(-20);
       intent = hasImages ? 'VISION' : 'SIMPLE';
     } else {
       if (isMinerdQuery(enhancedMessage)) {
         ragPrefetch = searchMinerdChunks(enhancedMessage, { limit: 3 }).catch(() => null);
       }
       const [dbHistory, detectedIntent] = await Promise.all([
-        historyPrefetch ?? getHistory(conversationId, 25),
+        historyPrefetch ?? getHistory(conversationId, 50),
         // FIX TTFT: clasificación local por keywords (O(1), sin roundtrip a
         // DeepSeek). El clasificador LLM bloqueaba el inicio del stream 1-5s
         // en CADA mensaje antes de enrutar el modelo.
@@ -419,10 +419,9 @@ router.post('/', auth, guestLimit, planGuard, upload.array('files', 5), async (r
       contextChunks,
     });
 
-    // CONTEXT PRUNING: ventana de 25 mensajes (~12 turnos completos) alineada
-    // con el estandar de apps de IA; la poda por presupuesto de tokens (9000)
-    // en historyManager sigue siendo el limite duro real. Antes eran 10.
-    const MAX_HISTORY_MESSAGES = 25;
+    // CONTEXT PRUNING: ventana de 50 mensajes (~25 turnos). Las grandes IA no
+    // cortan por mensajes sino por tokens; el presupuesto (20k) es el limite duro.
+    const MAX_HISTORY_MESSAGES = 50;
     const prunedMessages = Array.isArray(messages) ? messages.slice(-MAX_HISTORY_MESSAGES) : [];
 
     let fullText = '';

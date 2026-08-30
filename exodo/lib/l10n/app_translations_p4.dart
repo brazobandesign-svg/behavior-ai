@@ -18,6 +18,7 @@ const Map<String, String> kP4Es = <String, String>{
   'settings.cloud_history_desc': 'Desactívalo para máxima privacidad: tus chats se guardarán solo en este dispositivo (nunca en servidores) y seguirán disponibles aquí con todo su contexto.',
   'notification.response_ready': 'Ver respuesta de Éxodo',
   'notification.update_ready_body': 'Nueva versión descargada. Toca para instalarla.',
+  'notification.writing_in_background': 'Éxodo sigue escribiendo tu respuesta…',
 };
 
 const Map<String, String> kP4En = <String, String>{
@@ -34,6 +35,7 @@ const Map<String, String> kP4En = <String, String>{
   'settings.cloud_history_desc': 'Turn off for maximum privacy: your chats will be saved only on this device (never on servers) and remain available here with their full context.',
   'notification.response_ready': 'View Éxodo\'s reply',
   'notification.update_ready_body': 'New version downloaded. Tap to install it.',
+  'notification.writing_in_background': 'Éxodo is still writing your reply…',
 };
 
 const Map<String, String> kP4Fr = <String, String>{
@@ -50,6 +52,7 @@ const Map<String, String> kP4Fr = <String, String>{
   'settings.cloud_history_desc': 'Désactivez pour une confidentialité maximale : vos conversations seront enregistrées uniquement sur cet appareil (jamais sur des serveurs) et resteront disponibles ici avec tout leur contexte.',
   'notification.response_ready': 'Voir la réponse d\'Éxodo',
   'notification.update_ready_body': 'Nouvelle version téléchargée. Touchez pour l\'installer.',
+  'notification.writing_in_background': 'Éxodo rédige toujours votre réponse…',
 };
 
 const Map<String, String> kP4Ht = <String, String>{
@@ -66,6 +69,7 @@ const Map<String, String> kP4Ht = <String, String>{
   'settings.cloud_history_desc': 'Fèmen l pou privasite maksimòm: diskisyon ou yo ap konsève sèlman sou aparèy sa a (pa janm nan sèvè) epi yo ap disponib la a ak tout kontèks yo.',
   'notification.response_ready': 'Gade repons Éxodo',
   'notification.update_ready_body': 'Nouvo vèsyon telechaje. Touche pou enstale l.',
+  'notification.writing_in_background': 'Éxodo ap kontinye ekri repons ou…',
 };
 
 const Map<String, String> kP4Pt = <String, String>{
@@ -82,6 +86,7 @@ const Map<String, String> kP4Pt = <String, String>{
   'settings.cloud_history_desc': 'Desative para privacidade máxima: suas conversas serão salvas apenas neste aparelho (nunca em servidores) e continuarão disponíveis aqui com todo o contexto.',
   'notification.response_ready': 'Ver a resposta do Éxodo',
   'notification.update_ready_body': 'Nova versão baixada. Toque para instalá-la.',
+  'notification.writing_in_background': 'O Éxodo ainda está escrevendo sua resposta…',
 };
 
 const Map<String, String> kP4It = <String, String>{
@@ -98,6 +103,7 @@ const Map<String, String> kP4It = <String, String>{
   'settings.cloud_history_desc': 'Disattiva per la massima privacy: le tue conversazioni saranno salvate solo su questo dispositivo (mai sui server) e resteranno disponibili qui con tutto il loro contesto.',
   'notification.response_ready': 'Vedi la risposta di Éxodo',
   'notification.update_ready_body': 'Nuova versione scaricata. Tocca per installarla.',
+  'notification.writing_in_background': 'Éxodo sta ancora scrivendo la tua risposta…',
 };
 
 const Map<String, String> kP4De = <String, String>{
@@ -114,6 +120,7 @@ const Map<String, String> kP4De = <String, String>{
   'settings.cloud_history_desc': 'Für maximale Privatsphäre deaktivieren: Deine Chats werden nur auf diesem Gerät gespeichert (nie auf Servern) und bleiben hier mit ihrem gesamten Kontext verfügbar.',
   'notification.response_ready': 'Éxodos Antwort ansehen',
   'notification.update_ready_body': 'Neue Version heruntergeladen. Zum Installieren tippen.',
+  'notification.writing_in_background': 'Éxodo schreibt noch an deiner Antwort…',
 };
 
 const Map<String, String> kP4Ru = <String, String>{
@@ -130,6 +137,7 @@ const Map<String, String> kP4Ru = <String, String>{
   'settings.cloud_history_desc': 'Отключите для максимальной конфиденциальности: ваши чаты будут сохраняться только на этом устройстве (никогда на серверах) и останутся доступны здесь со всем контекстом.',
   'notification.response_ready': 'Открыть ответ Éxodo',
   'notification.update_ready_body': 'Новая версия загружена. Нажмите, чтобы установить.',
+  'notification.writing_in_background': 'Éxodo всё ещё пишет ваш ответ…',
 };
 
 const Map<String, String> kP4Zh = <String, String>{
@@ -145,6 +153,7 @@ const Map<String, String> kP4Zh = <String, String>{
   'settings.cloud_history_desc': '关闭以获得最大隐私：您的对话将仅保存在本设备上（绝不保存在服务器上），并在此处保留完整上下文。',
   'notification.response_ready': '查看 Éxodo 的回复',
   'notification.update_ready_body': '新版本已下载，点按即可安装。',
+  'notification.writing_in_background': 'Éxodo 正在继续撰写你的回复…',
 };
 
 const Map<String, String> kP4Ja = <String, String>{
@@ -161,6 +170,7 @@ const Map<String, String> kP4Ja = <String, String>{
   'settings.cloud_history_desc': 'オフにすると最大限のプライバシーが得られます：チャットはこの端末にのみ保存され（サーバーには保存されません）、文脈ごとここで引き続き利用できます。',
   'notification.response_ready': 'Éxodoの返信を見る',
   'notification.update_ready_body': '新バージョンをダウンロードしました。タップしてインストール。',
+  'notification.writing_in_background': 'Éxodo がまだ返信を書いています…',
 };
 
 const Map<String, String> kP4Ar = <String, String>{
@@ -176,6 +186,7 @@ const Map<String, String> kP4Ar = <String, String>{
   'settings.cloud_history_desc': 'أوقفه لأقصى خصوصية: ستُحفظ محادثاتك على هذا الجهاز فقط (وليس على أي خادم) وستبقى متاحة هنا بسياقها الكامل.',
   'notification.response_ready': 'عرض رد Éxodo',
   'notification.update_ready_body': 'تم تنزيل الإصدار الجديد. انقر لتثبيته.',
+  'notification.writing_in_background': 'لا يزال Éxodo يكتب ردك…',
 };
 
 const Map<String, String> kP4Ko = <String, String>{
@@ -191,6 +202,7 @@ const Map<String, String> kP4Ko = <String, String>{
   'settings.cloud_history_desc': '끄면 최대한의 프라이버시를 제공합니다: 대화는 이 기기에만 저장되고(서버에는 저장되지 않음) 전체 맥락과 함께 여기서 계속 사용할 수 있습니다.',
   'notification.response_ready': 'Éxodo의 답변 보기',
   'notification.update_ready_body': '새 버전이 다운로드되었습니다. 눌러서 설치하세요.',
+  'notification.writing_in_background': 'Éxodo가 아직 답변을 작성하고 있습니다…',
 };
 
 const Map<String, String> kP4Hi = <String, String>{
@@ -206,4 +218,5 @@ const Map<String, String> kP4Hi = <String, String>{
   'settings.cloud_history_desc': 'अधिकतम गोपनीयता के लिए बंद करें: आपकी चैट केवल इस डिवाइस पर सहेजी जाएंगी (किसी सर्वर पर नहीं) और पूरे संदर्भ के साथ यहीं उपलब्ध रहेंगी।',
   'notification.response_ready': 'Éxodo का उत्तर देखें',
   'notification.update_ready_body': 'नया संस्करण डाउनलोड हुआ। इंस्टॉल करने के लिए टैप करें।',
+  'notification.writing_in_background': 'Éxodo अभी भी आपका उत्तर लिख रहा है…',
 };

@@ -9,14 +9,14 @@ const supabase = require('../config/supabase');
  * Recupera los últimos N mensajes de una conversación con Pruning Adaptativo.
  * Garantiza que el historial anterior no exceda el presupuesto de tokens (maxTokens, default: 9000),
  * evitando saturar el contexto del modelo o agotar la cuota del plan G1.1.
- * 25 mensajes ≈ 12 turnos completos (alineado con el estándar de apps de IA;
- * el poda-por-tokens sigue siendo el límite duro real).
+ * 50 mensajes ≈ 25 turnos completos; las grandes IA no limitan por mensajes
+ * sino por tokens (ventanas 128k-1M). El poda-por-tokens sigue siendo el límite duro real.
  * @param {string} conversationId - UUID de la conversación
- * @param {number} limit - Cantidad de mensajes a recuperar (default: 25)
- * @param {number} maxTokens - Presupuesto máximo de tokens para el historial anterior (default: 9000)
+ * @param {number} limit - Cantidad de mensajes a recuperar (default: 50)
+ * @param {number} maxTokens - Presupuesto máximo de tokens para el historial anterior (default: 20000)
  * @returns {Promise<Array>} - Array de { role, content }
  */
-async function getHistory(conversationId, limit = 25, maxTokens = 9000) {
+async function getHistory(conversationId, limit = 50, maxTokens = 20000) {
   if (!conversationId || !supabase) return [];
 
   try {

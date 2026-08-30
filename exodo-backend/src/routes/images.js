@@ -22,14 +22,26 @@ router.post('/generate', auth, planGuard, chatRateLimiter, async (req, res) => {
       return res.status(400).json({ error: 'El campo "prompt" es requerido' });
     }
 
-    const { userId, plan } = req.user || {};
+    const { userId, plan, isGuest } = req.user || {};
 
     // P1 auditoría: enforce de plan antes de procesar el prompt (coste real
-    // de DashScope solo para suscriptores XPi).
-    if (plan !== 'hazak') {
+    // de DashScope). G1.1 (free) puede generar pocas imágenes al día (3);
+    // XPi 25/día. Invitados: bloqueados — Groq NO ofrece generación de
+    // imágenes (solo texto/whisper), así que no hay ruta $0 para ellos.
+    if (isGuest) {
       return res.status(403).json({
         error: 'plan_upgrade_required',
-        message: 'La generación de imágenes requiere una suscripción al Plan XPi activa.',
+        message: 'La generación de imágenes requiere una cuenta gratuita. Crea una para usarla.',
+      });
+    }
+    const dailyImagesUsed = req.usage?.dailyImagesUsed || 0;
+    const dailyImagesLimit = req.usage?.dailyImagesLimit || 0;
+    if (dailyImagesLimit > 0 && dailyImagesUsed >= dailyImagesLimit) {
+      return res.status(429).json({
+        error: 'image_daily_limit_reached',
+        message: `Alcanzaste tu límite de ${dailyImagesLimit} imágenes por hoy. Se renueva mañana.`,
+        dailyImagesUsed,
+        dailyImagesLimit,
       });
     }
 
@@ -46,8 +58,20 @@ router.post('/generate', auth, planGuard, chatRateLimiter, async (req, res) => {
 
     const result = await generateImage(prompt, { size });
 
-    // Contabilizar la imagen generada (mismo RPC atómico que los tokens).
+    // Contabilizar la imagen generada: contador DIARIO en memoria (planGuard
+    // lo lee en cada request) + RPC atómica mensual para el registro.
     try {
+      const { getMemUsageMap } = require('../middleware/planGuard');
+      const mem = getMemUsageMap().get(userId);
+      if (mem) {
+        const today = new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString().slice(0, 10);
+        if (mem.lastImageReset !== today) {
+          mem.dailyImagesUsed = 1;
+          mem.lastImageReset = today;
+        } else {
+          mem.dailyImagesUsed = (mem.dailyImagesUsed || 0) + 1;
+        }
+      }
       const { updateTokenUsage } = require('../services/tokenCounter');
       await updateTokenUsage(userId, 0, true, req.usage);
     } catch (e) {

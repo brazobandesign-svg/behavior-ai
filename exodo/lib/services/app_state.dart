@@ -12,6 +12,8 @@ import '../data/repositories/local_chat_repository.dart';
 import '../data/local/db/tables/messages.dart'; // Import LocalMessageStatus enum
 import 'supabase_service.dart';
 import 'chat_service.dart';
+import 'package:flutter_foreground_task/flutter_foreground_task.dart';
+
 import 'connectivity_service.dart';
 import 'notification_service.dart';
 import 'update_service.dart';
@@ -115,6 +117,16 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     _lifecycleStatus = state;
+    if (state == AppLifecycleState.paused && isGenerating) {
+      // Garantía absoluta: servicio en primer plano mientras la app está
+      // fuera de pantalla y Éxodo sigue escribiendo.
+      _startForegroundService();
+    } else if (state == AppLifecycleState.resumed) {
+      // De vuelta en pantalla el servicio deja de ser necesario; si aún
+      // genera, la respuesta termina normal (la notificación de fin ya no
+      // aplica porque el usuario está mirando).
+      _stopForegroundService();
+    }
     // Al volver al primer plano con un APK de actualización ya descargado,
     // mostrar la notificación de instalación (única interrupción del flujo).
     if (state == AppLifecycleState.resumed) {
@@ -137,6 +149,56 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
     NotificationService.instance.showReplyReady(
       body: AppI18n.instance.t('notification.response_ready'),
     );
+    _stopForegroundService();
+  }
+
+  // ── Foreground service: GARANTÍA de generación en 2do plano ────────────
+  // Un proceso en background puede ser muerto por Android en cualquier
+  // momento; con el servicio activo (tipo dataSync) el sistema no mata el
+  // proceso mientras Éxodo sigue escribiendo. Se enciende al pasar a
+  // background con generación activa y se apaga al volver o al terminar.
+  bool _fgsInitialized = false;
+
+  Future<void> _initForegroundService() async {
+    if (_fgsInitialized) return;
+    FlutterForegroundTask.init(
+      androidNotificationOptions: AndroidNotificationOptions(
+        channelId: 'exodo_generating',
+        channelName: 'Éxodo está escribiendo',
+        channelDescription: 'Mantiene viva la respuesta cuando sales de la app',
+        channelImportance: NotificationChannelImportance.LOW,
+        priority: NotificationPriority.LOW,
+      ),
+      iosNotificationOptions: const IOSNotificationOptions(),
+      foregroundTaskOptions: ForegroundTaskOptions(
+        eventAction: ForegroundTaskEventAction.nothing(),
+        allowWakeLock: true,
+        allowAutoRestart: false,
+        stopWithTask: false,
+      ),
+    );
+    _fgsInitialized = true;
+  }
+
+  Future<void> _startForegroundService() async {
+    if (!isGenerating) return;
+    try {
+      await _initForegroundService();
+      if (await FlutterForegroundTask.isRunningService) return;
+      await FlutterForegroundTask.startService(
+        serviceId: 3001,
+        notificationTitle: 'Éxodo',
+        notificationText: AppI18n.instance.t('notification.writing_in_background'),
+      );
+    } catch (_) {}
+  }
+
+  Future<void> _stopForegroundService() async {
+    try {
+      if (await FlutterForegroundTask.isRunningService) {
+        await FlutterForegroundTask.stopService();
+      }
+    } catch (_) {}
   }
 
   // [Punto 43] Conectividad: la app detecta si hay internet en tiempo real.
@@ -1126,23 +1188,13 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
       onChunk: (chunk) {
         // FIX jerky streaming: los deltas se acumulan en el buffer y se
         // materializan a cadencia de frame (~33ms), no por cada token.
+        // DOCTRINA soft cap: SIN guard de corte por tokens — el flujo jamás
+        // se interrumpe por cuota (producción degradará a Groq Modo Eco vía
+        // isDegraded del backend; el medidor es informativo).
         _handleStreamChunk(
           thinkingId,
           chunk,
           isDegraded: false,
-          guard: isGuestUser
-              ? null
-              : (content) {
-                  final currentEst = tokensUsed + (content.length ~/ 3) + 35;
-                  if (currentEst >= tokensLimit) {
-                    tokensUsed = tokensLimit;
-                    // [Punto 36 aviso] Usamos _cancelGeneration() (sin mensaje
-                    // stopped) porque esto lo dispara el límite de tokens.
-                    _cancelGeneration();
-                    return true;
-                  }
-                  return false;
-                },
         );
       },
       onComplete: (fullText, sources) {
@@ -1172,6 +1224,7 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
         _endStreamingMessage();
         _revertTokens(userTokensEst);
         isGenerating = false;
+        _stopForegroundService();
         if (isAppInBackground) return;
         errorMessage = e.toString();
         notifyListeners();
@@ -1461,6 +1514,7 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
         onError: (err) {
           if (session.isCancelled || _activeSession?.id != session.id) return;
           _endStreamingMessage();
+          _stopForegroundService();
           _revertTokens(userTokensEst);
           if (activeConversation?.id == capturedConvId) {
             currentMessages.removeWhere((m) => m.id == msgId || m.isThinking);
@@ -1717,6 +1771,7 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
     _endStreamingMessage(); // materializa deltas pendientes y limpia timers
     _activeSession?.cancel();
     _activeSession = null;
+    _stopForegroundService();
     currentMessages.removeWhere((m) => m.isThinking);
     if (activeConversation != null && currentMessages.isNotEmpty) {
       for (final m in currentMessages) {

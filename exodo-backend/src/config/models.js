@@ -45,6 +45,7 @@ const PLAN_CONFIG = {
     dailyTokensLimit: 6000,           // 6,000 tokens diarios (lo que promete la UI)
     maxOutputTokensNormal: 8192,
     monthlyVisionLimit: 1000,
+    dailyImagesLimit: 3,              // G1.1: pocas imágenes al día
     allowThinking: true,
     primaryModel: 'qwen3.6-max-preview',
     fallbackChain: [
@@ -59,6 +60,7 @@ const PLAN_CONFIG = {
     dailyTokensLimit: 50000,          // 50,000 tokens diarios (lo que promete la UI)
     maxOutputTokens: 8192,
     monthlyVisionLimit: 2000,
+    dailyImagesLimit: 25,             // XPi: 25 imágenes/día (antes 66/mes implícito)
     allowThinking: true,
     primaryModel: 'qwen3.6-max-preview',
     fallbackChain: [
