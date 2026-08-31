@@ -13,6 +13,7 @@ import '../widgets/chat/chat_composer.dart';
 import '../widgets/chat/message_bubble.dart';
 import '../widgets/chat/model_selector.dart';
 import '../services/chat_service.dart';
+import '../services/supabase_service.dart';
 import '../services/context_export_service.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../theme/exodo_theme.dart';
@@ -69,14 +70,15 @@ class _ChatScreenState extends State<ChatScreen>
       }
     });
 
-    WidgetsBinding.instance.addPostFrameCallback((_) => _maybeShowAgeGate());
+    WidgetsBinding.instance.addPostFrameCallback((_) => _maybeShowConsentGate());
   }
 
-  /// Edad mínima (decisión 30-ago, estilo de los grandes: 13+ / 16+ EEA):
-  /// checkbox UNA sola vez tras el primer login con Google. Éxodo no tiene
-  /// registro propio — Google ya valida la edad de la cuenta; este check es
-  /// el consentimiento explícito de nuestra política.
-  Future<void> _maybeShowAgeGate() async {
+  /// CONSENTIMIENTO inicial (30-ago, estilo contrato): una sola vez tras el
+  /// primer login con Google. Dos casillas: edad 13+ y historial en nube
+  /// (con *). Se guarda registro local con fecha + best-effort en profiles
+  /// (protege a Behavior: el usuario aceptó explícitamente). Si la cuenta se
+  /// borra o se cierra sesión, el registro se limpia y vuelve a preguntar.
+  Future<void> _maybeShowConsentGate() async {
     if (_ageGateChecked || !mounted) return;
     final state = context.read<AppState>();
     if (state.isGuestUser || !state.hasSession) return;
@@ -87,7 +89,8 @@ class _ChatScreenState extends State<ChatScreen>
     }
     _ageGateChecked = true;
     if (!mounted) return;
-    bool accepted = false;
+    bool ageOk = false;
+    bool cloudOk = true; // default: sí guardar (comportamiento histórico)
     await showDialog<void>(
       context: context,
       barrierDismissible: false,
@@ -95,48 +98,36 @@ class _ChatScreenState extends State<ChatScreen>
         builder: (ctx, setDialogState) => AlertDialog(
           backgroundColor: Theme.of(context).brightness == Brightness.light
               ? Colors.white : const Color(0xFF1E1E1E),
-          title: Text(
-            AppI18n.of(context).t('age.title'),
-            style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 17),
-          ),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                AppI18n.of(context).t('age.body'),
-                style: GoogleFonts.inter(fontSize: 13.5, height: 1.4),
-              ),
-              const SizedBox(height: 14),
-              GestureDetector(
-                onTap: () {
-                  HapticFeedback.selectionClick();
-                  setDialogState(() => accepted = !accepted);
-                },
-                child: Row(
-                  children: [
-                    Icon(
-                      accepted ? Icons.check_box : Icons.check_box_outline_blank,
-                      size: 20,
-                      color: accepted ? ExodoColors.amber : Colors.grey,
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Text(
-                        AppI18n.of(context).t('age.checkbox'),
-                        style: GoogleFonts.inter(fontSize: 13),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+              _consentRow(ctx, setDialogState, () => ageOk, (v) { ageOk = v; }, AppI18n.of(context).t('consent.age')),
+              const SizedBox(height: 12),
+              _consentRow(ctx, setDialogState, () => cloudOk, (v) { cloudOk = v; }, AppI18n.of(context).t('consent.cloud')),
             ],
           ),
           actions: [
             TextButton(
-              onPressed: accepted
+              onPressed: ageOk
                   ? () async {
+                      final ts = DateTime.now().toUtc().toIso8601String();
                       await prefs.setBool('exodo_age_confirmed', true);
+                      await prefs.setString('exodo_consent', '{"age":true,"cloud":$cloudOk,"ts":"$ts","v":1}');
+                      await state.setCloudHistoryEnabled(cloudOk);
+                      // Registro en la nube, best-effort (protección mutua)
+                      try {
+                        final uid = SupabaseService.client.auth.currentUser?.id;
+                        if (uid != null) {
+                          final existing = (state.profile?.onboarding is Map)
+                              ? Map<String, dynamic>.from(state.profile!.onboarding as Map)
+                              : <String, dynamic>{};
+                          existing['age_confirmed'] = true;
+                          existing['cloud_history_consent'] = cloudOk;
+                          existing['consent_ts'] = ts;
+                          await SupabaseService.saveOnboarding(existing);
+                        }
+                      } catch (_) {}
                       if (ctx.mounted) Navigator.pop(ctx);
                     }
                   : null,
@@ -147,6 +138,29 @@ class _ChatScreenState extends State<ChatScreen>
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _consentRow(BuildContext ctx, void Function(void Function()) setDialog, bool Function() getVal, void Function(bool) setVal, String label) {
+    return GestureDetector(
+      onTap: () {
+        HapticFeedback.selectionClick();
+        setDialog(() => setVal(!getVal()));
+      },
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            getVal() ? Icons.check_box : Icons.check_box_outline_blank,
+            size: 20,
+            color: getVal() ? ExodoColors.amber : Colors.grey,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(label, style: GoogleFonts.inter(fontSize: 13.5, height: 1.4)),
+          ),
+        ],
       ),
     );
   }

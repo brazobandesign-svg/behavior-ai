@@ -152,6 +152,20 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
     _stopForegroundService();
   }
 
+  /// Mapa de avisos estructurados del backend => texto localizado.
+  String? _noticeText(String code) {
+    switch (code) {
+      case 'image_login_required':
+        return AppI18n.instance.t('notice.image_login_required');
+      case 'image_daily_limit_reached':
+        return AppI18n.instance.t('notice.image_daily_limit_reached');
+      case 'image_generation_failed':
+        return AppI18n.instance.t('notice.image_generation_failed');
+      default:
+        return null;
+    }
+  }
+
   // ── Foreground service: GARANTÍA de generación en 2do plano ────────────
   // Un proceso en background puede ser muerto por Android en cualquier
   // momento; con el servicio activo (tipo dataSync) el sistema no mata el
@@ -392,6 +406,10 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
           prefs.remove('exodo_last_conversation_id');
           prefs.remove('exodo_tokens_used');
           prefs.remove('exodo_theme');
+          // Consentimientos: al cerrar sesión se olvidan para que el PRÓXIMO
+          // login (cualquier cuenta) vuelva a pasar el gate.
+          prefs.remove('exodo_age_confirmed');
+          prefs.remove('exodo_consent');
         });
         notifyListeners();
       }
@@ -536,6 +554,17 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
     // 2. Sincronización en segundo plano con Supabase
     final loadingConvId = conv.id;
     final fetchedMessages = await SupabaseService.getMessages(conv.id);
+    // FIX (30-ago): conversación solo-local (privacidad OFF) => la nube
+    // devuelve vacío y el merge borraba los mensajes que SÍ estaban en
+    // Drift: la conversación se abría vacía. Si la nube no trae NADA pero
+    // el dispositivo sí, conservamos lo local.
+    if (fetchedMessages.isEmpty && localMsgs.isNotEmpty) {
+      if (activeConversation?.id == loadingConvId && !isGenerating) {
+        currentMessages = localMsgs;
+        notifyListeners();
+      }
+      return;
+    }
     if (activeConversation?.id == loadingConvId && !isGenerating) {
       // [Fix persistencia de fotos] La tabla `messages` de Supabase solo
       // guarda texto, por lo que las copias traídas de la nube llegan SIN
@@ -972,6 +1001,13 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
     profile = null;
     _hasCachedSession = false;
     localChatRepo.clearAll().catchError((_) {});
+    // Cuenta borrada = todo borrado: consentimientos incluidos. Si vuelve a
+    // hacer login, pasa el gate de nuevo (decisión del dueño 30-ago).
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('exodo_age_confirmed');
+      await prefs.remove('exodo_consent');
+    } catch (_) {}
     await SupabaseService.signOut();
     notifyListeners();
     return true;
@@ -1193,7 +1229,8 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
       taskType: effectiveTaskType,
       locale: effectiveLocale,
       onNotice: (code) {
-        if (code != 'image_login_required') return;
+        final text = _noticeText(code);
+        if (text == null) return;
         currentMessages.removeWhere((m) => m.isThinking || m.id == thinkingId);
         isThinking = false;
         isGenerating = false;
@@ -1202,7 +1239,7 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
             id: 'notice-${DateTime.now().microsecondsSinceEpoch}',
             conversationId: activeConversation?.id ?? 'guest',
             role: 'system',
-            content: AppI18n.instance.t('notice.image_login_required'),
+            content: text,
             createdAt: DateTime.now(),
           ),
         );
@@ -1431,7 +1468,8 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
     var noticeShown = false;
     void handleNotice(String code) {
       if (session.isCancelled || _activeSession?.id != session.id) return;
-      if (code != 'image_login_required') return;
+      final text = _noticeText(code);
+      if (text == null) return;
       noticeShown = true;
       currentMessages.removeWhere((m) => m.isThinking || m.id == msgId);
       isThinking = false;
@@ -1440,7 +1478,7 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
           id: 'notice-${DateTime.now().microsecondsSinceEpoch}',
           conversationId: activeConversation?.id ?? 'guest',
           role: 'system',
-          content: AppI18n.instance.t('notice.image_login_required'),
+          content: text,
           createdAt: DateTime.now(),
         ),
       );

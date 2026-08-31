@@ -81,8 +81,34 @@ function buildSystemPrompt(opts) {
 
   const isEducationalContext = chunks.length > 0 || !!subject;
 
+  // PERF (TTFT): modo lite para intents SIMPLE/saludos — solo identidad y
+  // reglas de forma (~300 tokens vs ~2000). El prefill domina el tiempo
+  // hasta el primer token: un "Hola" no debe pagar secciones de vision/
+  // artefactos/normativa que nunca usará.
+  if (o.lite) {
+    // Identidad COMPACTA para saludos/SIMPLE: mismo tono, ~150 tokens.
+    const msgLang = typeof o.messageLang === 'string' ? o.messageLang : null;
+    const effLang = msgLang || locale;
+    const langName = effLang === 'es' ? 'español' : (LANG_NAMES_IDENTITY[effLang] || effLang);
+    const liteIdentity = [
+      '<exodo_behavior>',
+      `Eres Éxodo, una IA rigurosa, honesta y elocuente. Plan del usuario: ${PLAN_LABELS[plan] || PLAN_LABELS.genesis}.`,
+      'NUNCA te presentas como empleado del MINERD ni de ninguna institución.',
+      'CERO muletillas (¡Por supuesto!, Con gusto) y CERO auto-presentaciones: empieza directo con el contenido útil.',
+      'Ante un saludo simple, responde con sobriedad y calidez en una línea (ej. Hola. ¿En qué te puedo colaborar hoy?).',
+      `Responde en ${langName}. Sé conciso.`,
+      '</exodo_behavior>',
+    ].join('\n');
+    return {
+      systemPrompt: liteIdentity,
+      version: '3.1.0-lite',
+      tokensEstimate: Math.ceil(liteIdentity.length / 4),
+      plan, subject, chunksUsed: 0,
+    };
+  }
+
   const sections = [
-    buildIdentitySection(plan, locale),
+    buildIdentitySection(plan, locale, o.messageLang),
     buildVisionCapabilitySection(),
     buildArtifactsAndWritingStandardSection(),
     isEducationalContext ? buildBaseNormativaSection() : null,
@@ -109,22 +135,16 @@ function buildSystemPrompt(opts) {
   };
 }
 
-function buildIdentitySection(plan, locale) {
+const LANG_NAMES_IDENTITY = {
+  en: 'inglés (English)', fr: 'francés (Français)', pt: 'portugués (Português)',
+  ht: 'criollo haitiano (Kreyòl Ayisyen)', de: 'alemán (Deutsch)', it: 'italiano (Italiano)',
+  ru: 'ruso (Русский)', zh: 'chino (中文)', ja: 'japonés (日本語)', ko: 'coreano (한국어)',
+  hi: 'hindi (हिन्दी)', ar: 'árabe (العربية)',
+};
+
+function buildIdentitySection(plan, locale, messageLang) {
   const planLabel = PLAN_LABELS[plan] || PLAN_LABELS.genesis;
-  const LANG_NAMES = {
-    en: 'inglés (English)',
-    fr: 'francés (Français)',
-    pt: 'portugués (Português)',
-    ht: 'criollo haitiano (Kreyòl Ayisyen)',
-    de: 'alemán (Deutsch)',
-    it: 'italiano (Italiano)',
-    ru: 'ruso (Русский)',
-    zh: 'chino (中文)',
-    ja: 'japonés (日本語)',
-    ko: 'coreano (한국어)',
-    hi: 'hindi (हिन्दी)',
-    ar: 'árabe (العربية)',
-  };
+  const LANG_NAMES = LANG_NAMES_IDENTITY;
   const langName = locale === 'es' ? 'español' : (LANG_NAMES[locale] || locale);
   return [
     '<exodo_behavior>',
@@ -134,9 +154,18 @@ function buildIdentitySection(plan, locale) {
     '- CERO AFILIACIONES INSTITUCIONALES PÚBLICAS: Nunca debe presentarse como empleado, trabajador ni representante oficial del MINERD ni de ninguna institución. Es un asistente de IA universal.',
     '- DOMINIO LATENTE (INTERNO): Posee una maestría técnica y analítica profunda en diseño curricular, planificaciones docentes, educación superior (maestrías, licenciaturas), marco legal y normativo, maquetación de software, y herramientas para maestros, estudiantes, juristas y profesionales. Aplica esta profundidad de forma natural y contextual según la demanda de la consulta, sin alardear de su arquitectura interna ni auto-clasificarse.',
     `Plan activo del usuario: ${planLabel}.`,
-    locale !== 'es'
-      ? `- IDIOMA DE RESPUESTA OBLIGATORIO: La interfaz del usuario está en ${langName}. Redacta TODA tu respuesta en ${langName}, sin importar que este system prompt esté escrito en español o que el historial contenga español. Solo conserva en su idioma original nombres propios, marcas y citas textuales.`
-      : '- IDIOMA DE RESPUESTA: Responde en español.',
+    (() => {
+      // DECISIÓN 30-ago: el idioma de la RESPUESTA sigue el idioma en que
+      // ESCRIBE el usuario (detectado), no el de la interfaz.
+      const msgLang = typeof messageLang === 'string' ? messageLang : null;
+      const target = msgLang || locale;
+      const targetName = target === 'es' ? 'español' : (LANG_NAMES[target] || target);
+      const uiName = locale === 'es' ? 'español' : (LANG_NAMES[locale] || locale);
+      if (msgLang && msgLang !== locale) {
+        return `- IDIOMA DE RESPUESTA OBLIGATORIO: aunque la interfaz esté en ${uiName}, el usuario escribió en ${targetName}: redacta TODA tu respuesta en ${targetName}. Solo conserva en su idioma original nombres propios y citas textuales.`;
+      }
+      return `- IDIOMA DE RESPUESTA OBLIGATORIO: La interfaz del usuario está en ${uiName}. Redacta TODA tu respuesta en ${targetName}, sin importar que este system prompt esté escrito en español. Solo conserva en su idioma original nombres propios, marcas y citas textuales.`;
+    })(),
     '</identity_and_stance>',
     '',
     '<critical_rules_tone_and_manner>',

@@ -43,6 +43,17 @@ class NotificationService {
         },
       );
       _initialized = true;
+      // Android 13+: pedir el permiso EN PRIMER PLANO al arrancar. Pedirlo
+      // desde background (al querer notificar) no muestra el diálogo y la
+      // notificación se pierde — causa de "las notificaciones no salen".
+      try {
+        final android = _plugin.resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin>();
+        if (android != null) {
+          final granted = await android.requestNotificationsPermission();
+          _permissionGranted = granted ?? false;
+        }
+      } catch (_) {}
     } catch (_) {}
   }
 

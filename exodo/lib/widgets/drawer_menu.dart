@@ -20,14 +20,12 @@ import 'chat/model_selector.dart';
 class _DrawerItem extends StatelessWidget {
   final Widget icon;
   final Widget title;
-  final Widget? subtitle;
   final VoidCallback onTap;
   final double horizontalPad;
 
   const _DrawerItem({
     required this.icon,
     required this.title,
-    this.subtitle,
     required this.onTap,
     required this.horizontalPad,
   });
@@ -39,7 +37,6 @@ class _DrawerItem extends StatelessWidget {
       contentPadding: EdgeInsets.symmetric(horizontal: horizontalPad),
       leading: icon,
       title: title,
-      subtitle: subtitle,
       onTap: onTap,
     );
   }
@@ -220,41 +217,6 @@ class _DrawerMenuState extends State<DrawerMenu> {
                                 state.toggleIncognito();
                               },
                             ),
-                            // Privacidad: guardar (o no) el historial en la nube.
-                            // Solo cuentas registradas — guests/incógnito ya son
-                            // efímeros por diseño y el toggle no les aplica.
-                            if (!state.isGuestUser)
-                              _DrawerItem(
-                                horizontalPad: hPad,
-                                icon: Icon(
-                                  state.cloudHistoryEnabled ? Icons.cloud_done_outlined : Icons.cloud_off_outlined,
-                                  size: s(20),
-                                  color: state.cloudHistoryEnabled ? textCol : ExodoColors.amber,
-                                ),
-                                title: Text(
-                                  AppI18n.of(context).t('settings.cloud_history'),
-                                  style: TextStyle(
-                                    fontFamily: 'AnthropicSans',
-                                    fontSize: s(14),
-                                    color: state.cloudHistoryEnabled ? textCol : ExodoColors.amber,
-                                    fontWeight: FontWeight.w600,
-                                    letterSpacing: -0.2,
-                                  ),
-                                ),
-                                subtitle: Text(
-                                  AppI18n.of(context).t('settings.cloud_history_desc'),
-                                  style: TextStyle(
-                                    fontFamily: 'AnthropicSans',
-                                    fontSize: s(10.5),
-                                    color: subTextCol,
-                                    height: 1.3,
-                                  ),
-                                ),
-                                onTap: () {
-                                  HapticFeedback.vibrate();
-                                  state.setCloudHistoryEnabled(!state.cloudHistoryEnabled);
-                                },
-                              ),
                             // [Punto 3] Expedientes es exclusivo de cuentas.
                             // Decisión de producto: en modo invitado el ítem
                             // se OCULTA por completo — sin opacidad reducida
@@ -979,6 +941,53 @@ class _ClaudeAccountModal {
                 child: Text(AppI18n.of(context).t('settings.title'), style: TextStyle(fontFamily: 'Syne', fontSize: 18, fontWeight: FontWeight.bold, color: textCol)),
               ),
               const SizedBox(height: 20),
+
+              // Privacidad: historial en la nube (decisión del usuario con
+              // consentimiento registrado en el primer login). Aquí puede
+              // cambiarla cuando quiera.
+              ListenableBuilder(
+                listenable: state,
+                builder: (context, _) {
+                  final cloudOn = state.cloudHistoryEnabled;
+                  return Container(
+                    margin: const EdgeInsets.only(bottom: 12),
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: cardBg,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: borderColor),
+                    ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                AppI18n.of(context).t('settings.cloud_history'),
+                                style: TextStyle(fontFamily: 'AnthropicSans', fontSize: 13.5, fontWeight: FontWeight.w600, color: cloudOn ? textCol : ExodoColors.amber),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                AppI18n.of(context).t('settings.cloud_history_desc'),
+                                style: TextStyle(fontFamily: 'AnthropicSans', fontSize: 10.5, height: 1.3, color: subTextCol),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Switch(
+                          value: cloudOn,
+                          activeThumbColor: ExodoColors.amber,
+                          onChanged: (v) {
+                            HapticFeedback.selectionClick();
+                            state.setCloudHistoryEnabled(v);
+                          },
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
 
               // Tarjeta superior: Correo + Etiqueta Free/Pro (sin "Want more Claude")
               Container(

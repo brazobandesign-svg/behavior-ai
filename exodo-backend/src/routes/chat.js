@@ -363,6 +363,69 @@ router.post('/', auth, guestLimit, planGuard, upload.array('files', 5), async (r
       return;
     }
 
+    // IMAGEN con sesión: generar en el chat (G1.1 3/día, XPi 25/día).
+    // Mismo enforce y contabilidad que /api/images/generate.
+    if (intent === 'IMAGEN' && !isGuest && !hasImages) {
+      const dailyImagesUsed = req.usage?.dailyImagesUsed || 0;
+      const dailyImagesLimit = req.usage?.dailyImagesLimit || 0;
+      if (dailyImagesLimit > 0 && dailyImagesUsed >= dailyImagesLimit) {
+        sendSse({ type: 'notice', code: 'image_daily_limit_reached' });
+        sendSse({ type: 'done', content: '', sources: [] });
+        res.end();
+        return;
+      }
+      try {
+        const { generateImage } = require('../services/imageGen');
+        // Limpiar el verbo: "genera una imagen de un gato" => "un gato"
+        const cleanPrompt = enhancedMessage
+          .replace(/^(por\s+favor,?\s*)?(genera|crea|hazme|haz|dibuja|pinta|ilustra|muestrame|muéstrame)\s+(me\s+)?(un|una|el|la|unos|unas)?\s*(imagen|foto|dibujo|ilustraci\w+)\s*(del|de|sobre|con)?\s*/i, '')
+          .trim() || enhancedMessage;
+        const img = await generateImage(cleanPrompt, { size: '1024*1024' });
+        // Contabilizar (diario en memoria + mensual en RPC)
+        try {
+          const { getMemUsageMap } = require('../middleware/planGuard');
+          const mem = getMemUsageMap().get(userId);
+          if (mem) {
+            const today = new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString().slice(0, 10);
+            if (mem.lastImageReset !== today) {
+              mem.dailyImagesUsed = 1;
+              mem.lastImageReset = today;
+            } else {
+              mem.dailyImagesUsed = (mem.dailyImagesUsed || 0) + 1;
+            }
+          }
+          const { updateTokenUsage } = require('../services/tokenCounter');
+          await updateTokenUsage(userId, 0, true, req.usage);
+        } catch (e) {
+          console.warn('[chat] uso de imagen no contabilizado:', e.message);
+        }
+        const md = `![imagen generada por Éxodo](${img.url})
+
+[Prompt: ${cleanPrompt}](${img.url})`;
+        if (conversationId && !isGuest && !anonymous) {
+          try {
+            await saveMessage(conversationId, 'user', message || '[Imagen solicitada]', { intent });
+            await saveMessage(conversationId, 'assistant', md, { intent: 'IMAGEN' });
+          } catch (e) {
+            console.error('[chat] saveMessage imagen falló:', e.message);
+          }
+        }
+        sendSse({ type: 'done', content: md, sources: [] });
+        res.end();
+        return;
+      } catch (imgErr) {
+        if (isClientAbortError(imgErr) || !clientConnected) {
+          try { res.end(); } catch (_) {}
+          return;
+        }
+        logInternalGatewayError(imgErr, { provider: 'dashscope', model: 'image', phase: 'chat-imagen' });
+        sendSse({ type: 'notice', code: 'image_generation_failed' });
+        sendSse({ type: 'done', content: '', sources: [] });
+        res.end();
+        return;
+      }
+    }
+
     // 3. Construir mensajes con contexto
     const messages = [
       ...history,
@@ -421,13 +484,26 @@ router.post('/', auth, guestLimit, planGuard, upload.array('files', 5), async (r
       }
     }
 
+    // PERF (TTFT): modo lite para conversación simple sin adjuntos ni RAG —
+    // identidad compacta (~110 tokens). Un "Hola" no debe pagar el prefill
+    // completo (~1,350 tokens).
+    const useLitePrompt =
+      !hasImages &&
+      intent === 'SIMPLE' &&
+      contextChunks.length === 0 &&
+      !subject &&
+      !req.body.conversationSubject &&
+      !isMinerdQuery(minerdContext);
+
     const { systemPrompt } = buildSystemPrompt({
       userPlan: plan,
       conversationSubject: subject || req.body.conversationSubject,
-      // Idioma de la interfaz del cliente (default 'es'). El modelo debe
-      // responder en este idioma aunque el system prompt esté en español.
+      // DECISIÓN 30-ago: la respuesta sigue el idioma EN QUE ESCRIBE el
+      // usuario (detectado); la interfaz es solo el fallback ante ambigüedad.
       userLocale: requestedLocale,
+      messageLang: detectMessageLang(enhancedMessage),
       contextChunks,
+      lite: useLitePrompt,
     });
 
     // CONTEXT PRUNING: ventana de 50 mensajes (~25 turnos). Las grandes IA no

@@ -42,7 +42,9 @@ const ALIBABA_CONFIG = {
 const PLAN_CONFIG = {
   free: {
     name: 'G1.1',
-    dailyTokensLimit: 6000,           // 6,000 tokens diarios (lo que promete la UI)
+    // Límites configurables por env (beta: se rebajan para probar la
+    // degradación; producción: 6000/50000 por defecto).
+    dailyTokensLimit: parseInt(process.env.TOKENS_LIMIT_FREE, 10) || 6000,
     maxOutputTokensNormal: 8192,
     monthlyVisionLimit: 1000,
     dailyImagesLimit: 3,              // G1.1: pocas imágenes al día
@@ -57,7 +59,7 @@ const PLAN_CONFIG = {
   pro: {
     name: 'XPi',
     priceUsd: 4.99,
-    dailyTokensLimit: 50000,          // 50,000 tokens diarios (lo que promete la UI)
+    dailyTokensLimit: parseInt(process.env.TOKENS_LIMIT_PRO, 10) || 50000,
     maxOutputTokens: 8192,
     monthlyVisionLimit: 2000,
     dailyImagesLimit: 25,             // XPi: 25 imágenes/día (antes 66/mes implícito)
