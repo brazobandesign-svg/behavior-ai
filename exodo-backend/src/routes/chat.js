@@ -374,12 +374,22 @@ router.post('/', auth, guestLimit, planGuard, upload.array('files', 5), async (r
         res.end();
         return;
       }
+      let imageHeartbeat = null;
       try {
         const { generateImage } = require('../services/imageGen');
         // Limpiar el verbo: "genera una imagen de un gato" => "un gato"
         const cleanPrompt = enhancedMessage
           .replace(/^(por\s+favor,?\s*)?(genera|crea|hazme|haz|dibuja|pinta|ilustra|muestrame|muéstrame)\s+(me\s+)?(un|una|el|la|unos|unas)?\s*(imagen|foto|dibujo|ilustraci\w+)\s*(del|de|sobre|con)?\s*/i, '')
           .trim() || enhancedMessage;
+
+        // UX #1 Keep-Alive: DashScope t2i tarda 8–12s sin emitir tokens. Avisar
+        // al cliente que la imagen está generándose y mantener vivo el canal
+        // SSE durante la espera (heartbeat específico de imagen cada 3s).
+        sendSse({ type: 'generating_image' });
+        imageHeartbeat = setInterval(() => {
+          if (clientConnected) sendSse({ type: 'generating_image' });
+        }, 3000);
+
         const img = await generateImage(cleanPrompt, { size: '1024*1024' });
         // Contabilizar (diario en memoria + mensual en RPC)
         try {
@@ -410,7 +420,8 @@ router.post('/', auth, guestLimit, planGuard, upload.array('files', 5), async (r
             console.error('[chat] saveMessage imagen falló:', e.message);
           }
         }
-        sendSse({ type: 'done', content: md, sources: [] });
+        sendSse({ type: 'chunk', content: md });
+        sendSse({ type: 'done', content: md, message: md, sources: [] });
         res.end();
         return;
       } catch (imgErr) {
@@ -423,6 +434,8 @@ router.post('/', auth, guestLimit, planGuard, upload.array('files', 5), async (r
         sendSse({ type: 'done', content: '', sources: [] });
         res.end();
         return;
+      } finally {
+        if (imageHeartbeat) clearInterval(imageHeartbeat);
       }
     }
 

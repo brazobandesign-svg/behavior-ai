@@ -7,6 +7,7 @@ list(APPEND FLUTTER_PLUGIN_LIST
   connectivity_plus
   file_selector_windows
   flutter_inappwebview_windows
+  gal
   passkeys_windows
   printing
   record_windows

@@ -20,6 +20,8 @@ import '../../data/artifacts/artifact_parser.dart';
 import '../artifacts/artifact_card.dart';
 import 'model_selector.dart';
 import 'exodo_thinking_indicator.dart';
+import 'image_generating_placeholder.dart';
+import 'image_viewer_screen.dart';
 
 bool _isDeviceEnglish(BuildContext context) {
   return AppI18n.of(context).localeCode == 'en';
@@ -1603,17 +1605,35 @@ class _AssistantContentWithArtifacts extends StatelessWidget {
             padding: const EdgeInsets.symmetric(vertical: 10),
             child: ClipRRect(
               borderRadius: BorderRadius.circular(14),
-              child: Image.network(
-                src,
-                fit: BoxFit.contain,
-                width: double.infinity,
-                errorBuilder: (context, error, stack) => SelectableText(
-                  config.alt ?? src,
-                  style: const TextStyle(
-                    fontFamily: 'AnthropicSans',
-                    fontSize: 13,
-                    color: ExodoColors.amber,
-                    decoration: TextDecoration.underline,
+              child: GestureDetector(
+                onTap: () {
+                  HapticFeedback.lightImpact();
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => ImageViewerScreen(imageUrl: src),
+                    ),
+                  );
+                },
+                child: Image.network(
+                  src,
+                  fit: BoxFit.contain,
+                  width: double.infinity,
+                  loadingBuilder: (context, child, loadingProgress) {
+                    if (loadingProgress == null) return child;
+                    final total = loadingProgress.expectedTotalBytes;
+                    final progress = total != null && total > 0
+                        ? loadingProgress.cumulativeBytesLoaded / total
+                        : null;
+                    return _ImageLoadingPlaceholder(progress: progress);
+                  },
+                  errorBuilder: (context, error, stack) => SelectableText(
+                    config.alt ?? src,
+                    style: const TextStyle(
+                      fontFamily: 'AnthropicSans',
+                      fontSize: 13,
+                      color: ExodoColors.amber,
+                      decoration: TextDecoration.underline,
+                    ),
                   ),
                 ),
               ),
@@ -1741,6 +1761,50 @@ class _SafeArtifactCard extends StatelessWidget {
         ),
       );
     }
+  }
+}
+
+/// Estado de carga de una imagen de red dentro del Markdown: shimmer + spinner
+/// (y % de progreso cuando el servidor reporta el tamaño total).
+class _ImageLoadingPlaceholder extends StatelessWidget {
+  final double? progress;
+  const _ImageLoadingPlaceholder({this.progress});
+
+  @override
+  Widget build(BuildContext context) {
+    return ExodoShimmer(
+      borderRadius: BorderRadius.circular(14),
+      child: SizedBox(
+        width: double.infinity,
+        height: 220,
+        child: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(
+                width: 28,
+                height: 28,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2.5,
+                  color: ExodoColors.amber,
+                ),
+              ),
+              if (progress != null) ...[
+                const SizedBox(height: 12),
+                Text(
+                  '${(progress! * 100).toStringAsFixed(0)}%',
+                  style: const TextStyle(
+                    fontFamily: 'AnthropicSans',
+                    fontSize: 12,
+                    color: ExodoColors.textSecondary,
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }
 

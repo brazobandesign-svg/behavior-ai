@@ -4,6 +4,9 @@
     <uses-permission android:name="android.permission.CAMERA"/>
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32"/>
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES"/>
+    <!-- Guardar imágenes generadas en la galería (gal): escribe vía MediaStore en Android 10+,
+         requiere WRITE_EXTERNAL_STORAGE solo en Android 9 e inferiores. -->
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="29"/>
     <!-- Notificaciones de respuesta lista (Android 13+) y respuesta en background -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
     <!-- Auto-actualización por APK directo (instalador nativo) -->

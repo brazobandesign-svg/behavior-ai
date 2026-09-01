@@ -13,6 +13,7 @@ import '../widgets/chat/chat_stage.dart';
 import '../widgets/chat/chat_composer.dart';
 import '../widgets/chat/message_bubble.dart';
 import '../widgets/chat/model_selector.dart';
+import '../widgets/chat/image_generating_placeholder.dart';
 import '../services/chat_service.dart';
 import '../services/supabase_service.dart';
 import '../services/notification_service.dart';
@@ -550,7 +551,9 @@ class _ChatMessagesListState extends State<ChatMessagesList> {
           if (msg.isThinking) {
             return RepaintBoundary(
               key: ValueKey('thinking-${msg.id}'),
-              child: ThinkingBubble(pulseAnim: widget.pulseAnim),
+              child: state.isGeneratingImage
+                  ? const ImageGeneratingPlaceholder()
+                  : ThinkingBubble(pulseAnim: widget.pulseAnim),
             );
           }
           return RepaintBoundary(

@@ -125,6 +125,11 @@ const Map<String, String> _es = <String, String>{
   // Localizado a 13 idiomas; clave aparte de 'chat.thinking' para no
   // romper el texto largo usado en toasts / banners.
   'chat.thinking_label': 'Pensando',
+  // Placeholder shimmer mientras se genera una imagen (t2i).
+  'chat.creating_image': 'Éxodo está creando tu imagen...',
+  'image.download': 'Descargar',
+  'image.saved': 'Imagen guardada en tu galería',
+  'image.save_error': 'No se pudo guardar la imagen',
 
   // Greetings (time-of-day)
   'greeting.morning': 'Buenos días',
@@ -424,6 +429,11 @@ const Map<String, String> _en = <String, String>{
   'chat.thinking': 'Exodo reasoning...',
   'chat.thinking_en': 'Exodo reasoning...',
   'chat.thinking_label': 'Thinking',
+  // Placeholder shimmer mientras se genera una imagen (t2i).
+  'chat.creating_image': 'Exodo is creating your image...',
+  'image.download': 'Download',
+  'image.saved': 'Image saved to your gallery',
+  'image.save_error': 'Could not save the image',
 
   'greeting.morning': 'Morning',
   'greeting.afternoon': 'Afternoon',
@@ -703,6 +713,11 @@ const Map<String, String> _fr = <String, String>{
   'chat.thinking': 'Exodo réfléchit...',
   'chat.thinking_en': 'Exodo reasoning...',
   'chat.thinking_label': 'Réflexion',
+  'chat.creating_image': 'Éxodo crée votre image...',
+  'image.download': 'Télécharger',
+  'image.saved': 'Image enregistrée dans votre galerie',
+  'image.save_error': 'Impossible d\'enregistrer l\'image',
+
 
   'greeting.morning': 'Bonjour',
   'greeting.afternoon': 'Bon après-midi',
@@ -910,6 +925,11 @@ const Map<String, String> _pt = <String, String>{
   'chat.edit_message': 'Editar mensagem',
   'chat.thinking': 'Exodo pensando...',
   'chat.thinking_label': 'Pensando',
+  'chat.creating_image': 'Éxodo está criando sua imagem...',
+  'image.download': 'Baixar',
+  'image.saved': 'Imagem salva na sua galeria',
+  'image.save_error': 'Não foi possível salvar a imagem',
+
   'chat.thinking_en': 'Exodo reasoning...',
 
   'greeting.morning': 'Bom dia',
@@ -1116,6 +1136,11 @@ const Map<String, String> _it = <String, String>{
   'chat.edit_message': 'Modifica messaggio',
   'chat.thinking': 'Exodo sta ragionando...',
   'chat.thinking_label': 'Pensando',
+  'chat.creating_image': 'Éxodo sta creando la tua immagine...',
+  'image.download': 'Scarica',
+  'image.saved': 'Immagine salvata nella tua galleria',
+  'image.save_error': 'Impossibile salvare l\'immagine',
+
   'chat.thinking_en': 'Exodo reasoning...',
 
   'greeting.morning': 'Buongiorno',
@@ -1320,6 +1345,11 @@ const Map<String, String> _de = <String, String>{
   'chat.placeholder_en': 'Reply to Exodo...',
   'chat.edit_message': 'Nachricht bearbeiten',
   'chat.thinking_label': 'Denke nach',
+  'chat.creating_image': 'Éxodo erstellt dein Bild...',
+  'image.download': 'Herunterladen',
+  'image.saved': 'Bild in der Galerie gespeichert',
+  'image.save_error': 'Bild konnte nicht gespeichert werden',
+
   'chat.thinking': 'Exodo denkt nach...',
   'chat.thinking_en': 'Exodo reasoning...',
 
@@ -1530,6 +1560,11 @@ final Map<String, String> _ru = <String, String>{
   'chat.thinking': 'Exodo думает...',
   'chat.thinking_en': 'Exodo reasoning...',
   'chat.thinking_label': 'Думаю',
+  'chat.creating_image': 'Éxodo создает ваше изображение...',
+  'image.download': 'Скачать',
+  'image.saved': 'Изображение сохранено в галерее',
+  'image.save_error': 'Не удалось сохранить изображение',
+
   'greeting.morning': 'Утренний кофе с Exodo',
   'greeting.afternoon': 'Продуктивный день',
   'greeting.evening': 'Добрый вечер',
@@ -1718,6 +1753,11 @@ final Map<String, String> _zh = <String, String>{
   'chat.thinking': 'Exodo 思考中...',
   'chat.thinking_en': 'Exodo reasoning...',
   'chat.thinking_label': '思考中',
+  'chat.creating_image': 'Éxodo 正在生成您的图片...',
+  'image.download': '下载',
+  'image.saved': '图片已保存到相册',
+  'image.save_error': '无法保存图片',
+
   'greeting.morning': '早安，来杯咖啡伴你思考',
   'greeting.afternoon': '高效的下午',
   'greeting.evening': '晚上好',
@@ -1890,6 +1930,11 @@ final Map<String, String> _ja = <String, String>{
   'chat.edit_message': 'メッセージを編集',
   'chat.thinking': 'Exodoが思考中...',
   'chat.thinking_label': '考え中',
+  'chat.creating_image': 'Éxodoが画像を生成しています...',
+  'image.download': 'ダウンロード',
+  'image.saved': 'ギャラリーに画像を保存しました',
+  'image.save_error': '画像を保存できませんでした',
+
   'chat.thinking_en': 'Exodo reasoning...',
   'greeting.morning': 'おはようございます',
   'greeting.afternoon': '充実した午後を',
@@ -2064,6 +2109,11 @@ final Map<String, String> _ar = <String, String>{
   'chat.edit_message': 'تعديل الرسالة',
   'chat.thinking': 'Exodo يفكر...',
   'chat.thinking_label': 'يفكر',
+  'chat.creating_image': 'يقوم إكسودو بإنشاء صورتك...',
+  'image.download': 'تنزيل',
+  'image.saved': 'تم حفظ الصورة في المعرض',
+  'image.save_error': 'تعذر حفظ الصورة',
+
   'chat.thinking_en': 'Exodo reasoning...',
   'greeting.morning': 'صباح الخير والقهوة مع Exodo',
   'greeting.afternoon': 'مساء مثمر',
@@ -2245,6 +2295,11 @@ final Map<String, String> _ko = <String, String>{
   'chat.edit_message': '메시지 수정',
   'chat.thinking': 'Exodo 생각 중...',
   'chat.thinking_label': '생각 중',
+  'chat.creating_image': 'Éxodo가 이미지를 생성하고 있습니다...',
+  'image.download': '다운로드',
+  'image.saved': '갤러리에 이미지가 저장되었습니다',
+  'image.save_error': '이미지를 저장할 수 없습니다',
+
   'chat.thinking_en': 'Exodo reasoning...',
   'greeting.morning': '상쾌한 아침, 커피와 함께',
   'greeting.afternoon': '생산적인 오후',
@@ -2416,6 +2471,11 @@ final Map<String, String> _hi = <String, String>{
   'chat.placeholder_en': 'Reply to Exodo...',
   'chat.edit_message': 'संदेश संपादित करें',
   'chat.thinking_label': 'सोच रहा है',
+  'chat.creating_image': 'Éxodo आपकी छवि बना रहा है...',
+  'image.download': 'डाउनलोड',
+  'image.saved': 'छवि आपकी गैलरी में सहेजी गई',
+  'image.save_error': 'छवि सहेजी नहीं जा सकी',
+
   'chat.thinking': 'Exodo सोच रहा है...',
   'chat.thinking_en': 'Exodo reasoning...',
   'greeting.morning': 'सुप्रभात, Exodo के साथ कॉफ़ी',
@@ -2597,6 +2657,11 @@ final Map<String, String> _ht = <String, String>{
   'chat.placeholder_en': 'Reply to Exodo...',
   'chat.edit_message': 'Modifye mesaj la',
   'chat.thinking_label': 'Ap reflechi',
+  'chat.creating_image': 'Éxodo ap kreye imaj ou a...',
+  'image.download': 'Telechaje',
+  'image.saved': 'Imaj la anrejistre nan galri ou',
+  'image.save_error': 'Pa t kapab anrejistre imaj la',
+
   'chat.thinking': 'Exodo ap reflechi...',
   'chat.thinking_en': 'Exodo reasoning...',
   'greeting.morning': 'Bonjou',

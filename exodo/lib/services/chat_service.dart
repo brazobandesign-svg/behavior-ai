@@ -213,6 +213,7 @@ class ChatService {
     GenerationSession? session, // [F1] Sesión atómica de generación
     void Function(Map<String, dynamic> meta)? onMeta,
     void Function(String code)? onNotice, // avisos estructurados del backend
+    void Function()? onGeneratingImage, // [UX imagen] backend avisa que empieza el t2i
     required void Function(String chunk) onChunk,
     required void Function(String fullText, List<Source> sources) onComplete,
     required void Function(String error) onError,
@@ -387,6 +388,10 @@ class ChatService {
                     }
                   } else if (type == 'heartbeat') {
                     // [Punto 41+42] Heartbeat del backend para mantener viva la conexión SSE.
+                  } else if (type == 'generating_image') {
+                    // [UX #1] El backend avisa que está esperando la imagen de
+                    // DashScope (8–12s). La app muestra el placeholder shimmer.
+                    onGeneratingImage?.call();
                   } else if (type == 'chunk') {
                     final content = data['content'] as String?;
                     if (content != null && content.isNotEmpty) {
@@ -399,7 +404,11 @@ class ChatService {
                     // crear una burbuja assistant VACÍA después del error.
                     if (errorSurfaced) return;
                     isCompleted = true;
-                    final msg = data['message'] as String? ?? fullText;
+                    final doneContent = data['content'] as String? ??
+                        data['message'] as String?;
+                    final effectiveText = fullText.isNotEmpty
+                        ? fullText
+                        : (doneContent ?? '');
                     final rawSources = data['sources'];
                     if (rawSources is List) {
                       sources = rawSources
@@ -411,15 +420,15 @@ class ChatService {
                           )
                           .toList();
                     }
-                    _enrichSources(msg, fullText, sources)
+                    _enrichSources(doneContent ?? effectiveText, effectiveText, sources)
                         .then((enriched) {
                           if (!activeSession.isCancelled) {
-                            onComplete(fullText, enriched);
+                            onComplete(effectiveText, enriched);
                           }
                         })
                         .catchError((_) {
                           if (!activeSession.isCancelled) {
-                            onComplete(fullText, sources);
+                            onComplete(effectiveText, sources);
                           }
                         });
                   } else if (type == 'error') {

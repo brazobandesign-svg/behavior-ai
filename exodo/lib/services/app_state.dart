@@ -65,6 +65,9 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
   bool get isPro => profile?.plan == 'hazak';
   bool isThinking = false;
   bool isGenerating = false;
+  // [UX #1] El backend avisó (SSE 'generating_image') que está esperando t2i.
+  // Mientras sea true, la burbuja thinking muestra el shimmer de imagen.
+  bool isGeneratingImage = false;
   String? errorMessage;
   int guestMessagesSessionCount = 0;
 
@@ -1397,6 +1400,7 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
 
     isThinking = true;
     isGenerating = true;
+    isGeneratingImage = false;
     final thinkingMsg = ChatMessage(
       id: 'thinking',
       conversationId: activeConversation?.id ?? 'guest',
@@ -1532,6 +1536,7 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
         ),
       );
       isGenerating = false;
+      isGeneratingImage = false;
       _endStreamingMessage();
       HapticFeedback.selectionClick();
       notifyListeners();
@@ -1577,6 +1582,13 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
           }
         },
         onNotice: handleNotice,
+        onGeneratingImage: () {
+          if (session.isCancelled || _activeSession?.id != session.id) return;
+          if (noticeShown) return;
+          // [UX #1] Fin del "thinking" genérico: mostrar shimmer de imagen.
+          isGeneratingImage = true;
+          notifyListeners();
+        },
         onChunk: (chunk) {
           if (session.isCancelled || _activeSession?.id != session.id) return;
           if (noticeShown) return;
@@ -1590,12 +1602,14 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
           if (noticeShown) {
             _endStreamingMessage();
             isGenerating = false;
+            isGeneratingImage = false;
             HapticFeedback.vibrate();
             notifyListeners();
             return;
           }
           _endStreamingMessage();
           isGenerating = false;
+          isGeneratingImage = false;
           if (!isGuestUser) {
             tokensUsed += (fullText.length ~/ 3) + 35;
           }
@@ -1664,6 +1678,7 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
             currentMessages.removeWhere((m) => m.id == msgId || m.isThinking);
             isThinking = false;
             isGenerating = false;
+            isGeneratingImage = false;
             errorMessage = err.replaceAll('Exception: ', '');
             currentMessages.add(
               ChatMessage(
@@ -1685,6 +1700,7 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
       currentMessages.removeWhere((m) => m.id == msgId || m.isThinking);
       isThinking = false;
       isGenerating = false;
+      isGeneratingImage = false;
       errorMessage = e.toString().replaceAll('Exception: ', '');
       currentMessages.add(
         ChatMessage(
@@ -1803,6 +1819,7 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
 
     isThinking = true;
     isGenerating = true;
+    isGeneratingImage = false;
     final thinkingMsg = ChatMessage(
       id: 'thinking',
       conversationId: capturedConvId ?? 'guest',
@@ -1924,6 +1941,7 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
     }
     isThinking = false;
     isGenerating = false;
+    isGeneratingImage = false;
     notifyListeners();
   }
 
