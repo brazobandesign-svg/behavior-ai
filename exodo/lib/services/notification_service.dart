@@ -43,17 +43,12 @@ class NotificationService {
         },
       );
       _initialized = true;
-      // Android 13+: pedir el permiso EN PRIMER PLANO al arrancar. Pedirlo
-      // desde background (al querer notificar) no muestra el diálogo y la
-      // notificación se pierde — causa de "las notificaciones no salen".
-      try {
-        final android = _plugin.resolvePlatformSpecificImplementation<
-            AndroidFlutterLocalNotificationsPlugin>();
-        if (android != null) {
-          final granted = await android.requestNotificationsPermission();
-          _permissionGranted = granted ?? false;
-        }
-      } catch (_) {}
+      // Android 13+ POST_NOTIFICATIONS: NO se solicita aquí. initialize()
+      // corre en background antes del primer frame y sin una actividad en
+      // primer plano, por lo que el diálogo del sistema no llega a mostrarse
+      // (causa de "las notificaciones no salen" en instalaciones limpias).
+      // El permiso se pide en el primer frame visible desde main.dart vía
+      // ensurePermission().
     } catch (_) {}
   }
 

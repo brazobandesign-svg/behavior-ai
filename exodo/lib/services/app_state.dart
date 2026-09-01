@@ -247,6 +247,22 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
     onCancelVoiceRecording?.call();
   }
 
+  /// Cita de texto seleccionada en la respuesta para "Preguntar a Éxodo"
+  String? quotedSnippet;
+  VoidCallback? onRequestComposerFocus;
+
+  void setQuotedSnippet(String snippet) {
+    quotedSnippet = snippet.trim();
+    onRequestComposerFocus?.call();
+    notifyListeners();
+  }
+
+  void clearQuotedSnippet() {
+    if (quotedSnippet == null) return;
+    quotedSnippet = null;
+    notifyListeners();
+  }
+
   /// [F1] Sesión activa de streaming LLM: garantiza aislamiento atómico y descarta carreras
   GenerationSession? _activeSession;
 
@@ -1319,7 +1335,18 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
     String text, {
     List<Attachment>? attachments,
   }) async {
-    if (text.trim().isEmpty && (attachments == null || attachments.isEmpty)) return;
+    var effectiveText = text;
+    if (quotedSnippet != null && quotedSnippet!.isNotEmpty) {
+      final q = quotedSnippet!;
+      clearQuotedSnippet();
+      if (effectiveText.trim().isEmpty) {
+        effectiveText = '> $q';
+      } else {
+        effectiveText = '> $q\n\n$effectiveText';
+      }
+    }
+
+    if (effectiveText.trim().isEmpty && (attachments == null || attachments.isEmpty)) return;
     final isGuest = isGuestUser;
     errorMessage = null;
 
@@ -1335,14 +1362,14 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
 
     // 1. AÑADIR MENSAJE DE USUARIO Y THINKING BUBBLE A LA UI INMEDIATAMENTE (Optimistic UI 0 ms lag)
     currentMessages.removeWhere((m) => m.id == 'error');
-    final userTokensEst = (text.length ~/ 3) + 15;
+    final userTokensEst = (effectiveText.length ~/ 3) + 15;
     tokensUsed += userTokensEst;
     tokensResetTime ??= DateTime.now().add(const Duration(hours: 24));
     final userMsg = ChatMessage(
       id: 'user-${DateTime.now().microsecondsSinceEpoch}',
       conversationId: activeConversation?.id ?? 'guest',
       role: 'user',
-      content: text,
+      content: effectiveText,
       attachments: attachments ?? const [],
       createdAt: DateTime.now(),
     );

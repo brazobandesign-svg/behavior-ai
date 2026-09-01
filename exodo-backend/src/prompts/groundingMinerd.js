@@ -154,7 +154,7 @@ const APP_KNOWLEDGE = [
   '- Exportar: los chats largos permiten "Exportar contexto" a HTML para continuarlos en un chat nuevo.',
   '- Para cambiar de plan o ver consumo: menú lateral > Settings > Billing.',
   '</exodo_app_knowledge>',
-].join(chr(10));
+].join('\n');
 
 function buildIdentitySection(plan, locale, messageLang) {
   const planLabel = PLAN_LABELS[plan] || PLAN_LABELS.genesis;

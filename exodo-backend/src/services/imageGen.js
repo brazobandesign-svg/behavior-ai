@@ -17,16 +17,25 @@ const { ALIBABA_CONFIG } = require('../config/models');
 const IMAGE_GEN_URL = 'https://dashscope-intl.aliyuncs.com/api/v1/services/aigc/text2image/image-synthesis';
 const TASKS_URL = 'https://dashscope-intl.aliyuncs.com/api/v1/tasks/';
 
-// 30-ago: verificado contra el Free Tier REAL del dueño. El único modelo
-// de generación de imagen con cuota es wan2.2-kf2v-flash (50 llamadas
-// TOTALES, expira 2026-10-24). Los qwen-image* NO están habilitados y
-// devolvían 400/404 silenciosos.
+// Cadena de respaldo alineada con models.js y con el motor de lote
+// scripts/dashscope-batch-image-generator.js: los 6 modelos t2i activos en
+// el Free Tier del dueño. El primario es wan2.2-t2i-flash.
 const ACTIVE_IMAGE_MODELS = [
-  ALIBABA_CONFIG.models.imageModel || 'wan2.2-kf2v-flash',
+  ALIBABA_CONFIG.models.imageModel || 'wan2.2-t2i-flash',
+  ALIBABA_CONFIG.models.imageFallback1 || 'wan2.1-t2i-turbo',
+  ALIBABA_CONFIG.models.imageFallback2 || 'wan2.2-t2i-plus',
+  ALIBABA_CONFIG.models.imageFallback3 || 'wan2.1-t2i-plus',
+  ALIBABA_CONFIG.models.imageFallback4 || 'qwen-image',
+  ALIBABA_CONFIG.models.imageFallback5 || 'qwen-image-plus',
 ];
 
 function getApiKey() {
-  return process.env.DASHSCOPE_API_KEY ||
+  // DASHSCOPE_QWEN_FREE es un alias OPCIONAL (si el dueño separa claves por
+  // cuota). Hoy NO existe ni en .env ni en Cloud Run: la clave real de
+  // imagen/t2i es DASHSCOPE_API_KEY (probada en vivo 01-sep: tarea t2i
+  // SUCCEEDED con la cadena wan2.2-t2i-flash).
+  return process.env.DASHSCOPE_QWEN_FREE ||
+         process.env.DASHSCOPE_API_KEY ||
          process.env.ALIBABA_API_KEY ||
          process.env.ALIBABA_FREE_KEY ||
          ALIBABA_CONFIG.apiKey;

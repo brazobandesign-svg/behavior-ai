@@ -1396,7 +1396,7 @@ class _EcoModeNotice extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(top: 8.0),
+      padding: const EdgeInsets.only(top: 12.0, bottom: 24.0),
       child: GestureDetector(
         onTap: () {
           HapticFeedback.lightImpact();
@@ -1531,13 +1531,44 @@ class _AssistantContentWithArtifacts extends StatelessWidget {
         }
       }
 
-      if (segments.isEmpty) {
-        return _buildMarkdown(context, message.content, isStreaming: isStreaming);
-      }
+      final Widget contentWidget = segments.isEmpty
+          ? _buildMarkdown(context, message.content, isStreaming: isStreaming)
+          : Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: segments,
+            );
 
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: segments,
+      return SelectionArea(
+        contextMenuBuilder: (context, selectableRegionState) {
+          final defaultButtons = selectableRegionState.contextMenuButtonItems;
+          final askLabel = AppI18n.of(context).t('chat.ask_exodo');
+          final buttonItems = <ContextMenuButtonItem>[
+            ContextMenuButtonItem(
+              type: ContextMenuButtonType.custom,
+              label: askLabel.isNotEmpty ? askLabel : 'Preguntar a Éxodo',
+              onPressed: () async {
+                selectableRegionState.hideToolbar();
+                HapticFeedback.lightImpact();
+                // Copiar por el canal oficial y leer el portapapeles DESPUÉS.
+                // Reusar el copyButton síncrono provocaba colisión de eventos
+                // y ejecutaba "copiar" en lugar de capturar la cita.
+                selectableRegionState.copySelection(SelectionChangedCause.toolbar);
+                await Future.delayed(const Duration(milliseconds: 50));
+                final clipData = await Clipboard.getData(Clipboard.kTextPlain);
+                final text = clipData?.text ?? '';
+                if (text.trim().isNotEmpty && context.mounted) {
+                  context.read<AppState>().setQuotedSnippet(text.trim());
+                }
+              },
+            ),
+            ...defaultButtons,
+          ];
+          return AdaptiveTextSelectionToolbar.buttonItems(
+            anchors: selectableRegionState.contextMenuAnchors,
+            buttonItems: buttonItems,
+          );
+        },
+        child: contentWidget,
       );
     } catch (e, stack) {
       debugPrint('[AssistantContentWithArtifacts] Parsing error: $e\n$stack');
@@ -1565,6 +1596,29 @@ class _AssistantContentWithArtifacts extends StatelessWidget {
             final uri = Uri.tryParse(href);
             if (uri != null) launchUrl(uri, mode: LaunchMode.externalApplication);
           }
+        },
+        sizedImageBuilder: (config) {
+          final src = config.uri.toString();
+          return Padding(
+            padding: const EdgeInsets.symmetric(vertical: 10),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(14),
+              child: Image.network(
+                src,
+                fit: BoxFit.contain,
+                width: double.infinity,
+                errorBuilder: (context, error, stack) => SelectableText(
+                  config.alt ?? src,
+                  style: const TextStyle(
+                    fontFamily: 'AnthropicSans',
+                    fontSize: 13,
+                    color: ExodoColors.amber,
+                    decoration: TextDecoration.underline,
+                  ),
+                ),
+              ),
+            ),
+          );
         },
         builders: {
           'pre': _PreElementBuilder(context, isLight, copyLabel, copiedLabel),

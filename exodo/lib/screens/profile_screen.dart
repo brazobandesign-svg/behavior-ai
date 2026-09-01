@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../services/app_state.dart';
+import '../services/context_export_service.dart';
 import '../l10n/app_i18n.dart';
 import '../theme/exodo_theme.dart';
 
@@ -171,6 +172,29 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
+  Future<void> _exportMyData(BuildContext context, AppState state) async {
+    final t = AppI18n.of(context).t;
+    final messenger = ScaffoldMessenger.of(context);
+    var count = 0;
+    for (final conv in state.conversations) {
+      final msgs = await state.localChatRepo.getMessages(conv.id);
+      if (msgs.isNotEmpty) count++;
+    }
+    if (count == 0) {
+      messenger.showSnackBar(SnackBar(content: Text(t('banner.context_default_title'))));
+      return;
+    }
+    await ContextExportService.exportAllConversations(
+      locale: state.effectiveLocale,
+      conversations: state.conversations,
+      messagesOf: (convId) => state.localChatRepo.getMessages(convId),
+      transcriptLabel: t('banner.context_transcript'),
+      roleUserLabel: t('banner.context_role_user'),
+      roleAiLabel: t('banner.context_role_ai'),
+      reimportHint: t('banner.context_reimport_hint'),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final state = Provider.of<AppState>(context);
@@ -295,6 +319,26 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           AppI18n.of(context).t('profile.update_btn'),
                           style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.bold),
                         ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Export Data: HTML con todo el historial (portabilidad).
+                    SizedBox(
+                      width: double.infinity,
+                      height: 52,
+                      child: OutlinedButton.icon(
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: ExodoColors.amber,
+                          side: const BorderSide(color: ExodoColors.amber),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                        ),
+                        icon: const Icon(Icons.download_rounded, size: 20),
+                        label: Text(
+                          AppI18n.of(context).t('settings.export_data'),
+                          style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.w600),
+                        ),
+                        onPressed: () => _exportMyData(context, state),
                       ),
                     ),
                   ],

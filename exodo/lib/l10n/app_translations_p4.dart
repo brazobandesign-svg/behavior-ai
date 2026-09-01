@@ -15,6 +15,7 @@ const Map<String, String> kP4Es = <String, String>{
   'banner.context_reimport_hint':
       'Para continuar en un chat nuevo: adjunta o pega este archivo HTML y la IA retomará el contexto completo.',
   'settings.cloud_history': 'Guardar historial en la nube',
+  'settings.export_data': 'Exportar datos',
   'settings.cloud_history_desc': 'Desactívalo para máxima privacidad: tus chats se guardarán solo en este dispositivo (nunca en servidores) y seguirán disponibles aquí con todo su contexto.',
   'notification.response_ready': 'Ver respuesta de Éxodo',
   'notification.update_ready_body': 'Nueva versión descargada. Toca para instalarla.',
@@ -31,6 +32,7 @@ const Map<String, String> kP4Es = <String, String>{
   'consent.cloud': 'Acepto guardar mis chats en la nube. Behavior podrá leerlos únicamente para mejorar la herramienta.',
   'notice.image_daily_limit_reached': 'Alcanzaste tu límite de imágenes por hoy. Se renueva mañana.',
   'notice.image_generation_failed': 'No se pudo generar la imagen. Inténtalo de nuevo en unos momentos.',
+  'chat.ask_exodo': 'Preguntar a Éxodo',
 };
 
 const Map<String, String> kP4En = <String, String>{
@@ -44,6 +46,7 @@ const Map<String, String> kP4En = <String, String>{
   'banner.context_reimport_hint':
       'To continue in a new chat: attach or paste this HTML file and the AI will pick up the full context.',
   'settings.cloud_history': 'Save history to cloud',
+  'settings.export_data': 'Export data',
   'settings.cloud_history_desc': 'Turn off for maximum privacy: your chats will be saved only on this device (never on servers) and remain available here with their full context.',
   'notification.response_ready': 'View Éxodo\'s reply',
   'notification.update_ready_body': 'New version downloaded. Tap to install it.',
@@ -60,6 +63,7 @@ const Map<String, String> kP4En = <String, String>{
   'consent.cloud': 'I agree to store my chats in the cloud. Behavior may read them only to improve the tool.',
   'notice.image_daily_limit_reached': 'You\'ve reached your image limit for today. It renews tomorrow.',
   'notice.image_generation_failed': 'The image couldn\'t be generated. Try again in a few moments.',
+  'chat.ask_exodo': 'Ask Éxodo',
 };
 
 const Map<String, String> kP4Fr = <String, String>{
@@ -73,6 +77,7 @@ const Map<String, String> kP4Fr = <String, String>{
   'banner.context_reimport_hint':
       'Pour continuer dans un nouveau chat : joignez ou collez ce fichier HTML et l\'IA reprendra tout le contexte.',
   'settings.cloud_history': 'Enregistrer l\'historique dans le cloud',
+  'settings.export_data': 'Exporter les données',
   'settings.cloud_history_desc': 'Désactivez pour une confidentialité maximale : vos conversations seront enregistrées uniquement sur cet appareil (jamais sur des serveurs) et resteront disponibles ici avec tout leur contexte.',
   'notification.response_ready': 'Voir la réponse d\'Éxodo',
   'notification.update_ready_body': 'Nouvelle version téléchargée. Touchez pour l\'installer.',
@@ -89,6 +94,7 @@ const Map<String, String> kP4Fr = <String, String>{
   'consent.cloud': 'J\'accepte de stocker mes discussions dans le cloud. Behavior pourra les lire uniquement pour améliorer l\'outil.',
   'notice.image_daily_limit_reached': 'Vous avez atteint votre limite d\'images pour aujourd\'hui. Elle se renouvelle demain.',
   'notice.image_generation_failed': 'L\'image n\'a pas pu être générée. Réessayez dans quelques instants.',
+  'chat.ask_exodo': 'Demander à Éxodo',
 };
 
 const Map<String, String> kP4Ht = <String, String>{
@@ -102,6 +108,7 @@ const Map<String, String> kP4Ht = <String, String>{
   'banner.context_reimport_hint':
       'Pou kontinye nan yon nouvo chat: mete oswa kole fichye HTML sa a epi IA a pral pran tout kontèks la.',
   'settings.cloud_history': 'Kenbe istwa diskisyon an nan kloud la',
+  'settings.export_data': 'Ekspòte done yo',
   'settings.cloud_history_desc': 'Fèmen l pou privasite maksimòm: diskisyon ou yo ap konsève sèlman sou aparèy sa a (pa janm nan sèvè) epi yo ap disponib la a ak tout kontèks yo.',
   'notification.response_ready': 'Gade repons Éxodo',
   'notification.update_ready_body': 'Nouvo vèsyon telechaje. Touche pou enstale l.',
@@ -118,6 +125,7 @@ const Map<String, String> kP4Ht = <String, String>{
   'consent.cloud': 'Mwen dakte pou yo kenbe diskisyon m nan kloud. Behavior ka li yo sèlman pou amelore zouti a.',
   'notice.image_daily_limit_reached': 'Ou rive nan limit imaj ou pou jodi a. Li renouye demen.',
   'notice.image_generation_failed': 'Nou pa t ka jeneré imaj la. Eseye ankò nan yon ti moman.',
+  'chat.ask_exodo': 'Mande Éxodo',
 };
 
 const Map<String, String> kP4Pt = <String, String>{
@@ -131,6 +139,7 @@ const Map<String, String> kP4Pt = <String, String>{
   'banner.context_reimport_hint':
       'Para continuar num novo chat: anexe ou cole este arquivo HTML e a IA retomará todo o contexto.',
   'settings.cloud_history': 'Salvar histórico na nuvem',
+  'settings.export_data': 'Exportar dados',
   'settings.cloud_history_desc': 'Desative para privacidade máxima: suas conversas serão salvas apenas neste aparelho (nunca em servidores) e continuarão disponíveis aqui com todo o contexto.',
   'notification.response_ready': 'Ver a resposta do Éxodo',
   'notification.update_ready_body': 'Nova versão baixada. Toque para instalá-la.',
@@ -147,6 +156,7 @@ const Map<String, String> kP4Pt = <String, String>{
   'consent.cloud': 'Aceito armazenar meus chats na nuvem. A Behavior poderá lê-los apenas para melhorar a ferramenta.',
   'notice.image_daily_limit_reached': 'Você atingiu seu limite de imagens por hoje. Renova amanhã.',
   'notice.image_generation_failed': 'Não foi possível gerar a imagem. Tente novamente em alguns instantes.',
+  'chat.ask_exodo': 'Perguntar ao Éxodo',
 };
 
 const Map<String, String> kP4It = <String, String>{
@@ -160,6 +170,7 @@ const Map<String, String> kP4It = <String, String>{
   'banner.context_reimport_hint':
       'Per continuare in una nuova chat: allega o incolla questo file HTML e l\'IA riprenderà tutto il contesto.',
   'settings.cloud_history': 'Salva cronologia nel cloud',
+  'settings.export_data': 'Esporta dati',
   'settings.cloud_history_desc': 'Disattiva per la massima privacy: le tue conversazioni saranno salvate solo su questo dispositivo (mai sui server) e resteranno disponibili qui con tutto il loro contesto.',
   'notification.response_ready': 'Vedi la risposta di Éxodo',
   'notification.update_ready_body': 'Nuova versione scaricata. Tocca per installarla.',
@@ -176,6 +187,7 @@ const Map<String, String> kP4It = <String, String>{
   'consent.cloud': 'Accetto di salvare le mie chat nel cloud. Behavior potrà leggerle solo per migliorare lo strumento.',
   'notice.image_daily_limit_reached': 'Hai raggiunto il tuo limite di immagini per oggi. Si rinnova domani.',
   'notice.image_generation_failed': 'Impossibile generare l\'immagine. Riprova tra qualche istante.',
+  'chat.ask_exodo': 'Chiedi a Éxodo',
 };
 
 const Map<String, String> kP4De = <String, String>{
@@ -189,6 +201,7 @@ const Map<String, String> kP4De = <String, String>{
   'banner.context_reimport_hint':
       'Um in einem neuen Chat fortzufahren: Hänge diese HTML-Datei an oder füge sie ein — die KI übernimmt den vollständigen Kontext.',
   'settings.cloud_history': 'Verlauf in der Cloud speichern',
+  'settings.export_data': 'Daten exportieren',
   'settings.cloud_history_desc': 'Für maximale Privatsphäre deaktivieren: Deine Chats werden nur auf diesem Gerät gespeichert (nie auf Servern) und bleiben hier mit ihrem gesamten Kontext verfügbar.',
   'notification.response_ready': 'Éxodos Antwort ansehen',
   'notification.update_ready_body': 'Neue Version heruntergeladen. Zum Installieren tippen.',
@@ -205,6 +218,7 @@ const Map<String, String> kP4De = <String, String>{
   'consent.cloud': 'Ich bin damit einverstanden, meine Chats in der Cloud zu speichern. Behavior darf sie nur zur Verbesserung des Tools lesen.',
   'notice.image_daily_limit_reached': 'Du hast dein heutiges Bildlimit erreicht. Es erneuert sich morgen.',
   'notice.image_generation_failed': 'Das Bild konnte nicht erstellt werden. Versuche es in wenigen Momenten erneut.',
+  'chat.ask_exodo': 'Éxodo fragen',
 };
 
 const Map<String, String> kP4Ru = <String, String>{
@@ -218,6 +232,7 @@ const Map<String, String> kP4Ru = <String, String>{
   'banner.context_reimport_hint':
       'Чтобы продолжить в новом чате: прикрепите или вставьте этот HTML-файл — ИИ подхватит весь контекст.',
   'settings.cloud_history': 'Сохранять историю в облаке',
+  'settings.export_data': 'Экспортировать данные',
   'settings.cloud_history_desc': 'Отключите для максимальной конфиденциальности: ваши чаты будут сохраняться только на этом устройстве (никогда на серверах) и останутся доступны здесь со всем контекстом.',
   'notification.response_ready': 'Открыть ответ Éxodo',
   'notification.update_ready_body': 'Новая версия загружена. Нажмите, чтобы установить.',
@@ -234,6 +249,7 @@ const Map<String, String> kP4Ru = <String, String>{
   'consent.cloud': 'Согласен хранить свои чаты в облаке. Behavior может читать их только для улучшения инструмента.',
   'notice.image_daily_limit_reached': 'Вы достигли дневного лимита изображений. Он обновится завтра.',
   'notice.image_generation_failed': 'Не удалось сгенерировать изображение. Попробуйте ещё раз через несколько мгновений.',
+  'chat.ask_exodo': 'Спросить у Éxodo',
 };
 
 const Map<String, String> kP4Zh = <String, String>{
@@ -246,6 +262,7 @@ const Map<String, String> kP4Zh = <String, String>{
   'banner.context_role_ai': 'Éxodo',
   'banner.context_reimport_hint': '要在新对话中继续：附加或粘贴此 HTML 文件，AI 将接管完整上下文。',
   'settings.cloud_history': '将历史记录保存到云端',
+  'settings.export_data': '导出数据',
   'settings.cloud_history_desc': '关闭以获得最大隐私：您的对话将仅保存在本设备上（绝不保存在服务器上），并在此处保留完整上下文。',
   'notification.response_ready': '查看 Éxodo 的回复',
   'notification.update_ready_body': '新版本已下载，点按即可安装。',
@@ -262,6 +279,7 @@ const Map<String, String> kP4Zh = <String, String>{
   'consent.cloud': '我同意将我的聊天保存在云端。Behavior 仅可为改进工具而阅读它们。',
   'notice.image_daily_limit_reached': '你已达到今日的图片上限，明天重置。',
   'notice.image_generation_failed': '无法生成图片，请稍后再试。',
+  'chat.ask_exodo': '向 Éxodo 提问',
 };
 
 const Map<String, String> kP4Ja = <String, String>{
@@ -275,6 +293,7 @@ const Map<String, String> kP4Ja = <String, String>{
   'banner.context_reimport_hint':
       '新しいチャットで続けるには：このHTMLファイルを添付・貼り付けすると、AIが完全な文脈を引き継ぎます。',
   'settings.cloud_history': '履歴をクラウドに保存',
+  'settings.export_data': 'データを書き出す',
   'settings.cloud_history_desc': 'オフにすると最大限のプライバシーが得られます：チャットはこの端末にのみ保存され（サーバーには保存されません）、文脈ごとここで引き続き利用できます。',
   'notification.response_ready': 'Éxodoの返信を見る',
   'notification.update_ready_body': '新バージョンをダウンロードしました。タップしてインストール。',
@@ -291,6 +310,7 @@ const Map<String, String> kP4Ja = <String, String>{
   'consent.cloud': 'チャットをクラウドに保存することに同意します。Behaviorはツール改善のためのみに閲覧できます。',
   'notice.image_daily_limit_reached': '本日の画像上限に達しました。明日リセットされます。',
   'notice.image_generation_failed': '画像を生成できませんでした。少し後にもう一度お試しください。',
+  'chat.ask_exodo': 'Éxodoに質問',
 };
 
 const Map<String, String> kP4Ar = <String, String>{
@@ -303,6 +323,7 @@ const Map<String, String> kP4Ar = <String, String>{
   'banner.context_role_ai': 'Éxodo',
   'banner.context_reimport_hint': 'للمتابعة في محادثة جديدة: أرفق ملف HTML هذا أو الصقه وسيكمل الذكاء الاصطناعي السياق كاملاً.',
   'settings.cloud_history': 'حفظ السجل في السحابة',
+  'settings.export_data': 'تصدير البيانات',
   'settings.cloud_history_desc': 'أوقفه لأقصى خصوصية: ستُحفظ محادثاتك على هذا الجهاز فقط (وليس على أي خادم) وستبقى متاحة هنا بسياقها الكامل.',
   'notification.response_ready': 'عرض رد Éxodo',
   'notification.update_ready_body': 'تم تنزيل الإصدار الجديد. انقر لتثبيته.',
@@ -319,6 +340,7 @@ const Map<String, String> kP4Ar = <String, String>{
   'consent.cloud': 'أوافق على تخزين محادثاتي في السحابة. يمكن لـ Behavior قراءتها فقط لتحسين الأداة.',
   'notice.image_daily_limit_reached': 'لقد وصلت إلى حد الصور لليوم. يتجدد غداً.',
   'notice.image_generation_failed': 'تعذر إنشاء الصورة. حاول مجدداً بعد قليل.',
+  'chat.ask_exodo': 'اسأل Éxodo',
 };
 
 const Map<String, String> kP4Ko = <String, String>{
@@ -331,6 +353,7 @@ const Map<String, String> kP4Ko = <String, String>{
   'banner.context_role_ai': 'Éxodo',
   'banner.context_reimport_hint': '새 채팅에서 계속하려면: 이 HTML 파일을 첨부하거나 붙여넣으면 AI가 전체 맥락을 이어받습니다.',
   'settings.cloud_history': '기록을 클라우드에 저장',
+  'settings.export_data': '데이터 내보내기',
   'settings.cloud_history_desc': '끄면 최대한의 프라이버시를 제공합니다: 대화는 이 기기에만 저장되고(서버에는 저장되지 않음) 전체 맥락과 함께 여기서 계속 사용할 수 있습니다.',
   'notification.response_ready': 'Éxodo의 답변 보기',
   'notification.update_ready_body': '새 버전이 다운로드되었습니다. 눌러서 설치하세요.',
@@ -347,6 +370,7 @@ const Map<String, String> kP4Ko = <String, String>{
   'consent.cloud': '채팅을 클라우드에 저장하는 데 동의합니다. Behavior는 도구 개선을 위해서만 열람할 수 있습니다.',
   'notice.image_daily_limit_reached': '오늘의 이미지 한도에 도달했습니다. 내일 갱신됩니다.',
   'notice.image_generation_failed': '이미지를 생성하지 못했습니다. 잠시 후 다시 시도해 주세요.',
+  'chat.ask_exodo': 'Éxodo에게 질문',
 };
 
 const Map<String, String> kP4Hi = <String, String>{
@@ -359,6 +383,7 @@ const Map<String, String> kP4Hi = <String, String>{
   'banner.context_role_ai': 'Éxodo',
   'banner.context_reimport_hint': 'नए चैट में जारी रखने के लिए: यह HTML फ़ाइल संलग्न या पेस्ट करें — AI पूरा संदर्भ ले लेगा।',
   'settings.cloud_history': 'इतिहास क्लाउड में सहेजें',
+  'settings.export_data': 'डेटा निर्यात करें',
   'settings.cloud_history_desc': 'अधिकतम गोपनीयता के लिए बंद करें: आपकी चैट केवल इस डिवाइस पर सहेजी जाएंगी (किसी सर्वर पर नहीं) और पूरे संदर्भ के साथ यहीं उपलब्ध रहेंगी।',
   'notification.response_ready': 'Éxodo का उत्तर देखें',
   'notification.update_ready_body': 'नया संस्करण डाउनलोड हुआ। इंस्टॉल करने के लिए टैप करें।',
@@ -375,4 +400,6 @@ const Map<String, String> kP4Hi = <String, String>{
   'consent.cloud': 'मैं अपनी चैट क्लाउड में सहेजने के लिए सहमत हूँ। Behavior उन्हें केवल टूल सुधारने के लिए पढ़ सकता है।',
   'notice.image_daily_limit_reached': 'आप आज की छवि सीमा तक पहुँच गए हैं। कल रीसेट होगी।',
   'notice.image_generation_failed': 'छवि जनरेट नहीं हो सकी। कुछ क्षणों में फिर प्रयास करें।',
+  'chat.ask_exodo': 'Éxodo से पूछें',
 };
+

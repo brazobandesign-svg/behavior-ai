@@ -180,8 +180,14 @@ class _ChatComposerState extends State<ChatComposer>
     // (ver _syncAura); para free/otros modelos el controller queda parado.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
-        context.read<AppState>().onCancelVoiceRecording = () {
+        final state = context.read<AppState>();
+        state.onCancelVoiceRecording = () {
           unawaited(_abortVoiceSession());
+        };
+        state.onRequestComposerFocus = () {
+          if (mounted) {
+            _inputFocusNode.requestFocus();
+          }
         };
       }
     });
@@ -1253,6 +1259,7 @@ class _ChatComposerState extends State<ChatComposer>
   void dispose() {
     try {
       context.read<AppState>().onCancelVoiceRecording = null;
+      context.read<AppState>().onRequestComposerFocus = null;
     } catch (_) {}
     WidgetsBinding.instance.removeObserver(this);
     _auraController.dispose();
@@ -1302,6 +1309,7 @@ class _ChatComposerState extends State<ChatComposer>
     final isLight = !isDarkMode && !isIncognito;
     final state = context.read<AppState>();
     final editingMessage = context.select<AppState, ChatMessage?>((s) => s.editingMessage);
+    final quotedSnippet = context.select<AppState, String?>((s) => s.quotedSnippet);
 
     // P3 batería: el aura del chip solo corre si el glow XPi es visible.
     _syncAura(
@@ -1473,6 +1481,66 @@ class _ChatComposerState extends State<ChatComposer>
                                     HapticFeedback.lightImpact();
                                     state.cancelEditingMessage();
                                     widget.controller.clear();
+                                  },
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(2),
+                                    child: Icon(
+                                      Icons.close_rounded,
+                                      size: 16,
+                                      color: isLight
+                                          ? Colors.black45
+                                          : Colors.white38,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        if (quotedSnippet != null && quotedSnippet.isNotEmpty)
+                          Container(
+                            margin: const EdgeInsets.only(bottom: 6),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 5,
+                            ),
+                            decoration: BoxDecoration(
+                              color: isLight
+                                  ? Colors.black.withValues(alpha: 0.05)
+                                  : Colors.white.withValues(alpha: 0.07),
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(
+                                color: ExodoColors.amber.withValues(alpha: 0.35),
+                                width: 0.8,
+                              ),
+                            ),
+                            child: Row(
+                              children: [
+                                const Icon(
+                                  Icons.format_quote_rounded,
+                                  size: 15,
+                                  color: ExodoColors.amber,
+                                ),
+                                const SizedBox(width: 6),
+                                Expanded(
+                                  child: Text(
+                                    quotedSnippet,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: GoogleFonts.inter(
+                                      fontSize: 12.5,
+                                      fontWeight: FontWeight.w500,
+                                      fontStyle: FontStyle.italic,
+                                      color: isLight
+                                          ? Colors.black87
+                                          : Colors.white70,
+                                    ),
+                                  ),
+                                ),
+                                GestureDetector(
+                                  behavior: HitTestBehavior.opaque,
+                                  onTap: () {
+                                    HapticFeedback.lightImpact();
+                                    state.clearQuotedSnippet();
                                   },
                                   child: Padding(
                                     padding: const EdgeInsets.all(2),

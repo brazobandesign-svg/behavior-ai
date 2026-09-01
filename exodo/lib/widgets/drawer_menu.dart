@@ -4,7 +4,6 @@ import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../models/models.dart';
-import '../services/context_export_service.dart';
 import '../services/app_state.dart';
 import '../services/supabase_service.dart';
 import '../services/stripe_service.dart';
@@ -943,54 +942,6 @@ class _ClaudeAccountModal {
               ),
               const SizedBox(height: 20),
 
-              const SizedBox(height: 8),
-              // Privacidad: historial en la nube (decisión del usuario con
-              // consentimiento registrado en el primer login). Aquí puede
-              // cambiarla cuando quiera.
-              ListenableBuilder(
-                listenable: state,
-                builder: (context, _) {
-                  final cloudOn = state.cloudHistoryEnabled;
-                  return Container(
-                    margin: const EdgeInsets.only(bottom: 12),
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: cardBg,
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: borderColor),
-                    ),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                AppI18n.of(context).t('settings.cloud_history'),
-                                style: TextStyle(fontFamily: 'AnthropicSans', fontSize: 13.5, fontWeight: FontWeight.w600, color: cloudOn ? textCol : ExodoColors.amber),
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                AppI18n.of(context).t('settings.cloud_history_desc'),
-                                style: TextStyle(fontFamily: 'AnthropicSans', fontSize: 10.5, height: 1.3, color: subTextCol),
-                              ),
-                            ],
-                          ),
-                        ),
-                        Switch(
-                          value: cloudOn,
-                          activeThumbColor: ExodoColors.amber,
-                          onChanged: (v) {
-                            HapticFeedback.selectionClick();
-                            state.setCloudHistoryEnabled(v);
-                          },
-                        ),
-                      ],
-                    ),
-                  );
-                },
-              ),
-
               // Tarjeta superior: Correo + Etiqueta Free/Pro (sin "Want more Claude")
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
@@ -1070,17 +1021,55 @@ class _ClaudeAccountModal {
                 isLight: isLight,
                 onTap: () {},
               ),
+              const SizedBox(height: 12),
 
-              _buildSettingTile(
-                icon: Icons.ios_share_rounded,
-                title: AppI18n.of(context).t('settings.export_data'),
-                isLight: isLight,
-                onTap: () {
-                  Navigator.pop(ctx);
-                  _exportAllData(context, state);
+              // Privacidad: historial en la nube (decisión del usuario con
+              // consentimiento registrado en el primer login). Aquí puede
+              // cambiarla cuando quiera.
+              ListenableBuilder(
+                listenable: state,
+                builder: (context, _) {
+                  final cloudOn = state.cloudHistoryEnabled;
+                  return Container(
+                    margin: const EdgeInsets.only(bottom: 12),
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: cardBg,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: borderColor),
+                    ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                AppI18n.of(context).t('settings.cloud_history'),
+                                style: TextStyle(fontFamily: 'AnthropicSans', fontSize: 13.5, fontWeight: FontWeight.w600, color: cloudOn ? textCol : ExodoColors.amber),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                AppI18n.of(context).t('settings.cloud_history_desc'),
+                                style: TextStyle(fontFamily: 'AnthropicSans', fontSize: 10.5, height: 1.3, color: subTextCol),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Switch(
+                          value: cloudOn,
+                          activeThumbColor: ExodoColors.amber,
+                          onChanged: (v) {
+                            HapticFeedback.selectionClick();
+                            state.setCloudHistoryEnabled(v);
+                          },
+                        ),
+                      ],
+                    ),
+                  );
                 },
               ),
-              const SizedBox(height: 8),
+
               _buildSettingTile(
                 icon: Icons.privacy_tip_outlined,
                 title: AppI18n.of(context).t('settings.terms'),
@@ -1457,30 +1446,4 @@ class _ClaudeAccountModal {
       ),
     );
   }
-}
-
-
-/// Exporta TODAS las conversaciones del usuario (locales + cacheadas) a un
-/// único HTML compartible — portabilidad de datos, estilo GPT/Claude.
-Future<void> _exportAllData(BuildContext context, AppState state) async {
-  final t = AppI18n.of(context).t;
-  final messenger = ScaffoldMessenger.of(context);
-  var count = 0;
-  for (final conv in state.conversations) {
-    final msgs = await state.localChatRepo.getMessages(conv.id);
-    if (msgs.isNotEmpty) count++;
-  }
-  if (count == 0) {
-    messenger.showSnackBar(SnackBar(content: Text(t('banner.context_default_title'))));
-    return;
-  }
-  await ContextExportService.exportAllConversations(
-    locale: state.effectiveLocale,
-    conversations: state.conversations,
-    messagesOf: (convId) => state.localChatRepo.getMessages(convId),
-    transcriptLabel: t('banner.context_transcript'),
-    roleUserLabel: t('banner.context_role_user'),
-    roleAiLabel: t('banner.context_role_ai'),
-    reimportHint: t('banner.context_reimport_hint'),
-  );
 }

@@ -94,13 +94,31 @@ void main() async {
   );
 }
 
-class ExodoApp extends StatelessWidget {
+class ExodoApp extends StatefulWidget {
   final bool initialHasSession;
 
   const ExodoApp({
     super.key,
     this.initialHasSession = false,
   });
+
+  @override
+  State<ExodoApp> createState() => _ExodoAppState();
+}
+
+class _ExodoAppState extends State<ExodoApp> {
+  @override
+  void initState() {
+    super.initState();
+    // Android 13+ (POST_NOTIFICATIONS): pedir el permiso en el primer frame
+    // visible con un contexto/actividad activa, no en background ni unawaited
+    // prematuro en main(). Pedirlo ahí no muestra el diálogo del sistema.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        NotificationService.instance.ensurePermission();
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -149,11 +167,11 @@ class ExodoApp extends StatelessWidget {
         return const Locale('es', '');
       },
       home: RootSwitcher(
-        initialHasSession: initialHasSession,
+        initialHasSession: widget.initialHasSession,
       ),
       onUnknownRoute: (settings) => MaterialPageRoute(
         builder: (_) => RootSwitcher(
-          initialHasSession: initialHasSession,
+          initialHasSession: widget.initialHasSession,
         ),
       ),
     );

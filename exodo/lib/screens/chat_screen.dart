@@ -76,8 +76,8 @@ class _ChatScreenState extends State<ChatScreen>
   }
 
   /// CONSENTIMIENTO inicial (30-ago, estilo contrato): una sola vez tras el
-  /// primer login con Google. Dos casillas: edad 13+ y historial en nube
-  /// (con *). Se guarda registro local con fecha + best-effort en profiles
+  /// primer login con Google. Dos casillas: edad 13+ y historial en nube.
+  /// Se guarda registro local con fecha + best-effort en profiles
   /// (protege a Behavior: el usuario aceptó explícitamente). Si la cuenta se
   /// borra o se cierra sesión, el registro se limpia y vuelve a preguntar.
   static bool _consentGateShownThisRun = false;
@@ -333,12 +333,13 @@ class _ChatScreenState extends State<ChatScreen>
                         controller: _inputCtrl,
                         onSend: (attachments) {
                           final text = _inputCtrl.text;
+                          final state = context.read<AppState>();
                           if (text.trim().isEmpty &&
-                              (attachments == null || attachments.isEmpty)) {
+                              (attachments == null || attachments.isEmpty) &&
+                              (state.quotedSnippet == null || state.quotedSnippet!.isEmpty)) {
                             return;
                           }
                           FocusScope.of(context).unfocus();
-                          final state = context.read<AppState>();
                           if (state.editingMessage != null) {
                             final msgToEdit = state.editingMessage!;
                             state.cancelEditingMessage();

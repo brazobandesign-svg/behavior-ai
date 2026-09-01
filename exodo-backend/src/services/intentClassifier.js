@@ -17,8 +17,13 @@ IMAGEN — generar imagen, diseñar logo, crear foto, ilustración
 Si tienes duda, responde SIMPLE.`;
 
 async function classifyIntent(message) {
+  // IMAGEN se decide localmente ANTES del LLM: la señal léxica ("genera una
+  // foto de un gato") es determinante, y la clasificación remota puede
+  // rebajarla a SIMPLE y enviar la petición al LLM de texto en vez del t2i.
+  const local = classifyByKeywords(message);
+  if (local === 'IMAGEN') return local;
+
   if (!process.env.DEEPSEEK_API_KEY) {
-    const local = classifyByKeywords(message);
     return local;
   }
 
@@ -35,10 +40,10 @@ async function classifyIntent(message) {
       return result;
     }
 
-    return classifyByKeywords(message);
+    return local;
   } catch (err) {
     console.warn(`[intentClassifier] Error DeepSeek intent: ${err.message}, fallback local`);
-    return classifyByKeywords(message);
+    return local;
   }
 }
 
