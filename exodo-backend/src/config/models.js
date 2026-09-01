@@ -12,6 +12,7 @@ const ALIBABA_CONFIG = {
     reasonerPrimary: 'qwq-plus',                 // Razonamiento lógico profundo y matemáticas
     coderPrimary: 'qwen3-coder-plus-2025-07-22', // Generación de código y artefactos interactivos
     visionPrimary: 'qwen-vl-max',                // Análisis de imágenes, visión multimodal y OCR
+    imageModel: 'wan2.2-kf2v-flash',            // Único t2i con cuota en el free tier (50 llamadas)
     agenticLongContext: 'glm-5.1',               // Agéntico/review largo
 
     // RAG MINERD y Embeddings

@@ -573,6 +573,28 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
       // sincronización borraba las fotos del chat al cambiar de
       // conversación.
       final merged = _mergeLocalData(fetchedMessages, localMsgs);
+      // Persistencia del aviso eco: la nube no guarda isDegraded — heredarlo
+      // de la copia local para que el aviso sobreviva a cerrar/abrir la app.
+      for (int i = 0; i < merged.length; i++) {
+        if (!merged[i].isDegraded) {
+          final localMatch = localMsgs.firstWhere(
+            (l) => l.id == merged[i].id || (l.role == merged[i].role && l.content.trim() == merged[i].content.trim() && l.content.trim().isNotEmpty),
+            orElse: () => merged[i],
+          );
+          if (localMatch.isDegraded) {
+            merged[i] = ChatMessage(
+              id: merged[i].id,
+              conversationId: merged[i].conversationId,
+              role: merged[i].role,
+              content: merged[i].content,
+              sources: merged[i].sources,
+              attachments: merged[i].attachments,
+              createdAt: merged[i].createdAt,
+              isDegraded: true,
+            );
+          }
+        }
+      }
       currentMessages = merged;
       // Reemplazo atómico del historial local en vez de upsert: los ids de
       // la nube (UUID) difieren de los locales (`user-*`/`asst-*`) y el

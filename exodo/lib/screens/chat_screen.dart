@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/services.dart';
@@ -14,6 +15,7 @@ import '../widgets/chat/message_bubble.dart';
 import '../widgets/chat/model_selector.dart';
 import '../services/chat_service.dart';
 import '../services/supabase_service.dart';
+import '../services/notification_service.dart';
 import '../services/context_export_service.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../theme/exodo_theme.dart';
@@ -78,8 +80,10 @@ class _ChatScreenState extends State<ChatScreen>
   /// (con *). Se guarda registro local con fecha + best-effort en profiles
   /// (protege a Behavior: el usuario aceptó explícitamente). Si la cuenta se
   /// borra o se cierra sesión, el registro se limpia y vuelve a preguntar.
+  static bool _consentGateShownThisRun = false;
+
   Future<void> _maybeShowConsentGate() async {
-    if (_ageGateChecked || !mounted) return;
+    if (_ageGateChecked || _consentGateShownThisRun || !mounted) return;
     final state = context.read<AppState>();
     if (state.isGuestUser || !state.hasSession) return;
     final prefs = await SharedPreferences.getInstance();
@@ -88,6 +92,12 @@ class _ChatScreenState extends State<ChatScreen>
       return;
     }
     _ageGateChecked = true;
+    _consentGateShownThisRun = true;
+    // FIX doble-diálogo: escribir el flag ANTES de mostrar. Si un remount de
+    // ChatScreen ocurre mientras el diálogo está abierto, el nuevo estado ya
+    // lo ve confirmado y no lo repite. (El consentimiento real queda registrado
+    // al aceptar: nube + registro local con fecha.)
+    await prefs.setBool('exodo_age_confirmed', true);
     if (!mounted) return;
     bool ageOk = false;
     bool cloudOk = true; // default: sí guardar (comportamiento histórico)
@@ -112,9 +122,11 @@ class _ChatScreenState extends State<ChatScreen>
               onPressed: ageOk
                   ? () async {
                       final ts = DateTime.now().toUtc().toIso8601String();
-                      await prefs.setBool('exodo_age_confirmed', true);
                       await prefs.setString('exodo_consent', '{"age":true,"cloud":$cloudOk,"ts":"$ts","v":1}');
                       await state.setCloudHistoryEnabled(cloudOk);
+                      // Momento ideal para pedir notificaciones: interacción
+                      // real en primer plano (Android 13+ lo exige).
+                      unawaited(NotificationService.instance.ensurePermission());
                       // Registro en la nube, best-effort (protección mutua)
                       try {
                         final uid = SupabaseService.client.auth.currentUser?.id;

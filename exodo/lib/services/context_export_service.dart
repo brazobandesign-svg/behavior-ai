@@ -110,6 +110,57 @@ class ContextExportService {
     return sb.toString();
   }
 
+  /// EXPORTAR TODOS LOS DATOS del usuario (como GPT/Claude/Gemini): un solo
+  /// HTML con todas las conversaciones locales del dispositivo, listas para
+  /// leer o adjuntar a cualquier IA. No-op en Web.
+  static Future<bool> exportAllConversations({
+    required String locale,
+    required List<Conversation> conversations,
+    required Future<List<ChatMessage>> Function(String conversationId) messagesOf,
+    required String transcriptLabel,
+    required String roleUserLabel,
+    required String roleAiLabel,
+    required String reimportHint,
+  }) async {
+    if (kIsWeb) return false;
+    try {
+      final sb = StringBuffer();
+      sb.writeln('<h1>Éxodo — Exportación completa de datos</h1>');
+      for (final conv in conversations) {
+        final msgs = await messagesOf(conv.id);
+        if (msgs.isEmpty) continue;
+        sb.writeln('<hr style="margin:32px 0;border:none;border-top:2px solid #d97706">');
+        sb.writeln(buildContextHtml(
+          title: conv.title,
+          locale: locale,
+          messages: msgs,
+          transcriptLabel: transcriptLabel,
+          roleUserLabel: roleUserLabel,
+          roleAiLabel: roleAiLabel,
+          reimportHint: reimportHint,
+        ).split('<body>')[1].split('</body>')[0]);
+      }
+      final dir = await getTemporaryDirectory();
+      final stamp = DateTime.now().millisecondsSinceEpoch;
+      final file = File('${dir.path}/exodo-mis-datos-$stamp.html');
+      await file.writeAsString(
+        '<!DOCTYPE html><html lang="${_esc(locale)}"><head><meta charset="utf-8">'
+        '<meta name="viewport" content="width=device-width, initial-scale=1">'
+        '<title>Éxodo — Mis datos</title><style>body{font-family:-apple-system,Roboto,sans-serif;max-width:760px;margin:0 auto;padding:24px;background:#faf9f5;color:#1a1a1a}h1{font-size:1.4rem}</style></head><body>'
+        '${sb.toString()}</body></html>',
+        flush: true,
+      );
+      await ShareService.instance.shareFile(
+        file,
+        subject: 'Éxodo — Mis datos',
+      );
+      return true;
+    } catch (e) {
+      debugPrint('[ContextExport] exportAll falló: $e');
+      return false;
+    }
+  }
+
   /// Genera el HTML y lo abre en el Share Sheet nativo. No-op en Web.
   static Future<bool> exportAndShare({
     required String title,

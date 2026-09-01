@@ -55,6 +55,11 @@ function classifyByKeywords(message) {
                  'hazme una imagen', 'dibuja', 'diseña un logo', 'diseña un',
                  'ilustra', 'imagina', 'muéstrame una foto', 'renderiza', 'pinta'];
   if (imgKw.some((k) => m.includes(k))) return 'IMAGEN';
+  // Regex robusta (30-ago): "genera una FOTO de un gato" caía a SIMPLE y el
+  // LLM respondía "no puedo generar imágenes". Cubre verbos×sustantivos
+  // comunes en es/en incluyendo plurales y acentos.
+  const imgRe = /\b(genera|generar|crear?|create|generate|make|haz(?:me)?|draw|dibuja(?:rme)?|pinta|renderiza|ilustra|muestra|muéstrame|show|dise[ñn]a)\b[\s\S]{0,24}\b(imagen(?:es)?|images?|fotos?|photos?|pictures?|dibujos?|drawings?|ilustraci(?:ó|o)nes?|illustrations?|logos?|logotipos?)\b/i;
+  if (imgRe.test(m)) return 'IMAGEN';
 
   const docKw = ['adjunto', 'adjunté', 'en el archivo', 'el pdf', 'el documento',
                  'resume este', 'resúmeme este', 'lee este', 'extrae de',

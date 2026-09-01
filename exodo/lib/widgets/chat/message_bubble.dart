@@ -372,7 +372,9 @@ class MessageBubble extends StatelessWidget {
     if (message.content.trim().isEmpty && !message.isThinking) {
       return const SizedBox.shrink();
     }
-    return Container(
+    // DOCTRINA eco (30-ago): el aviso va FUERA y DEBAJO de la respuesta,
+    // centrado a lo ancho — no dentro del texto.
+    final body = Container(
       width: double.infinity,
       margin: const EdgeInsets.symmetric(vertical: 10),
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
@@ -386,10 +388,6 @@ class MessageBubble extends StatelessWidget {
             copiedLabel: copiedLabel,
             isStreaming: isLastAssistant && context.select<AppState, bool>((s) => s.isGenerating),
           ),
-          if (message.isDegraded) ...[
-            const SizedBox(height: 8),
-            _EcoModeNotice(isLight: isLight),
-          ],
           // [Fix LG V60 #1] Eliminado: el badge "Intención: VISION" era
           // un debug leak que mostraba el intent detectado al usuario final.
           // El intent sigue guardándose en BD/Supabase para analítica interna,
@@ -440,6 +438,16 @@ class MessageBubble extends StatelessWidget {
         ],
       ),
     );
+    if (message.isDegraded) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          body,
+          Center(child: _EcoModeNotice(isLight: isLight)),
+        ],
+      );
+    }
+    return body;
   }
 }
 

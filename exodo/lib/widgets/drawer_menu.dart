@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../models/models.dart';
+import '../services/context_export_service.dart';
 import '../services/app_state.dart';
 import '../services/supabase_service.dart';
 import '../services/stripe_service.dart';
@@ -942,6 +943,7 @@ class _ClaudeAccountModal {
               ),
               const SizedBox(height: 20),
 
+              const SizedBox(height: 8),
               // Privacidad: historial en la nube (decisión del usuario con
               // consentimiento registrado en el primer login). Aquí puede
               // cambiarla cuando quiera.
@@ -1067,6 +1069,16 @@ class _ClaudeAccountModal {
                 title: AppI18n.of(context).t('drawer.web'),
                 isLight: isLight,
                 onTap: () {},
+              ),
+
+              _buildSettingTile(
+                icon: Icons.ios_share_rounded,
+                title: AppI18n.of(context).t('settings.export_data'),
+                isLight: isLight,
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _exportAllData(context, state);
+                },
               ),
               const SizedBox(height: 8),
               _buildSettingTile(
@@ -1445,4 +1457,30 @@ class _ClaudeAccountModal {
       ),
     );
   }
+}
+
+
+/// Exporta TODAS las conversaciones del usuario (locales + cacheadas) a un
+/// único HTML compartible — portabilidad de datos, estilo GPT/Claude.
+Future<void> _exportAllData(BuildContext context, AppState state) async {
+  final t = AppI18n.of(context).t;
+  final messenger = ScaffoldMessenger.of(context);
+  var count = 0;
+  for (final conv in state.conversations) {
+    final msgs = await state.localChatRepo.getMessages(conv.id);
+    if (msgs.isNotEmpty) count++;
+  }
+  if (count == 0) {
+    messenger.showSnackBar(SnackBar(content: Text(t('banner.context_default_title'))));
+    return;
+  }
+  await ContextExportService.exportAllConversations(
+    locale: state.effectiveLocale,
+    conversations: state.conversations,
+    messagesOf: (convId) => state.localChatRepo.getMessages(convId),
+    transcriptLabel: t('banner.context_transcript'),
+    roleUserLabel: t('banner.context_role_user'),
+    roleAiLabel: t('banner.context_role_ai'),
+    reimportHint: t('banner.context_reimport_hint'),
+  );
 }

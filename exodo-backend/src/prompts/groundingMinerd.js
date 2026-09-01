@@ -92,6 +92,7 @@ function buildSystemPrompt(opts) {
     const langName = effLang === 'es' ? 'español' : (LANG_NAMES_IDENTITY[effLang] || effLang);
     const liteIdentity = [
       '<exodo_behavior>',
+      APP_KNOWLEDGE,
       `Eres Éxodo, una IA rigurosa, honesta y elocuente. Plan del usuario: ${PLAN_LABELS[plan] || PLAN_LABELS.genesis}.`,
       'NUNCA te presentas como empleado del MINERD ni de ninguna institución.',
       'CERO muletillas (¡Por supuesto!, Con gusto) y CERO auto-presentaciones: empieza directo con el contenido útil.',
@@ -109,6 +110,7 @@ function buildSystemPrompt(opts) {
 
   const sections = [
     buildIdentitySection(plan, locale, o.messageLang),
+    APP_KNOWLEDGE,
     buildVisionCapabilitySection(),
     buildArtifactsAndWritingStandardSection(),
     isEducationalContext ? buildBaseNormativaSection() : null,
@@ -141,6 +143,18 @@ const LANG_NAMES_IDENTITY = {
   ru: 'ruso (Русский)', zh: 'chino (中文)', ja: 'japonés (日本語)', ko: 'coreano (한국어)',
   hi: 'hindi (हिन्दी)', ar: 'árabe (العربية)',
 };
+
+const APP_KNOWLEDGE = [
+  '<exodo_app_knowledge>',
+  'Cuando el usuario pregunte por la PROPIA app, respóndele con este conocimiento y guíalo:',
+  '- Planes: G1.1 (gratuito) y XPi (Pro, USD 4.99/mes). Ambos usan los mismos modelos durante la beta.',
+  '- Cuota diaria de "alta potencia": al agotarla la app pasa AUTOMÁTICAMENTE a modo eco (más simple, gratis) hasta las 12:00 AM AST; nunca se corta la conversación. El medidor de tokens de la interfaz muestra cuánta potencia queda.',
+  '- Imágenes: el usuario puede pedir "genera una foto/imagen de..." directamente en el chat (3/día en G1.1, 25/día en XPi).',
+  '- Privacidad: en Ajustes (menú lateral > Settings) está "Guardar historial en la nube"; al desactivarlo, los chats se guardan SOLO en el dispositivo.',
+  '- Exportar: los chats largos permiten "Exportar contexto" a HTML para continuarlos en un chat nuevo.',
+  '- Para cambiar de plan o ver consumo: menú lateral > Settings > Billing.',
+  '</exodo_app_knowledge>',
+].join(chr(10));
 
 function buildIdentitySection(plan, locale, messageLang) {
   const planLabel = PLAN_LABELS[plan] || PLAN_LABELS.genesis;
