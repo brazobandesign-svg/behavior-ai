@@ -1122,8 +1122,9 @@ class _SourceChipElementBuilder extends MarkdownElementBuilder {
         if (uri != null) launchUrl(uri, mode: LaunchMode.externalApplication);
       },
       child: Container(
-        width: 132,
-        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+        width: 40,
+        height: 20,
+        padding: const EdgeInsets.symmetric(horizontal: 4),
         decoration: BoxDecoration(
           color: isLight ? Colors.white : const Color(0xFF252525),
           borderRadius: BorderRadius.circular(8),
@@ -1137,16 +1138,16 @@ class _SourceChipElementBuilder extends MarkdownElementBuilder {
           children: [
             if (faviconUrl != null) ...[
               ClipRRect(
-                borderRadius: BorderRadius.circular(7),
+                borderRadius: BorderRadius.circular(5),
                 child: Image.network(
                   faviconUrl,
-                  width: 13,
-                  height: 13,
+                  width: 10,
+                  height: 10,
                   fit: BoxFit.contain,
                   errorBuilder: (_, _, _) => _SourceChipInitial(label),
                 ),
               ),
-              const SizedBox(width: 5),
+              const SizedBox(width: 3),
             ],
             Flexible(
               child: Text(
@@ -1155,7 +1156,7 @@ class _SourceChipElementBuilder extends MarkdownElementBuilder {
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
                   fontFamily: 'AnthropicSans',
-                  fontSize: 10.5,
+                  fontSize: 9,
                   fontWeight: FontWeight.w500,
                   color: isLight ? const Color(0xFF171615) : const Color(0xFFF4F2EB),
                 ),
@@ -1185,8 +1186,8 @@ class _SourceChipInitial extends StatelessWidget {
   Widget build(BuildContext context) {
     final initial = label.isEmpty ? '?' : label[0].toUpperCase();
     return Container(
-      width: 15,
-      height: 15,
+      width: 10,
+      height: 10,
       alignment: Alignment.center,
       decoration: const BoxDecoration(
         color: Color(0xFFC9933A),
@@ -1196,7 +1197,7 @@ class _SourceChipInitial extends StatelessWidget {
         initial,
         style: const TextStyle(
           fontFamily: 'AnthropicSans',
-          fontSize: 9,
+          fontSize: 6,
           fontWeight: FontWeight.bold,
           color: Colors.white,
         ),
