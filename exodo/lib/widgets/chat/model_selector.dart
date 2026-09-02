@@ -115,12 +115,24 @@ class ModelSelectorSheet extends StatelessWidget {
                     ),
                 ],
               ),
-              subtitle: Text(
-                AppI18n.of(context).t('models.${m.id}_desc'),
-                style: TextStyle(fontFamily: 'AnthropicSans', 
-                  fontSize: 11.5,
-                  color: isLight ? const Color(0xFF191919) : ExodoColors.textSecondary,
-                ),
+              subtitle: Builder(
+                builder: (context) {
+                  final isEn = AppI18n.of(context).localeCode == 'en';
+                  final loc = AppI18n.of(context).t('models.${m.id}_desc');
+                  final desc = (loc.isNotEmpty && loc != 'models.${m.id}_desc')
+                      ? loc
+                      : (isEn ? m.descriptionEn : m.description);
+                  return Text(
+                    desc,
+                    style: TextStyle(
+                      fontFamily: 'AnthropicSans',
+                      fontSize: 11.5,
+                      color: isLight
+                          ? const Color(0xFF191919)
+                          : ExodoColors.textSecondary,
+                    ),
+                  );
+                },
               ),
               trailing: active
                   ? const Icon(Icons.check, size: 18, color: ExodoColors.amber)
