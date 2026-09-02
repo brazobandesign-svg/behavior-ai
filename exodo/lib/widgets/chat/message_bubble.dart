@@ -1122,7 +1122,7 @@ class _SourceChipElementBuilder extends MarkdownElementBuilder {
         if (uri != null) launchUrl(uri, mode: LaunchMode.externalApplication);
       },
       child: Container(
-        constraints: const BoxConstraints(maxWidth: 132),
+        width: 132,
         padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
         decoration: BoxDecoration(
           color: isLight ? Colors.white : const Color(0xFF252525),
