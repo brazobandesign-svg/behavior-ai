@@ -16,7 +16,9 @@ import '../../services/expedientes_access_policy.dart';
 import '../../services/expedientes_repository.dart';
 import '../../l10n/app_i18n.dart';
 import '../../theme/exodo_palette.dart';
+import '../../theme/exodo_theme.dart';
 import '../../widgets/artifacts/github_commit_sheet.dart';
+import '../chat/image_generating_placeholder.dart';
 
 /// Single, cohesive, minimal artifact container.
 /// Background: #1E1E1E (Dark) / #F4F2EB (Light) with subtle 1px border.
@@ -55,8 +57,10 @@ class _ArtifactCardState extends State<ArtifactCard> {
   bool _savedToExpedientes = false;
   bool _savingExpediente = false;
 
-  /// Vista por defecto: render viva para ejecutables completos; código
-  /// mientras llega el resto del mensaje en streaming.
+  /// Si el usuario toca el toggle durante streaming, puede alternar a ver el código.
+  bool _peekCodeDuringStreaming = false;
+
+  /// Vista por defecto: render viva para ejecutables completos.
   late bool _viewPreview =
       widget.artifact.isExecutable && !widget.isStreaming;
 
@@ -66,7 +70,10 @@ class _ArtifactCardState extends State<ArtifactCard> {
     // Fin del streaming: primera vez que el HTML está completo → render viva.
     if (oldWidget.isStreaming && !widget.isStreaming) {
       if (widget.artifact.isExecutable && !_viewPreview) {
-        setState(() => _viewPreview = true);
+        setState(() {
+          _viewPreview = true;
+          _peekCodeDuringStreaming = false;
+        });
       }
     }
   }
@@ -209,10 +216,21 @@ class _ArtifactCardState extends State<ArtifactCard> {
             isDark: !widget.isLight,
             borderColor: borderColor,
             isExpanded: _isExpanded,
+            isStreaming: widget.isStreaming,
             showPreviewToggle: widget.artifact.isExecutable,
-            previewActive: _viewPreview,
+            previewActive: widget.isStreaming
+                ? !_peekCodeDuringStreaming
+                : _viewPreview,
             onTogglePreview: widget.artifact.isExecutable
-                ? () => setState(() => _viewPreview = !_viewPreview)
+                ? () {
+                    HapticFeedback.lightImpact();
+                    if (widget.isStreaming) {
+                      setState(() =>
+                          _peekCodeDuringStreaming = !_peekCodeDuringStreaming);
+                    } else {
+                      setState(() => _viewPreview = !_viewPreview);
+                    }
+                  }
                 : null,
             onToggleExpand: () => setState(() => _isExpanded = !_isExpanded),
           ),
@@ -222,8 +240,18 @@ class _ArtifactCardState extends State<ArtifactCard> {
               isDark: !widget.isLight,
               isExpanded: _isExpanded,
             )
+          else if (widget.isStreaming &&
+              widget.artifact.isExecutable &&
+              !_peekCodeDuringStreaming)
+            _ArtifactGeneratingShimmer(
+              isLight: widget.isLight,
+              kind: widget.artifact.kind,
+            )
           else if (_viewPreview && widget.artifact.isExecutable)
-            _InlineSandboxPreview(artifact: widget.artifact, isLight: widget.isLight)
+            _InlineSandboxPreview(
+              artifact: widget.artifact,
+              isLight: widget.isLight,
+            )
           else
             _CodePreview(
               artifact: widget.artifact,
@@ -256,6 +284,7 @@ class _Header extends StatelessWidget {
   final bool isDark;
   final Color borderColor;
   final bool isExpanded;
+  final bool isStreaming;
   final bool showPreviewToggle;
   final bool previewActive;
   final VoidCallback? onTogglePreview;
@@ -266,6 +295,7 @@ class _Header extends StatelessWidget {
     required this.isDark,
     required this.borderColor,
     required this.isExpanded,
+    this.isStreaming = false,
     this.showPreviewToggle = false,
     this.previewActive = false,
     this.onTogglePreview,
@@ -319,6 +349,10 @@ class _Header extends StatelessWidget {
             ),
           ],
           const Spacer(),
+          if (isStreaming) ...[
+            _GeneratingBadge(isDark: isDark),
+            const SizedBox(width: 8),
+          ],
           if (showPreviewToggle) ...[
             InkWell(
               onTap: onTogglePreview,
@@ -568,6 +602,197 @@ class _InlineSandboxPreviewState extends State<_InlineSandboxPreview> {
               ),
             ),
         ],
+      ),
+    );
+  }
+}
+
+/// Badge animado en la cabecera durante la generación en streaming.
+class _GeneratingBadge extends StatefulWidget {
+  final bool isDark;
+  const _GeneratingBadge({required this.isDark});
+
+  @override
+  State<_GeneratingBadge> createState() => _GeneratingBadgeState();
+}
+
+class _GeneratingBadgeState extends State<_GeneratingBadge>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 800),
+  )..repeat(reverse: true);
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final amber =
+        widget.isDark ? const Color(0xFFD4A843) : const Color(0xFF8A6A10);
+    return FadeTransition(
+      opacity: Tween<double>(begin: 0.45, end: 1.0).animate(_ctrl),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+        decoration: BoxDecoration(
+          color: amber.withValues(alpha: widget.isDark ? 0.15 : 0.12),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: amber.withValues(alpha: 0.35), width: 0.8),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 6,
+              height: 6,
+              decoration: BoxDecoration(
+                color: amber,
+                shape: BoxShape.circle,
+              ),
+            ),
+            const SizedBox(width: 5),
+            Text(
+              AppI18n.of(context).t('artifacts.generating'),
+              style: TextStyle(
+                fontFamily: 'AnthropicSans',
+                color: amber,
+                fontSize: 10.5,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 0.1,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Placeholder animado con efecto Shimmer (estilo Claude / v0):
+/// Se muestra en lugar del bloque de código mientras el modelo escribe el
+/// artefacto ejecutable en streaming. Simula la silueta de un gráfico con
+/// barras animadas y texto explicativo.
+class _ArtifactGeneratingShimmer extends StatelessWidget {
+  final bool isLight;
+  final ArtifactKind kind;
+
+  const _ArtifactGeneratingShimmer({
+    required this.isLight,
+    required this.kind,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final t = AppI18n.of(context).t;
+    final bg = isLight ? const Color(0xFFFAFAFA) : const Color(0xFF141414);
+    final borderColor =
+        isLight ? const Color(0x1F000000) : const Color(0xFF2E2E2E);
+    final textColor =
+        isLight ? const Color(0xFF2C2A29) : const Color(0xFFE5E5EA);
+    final subtextColor =
+        isLight ? const Color(0xFF8E8E93) : const Color(0xFF7C7C82);
+
+    return Container(
+      height: 340,
+      decoration: BoxDecoration(
+        color: bg,
+        border: Border(bottom: BorderSide(color: borderColor, width: 1.0)),
+      ),
+      child: Center(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Esqueleto animado de silueta de gráfico con barrido Shimmer
+              ExodoShimmer(
+                borderRadius: BorderRadius.circular(10),
+                child: Container(
+                  height: 110,
+                  width: double.infinity,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: isLight
+                        ? const Color(0xFFEDE9E3)
+                        : const Color(0xFF1F1F1F),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                      color: isLight
+                          ? const Color(0x14000000)
+                          : const Color(0x1FFFFFFF),
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      _buildBar(0.35, isLight),
+                      _buildBar(0.65, isLight),
+                      _buildBar(0.45, isLight),
+                      _buildBar(0.85, isLight),
+                      _buildBar(0.55, isLight),
+                      _buildBar(0.70, isLight),
+                      _buildBar(0.40, isLight),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 22),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: ExodoColors.amber,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Text(
+                    t('artifacts.building'),
+                    style: TextStyle(
+                      fontFamily: 'AnthropicSans',
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: textColor,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              Text(
+                kind == ArtifactKind.svg
+                    ? 'Preparando ilustración vectorial...'
+                    : 'Ensamblando componente y preparando vista interactiva...',
+                style: TextStyle(
+                  fontFamily: 'AnthropicSans',
+                  fontSize: 11.5,
+                  color: subtextColor,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBar(double heightRatio, bool isLight) {
+    return Container(
+      width: 14,
+      height: 86 * heightRatio,
+      decoration: BoxDecoration(
+        color: isLight
+            ? const Color(0xFFD4A843).withValues(alpha: 0.35)
+            : const Color(0xFFD4A843).withValues(alpha: 0.4),
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
       ),
     );
   }

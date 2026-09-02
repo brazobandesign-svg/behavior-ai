@@ -127,6 +127,9 @@ const Map<String, String> _es = <String, String>{
   'chat.thinking_label': 'Pensando',
   // Placeholder shimmer mientras se genera una imagen (t2i).
   'chat.creating_image': 'Éxodo está creando tu imagen...',
+  'artifacts.generating': 'Generando...',
+  'artifacts.building': 'Construyendo visualización...',
+
   'image.download': 'Descargar',
   'image.saved': 'Imagen guardada en tu galería',
   'image.save_error': 'No se pudo guardar la imagen',
@@ -431,6 +434,9 @@ const Map<String, String> _en = <String, String>{
   'chat.thinking_label': 'Thinking',
   // Placeholder shimmer mientras se genera una imagen (t2i).
   'chat.creating_image': 'Exodo is creating your image...',
+  'artifacts.generating': 'Generating...',
+  'artifacts.building': 'Building visualization...',
+
   'image.download': 'Download',
   'image.saved': 'Image saved to your gallery',
   'image.save_error': 'Could not save the image',
@@ -714,6 +720,9 @@ const Map<String, String> _fr = <String, String>{
   'chat.thinking_en': 'Exodo reasoning...',
   'chat.thinking_label': 'Réflexion',
   'chat.creating_image': 'Éxodo crée votre image...',
+  'artifacts.generating': 'Génération...',
+  'artifacts.building': 'Construction de la visualisation...',
+
   'image.download': 'Télécharger',
   'image.saved': 'Image enregistrée dans votre galerie',
   'image.save_error': 'Impossible d\'enregistrer l\'image',
@@ -926,6 +935,9 @@ const Map<String, String> _pt = <String, String>{
   'chat.thinking': 'Exodo pensando...',
   'chat.thinking_label': 'Pensando',
   'chat.creating_image': 'Éxodo está criando sua imagem...',
+  'artifacts.generating': 'Gerando...',
+  'artifacts.building': 'Construindo visualização...',
+
   'image.download': 'Baixar',
   'image.saved': 'Imagem salva na sua galeria',
   'image.save_error': 'Não foi possível salvar a imagem',
@@ -1137,6 +1149,9 @@ const Map<String, String> _it = <String, String>{
   'chat.thinking': 'Exodo sta ragionando...',
   'chat.thinking_label': 'Pensando',
   'chat.creating_image': 'Éxodo sta creando la tua immagine...',
+  'artifacts.generating': 'Generazione...',
+  'artifacts.building': 'Creazione visualizzazione...',
+
   'image.download': 'Scarica',
   'image.saved': 'Immagine salvata nella tua galleria',
   'image.save_error': 'Impossibile salvare l\'immagine',
@@ -1346,6 +1361,9 @@ const Map<String, String> _de = <String, String>{
   'chat.edit_message': 'Nachricht bearbeiten',
   'chat.thinking_label': 'Denke nach',
   'chat.creating_image': 'Éxodo erstellt dein Bild...',
+  'artifacts.generating': 'Generieren...',
+  'artifacts.building': 'Visualisierung wird erstellt...',
+
   'image.download': 'Herunterladen',
   'image.saved': 'Bild in der Galerie gespeichert',
   'image.save_error': 'Bild konnte nicht gespeichert werden',
@@ -1561,6 +1579,9 @@ final Map<String, String> _ru = <String, String>{
   'chat.thinking_en': 'Exodo reasoning...',
   'chat.thinking_label': 'Думаю',
   'chat.creating_image': 'Éxodo создает ваше изображение...',
+  'artifacts.generating': 'Генерация...',
+  'artifacts.building': 'Создание визуализации...',
+
   'image.download': 'Скачать',
   'image.saved': 'Изображение сохранено в галерее',
   'image.save_error': 'Не удалось сохранить изображение',
@@ -1754,6 +1775,9 @@ final Map<String, String> _zh = <String, String>{
   'chat.thinking_en': 'Exodo reasoning...',
   'chat.thinking_label': '思考中',
   'chat.creating_image': 'Éxodo 正在生成您的图片...',
+  'artifacts.generating': '生成中...',
+  'artifacts.building': '正在构建可视化组件...',
+
   'image.download': '下载',
   'image.saved': '图片已保存到相册',
   'image.save_error': '无法保存图片',
@@ -1931,6 +1955,9 @@ final Map<String, String> _ja = <String, String>{
   'chat.thinking': 'Exodoが思考中...',
   'chat.thinking_label': '考え中',
   'chat.creating_image': 'Éxodoが画像を生成しています...',
+  'artifacts.generating': '生成中...',
+  'artifacts.building': '視覚化を構築しています...',
+
   'image.download': 'ダウンロード',
   'image.saved': 'ギャラリーに画像を保存しました',
   'image.save_error': '画像を保存できませんでした',
@@ -2110,6 +2137,9 @@ final Map<String, String> _ar = <String, String>{
   'chat.thinking': 'Exodo يفكر...',
   'chat.thinking_label': 'يفكر',
   'chat.creating_image': 'يقوم إكسودو بإنشاء صورتك...',
+  'artifacts.generating': 'جارٍ الإنشاء...',
+  'artifacts.building': 'جارٍ إنشاء المخطط التفاعلي...',
+
   'image.download': 'تنزيل',
   'image.saved': 'تم حفظ الصورة في المعرض',
   'image.save_error': 'تعذر حفظ الصورة',
@@ -2296,6 +2326,9 @@ final Map<String, String> _ko = <String, String>{
   'chat.thinking': 'Exodo 생각 중...',
   'chat.thinking_label': '생각 중',
   'chat.creating_image': 'Éxodo가 이미지를 생성하고 있습니다...',
+  'artifacts.generating': '생성 중...',
+  'artifacts.building': '시각화 생성 중...',
+
   'image.download': '다운로드',
   'image.saved': '갤러리에 이미지가 저장되었습니다',
   'image.save_error': '이미지를 저장할 수 없습니다',
@@ -2472,6 +2505,9 @@ final Map<String, String> _hi = <String, String>{
   'chat.edit_message': 'संदेश संपादित करें',
   'chat.thinking_label': 'सोच रहा है',
   'chat.creating_image': 'Éxodo आपकी छवि बना रहा है...',
+  'artifacts.generating': 'तैयार हो रहा है...',
+  'artifacts.building': 'विज़ुअलाइज़ेशन बनाया जा रहा है...',
+
   'image.download': 'डाउनलोड',
   'image.saved': 'छवि आपकी गैलरी में सहेजी गई',
   'image.save_error': 'छवि सहेजी नहीं जा सकी',
@@ -2658,6 +2694,9 @@ final Map<String, String> _ht = <String, String>{
   'chat.edit_message': 'Modifye mesaj la',
   'chat.thinking_label': 'Ap reflechi',
   'chat.creating_image': 'Éxodo ap kreye imaj ou a...',
+  'artifacts.generating': 'Ap jenere...',
+  'artifacts.building': 'Ap bati vizyalizasyon an...',
+
   'image.download': 'Telechaje',
   'image.saved': 'Imaj la anrejistre nan galri ou',
   'image.save_error': 'Pa t kapab anrejistre imaj la',
