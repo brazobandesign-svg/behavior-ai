@@ -28,7 +28,10 @@ const { customAlphabet } = require('nanoid');
 // ---------------------------------------------------------------------------
 
 const DEFAULT_THRESHOLD = 0.7;
-const DEFAULT_MODEL = 'deepseek-chat';
+// [H3] Juez migrado a DashScope (antes deepseek-chat): DASHSCOPE_API_KEY ya
+// vive en Cloud Run, así el evaluador de regresión RAG corre en producción.
+// Override opcional con RAG_JUDGE_MODEL.
+const DEFAULT_MODEL = process.env.RAG_JUDGE_MODEL || 'qwen3.7-flash';
 const DEFAULT_TEMPERATURE = 0.0;
 const MAX_RESPONSE_CHARS = 16_000;     // truncado antes de enviar al juez
 const MAX_CHUNK_CHARS = 4_000;        // truncado por chunk
@@ -383,7 +386,7 @@ function heuristicCitationScore(heur) {
  * @param {Array}  args.chunks             Chunks recuperados por el RAG
  * @param {object} [args.options]
  * @param {Function} args.options.llmInvoke  (systemPrompt, userPrompt, opts) => Promise<{ text: string, ... }>
- * @param {string} [args.options.modelName='deepseek-chat']
+ * @param {string} [args.options.modelName='qwen3.7-flash']
  * @param {number} [args.options.temperature=0]
  * @param {number} [args.options.threshold=0.7]
  * @param {number} [args.options.maxRetries=2]

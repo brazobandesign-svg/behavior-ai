@@ -9,7 +9,8 @@
  * Requisitos de entorno:
  *   - SUPABASE_URL, SUPABASE_SERVICE_KEY
  *   - OPENAI_API_KEY  (para generar embeddings)
- *   - DEEPSEEK_API_KEY (modelo de juez + modelo del chat)
+ *   - DASHSCOPE_API_KEY (modelo de juez — [H3] migrado desde DeepSeek; el
+ *     modelo del chat corre vía modelRouter, ya en DashScope)
  *
  * Salida:
  *   - Reporte en consola con métricas agregadas.
@@ -101,14 +102,23 @@ async function callExodo(caseObj, retrievedChunks) {
 }
 
 async function callLLMJudge(system, user, opts) {
+  // [H3] Juez en DashScope (qwen3.7-flash, temperatura 0): usa la key que ya
+  // está activa en Cloud Run en lugar de DEEPSEEK_API_KEY (ausente allí).
   const judgeClient = new OpenAI({
-    apiKey: process.env.DEEPSEEK_API_KEY,
-    baseURL: 'https://api.deepseek.com',
+    apiKey: process.env.DASHSCOPE_API_KEY ||
+            process.env.ALIBABA_API_KEY ||
+            process.env.ALIBABA_FREE_KEY,
+    baseURL: process.env.ALIBABA_BASE_URL ||
+             'https://dashscope-intl.aliyuncs.com/compatible-mode/v1',
   });
   const completion = await judgeClient.chat.completions.create({
-    model: opts.model || 'deepseek-chat',
+    model: opts.model || process.env.RAG_JUDGE_MODEL || 'qwen3.7-flash',
     temperature: opts.temperature ?? 0,
     max_tokens: opts.maxTokens || 800,
+    // Mismo blindaje que el provider: los Qwen híbridos traen thinking activo
+    // por defecto y contaminaría el veredicto del juez.
+    enable_thinking: false,
+    thinking: { type: 'disabled' },
     messages: [
       { role: 'system', content: system },
       { role: 'user', content: user },
@@ -139,7 +149,7 @@ async function main() {
         caseObj, response, chunks,
         options: {
           llmInvoke: callLLMJudge,
-          modelName: 'deepseek-chat',
+          modelName: process.env.RAG_JUDGE_MODEL || 'qwen3.7-flash',
           threshold: args.threshold,
         },
       });

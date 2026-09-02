@@ -1,5 +1,7 @@
 'use strict';
 
+const { REDACTED } = require('./logger');
+
 /**
  * ============================================================================
  * errorSanitizer.js — Capa de Sanitización de Errores y Protección Anti-Fugas
@@ -82,17 +84,23 @@ function logInternalGatewayError(err, ctx = {}) {
   const provider = ctx.provider || 'unknown';
   const model = ctx.model || 'unknown';
   const status = extractStatus(err);
+  const incognito = !!ctx.incognito;
 
   // Log estructurado requerido por la especificación de seguridad.
+  // H6/#477: en turnos incógnito el mensaje crudo del vendor NO se loguea
+  // (los errores 4xx pueden ecoar fragmentos del prompt); solo su clase.
   console.error('[INTERNAL_GATEWAY_ERROR]', {
     provider,
     model,
     status,
-    error: err && err.message ? err.message : String(err),
+    incognito: incognito || undefined,
+    error: incognito
+      ? `${REDACTED} (status=${status ?? 'n/a'})`
+      : (err && err.message ? err.message : String(err)),
   });
 
-  // Stack trace completo solo en consola del servidor.
-  if (err && err.stack) {
+  // Stack trace completo solo en consola del servidor (sin contenido del turno).
+  if (err && err.stack && !incognito) {
     console.error('[INTERNAL_GATEWAY_ERROR] stack:', err.stack);
   }
 }
@@ -115,15 +123,23 @@ function logInternalGatewayError(err, ctx = {}) {
  * @param {Error} err - Error crudo del proveedor.
  * @param {string} model - Modelo que falló.
  * @param {string} phase - Fase de la llamada ('call-stream-init', etc.).
+ * @param {object} [ctx] - { incognito } — H6/#477: en incógnito el mensaje
+ *   del vendor NO viaja en el error ni en el log (solo status/clase).
  * @returns {Error} Error listo para re-lanzar al router.
  */
-function wrapProviderError(err, model = 'unknown', phase = 'unknown') {
+function wrapProviderError(err, model = 'unknown', phase = 'unknown', ctx = {}) {
   const status = extractStatus(err);
+  const isAbort = isClientAbortError(err);
   const vendorMessage = err && err.message ? err.message : String(err);
-  const wrapped = new Error(`[alibaba:${model}:${phase}] status=${status ?? 'n/a'}: ${vendorMessage}`);
+  // En incógnito el cuerpo se redacta, pero se conserva el marcador de aborto:
+  // isClientAbortError() del router depende de que el mensaje lo contenga.
+  const safeBody = ctx.incognito
+    ? `${REDACTED} (status=${status ?? 'n/a'}${isAbort ? ', aborted' : ''})`
+    : vendorMessage;
+  const wrapped = new Error(`[alibaba:${model}:${phase}] status=${status ?? 'n/a'}: ${safeBody}`);
   wrapped.status = status;
   wrapped.originalError = err;
-  logInternalGatewayError(err, { provider: 'alibaba', model, phase });
+  logInternalGatewayError(err, { provider: 'alibaba', model, phase, incognito: !!ctx.incognito });
   return wrapped;
 }
 

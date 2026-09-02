@@ -1,4 +1,4 @@
-require('dotenv').config({ override: true });
+require('dotenv').config({ path: process.env.DOTENV_CONFIG_PATH || undefined, override: true });
 const express = require('express');
 const cors = require('cors');
 const chatRoutes = require('./routes/chat');

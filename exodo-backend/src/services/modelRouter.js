@@ -116,12 +116,13 @@ function getEffectiveModel(plan, intent, modelOverride, imageDataUris, taskType)
 /**
  * Llamada estándar con iteración estricta a través de la cadena Alibaba DashScope.
  */
-async function routeMessage(plan, intent, messages, systemPrompt, modelOverride, imageDataUris, taskType, isDegraded = false, isGuest = false, signal = null) {
+async function routeMessage(plan, intent, messages, systemPrompt, modelOverride, imageDataUris, taskType, isDegraded = false, isGuest = false, signal = null, incognito = false) {
   const chain = getExecutionChain(plan, intent, modelOverride, imageDataUris, taskType);
   const options = {
     max_tokens: 8192,
     signal,
     imageDataUris: Array.isArray(imageDataUris) ? imageDataUris : [],
+    incognito: !!incognito,
   };
 
   let lastError = null;
@@ -150,12 +151,12 @@ async function routeMessage(plan, intent, messages, systemPrompt, modelOverride,
       if (isClientAbortError(err)) throw err;
       lastError = err;
       // Async error logging: no bloquea el hot path
-      setImmediate(() => logInternalGatewayError(err, { provider: 'alibaba', model: modelId, phase: `call-chain-step-${i + 1}` }));
+      setImmediate(() => logInternalGatewayError(err, { provider: 'alibaba', model: modelId, phase: `call-chain-step-${i + 1}`, incognito: !!incognito }));
     }
   }
 
   if (lastError && isClientAbortError(lastError)) throw lastError;
-  logInternalGatewayError(lastError || new Error('ALL_ALIBABA_MODELS_FAILED'), { provider: 'alibaba', phase: 'call-chain-exhausted' });
+  logInternalGatewayError(lastError || new Error('ALL_ALIBABA_MODELS_FAILED'), { provider: 'alibaba', phase: 'call-chain-exhausted', incognito: !!incognito });
   return sanitizedErrorResult();
 }
 
@@ -170,7 +171,7 @@ async function routeMessage(plan, intent, messages, systemPrompt, modelOverride,
  * completarse. Si el TTFT expira, se aborta el intento zombi (señal enlazada
  * a la del cliente) y se salta al siguiente modelo de la cadena.
  */
-async function routeMessageStream(plan, intent, messages, systemPrompt, onChunk, modelOverride, imageDataUris, taskType, isDegraded = false, isGuest = false, signal = null) {
+async function routeMessageStream(plan, intent, messages, systemPrompt, onChunk, modelOverride, imageDataUris, taskType, isDegraded = false, isGuest = false, signal = null, incognito = false) {
   const chain = getExecutionChain(plan, intent, modelOverride, imageDataUris, taskType);
   // TTFT timeout adaptativo: modelos de razonamiento (qwq-plus), visión y código
   // requieren margen para pensar/procesar tokens iniciales sin abortar prematuramente.
@@ -196,6 +197,7 @@ async function routeMessageStream(plan, intent, messages, systemPrompt, onChunk,
       max_tokens: 8192,
       signal: attemptCtrl.signal,
       imageDataUris: Array.isArray(imageDataUris) ? imageDataUris : [],
+      incognito: !!incognito,
     };
 
     let ttftTimer = null;
@@ -233,7 +235,7 @@ async function routeMessageStream(plan, intent, messages, systemPrompt, onChunk,
       if (isClientAbortError(err)) throw err;
       lastError = err;
       // Async error logging: no bloquea el hot path
-      setImmediate(() => logInternalGatewayError(err, { provider: 'alibaba', model: modelId, phase: `stream-chain-step-${i + 1}` }));
+      setImmediate(() => logInternalGatewayError(err, { provider: 'alibaba', model: modelId, phase: `stream-chain-step-${i + 1}`, incognito: !!incognito }));
     } finally {
       if (ttftTimer) clearTimeout(ttftTimer);
       if (signal) signal.removeEventListener('abort', onOuterAbort);
@@ -241,7 +243,7 @@ async function routeMessageStream(plan, intent, messages, systemPrompt, onChunk,
   }
 
   if (lastError && isClientAbortError(lastError)) throw lastError;
-  logInternalGatewayError(lastError || new Error('ALL_ALIBABA_MODELS_STREAM_FAILED'), { provider: 'alibaba', phase: 'stream-chain-exhausted' });
+  logInternalGatewayError(lastError || new Error('ALL_ALIBABA_MODELS_STREAM_FAILED'), { provider: 'alibaba', phase: 'stream-chain-exhausted', incognito: !!incognito });
   return sanitizedErrorResult();
 }
 

@@ -1091,16 +1091,35 @@ class _ClaudeAccountModal {
               Divider(color: dividerColor),
               const SizedBox(height: 8),
 
-              // Botón de Log out abajo en tono rojizo
-              ListTile(
-                contentPadding: const EdgeInsets.symmetric(horizontal: 8),
-                leading: const Icon(Icons.logout_rounded, color: Color(0xFFE57373), size: 22),
-                title: Text(AppI18n.of(context).t('settings.logout'), style: TextStyle(fontFamily: 'AnthropicSans', fontSize: 15, fontWeight: FontWeight.w600, color: const Color(0xFFE57373), letterSpacing: -0.2)),
-                onTap: () async {
-                  Navigator.pop(ctx);
-                  await Future.delayed(const Duration(milliseconds: 300));
-                  await SupabaseService.signOut();
-                },
+              // Botón de Log out — 100% plano (Fix LG V60 #4): sin caja,
+              // sin borde, sin sombra; solo icono + texto en rojo sutil.
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () async {
+                    HapticFeedback.lightImpact();
+                    Navigator.pop(ctx);
+                    await Future.delayed(const Duration(milliseconds: 300));
+                    await SupabaseService.signOut();
+                  },
+                  child: Row(
+                    children: [
+                      const Icon(Icons.logout_rounded, color: Color(0xFFE05252), size: 22),
+                      const SizedBox(width: 14),
+                      Text(
+                        AppI18n.of(context).t('settings.logout'),
+                        style: const TextStyle(
+                          fontFamily: 'AnthropicSans',
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFFE05252),
+                          letterSpacing: -0.2,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ),
               const SizedBox(height: 24),
               Center(

@@ -9,6 +9,7 @@ const { getHistory, saveMessage, assertConversationOwner } = require('../service
 const { estimateTokens, updateTokenUsage } = require('../services/tokenCounter');
 const { extractText } = require('../services/documentExtractor');
 const { buildSystemPrompt } = require('../prompts/groundingMinerd');
+const { createChatLogger } = require('../services/logger');
 const { searchMinerdChunks } = require('../services/minerdRetrievalService');
 const {
   USER_FACING_ERROR_MESSAGE,
@@ -46,6 +47,21 @@ const MINERD_KEYWORDS = [
   'evaluación diagnóstica', 'evaluacion diagnostica', 'formación integral', 'formacion integral',
   'transversal', 'docente', 'docentes', 'aula', 'didáctica', 'didactica', 'pedagogía', 'pedagogia',
 ];
+
+/**
+ * [Fix LG V60 #2] VISIÓN SOBRE FOTOS GENERADAS.
+ * Detecta la imagen generada en el último turno del asistente (markdown
+ * `![...](https://...)`) y las referencias del usuario a ella ("describe
+ * la foto", "hazle un zoom", "¿qué se ve?"...).
+ */
+const GENERATED_IMAGE_MD = /!\[[^\]]*\]\((https?:\/\/[^\s)]+)\)/;
+const GENERATED_IMAGE_REFERENCE = new RegExp(
+  '\\b(fotos?|im[aá]genes?|dibujo|ilustraci\\w+|zoom|recorta\\w*|ampl[ií]a\\w*|' +
+  'describe\\w*|describ\\w*|analiza\\w*|detalla\\w*|retoca\\w*|edita\\w*|cambia\\w*)\\b' +
+  '|\\bqu[eé]\\s+(se\\s+)?ve\\b|\\bc[oó]mo\\s+(se\\s+)?ve\\b|\\bhazl[eo]\\b|' +
+  '\\b(es[ao]|est[ao]|ella)\\b',
+  'i'
+);
 
 /**
  * Determina si un mensaje (o contexto de la conversación) es MINERD/educativo.
@@ -183,6 +199,13 @@ router.post('/', auth, guestLimit, planGuard, upload.array('files', 5), async (r
   let clientConnected = true;
   let heartbeatInterval = null;
   const abortController = new AbortController();
+
+  // H6/#477: en incógnito (flag del cliente) o usuario anónimo, NINGÚN texto
+  // del turno (prompt, respuesta, adjuntos) puede llegar a stdout/Cloud Run
+  // Logging. Todo log con contenido posible pasa por chatLog. Declarado antes
+  // del try para que el catch externo también pueda usarlo sin riesgo de TDZ.
+  const isIncognitoTurn = req.body?.isIncognito === true || !!req.user?.anonymous;
+  const chatLog = createChatLogger(isIncognitoTurn);
 
   try {
     const { message, conversationId, model_override, attachments, subject } = req.body;
@@ -332,7 +355,7 @@ router.post('/', auth, guestLimit, planGuard, upload.array('files', 5), async (r
     sendSse({ type: 'heartbeat', status: 'connected' });
 
     // 1 & 2. Paralelizar historial e intención.
-    const hasImages = imageDataUris && imageDataUris.length > 0;
+    let hasImages = imageDataUris && imageDataUris.length > 0;
 
     let history = [];
     let intent = 'SIMPLE';
@@ -366,6 +389,26 @@ router.post('/', auth, guestLimit, planGuard, upload.array('files', 5), async (r
       ]);
       history = dbHistory;
       intent = detectedIntent;
+    }
+
+    // [Fix LG V60 #2] VISIÓN SOBRE FOTOS GENERADAS: si el ÚLTIMO turno del
+    // asistente contiene una imagen generada y el usuario la referencia,
+    // se adjunta la URL como bloque multimodal (image_url) al último mensaje
+    // del usuario y se fuerza intent VISION para enrutar a un modelo VL.
+    // Qwen VL acepta URLs públicas: la imagen generada no necesita descarga.
+    if (!hasImages && intent !== 'IMAGEN' && intent !== 'DOCUMENTO') {
+      const lastAssistant = [...(history || [])]
+        .reverse()
+        .find((m) => m && m.role === 'assistant' && typeof m.content === 'string');
+      const generatedImg = lastAssistant
+        ? lastAssistant.content.match(GENERATED_IMAGE_MD)
+        : null;
+      if (generatedImg && GENERATED_IMAGE_REFERENCE.test(enhancedMessage)) {
+        imageDataUris.push(generatedImg[1]);
+        hasImages = true;
+        intent = 'VISION';
+        chatLog.log('[chat] Foto generada del turno anterior adjuntada al contexto (visión multimodal)');
+      }
     }
 
     // Override por cliente: solo 'simple'/'reasoning', sin imágenes y sin
@@ -450,7 +493,7 @@ router.post('/', auth, guestLimit, planGuard, upload.array('files', 5), async (r
           try { res.end(); } catch (_) {}
           return;
         }
-        logInternalGatewayError(imgErr, { provider: 'dashscope', model: 'image', phase: 'chat-imagen' });
+        logInternalGatewayError(imgErr, { provider: 'dashscope', model: 'image', phase: 'chat-imagen', incognito: chatLog.incognito });
         sendSse({ type: 'notice', code: 'image_generation_failed' });
         sendSse({ type: 'done', content: '', sources: [] });
         res.end();
@@ -568,7 +611,7 @@ router.post('/', auth, guestLimit, planGuard, upload.array('files', 5), async (r
           if (textChunk) {
             if (!__ttftLogged) {
               __ttftLogged = true;
-              console.log(`[chat][perf] ttft=${Date.now() - __t0}ms intent=${intent} model=${result?.model || model_override || 'auto'} guest=${isGuest}`);
+              chatLog.log(`[chat][perf] ttft=${Date.now() - __t0}ms intent=${intent} model=${result?.model || model_override || 'auto'} guest=${isGuest} incognito=${chatLog.incognito}`);
             }
             fullText += textChunk;
             sendSse({ type: 'chunk', content: textChunk });
@@ -579,7 +622,8 @@ router.post('/', auth, guestLimit, planGuard, upload.array('files', 5), async (r
         req.body.taskType,
         isDegraded,
         isGuest,
-        abortController.signal
+        abortController.signal,
+        isIncognitoTurn
       );
     } catch (streamErr) {
       clearInterval(heartbeatInterval);
@@ -589,7 +633,7 @@ router.post('/', auth, guestLimit, planGuard, upload.array('files', 5), async (r
         return;
       }
       // Log interno completo (stack, vendor, modelo) — SOLO consola del servidor.
-      logInternalGatewayError(streamErr, { provider: 'gateway', model: 'stream-dispatch', phase: 'chat-route-stream' });
+      logInternalGatewayError(streamErr, { provider: 'gateway', model: 'stream-dispatch', phase: 'chat-route-stream', incognito: chatLog.incognito });
       // Respuesta sanitizada de marca al cliente.
       sendSse({ type: 'error', content: USER_FACING_ERROR_MESSAGE });
       sendSse({ type: 'done', content: fullText || '', sources: [] });
@@ -668,7 +712,7 @@ router.post('/', auth, guestLimit, planGuard, upload.array('files', 5), async (r
 
     if (heartbeatInterval) clearInterval(heartbeatInterval);
 
-    logInternalGatewayError(error, { provider: 'gateway', model: 'chat-route', phase: 'chat-route-outer' });
+    logInternalGatewayError(error, { provider: 'gateway', model: 'chat-route', phase: 'chat-route-outer', incognito: chatLog.incognito });
 
     if (res.headersSent) {
       // Stream SSE ya iniciado: emitir eventos sanitizados y cerrar limpiamente.
@@ -852,10 +896,12 @@ router.post('/title', auth, async (req, res) => {
 
     const prompt = `Usuario: ${userText || '(Imagen / archivo adjunto)'}\nAsistente: ${asstSnippet}`;
 
+    const isIncognito = req.body?.isIncognito === true || !!req.user?.anonymous;
     const alibaba = require('../services/providers/alibaba');
     const result = await alibaba.call('qwen3.7-flash', [prompt], systemPrompt, {
       max_tokens: 40,
       temperature: 0.3,
+      incognito: isIncognito,
     });
 
     let rawTitle = (result.text || '').trim();
@@ -879,9 +925,13 @@ router.post('/title', auth, async (req, res) => {
 
     return res.json({ title: rawTitle || 'Conversación' });
   } catch (error) {
-    console.error('[chat/title] Error generando título con LLM:', error.message);
+    const isIncognito = req.body?.isIncognito === true || !!req.user?.anonymous;
+    console.error('[chat/title] Error generando título con LLM:', isIncognito ? '[REDACTED_INCOGNITO]' : error.message);
     return res.status(500).json({ error: 'Failed to generate title', fallback: 'Conversación' });
   }
 });
 
 module.exports = router;
+// Exportados para la suite de tests (test/backend.test.js, H5):
+module.exports.stripCodeBlocksForSources = stripCodeBlocksForSources;
+module.exports.extractSourcesFromText = extractSourcesFromText;

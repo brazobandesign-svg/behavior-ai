@@ -59,6 +59,9 @@ class _ChatScreenState extends State<ChatScreen>
     final state = context.read<AppState>();
     _observedState = state;
     state.addListener(_syncAnimations);
+    // [Fix LG V60 #5] Al citar texto ("Preguntar a Éxodo"), el chat baja al
+    // final para que composer + chip de cita queden a la vista con teclado.
+    state.onRequestChatScrollToBottom = _scrollChatToBottom;
     _syncAnimations();
 
     // Trigger reload
@@ -212,6 +215,7 @@ class _ChatScreenState extends State<ChatScreen>
   void dispose() {
     ChatService.cancelStream();
     _observedState?.removeListener(_syncAnimations);
+    _observedState?.onRequestChatScrollToBottom = null;
     WidgetsBinding.instance.removeObserver(this);
     _inputCtrl.dispose();
     _scrollCtrl.dispose();
@@ -219,6 +223,19 @@ class _ChatScreenState extends State<ChatScreen>
     _ambientBgCtrl.dispose();
     _pulseCtrl.dispose();
     super.dispose();
+  }
+
+  /// [Fix LG V60 #5] Baja el chat al último mensaje cuando se fija una cita
+  /// ("Preguntar a Éxodo"): el chip y el composer quedan a la vista.
+  void _scrollChatToBottom() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_scrollCtrl.hasClients) return;
+      _scrollCtrl.animateTo(
+        _scrollCtrl.position.maxScrollExtent,
+        duration: const Duration(milliseconds: 250),
+        curve: Curves.easeOut,
+      );
+    });
   }
 
   void _showModelSheet() {

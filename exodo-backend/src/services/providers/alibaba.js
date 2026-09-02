@@ -4,6 +4,7 @@ const { OpenAI } = require('openai');
 const { ALIBABA_CONFIG } = require('../../config/models');
 const { SYSTEM_PROMPT } = require('../../config/systemPrompt');
 const { logInternalGatewayError, wrapProviderError } = require('../errorSanitizer');
+const { REDACTED } = require('../logger');
 
 /**
  * Provider: Alibaba Cloud Model Studio (DashScope) OpenAI-Compatible Gateway
@@ -195,8 +196,9 @@ async function call(modelId, messages, systemPrompt, options = {}) {
       // Endpoint estricto que no tolera los params de thinking: retry limpio.
       response = await client.chat.completions.create(baseParams, { signal: opts.signal || null });
     } else {
-      console.error(`[alibaba] Call error con modelo ${targetModel}:`, err.message);
-      throw wrapProviderError(err, targetModel, 'call-request');
+      // H6/#477: en incógnito el mensaje del vendor no se loguea (puede ecoar el prompt).
+      console.error(`[alibaba] Call error con modelo ${targetModel}:`, opts.incognito ? REDACTED : err.message);
+      throw wrapProviderError(err, targetModel, 'call-request', { incognito: !!opts.incognito });
     }
   }
 
@@ -250,8 +252,8 @@ async function callStream(modelId, messages, systemPrompt, onChunk, options = {}
       // Endpoint estricto que no tolera los params de thinking: retry limpio.
       stream = await client.chat.completions.create(baseParams, { signal: opts.signal || null });
     } else {
-      console.error(`[alibaba] Stream init error con modelo ${targetModel}:`, err.message);
-      throw wrapProviderError(err, targetModel, 'call-stream-init');
+      console.error(`[alibaba] Stream init error con modelo ${targetModel}:`, opts.incognito ? REDACTED : err.message);
+      throw wrapProviderError(err, targetModel, 'call-stream-init', { incognito: !!opts.incognito });
     }
   }
 
@@ -298,8 +300,8 @@ async function callStream(modelId, messages, systemPrompt, onChunk, options = {}
         aborted: true,
       };
     }
-    console.error(`[alibaba] Stream iteration error con modelo ${targetModel}:`, err.message);
-    throw wrapProviderError(err, targetModel, 'call-stream-iteration');
+    console.error(`[alibaba] Stream iteration error con modelo ${targetModel}:`, opts.incognito ? REDACTED : err.message);
+    throw wrapProviderError(err, targetModel, 'call-stream-iteration', { incognito: !!opts.incognito });
   }
 
   return {

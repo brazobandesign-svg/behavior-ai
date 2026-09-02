@@ -1,4 +1,4 @@
-require('dotenv').config();
+require('dotenv').config({ path: process.env.DOTENV_CONFIG_PATH || undefined, override: true });
 
 /**
  * Configuración de red del backend.

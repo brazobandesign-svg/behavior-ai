@@ -81,14 +81,12 @@ const PLANS = {
   genesis: {
     name: PLAN_CONFIG.free.name,
     tokensPerDay: PLAN_CONFIG.free.dailyTokensLimit,
-    historyDays: 30,
     imagesPerMonth: PLAN_CONFIG.free.monthlyVisionLimit,
     filesEnabled: true,
   },
   hazak: {
     name: PLAN_CONFIG.pro.name,
     tokensPerDay: PLAN_CONFIG.pro.dailyTokensLimit,
-    historyDays: null,
     imagesPerMonth: PLAN_CONFIG.pro.monthlyVisionLimit,
     filesEnabled: true,
   },

@@ -31,7 +31,7 @@ const CODIGOS_DOCUMENTO = [
   'PEI-GUIA',
 ];
 
-const PLANES_VALIDOS = new Set(['genesis', 'lux', 'ehyeh', 'hazak', 'guest']);
+const PLANES_VALIDOS = new Set(['genesis', 'hazak', 'guest']);
 const SUBJECTS_VALIDOS = new Set([
   'planificacion',
   'evaluacion',
@@ -47,8 +47,6 @@ const SUBJECTS_VALIDOS = new Set([
 
 const PLAN_LABELS = {
   genesis: 'G1.1 (Free)',
-  lux:     'G1.1 (Free)',
-  ehyeh:   'XPi (Pro)',
   hazak:   'XPi (Pro)',
   guest:   'Invitado',
 };
@@ -153,7 +151,7 @@ const APP_KNOWLEDGE = [
   '- Imágenes: el usuario puede pedir "genera una foto/imagen de..." directamente en el chat (3/día en G1.1, 25/día en XPi).',
   '- Privacidad: en Ajustes (menú lateral > Settings) está "Guardar historial en la nube"; al desactivarlo, los chats se guardan SOLO en el dispositivo.',
   '- Exportar: los chats largos permiten "Exportar contexto" a HTML para continuarlos en un chat nuevo.',
-  '- Para cambiar de plan o ver consumo: menú lateral > Settings > Billing.',
+  '- El medidor de consumo de tokens, estado de la suscripción y opciones de facturación se encuentran en el Menú lateral (Drawer) → sección Cuenta → Facturación. Si el usuario pregunta por su saldo o tokens, indícale esa ruta exacta en la app.',
   '</exodo_app_knowledge>',
 ].join('\n');
 

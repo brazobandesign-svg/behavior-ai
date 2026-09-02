@@ -254,9 +254,14 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
   String? quotedSnippet;
   VoidCallback? onRequestComposerFocus;
 
+  /// [Fix LG V60 #5] Auto-scroll del chat al final al fijar una cita nueva,
+  /// para que el composer + chip de cita queden a la vista.
+  VoidCallback? onRequestChatScrollToBottom;
+
   void setQuotedSnippet(String snippet) {
     quotedSnippet = snippet.trim();
     onRequestComposerFocus?.call();
+    onRequestChatScrollToBottom?.call();
     notifyListeners();
   }
 

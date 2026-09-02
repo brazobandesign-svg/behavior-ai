@@ -30,12 +30,10 @@ const PUBLIC_BASE_URL = (process.env.PUBLIC_BASE_URL || 'https://exodo.app').rep
 const SLUG_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-';
 const newSlug = customAlphabet(SLUG_ALPHABET, 12);
 
-// TTL por plan (en días). null = permanente.
+// TTL por plan (en días). null = permanente (Doctrina Éxodo).
 const TTL_DAYS_BY_PLAN = {
   guest: 30,
-  genesis: 30,
-  lux: 30,
-  ehyeh: 30,
+  genesis: null,
   hazak: null,
 };
 

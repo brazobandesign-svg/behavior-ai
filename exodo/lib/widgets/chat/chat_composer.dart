@@ -185,9 +185,13 @@ class _ChatComposerState extends State<ChatComposer>
           unawaited(_abortVoiceSession());
         };
         state.onRequestComposerFocus = () {
-          if (mounted) {
-            _inputFocusNode.requestFocus();
-          }
+          if (!mounted) return;
+          _inputFocusNode.requestFocus();
+          // [Fix LG V60 #5] Refuerzo: el cierre del toolbar de selección puede
+          // robar el foco justo después; se reafirma tras la animación.
+          Future.delayed(const Duration(milliseconds: 220), () {
+            if (mounted) _inputFocusNode.requestFocus();
+          });
         };
       }
     });
