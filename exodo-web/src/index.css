@@ -710,6 +710,199 @@ body, html, #root {
   color: var(--text-secondary);
 }
 
+/* ── Citas en línea ámbar (paridad con el estilo `a:` de message_bubble.dart) ── */
+.markdown-body a {
+  font-family: 'AnthropicSans', -apple-system, sans-serif;
+  color: var(--amber-exodo);
+  text-decoration: underline;
+  text-decoration-color: rgba(201, 147, 58, 0.5);
+  text-underline-offset: 2px;
+}
+.markdown-body a:hover {
+  text-decoration-color: var(--amber-exodo);
+}
+
+/* ── Cápsula de Fuentes (paridad _SourcesSheet móvil) ── */
+.sources-capsule {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 14px;
+  padding: 5px 12px;
+  border-radius: 30px;
+  background: #252525;
+  border: 0.5px solid #333336;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+.sources-capsule:hover {
+  background: #2E2E2E;
+}
+.sources-capsule-label {
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  color: #A0A0A5;
+  white-space: nowrap;
+}
+.sources-avatar-stack {
+  position: relative;
+  height: 20px;
+  display: inline-block;
+}
+.source-avatar {
+  position: absolute;
+  top: 0;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'AnthropicSans', sans-serif;
+  font-size: 8.5px;
+  font-weight: 700;
+  color: #FFFFFF;
+  border: 1.5px solid #252525;
+}
+[data-theme="light"] .sources-capsule {
+  background: #FFFFFF;
+  border: 0.5px solid rgba(0, 0, 0, 0.12);
+}
+[data-theme="light"] .sources-capsule:hover {
+  background: #F7F5F0;
+}
+[data-theme="light"] .sources-capsule-label {
+  color: #4A4A4A;
+}
+[data-theme="light"] .source-avatar {
+  border-color: #FFFFFF;
+}
+
+/* ── Hoja modal de Fuentes (bottom sheet en móvil, centrada en desktop) ── */
+.sources-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1100;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  animation: fadeIn 0.15s ease-out;
+}
+.sources-sheet {
+  width: 100%;
+  max-width: 520px;
+  max-height: 70vh;
+  background: var(--surface-card);
+  border-radius: 20px 20px 0 0;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  animation: sourcesSheetUp 0.2s ease-out;
+}
+@media (min-width: 640px) {
+  .sources-overlay {
+    align-items: center;
+  }
+  .sources-sheet {
+    border-radius: 20px;
+    max-height: 60vh;
+  }
+}
+@keyframes sourcesSheetUp {
+  from {
+    transform: translateY(24px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+.sources-sheet-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+.sources-sheet-title {
+  font-family: 'Inter', sans-serif;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+.sources-sheet-close {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  display: flex;
+  padding: 4px;
+  border-radius: 8px;
+}
+.sources-list {
+  overflow-y: auto;
+}
+.source-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 12px 0;
+  background: transparent;
+  border: none;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  cursor: pointer;
+  text-align: left;
+}
+.source-item:first-child {
+  border-top: none;
+}
+.source-item-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'AnthropicSans', sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  color: #FFFFFF;
+}
+.source-item-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+.source-item-title {
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.source-item-url {
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  color: var(--amber-exodo);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.source-item-open {
+  color: var(--amber-exodo);
+  flex-shrink: 0;
+}
+[data-theme="light"] .source-item {
+  border-top-color: rgba(0, 0, 0, 0.08);
+}
+
+
 .thinking-row {
   display: inline-flex;
   align-items: center;

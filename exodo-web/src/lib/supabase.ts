@@ -22,6 +22,12 @@ export interface Conversation {
   is_starred?: boolean;
 }
 
+export interface Source {
+  title: string;
+  url: string;
+  favicon?: string;
+}
+
 export interface Message {
   id: string;
   conversation_id: string;
@@ -29,4 +35,5 @@ export interface Message {
   content: string;
   created_at: string;
   isThinking?: boolean;
+  sources?: Source[] | null;
 }

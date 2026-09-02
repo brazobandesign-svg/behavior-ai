@@ -22,13 +22,77 @@ import {
   Trash2,
   Globe,
   Smartphone,
-  Zap
+  Zap,
+  ExternalLink
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import TextareaAutosize from 'react-textarea-autosize';
-import { supabase, type Conversation, type Message } from './lib/supabase';
+import { supabase, type Conversation, type Message, type Source } from './lib/supabase';
 import { AuthModal } from './components/AuthModal';
+
+// ── Doctrina de Fuentes (paridad con _SourcesSheet móvil) ──────────────────
+
+// Etiquetas localizadas de fuentes (paridad con sources.title / sources.consulted de la app móvil).
+const SOURCE_LABELS: Record<string, { title: string; consulted: string }> = {
+  es: { title: 'Fuentes', consulted: 'Fuentes Consultadas' },
+  en: { title: 'Sources', consulted: 'Consulted Sources' },
+  fr: { title: 'Sources', consulted: 'Sources consultées sur le web' },
+  pt: { title: 'Fontes', consulted: 'Fontes consultadas na web' },
+  it: { title: 'Fonti', consulted: 'Fonti consultate sul web' },
+  de: { title: 'Quellen', consulted: 'Im Web konsultierte Quellen' },
+  ru: { title: 'Источники', consulted: 'Источники, изученные в сети' },
+  zh: { title: '参考来源', consulted: '网页搜索参考来源' },
+  ja: { title: '情報源', consulted: 'ウェブで参照したソース' },
+  ar: { title: 'المصادر', consulted: 'المصادر المستشار بها على الويب' },
+  ko: { title: '출처', consulted: '웹에서 참조된 출처' },
+  hi: { title: 'स्रोत', consulted: 'वेब पर परामर्श किए गए स्रोत' },
+  ht: { title: 'Sous', consulted: 'Sous ki te konsilte sou entènèt' },
+};
+
+const getSourceLabels = (locale: string) => {
+  const base = (locale || 'es').toLowerCase().split(/[-_]/)[0];
+  return SOURCE_LABELS[base] || SOURCE_LABELS.es;
+};
+
+const SOURCE_CIRCLE_COLORS = ['#635BFF', '#131313', '#2E90FA', '#C9933A'];
+
+// Iniciales del avatar: favicon del backend → 2 primeras palabras → 2 letras (paridad _sourceInitials).
+const sourceInitials = (s: Source) => {
+  if (s.favicon && s.favicon.trim()) return s.favicon.trim().toUpperCase();
+  const t = (s.title || '').trim();
+  if (!t) return '?';
+  const parts = t.split(/\s+/).filter(Boolean);
+  if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
+  return t.slice(0, 2).toUpperCase() || '?';
+};
+
+// Filtro cliente (paridad móvil): descarta descargas efímeras e imágenes de mensajes históricos.
+const validSourcesOf = (msg: Message): Source[] =>
+  (msg.sources || []).filter((s) => {
+    const url = (s.url || '').toLowerCase();
+    return !(
+      url.includes('aliyuncs.com') ||
+      url.includes('dashscope-result') ||
+      url.endsWith('.png') ||
+      url.endsWith('.jpg') ||
+      url.endsWith('.jpeg')
+    );
+  });
+
+const openSourceUrl = (url: string) => {
+  window.open(url, '_blank', 'noopener,noreferrer');
+};
+
+// Citas en línea ámbar (paridad con el estilo `a:` de message_bubble.dart):
+// AnthropicSans, ámbar oficial y subrayado tenue; apertura en pestaña nueva.
+const markdownComponents = {
+  a: ({ node: _node, href, children, ...rest }: React.ComponentProps<'a'> & { node?: unknown }) => (
+    <a {...rest} href={href} target="_blank" rel="noopener noreferrer">
+      {children}
+    </a>
+  ),
+};
 
 const PsychologyIcon = ({ size = 14, color = 'currentColor' }: { size?: number; color?: string }) => (
   <svg width={size} height={size} viewBox="0 -960 960 960" fill="currentColor" style={{ flexShrink: 0, color }}>
@@ -117,6 +181,7 @@ export default function App() {
     }
   ]);
   const [isInitializing, setIsInitializing] = useState(true);
+  const [openSourcesId, setOpenSourcesId] = useState<string | null>(null);
   const [drafts, setDrafts] = useState<Record<string, string>>(() => {
     try {
       const saved = localStorage.getItem('exodo_web_drafts');
@@ -440,7 +505,22 @@ export default function App() {
               if (dataStr === '[DONE]') continue;
               try {
                 const parsed = JSON.parse(dataStr);
-                if (parsed.content) {
+                if (parsed.type === 'done') {
+                  // El evento done trae el texto FINAL y las fuentes extraídas por el backend.
+                  // Se REEMPLAZA el contenido (no se concatena) para no duplicar la respuesta.
+                  setMessages((prev) =>
+                    prev.map((m) =>
+                      m.id === assistantMsgId
+                        ? {
+                            ...m,
+                            content: parsed.content || accumulatedText,
+                            sources: Array.isArray(parsed.sources) ? parsed.sources : []
+                          }
+                        : m
+                    )
+                  );
+                  scrollToBottom();
+                } else if (parsed.content) {
                   accumulatedText += parsed.content;
                   setMessages((prev) =>
                     prev.map((m) =>
@@ -1217,11 +1297,45 @@ export default function App() {
                             <span className="thinking-label">Pensando</span>
                           </div>
                         ) : (
-                          <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                          <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
                             {msg.content}
                           </ReactMarkdown>
                         )}
                       </div>
+
+                      {msg.role === 'assistant' && (() => {
+                        const vs = validSourcesOf(msg);
+                        if (vs.length === 0) return null;
+                        const label = getSourceLabels(locale).title;
+                        return (
+                          <button
+                            type="button"
+                            className="sources-capsule"
+                            onClick={() => setOpenSourcesId(msg.id)}
+                          >
+                            <span className="sources-capsule-label">
+                              {vs.length > 1 ? `${label} · ${vs.length}` : label}
+                            </span>
+                            <span
+                              className="sources-avatar-stack"
+                              style={{ width: Math.min(vs.length, 4) * 12 + 8 }}
+                            >
+                              {vs.slice(0, 4).map((s, i) => (
+                                <span
+                                  key={`${s.url}-${i}`}
+                                  className="source-avatar"
+                                  style={{
+                                    left: i * 12,
+                                    background: SOURCE_CIRCLE_COLORS[i % SOURCE_CIRCLE_COLORS.length]
+                                  }}
+                                >
+                                  {sourceInitials(s)}
+                                </span>
+                              ))}
+                            </span>
+                          </button>
+                        );
+                      })()}
                       
                       {msg.role === 'user' && (
                         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', color: 'var(--text-secondary)', marginTop: '4px', opacity: 0.7, paddingRight: '6px', fontFamily: 'Inter, sans-serif' }}>
@@ -1294,6 +1408,53 @@ export default function App() {
         onClose={() => setShowAuthModal(false)}
         onSuccess={() => fetchConversations()}
       />
+
+      {/* Hoja modal de Fuentes (paridad _SourcesSheet móvil) */}
+      {openSourcesId && (() => {
+        const openMsg = messages.find((m) => m.id === openSourcesId);
+        const vs = openMsg ? validSourcesOf(openMsg) : [];
+        if (vs.length === 0) return null;
+        const labels = getSourceLabels(locale);
+        return (
+          <div className="sources-overlay" onClick={() => setOpenSourcesId(null)}>
+            <div className="sources-sheet" onClick={(e) => e.stopPropagation()}>
+              <div className="sources-sheet-header">
+                <span className="sources-sheet-title">{labels.consulted}</span>
+                <button
+                  type="button"
+                  className="sources-sheet-close"
+                  onClick={() => setOpenSourcesId(null)}
+                  aria-label="Cerrar"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+              <div className="sources-list">
+                {vs.map((s, idx) => (
+                  <button
+                    key={`${s.url}-${idx}`}
+                    type="button"
+                    className="source-item"
+                    onClick={() => s.url && openSourceUrl(s.url)}
+                  >
+                    <span
+                      className="source-item-avatar"
+                      style={{ background: SOURCE_CIRCLE_COLORS[idx % SOURCE_CIRCLE_COLORS.length] }}
+                    >
+                      {sourceInitials(s)}
+                    </span>
+                    <span className="source-item-text">
+                      <span className="source-item-title">{s.title || s.url}</span>
+                      {s.url ? <span className="source-item-url">{s.url}</span> : null}
+                    </span>
+                    {s.url ? <ExternalLink size={18} className="source-item-open" /> : null}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Settings Modal */}
       {showAccountMenu && (
