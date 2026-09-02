@@ -1,11 +1,8 @@
 import 'dart:io';
-import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:google_fonts/google_fonts.dart';
 
-import '../../l10n/app_i18n.dart';
 import '../../services/image_cache_service.dart';
 import '../../theme/exodo_theme.dart';
 import 'image_viewer_screen.dart';
@@ -83,22 +80,12 @@ class _ExodoShimmerState extends State<ExodoShimmer>
   }
 }
 
-/// Placeholder premium mientras Éxodo genera la foto (T2I DashScope).
-///
-/// Diseño cinemático:
-/// - Lienzo cuadrado 1:1 (300x300) que coincide con la proporción de la foto.
-/// - Aura de respiración de gradiente ámbar/grafito.
-/// - Órbita dual rotativa con apertura fotográfica/chispa central pulsante.
-/// - Indicador de estado sincronizado con el tema.
+/// Cuadro de espera minimalista para generación de foto:
+/// - Cuadro cuadrado 1:1 (300x300) que reserva el espacio exacto de la foto.
+/// - Completamente vacío, limpio y sin texto.
+/// - Fluctuación/parpadeo súper lento (3600 ms) que indica carga con una respiración orgánica de luz.
 class ImageGeneratingPlaceholder extends StatefulWidget {
-  final bool isDownloading;
-  final double? progress;
-
-  const ImageGeneratingPlaceholder({
-    super.key,
-    this.isDownloading = false,
-    this.progress,
-  });
+  const ImageGeneratingPlaceholder({super.key});
 
   @override
   State<ImageGeneratingPlaceholder> createState() =>
@@ -106,16 +93,11 @@ class ImageGeneratingPlaceholder extends StatefulWidget {
 }
 
 class _ImageGeneratingPlaceholderState extends State<ImageGeneratingPlaceholder>
-    with TickerProviderStateMixin {
+    with SingleTickerProviderStateMixin {
   late final AnimationController _pulseController = AnimationController(
     vsync: this,
-    duration: const Duration(milliseconds: 2200),
+    duration: const Duration(milliseconds: 3600),
   )..repeat(reverse: true);
-
-  late final AnimationController _spinController = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 3200),
-  )..repeat();
 
   late final Animation<double> _pulseAnim = CurvedAnimation(
     parent: _pulseController,
@@ -125,188 +107,74 @@ class _ImageGeneratingPlaceholderState extends State<ImageGeneratingPlaceholder>
   @override
   void dispose() {
     _pulseController.dispose();
-    _spinController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     final isLight = Theme.of(context).brightness == Brightness.light;
-    final cardBg = isLight ? const Color(0xFFF6F3EC) : const Color(0xFF181716);
-    final borderColor =
-        isLight ? const Color(0x18000000) : const Color(0x2AFFFFFF);
-    final textPrimary =
-        isLight ? const Color(0xFF1E1C1A) : const Color(0xFFF3EFE6);
-    final textMuted =
-        isLight ? const Color(0xFF7A7365) : const Color(0xFF9A9385);
 
     return Align(
       alignment: Alignment.centerLeft,
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 8),
         child: AnimatedBuilder(
-          animation: Listenable.merge([_pulseAnim, _spinController]),
+          animation: _pulseAnim,
           builder: (context, _) {
             final pulseVal = _pulseAnim.value;
-            final spinVal = _spinController.value * 2 * math.pi;
+
+            // Fluctuación súper lenta de tonalidad base
+            final baseColor = isLight
+                ? Color.lerp(
+                    const Color(0xFFF0ECE3),
+                    const Color(0xFFFAF8F3),
+                    pulseVal,
+                  )!
+                : Color.lerp(
+                    const Color(0xFF151413),
+                    const Color(0xFF22201E),
+                    pulseVal,
+                  )!;
+
+            // Parpadeo sutil en el borde
+            final borderColor = isLight
+                ? Colors.black.withValues(alpha: 0.04 + 0.06 * pulseVal)
+                : Colors.white.withValues(alpha: 0.06 + 0.09 * pulseVal);
+
+            // Resplandor ambiental de carga
+            final glowColor = ExodoColors.amber.withValues(
+              alpha: isLight
+                  ? (0.02 + 0.05 * pulseVal)
+                  : (0.03 + 0.07 * pulseVal),
+            );
 
             return Container(
               width: 300,
               height: 300,
               decoration: BoxDecoration(
-                color: cardBg,
+                color: baseColor,
                 borderRadius: BorderRadius.circular(20),
                 border: Border.all(color: borderColor, width: 1.2),
                 boxShadow: [
                   BoxShadow(
-                    color: ExodoColors.amber.withValues(
-                      alpha: isLight
-                          ? 0.05 + 0.05 * pulseVal
-                          : 0.08 + 0.08 * pulseVal,
-                    ),
-                    blurRadius: 24,
-                    spreadRadius: 2,
+                    color: glowColor,
+                    blurRadius: 18 + 16 * pulseVal,
+                    spreadRadius: 1 + 2 * pulseVal,
                     offset: const Offset(0, 4),
                   ),
                 ],
                 gradient: RadialGradient(
                   center: Alignment.center,
-                  radius: 0.85 + 0.25 * pulseVal,
+                  radius: 0.8 + 0.3 * pulseVal,
                   colors: [
                     ExodoColors.amber.withValues(
-                      alpha: isLight ? 0.08 + 0.06 * pulseVal : 0.12 + 0.08 * pulseVal,
+                      alpha: isLight
+                          ? 0.025 + 0.055 * pulseVal
+                          : 0.050 + 0.075 * pulseVal,
                     ),
-                    cardBg,
+                    baseColor,
                   ],
                 ),
-              ),
-              child: Stack(
-                alignment: Alignment.center,
-                children: [
-                  // Sutil rejilla o halo de fondo
-                  Positioned.fill(
-                    child: CustomPaint(
-                      painter: _AuraCanvasPainter(
-                        pulse: pulseVal,
-                        isLight: isLight,
-                      ),
-                    ),
-                  ),
-
-                  // Centro: Órbita dual y gema/apertura pulsante
-                  Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      SizedBox(
-                        width: 80,
-                        height: 80,
-                        child: Stack(
-                          alignment: Alignment.center,
-                          children: [
-                            // Anillo orbital giratorio con gradiente
-                            Transform.rotate(
-                              angle: spinVal,
-                              child: CustomPaint(
-                                size: const Size(76, 76),
-                                painter: _OrbitalRingPainter(
-                                  pulse: pulseVal,
-                                  isLight: isLight,
-                                ),
-                              ),
-                            ),
-                            // Núcleo pulsante
-                            Transform.scale(
-                              scale: 0.94 + 0.12 * pulseVal,
-                              child: Container(
-                                width: 46,
-                                height: 46,
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  color: isLight
-                                      ? Colors.white
-                                      : const Color(0xFF242220),
-                                  border: Border.all(
-                                    color: ExodoColors.amber.withValues(
-                                      alpha: 0.45 + 0.35 * pulseVal,
-                                    ),
-                                    width: 1.5,
-                                  ),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: ExodoColors.amber.withValues(
-                                        alpha: 0.25 + 0.25 * pulseVal,
-                                      ),
-                                      blurRadius: 16,
-                                      spreadRadius: 1,
-                                    ),
-                                  ],
-                                ),
-                                child: Icon(
-                                  Icons.auto_awesome,
-                                  size: 22,
-                                  color: ExodoColors.amber,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 22),
-
-                      // Título con punto pulsante
-                      Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Container(
-                            width: 7,
-                            height: 7,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: ExodoColors.amber.withValues(
-                                alpha: 0.4 + 0.6 * pulseVal,
-                              ),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: ExodoColors.amber.withValues(
-                                    alpha: 0.5 * pulseVal,
-                                  ),
-                                  blurRadius: 6,
-                                  spreadRadius: 1,
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            AppI18n.of(context).t('chat.creating_image'),
-                            style: GoogleFonts.inter(
-                              fontSize: 13.5,
-                              fontWeight: FontWeight.w600,
-                              letterSpacing: -0.1,
-                              color: textPrimary,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 6),
-
-                      // Subtítulo elegante
-                      Opacity(
-                        opacity: 0.75 + 0.25 * pulseVal,
-                        child: Text(
-                          widget.isDownloading && widget.progress != null
-                              ? '${(widget.progress! * 100).toInt()}%'
-                              : AppI18n.of(context).t('chat.image_synthesizing'),
-                          style: GoogleFonts.inter(
-                            fontSize: 11.5,
-                            fontWeight: FontWeight.w400,
-                            color: textMuted,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
               ),
             );
           },
@@ -335,7 +203,6 @@ class _ExodoRevealedImageState extends State<ExodoRevealedImage>
     with SingleTickerProviderStateMixin {
   File? _cachedFile;
   bool _isLoading = true;
-  double? _downloadProgress;
 
   late final AnimationController _revealController = AnimationController(
     vsync: this,
@@ -384,19 +251,14 @@ class _ExodoRevealedImageState extends State<ExodoRevealedImage>
           _cachedFile = existing;
           _isLoading = false;
         });
-        _revealController.value = 1.0; // Ya está cargada, sin demora
+        _revealController.value = 1.0; // Ya está en disco, sin demora
       }
       return;
     }
 
     // 2. Descarga y guardado atómico persistente en disco
     setState(() => _isLoading = true);
-    final file = await ImageCacheService.getOrDownloadImage(
-      widget.imageUrl,
-      onProgress: (p) {
-        if (mounted) setState(() => _downloadProgress = p);
-      },
-    );
+    final file = await ImageCacheService.getOrDownloadImage(widget.imageUrl);
 
     if (!mounted) return;
     if (file != null && file.existsSync()) {
@@ -416,10 +278,7 @@ class _ExodoRevealedImageState extends State<ExodoRevealedImage>
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return ImageGeneratingPlaceholder(
-        isDownloading: true,
-        progress: _downloadProgress,
-      );
+      return const ImageGeneratingPlaceholder();
     }
 
     final isLight = Theme.of(context).brightness == Brightness.light;
@@ -484,83 +343,4 @@ class _ExodoRevealedImageState extends State<ExodoRevealedImage>
       ),
     );
   }
-}
-
-class _OrbitalRingPainter extends CustomPainter {
-  final double pulse;
-  final bool isLight;
-
-  _OrbitalRingPainter({required this.pulse, required this.isLight});
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final center = Offset(size.width / 2, size.height / 2);
-    final radius = size.width / 2 - 2;
-
-    final paint1 = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2.0
-      ..strokeCap = StrokeCap.round
-      ..shader = SweepGradient(
-        colors: [
-          ExodoColors.amber.withValues(alpha: 0.1),
-          ExodoColors.amber.withValues(alpha: 0.85 + 0.15 * pulse),
-          ExodoColors.amber.withValues(alpha: 0.1),
-        ],
-      ).createShader(Rect.fromCircle(center: center, radius: radius));
-
-    canvas.drawArc(
-      Rect.fromCircle(center: center, radius: radius),
-      0,
-      math.pi * 1.35,
-      false,
-      paint1,
-    );
-
-    final paint2 = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.2
-      ..strokeCap = StrokeCap.round
-      ..color = (isLight ? Colors.black12 : Colors.white12);
-
-    canvas.drawArc(
-      Rect.fromCircle(center: center, radius: radius),
-      math.pi * 1.5,
-      math.pi * 0.35,
-      false,
-      paint2,
-    );
-  }
-
-  @override
-  bool shouldRepaint(covariant _OrbitalRingPainter oldDelegate) => true;
-}
-
-class _AuraCanvasPainter extends CustomPainter {
-  final double pulse;
-  final bool isLight;
-
-  _AuraCanvasPainter({required this.pulse, required this.isLight});
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final linePaint = Paint()
-      ..color = (isLight ? Colors.black : Colors.white)
-          .withValues(alpha: 0.02 + 0.015 * pulse)
-      ..strokeWidth = 1.0;
-
-    // Líneas sutiles de composición fotográfica (regla de los tercios)
-    final wThird = size.width / 3;
-    final hThird = size.height / 3;
-
-    canvas.drawLine(Offset(wThird, 0), Offset(wThird, size.height), linePaint);
-    canvas.drawLine(
-        Offset(wThird * 2, 0), Offset(wThird * 2, size.height), linePaint);
-    canvas.drawLine(Offset(0, hThird), Offset(size.width, hThird), linePaint);
-    canvas.drawLine(
-        Offset(0, hThird * 2), Offset(size.width, hThird * 2), linePaint);
-  }
-
-  @override
-  bool shouldRepaint(covariant _AuraCanvasPainter oldDelegate) => true;
 }
