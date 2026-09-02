@@ -1084,12 +1084,19 @@ class _SmartCopyButtonState extends State<_SmartCopyButton> {
 
 
 /// Barra discreta de fuente en línea (estilo chip, paridad con exodo-web):
-/// favicon circular del sitio + nombre corto, fondo grafito #252525, texto
-/// yeso #F4F2EB, borde sutil y ancho máximo fijo con elipsis — el nombre
-/// largo nunca empuja el layout de la línea.
+/// favicon circular del sitio + nombre corto, borde sutil y ancho máximo
+/// fijo con elipsis. Fondo #252525 en oscuro y blanco en claro.
+/// Se devuelve como WidgetSpan dentro de un RichText: flutter_markdown solo
+/// fusiona inline los widgets Text/RichText, así que un Container suelto
+/// caería a una fila propia del Wrap del párrafo en vez de fluir con la línea.
 class _SourceChipElementBuilder extends MarkdownElementBuilder {
   @override
-  Widget? visitElementAfter(md.Element element, TextStyle? preferredStyle) {
+  Widget? visitElementAfterWithContext(
+    BuildContext context,
+    md.Element element,
+    TextStyle? preferredStyle,
+    TextStyle? parentStyle,
+  ) {
     final href = element.attributes['href'];
     final label = element.textContent.trim();
     if (label.isEmpty) return null;
@@ -1106,51 +1113,64 @@ class _SourceChipElementBuilder extends MarkdownElementBuilder {
       } catch (_) {}
     }
 
-    return GestureDetector(
+    final isLight = Theme.of(context).brightness == Brightness.light;
+
+    final chip = GestureDetector(
       onTap: () {
         HapticFeedback.lightImpact();
         final uri = Uri.tryParse(href ?? '');
         if (uri != null) launchUrl(uri, mode: LaunchMode.externalApplication);
       },
       child: Container(
-        constraints: const BoxConstraints(maxWidth: 150),
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+        constraints: const BoxConstraints(maxWidth: 132),
+        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
         decoration: BoxDecoration(
-          color: const Color(0xFF252525),
-          borderRadius: BorderRadius.circular(9),
-          border: Border.all(color: const Color(0xFF3A3A3A), width: 0.8),
+          color: isLight ? Colors.white : const Color(0xFF252525),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: isLight ? const Color(0x1F000000) : const Color(0xFF3A3A3A),
+            width: 0.8,
+          ),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             if (faviconUrl != null) ...[
               ClipRRect(
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(7),
                 child: Image.network(
                   faviconUrl,
-                  width: 15,
-                  height: 15,
+                  width: 13,
+                  height: 13,
                   fit: BoxFit.contain,
                   errorBuilder: (_, _, _) => _SourceChipInitial(label),
                 ),
               ),
-              const SizedBox(width: 6),
+              const SizedBox(width: 5),
             ],
             Flexible(
               child: Text(
                 label,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
+                style: TextStyle(
                   fontFamily: 'AnthropicSans',
-                  fontSize: 11.5,
+                  fontSize: 10.5,
                   fontWeight: FontWeight.w500,
-                  color: Color(0xFFF4F2EB),
+                  color: isLight ? const Color(0xFF171615) : const Color(0xFFF4F2EB),
                 ),
               ),
             ),
           ],
         ),
+      ),
+    );
+
+    return RichText(
+      text: TextSpan(
+        children: [
+          WidgetSpan(alignment: PlaceholderAlignment.middle, child: chip),
+        ],
       ),
     );
   }
