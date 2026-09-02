@@ -340,30 +340,31 @@ class MessageBubble extends StatelessWidget {
               ),
             Padding(
               padding: const EdgeInsets.only(right: 6, top: 3),
-              child: Text(
-                _formatTime(context, message.createdAt),
-                style: GoogleFonts.inter(
-                  fontSize: 10,
-                  color: isLight ? Colors.black38 : Colors.white38,
-                ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  _EditMessageButton(
+                    message: message,
+                    isLight: isLight,
+                  ),
+                  const SizedBox(width: 4),
+                  _SmartCopyButton(
+                    textToCopy: message.content,
+                    color: isLight ? Colors.black38 : Colors.white38,
+                    copyLabel: copyLabel,
+                    copiedLabel: copiedLabel,
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    _formatTime(context, message.createdAt),
+                    style: GoogleFonts.inter(
+                      fontSize: 10,
+                      color: isLight ? Colors.black38 : Colors.white38,
+                    ),
+                  ),
+                ],
               ),
-            ),
-            const SizedBox(height: 2),
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                _EditMessageButton(
-                  message: message,
-                  isLight: isLight,
-                ),
-                const SizedBox(width: 4),
-                _SmartCopyButton(
-                  textToCopy: message.content,
-                  color: isLight ? Colors.black38 : Colors.white38,
-                  copyLabel: copyLabel,
-                  copiedLabel: copiedLabel,
-                ),
-              ],
             ),
           ],
         ),

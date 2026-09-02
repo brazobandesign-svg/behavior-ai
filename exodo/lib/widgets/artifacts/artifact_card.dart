@@ -451,35 +451,65 @@ class _CodePreview extends StatelessWidget {
       _ => 'plaintext',
     };
 
-    // Paleta de sintaxis Éxodo Brand: Ámbar, Arena, Terracota suave y Tiza
-    final theme = <String, TextStyle>{
-      'root': const TextStyle(
-        backgroundColor: Colors.transparent,
-        color: Color(0xFFF5F2EB),
-      ),
-      'tag': const TextStyle(color: Color(0xFFD4A843), fontWeight: FontWeight.w600),
-      'name': const TextStyle(color: Color(0xFFD4A843), fontWeight: FontWeight.w600),
-      'keyword': const TextStyle(color: Color(0xFFD4A843), fontWeight: FontWeight.w600),
-      'selector-tag': const TextStyle(color: Color(0xFFD4A843), fontWeight: FontWeight.w600),
-      'attr': const TextStyle(color: Color(0xFFE5C07B)),
-      'attribute': const TextStyle(color: Color(0xFFE5C07B)),
-      'variable': const TextStyle(color: Color(0xFFE5C07B)),
-      'string': const TextStyle(color: Color(0xFFCE9178)),
-      'value': const TextStyle(color: Color(0xFFCE9178)),
-      'number': const TextStyle(color: Color(0xFFD19A66)),
-      'literal': const TextStyle(color: Color(0xFFD19A66)),
-      'comment': const TextStyle(color: Color(0xFF8E8E93), fontStyle: FontStyle.italic),
-      'quote': const TextStyle(color: Color(0xFF8E8E93), fontStyle: FontStyle.italic),
-      'symbol': const TextStyle(color: Color(0xFF61AFEF)),
-      'bullet': const TextStyle(color: Color(0xFF61AFEF)),
-      'built_in': const TextStyle(color: Color(0xFFE5C07B)),
-      'title': const TextStyle(color: Color(0xFF61AFEF)),
-      'section': const TextStyle(color: Color(0xFFD4A843), fontWeight: FontWeight.bold),
-    };
+    // Paleta de sintaxis Éxodo Brand:
+    // Modo oscuro: Ámbar, Arena, Terracota suave y Tiza sobre grafito #1E1E1E
+    // Modo claro: Tinta sobre color yeso #F4F2EB
+    final theme = isDark
+        ? <String, TextStyle>{
+            'root': const TextStyle(
+              backgroundColor: Colors.transparent,
+              color: Color(0xFFF5F2EB),
+            ),
+            'tag': const TextStyle(color: Color(0xFFD4A843), fontWeight: FontWeight.w600),
+            'name': const TextStyle(color: Color(0xFFD4A843), fontWeight: FontWeight.w600),
+            'keyword': const TextStyle(color: Color(0xFFD4A843), fontWeight: FontWeight.w600),
+            'selector-tag': const TextStyle(color: Color(0xFFD4A843), fontWeight: FontWeight.w600),
+            'attr': const TextStyle(color: Color(0xFFE5C07B)),
+            'attribute': const TextStyle(color: Color(0xFFE5C07B)),
+            'variable': const TextStyle(color: Color(0xFFE5C07B)),
+            'string': const TextStyle(color: Color(0xFFCE9178)),
+            'value': const TextStyle(color: Color(0xFFCE9178)),
+            'number': const TextStyle(color: Color(0xFFD19A66)),
+            'literal': const TextStyle(color: Color(0xFFD19A66)),
+            'comment': const TextStyle(color: Color(0xFF8E8E93), fontStyle: FontStyle.italic),
+            'quote': const TextStyle(color: Color(0xFF8E8E93), fontStyle: FontStyle.italic),
+            'symbol': const TextStyle(color: Color(0xFF61AFEF)),
+            'bullet': const TextStyle(color: Color(0xFF61AFEF)),
+            'built_in': const TextStyle(color: Color(0xFFE5C07B)),
+            'title': const TextStyle(color: Color(0xFF61AFEF)),
+            'section': const TextStyle(color: Color(0xFFD4A843), fontWeight: FontWeight.bold),
+          }
+        : <String, TextStyle>{
+            'root': const TextStyle(
+              backgroundColor: Colors.transparent,
+              color: Color(0xFF1E1E1E),
+            ),
+            'tag': const TextStyle(color: Color(0xFF8A6A10), fontWeight: FontWeight.w600),
+            'name': const TextStyle(color: Color(0xFF8A6A10), fontWeight: FontWeight.w600),
+            'keyword': const TextStyle(color: Color(0xFF8A6A10), fontWeight: FontWeight.w600),
+            'selector-tag': const TextStyle(color: Color(0xFF8A6A10), fontWeight: FontWeight.w600),
+            'attr': const TextStyle(color: Color(0xFF6F42C1)),
+            'attribute': const TextStyle(color: Color(0xFF6F42C1)),
+            'variable': const TextStyle(color: Color(0xFF005CC5)),
+            'string': const TextStyle(color: Color(0xFFB31D28)),
+            'value': const TextStyle(color: Color(0xFFB31D28)),
+            'number': const TextStyle(color: Color(0xFFA65A00)),
+            'literal': const TextStyle(color: Color(0xFFA65A00)),
+            'comment': const TextStyle(color: Color(0xFF6A737D), fontStyle: FontStyle.italic),
+            'quote': const TextStyle(color: Color(0xFF6A737D), fontStyle: FontStyle.italic),
+            'symbol': const TextStyle(color: Color(0xFF005CC5)),
+            'bullet': const TextStyle(color: Color(0xFF005CC5)),
+            'built_in': const TextStyle(color: Color(0xFF795548)),
+            'title': const TextStyle(color: Color(0xFF005CC5)),
+            'section': const TextStyle(color: Color(0xFF8A6A10), fontWeight: FontWeight.bold),
+          };
+
+    // Fondo: grafito en oscuro, color yeso (#F4F2EB) en modo claro.
+    final codeBg = isDark ? const Color(0xFF1E1E1E) : const Color(0xFFF4F2EB);
+    final textCol = isDark ? const Color(0xFFF5F2EB) : const Color(0xFF1E1E1E);
 
     return Container(
-      // El código vive SIEMPRE en bloque oscuro, incluso con cromo blanco.
-      color: const Color(0xFF1E1E1E),
+      color: codeBg,
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
@@ -489,11 +519,11 @@ class _CodePreview extends StatelessWidget {
             language: lang,
             theme: theme,
             padding: EdgeInsets.zero,
-            textStyle: const TextStyle(
+            textStyle: TextStyle(
               fontFamily: 'monospace',
               fontSize: 12,
               height: 1.45,
-              color: Color(0xFFF5F2EB),
+              color: textCol,
             ),
           ),
         ),
