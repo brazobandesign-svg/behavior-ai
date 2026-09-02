@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../models/models.dart';
 import '../services/app_state.dart';
+import '../services/exodo_web_url.dart';
 import '../services/supabase_service.dart';
 import '../services/stripe_service.dart';
 import '../services/widget_service.dart';
@@ -1019,7 +1020,14 @@ class _ClaudeAccountModal {
                 assetIcon: 'assets/images/laptop-alt-2-svgrepo-com.png',
                 title: AppI18n.of(context).t('drawer.web'),
                 isLight: isLight,
-                onTap: () {},
+                onTap: () {
+                  Navigator.pop(ctx);
+                  HapticFeedback.lightImpact();
+                  launchUrl(
+                    Uri.parse(exodoWebUrl),
+                    mode: LaunchMode.externalApplication,
+                  );
+                },
               ),
               const SizedBox(height: 12),
 
