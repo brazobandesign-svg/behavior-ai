@@ -74,13 +74,14 @@ class ModelSelectorSheet extends StatelessWidget {
                           : (isLight ? const Color(0xFF191919) : ExodoColors.textPrimary),
                     ),
                   ),
-                  Text(
-                    m.subtitle,
-                    style: TextStyle(fontFamily: 'AnthropicSans', 
-                      fontSize: 13,
-                      color: isLight ? const Color(0xFF191919) : ExodoColors.textSecondary,
+                  if (!isProModel && m.subtitle.isNotEmpty)
+                    Text(
+                      m.subtitle,
+                      style: TextStyle(fontFamily: 'AnthropicSans', 
+                        fontSize: 13,
+                        color: isLight ? const Color(0xFF191919) : ExodoColors.textSecondary,
+                      ),
                     ),
-                  ),
                   if (isProModel)
                     Container(
                       padding: const EdgeInsets.symmetric(

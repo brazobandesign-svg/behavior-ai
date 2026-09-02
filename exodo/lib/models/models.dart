@@ -276,7 +276,7 @@ const List<ExodoModelOption> exodoModels = [
     id: 'xpi',
     modelId: 'deepseek-chat',
     title: 'XPi',
-    subtitle: 'Pro',
+    subtitle: '',
     plan: 'hazak',
     description: 'Razonamiento avanzado para tareas exigentes.',
     descriptionEn: 'Advanced reasoning for demanding tasks.',
