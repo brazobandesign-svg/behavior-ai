@@ -39,54 +39,72 @@
 }
 
 :root {
-  /* Paleta de colores oficial ExodoColors (#0E0C0A Negro Cálido) */
-  --bg-warm-black: #0E0C0A;
-  --surface-card: #191919;
-  --surface-input: #252525;
-  --border-color: #505050;
-  --amber-exodo: #C9933A;
-  --amber-glow: rgba(201, 147, 58, 0.2);
-  --text-primary: #F5F2EB;
-  --text-secondary: #9E9689;
-  --text-muted: #9E9689;
+  /* ═══ Paleta oficial Éxodo — espejo 1:1 de ExodoColors (exodo/lib/theme/exodo_theme.dart) ═══
+     background #191919 (chat/app dark) · loginBg #0E0C0A (intocable, solo login) · surface #252525
+     modelChipBg #141414 · amber #C9933A · textPrimary #F5F2EB · textSecondary #9E9689
+     error #E5534B · light: yeso #F5F2EB + sheet #FFFFFF + tinta #171615 */
+  --exodo-bg: #191919;
+  --exodo-login-bg: #0E0C0A;
+  --exodo-surface: #252525;
+  --exodo-model-chip: #141414;
+  --exodo-amber: #C9933A;
+  --exodo-amber-glow: rgba(201, 147, 58, 0.2);
+  --exodo-text-primary: #F5F2EB;
+  --exodo-text-secondary: #9E9689;
+  --exodo-ink: #171615;
+  --exodo-error: #E5534B;
+  --exodo-light-sheet: #FFFFFF;
+
+  /* Aliases históricos que consume la web (remap a la paleta oficial) */
+  --bg-warm-black: var(--exodo-bg);
+  --bg-chat-main: var(--exodo-bg);
+  --surface-card: var(--exodo-surface);
+  --surface-input: var(--exodo-surface);
+  --border-color: var(--exodo-surface);
+  --amber-exodo: var(--exodo-amber);
+  --amber-glow: var(--exodo-amber-glow);
+  --text-primary: var(--exodo-text-primary);
+  --text-secondary: var(--exodo-text-secondary);
+  --text-muted: var(--exodo-text-secondary);
   --transition-fast: 0.15s ease-out;
   --transition-normal: 0.25s cubic-bezier(0.16, 1, 0.3, 1);
   --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-  --bg-chat-main: #191919;
   --shadow-composer: 0 10px 30px rgba(0, 0, 0, 0.45);
   --border-composer: transparent;
-  --model-chip-bg: #141414;
-  --chip-icon-color: #F5F2EB;
+  --model-chip-bg: var(--exodo-model-chip);
+  --chip-icon-color: var(--exodo-text-primary);
   --send-btn-bg: var(--model-chip-bg);
   --send-btn-color: var(--chip-icon-color);
-  --send-btn-disabled: #252525;
-  --banner-bg: #F5F2EB;
-  --banner-text: #0E0C0A;
+  --send-btn-disabled: var(--exodo-surface);
+  --banner-bg: var(--exodo-text-primary);
+  --banner-text: var(--exodo-bg);
   --banner-border: transparent;
-  --icon-dynamic-color: #F5F2EB;
+  --icon-dynamic-color: var(--exodo-text-primary);
 }
 
 [data-theme="light"] {
-  --bg-warm-black: #FFFFFF;
-  --bg-chat-main: #FFFFFF;
-  --surface-card: #FFFFFF;
-  --surface-input: #F5F2EB;
-  --border-color: #505050;
-  --amber-exodo: #C9933A;
+  /* Light mode oficial de la app: scaffold yeso #F5F2EB, superficie blanca, tinta #171615 */
+  --bg-warm-black: var(--exodo-text-primary);
+  --bg-chat-main: var(--exodo-text-primary);
+  --surface-card: var(--exodo-light-sheet);
+  --surface-input: var(--exodo-light-sheet);
+  --border-color: rgba(23, 22, 21, 0.12);
+  --amber-exodo: var(--exodo-amber);
   --amber-glow: rgba(201, 147, 58, 0.15);
-  --text-primary: #191919;
-  --text-secondary: #191919;
+  --text-primary: var(--exodo-ink);
+  --text-secondary: var(--exodo-text-secondary);
+  --text-muted: var(--exodo-text-secondary);
   --shadow-composer: 0 12px 36px rgba(0, 0, 0, 0.22), 0 4px 12px rgba(0, 0, 0, 0.10);
   --border-composer: transparent;
-  --model-chip-bg: #252525;
-  --chip-icon-color: #F5F2EB;
+  --model-chip-bg: var(--exodo-light-sheet);
+  --chip-icon-color: var(--exodo-ink);
   --send-btn-bg: var(--model-chip-bg);
   --send-btn-color: var(--chip-icon-color);
-  --send-btn-disabled: #FFFFFF;
-  --banner-bg: #252525;
-  --banner-text: #F5F2EB;
+  --send-btn-disabled: #E8E5DE;
+  --banner-bg: var(--exodo-surface);
+  --banner-text: var(--exodo-text-primary);
   --banner-border: transparent;
-  --icon-dynamic-color: #252525;
+  --icon-dynamic-color: var(--exodo-ink);
 }
 
 * {
