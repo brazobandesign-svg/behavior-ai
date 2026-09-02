@@ -1083,6 +1083,44 @@ class _SmartCopyButtonState extends State<_SmartCopyButton> {
 
 
 
+/// Barra discreta de fuente en línea (estilo chip, paridad con exodo-web):
+/// fondo grafito #252525, texto yeso #F4F2EB, esquinas curvas y ancho máximo
+/// fijo con elipsis — el nombre largo nunca empuja el layout de la línea.
+class _SourceChipElementBuilder extends MarkdownElementBuilder {
+  @override
+  Widget? visitElementAfter(md.Element element, TextStyle? preferredStyle) {
+    final href = element.attributes['href'];
+    final label = element.textContent.trim();
+    if (label.isEmpty) return null;
+    return GestureDetector(
+      onTap: () {
+        HapticFeedback.lightImpact();
+        final uri = Uri.tryParse(href ?? '');
+        if (uri != null) launchUrl(uri, mode: LaunchMode.externalApplication);
+      },
+      child: Container(
+        constraints: const BoxConstraints(maxWidth: 120),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+        decoration: BoxDecoration(
+          color: const Color(0xFF252525),
+          borderRadius: BorderRadius.circular(7),
+        ),
+        child: Text(
+          label,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(
+            fontFamily: 'AnthropicSans',
+            fontSize: 11.5,
+            fontWeight: FontWeight.w500,
+            color: Color(0xFFF4F2EB),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _TableElementBuilder extends MarkdownElementBuilder {
   final bool isLight;
   _TableElementBuilder(this.isLight);
@@ -1632,19 +1670,11 @@ class _AssistantContentWithArtifacts extends StatelessWidget {
           );
         },
         builders: {
+          'a': _SourceChipElementBuilder(),
           'pre': _PreElementBuilder(context, isLight, copyLabel, copiedLabel),
           'table': _TableElementBuilder(isLight),
         },
         styleSheet: MarkdownStyleSheet.fromTheme(Theme.of(context)).copyWith(
-          a: TextStyle(
-            fontFamily: 'AnthropicSans',
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
-            color: ExodoColors.amber,
-            decoration: TextDecoration.underline,
-            decorationColor: ExodoColors.amber.withValues(alpha: 0.5),
-            decorationThickness: 1.5,
-          ),
           blockSpacing: 12.0,
           blockquotePadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
           blockquoteDecoration: BoxDecoration(

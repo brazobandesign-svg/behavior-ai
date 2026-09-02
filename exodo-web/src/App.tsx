@@ -84,11 +84,11 @@ const openSourceUrl = (url: string) => {
   window.open(url, '_blank', 'noopener,noreferrer');
 };
 
-// Citas en línea ámbar (paridad con el estilo `a:` de message_bubble.dart):
-// AnthropicSans, ámbar oficial y subrayado tenue; apertura en pestaña nueva.
+// Cita en línea estilo barra/chip (paridad con _SourceChipElementBuilder móvil):
+// fondo grafito #252525, texto yeso, ancho máximo fijo con elipsis, pestaña nueva.
 const markdownComponents = {
   a: ({ node: _node, href, children, ...rest }: React.ComponentProps<'a'> & { node?: unknown }) => (
-    <a {...rest} href={href} target="_blank" rel="noopener noreferrer">
+    <a {...rest} href={href} target="_blank" rel="noopener noreferrer" className="md-source-chip">
       {children}
     </a>
   ),

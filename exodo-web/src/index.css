@@ -710,16 +710,26 @@ body, html, #root {
   color: var(--text-secondary);
 }
 
-/* ── Citas en línea ámbar (paridad con el estilo `a:` de message_bubble.dart) ── */
-.markdown-body a {
+/* ── Cita en línea estilo barra/chip (paridad _SourceChipElementBuilder móvil) ── */
+.markdown-body .md-source-chip {
+  display: inline-block;
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: middle;
+  padding: 2px 8px;
+  border-radius: 7px;
+  background: #252525;
+  color: #F4F2EB;
   font-family: 'AnthropicSans', -apple-system, sans-serif;
-  color: var(--amber-exodo);
-  text-decoration: underline;
-  text-decoration-color: rgba(201, 147, 58, 0.5);
-  text-underline-offset: 2px;
+  font-size: 11.5px;
+  font-weight: 500;
+  text-decoration: none;
+  line-height: 1.4;
 }
-.markdown-body a:hover {
-  text-decoration-color: var(--amber-exodo);
+.markdown-body .md-source-chip:hover {
+  background: #333330;
 }
 
 /* ── Cápsula de Fuentes (paridad _SourcesSheet móvil) ── */
