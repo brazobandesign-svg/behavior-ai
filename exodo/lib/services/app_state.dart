@@ -215,6 +215,10 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
         serviceId: 3001,
         notificationTitle: 'Éxodo',
         notificationText: AppI18n.instance.t('notification.writing_in_background'),
+        notificationIcon: const NotificationIcon(
+          metaDataName: 'com.behavior.exodo.notification_icon',
+          backgroundColor: Color(0xFFC9933A),
+        ),
       );
     } catch (_) {}
   }
