@@ -34,11 +34,15 @@ class ArtifactCard extends StatefulWidget {
   /// inline hasta que el HTML esté completo (evita WebViews recargando).
   final bool isStreaming;
 
+  /// Tema del chat: true = fondo claro (cromo exterior blanco, código oscuro).
+  final bool isLight;
+
   const ArtifactCard({
     super.key,
     required this.artifact,
     this.onOpen,
     this.isStreaming = false,
+    this.isLight = false,
   });
 
   @override
@@ -177,8 +181,11 @@ class _ArtifactCardState extends State<ArtifactCard> {
 
   @override
   Widget build(BuildContext context) {
-    const cardBg = Color(0xFF1E1E1E);
-    const borderColor = Color(0xFF2E2E2E);
+    // Cromo exterior adaptativo al tema del chat: blanco puro en claro,
+    // grafito en oscuro. El área de código permanece SIEMPRE oscura.
+    final cardBg = widget.isLight ? const Color(0xFFFFFFFF) : const Color(0xFF1E1E1E);
+    final borderColor =
+        widget.isLight ? const Color(0x1F000000) : const Color(0xFF2E2E2E);
 
     // [Punto 3] El guardado de expedientes es exclusivo de cuentas; para
     // invitados la acción desaparece por completo de la fila de opciones.
@@ -199,7 +206,7 @@ class _ArtifactCardState extends State<ArtifactCard> {
         children: [
           _Header(
             artifact: widget.artifact,
-            isDark: true,
+            isDark: !widget.isLight,
             borderColor: borderColor,
             isExpanded: _isExpanded,
             showPreviewToggle: widget.artifact.isExecutable,
@@ -210,14 +217,22 @@ class _ArtifactCardState extends State<ArtifactCard> {
             onToggleExpand: () => setState(() => _isExpanded = !_isExpanded),
           ),
           if (widget.artifact.isTabular)
-            _TablePreview(artifact: widget.artifact, isDark: true, isExpanded: _isExpanded)
+            _TablePreview(
+              artifact: widget.artifact,
+              isDark: !widget.isLight,
+              isExpanded: _isExpanded,
+            )
           else if (_viewPreview && widget.artifact.isExecutable)
-            _InlineSandboxPreview(artifact: widget.artifact)
+            _InlineSandboxPreview(artifact: widget.artifact, isLight: widget.isLight)
           else
-            _CodePreview(artifact: widget.artifact, isDark: true, isExpanded: _isExpanded),
+            _CodePreview(
+              artifact: widget.artifact,
+              isDark: !widget.isLight,
+              isExpanded: _isExpanded,
+            ),
           _Actions(
             artifact: widget.artifact,
-            isDark: true,
+            isDark: !widget.isLight,
             borderColor: borderColor,
             copied: _copied,
             showSaveAction: canSave,
@@ -259,6 +274,9 @@ class _Header extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final titleColor = isDark ? const Color(0xFFF5F2EB) : const Color(0xFF191919);
+    const mutedColor = Color(0xFF8E8E93);
+
     final title = artifact.title?.trim();
     final hasDistinctTitle = title != null &&
         title.isNotEmpty &&
@@ -282,7 +300,7 @@ class _Header extends StatelessWidget {
       ),
       child: Row(
         children: [
-          _KindBadge(kind: artifact.kind),
+          _KindBadge(kind: artifact.kind, isDark: isDark),
           if (secondaryLabel != null) ...[
             const SizedBox(width: 8),
             Flexible(
@@ -290,9 +308,9 @@ class _Header extends StatelessWidget {
                 secondaryLabel,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
+                style: TextStyle(
                   fontFamily: 'AnthropicSans',
-                  color: Color(0xFFF5F2EB),
+                  color: titleColor,
                   fontSize: 11.5,
                   fontWeight: FontWeight.w600,
                   letterSpacing: 0.2,
@@ -300,18 +318,8 @@ class _Header extends StatelessWidget {
               ),
             ),
           ],
-          const SizedBox(width: 8),
           const Spacer(),
-          Text(
-            _summary(artifact.sourceCode),
-            style: const TextStyle(
-              fontFamily: 'AnthropicSans',
-              color: Color(0xFF8E8E93),
-              fontSize: 11,
-            ),
-          ),
           if (showPreviewToggle) ...[
-            const SizedBox(width: 4),
             InkWell(
               onTap: onTogglePreview,
               borderRadius: BorderRadius.circular(6),
@@ -320,7 +328,9 @@ class _Header extends StatelessWidget {
                 child: Icon(
                   previewActive ? Icons.code_rounded : Icons.visibility_outlined,
                   size: 16,
-                  color: previewActive ? const Color(0xFFD4A843) : const Color(0xFF8E8E93),
+                  color: previewActive
+                      ? (isDark ? const Color(0xFFD4A843) : const Color(0xFF8A6A10))
+                      : mutedColor,
                 ),
               ),
             ),
@@ -329,18 +339,13 @@ class _Header extends StatelessWidget {
       ),
     );
   }
-
-  String _summary(String src) {
-    final lines = src.split('\n').length;
-    final chars = src.length;
-    return '$lines líneas · $chars caracteres';
-  }
 }
 
 class _KindBadge extends StatelessWidget {
   final ArtifactKind kind;
+  final bool isDark;
 
-  const _KindBadge({required this.kind});
+  const _KindBadge({required this.kind, this.isDark = true});
 
   @override
   Widget build(BuildContext context) {
@@ -358,19 +363,21 @@ class _KindBadge extends StatelessWidget {
     };
 
     const brandAmber = Color(0xFFD4A843);
+    // Sobre cromo blanco el ámbar puro pierde contraste: se oscurece.
+    final amberText = isDark ? brandAmber : const Color(0xFF8A6A10);
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
       decoration: BoxDecoration(
-        color: brandAmber.withValues(alpha: 0.14),
+        color: brandAmber.withValues(alpha: isDark ? 0.14 : 0.16),
         borderRadius: BorderRadius.circular(4),
-        border: Border.all(color: brandAmber.withValues(alpha: 0.35)),
+        border: Border.all(color: amberText.withValues(alpha: 0.45)),
       ),
       child: Text(
         label,
-        style: const TextStyle(
+        style: TextStyle(
           fontFamily: 'AnthropicSans',
-          color: brandAmber,
+          color: amberText,
           fontSize: 10.5,
           fontWeight: FontWeight.w700,
           letterSpacing: 0.3,
@@ -437,6 +444,8 @@ class _CodePreview extends StatelessWidget {
     };
 
     return Container(
+      // El código vive SIEMPRE en bloque oscuro, incluso con cromo blanco.
+      color: const Color(0xFF1E1E1E),
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
@@ -464,8 +473,9 @@ class _CodePreview extends StatelessWidget {
 /// pero en altura fija para convivir con el scroll del chat.
 class _InlineSandboxPreview extends StatefulWidget {
   final Artifact artifact;
+  final bool isLight;
 
-  const _InlineSandboxPreview({required this.artifact});
+  const _InlineSandboxPreview({required this.artifact, this.isLight = false});
 
   @override
   State<_InlineSandboxPreview> createState() => _InlineSandboxPreviewState();
@@ -504,11 +514,12 @@ class _InlineSandboxPreviewState extends State<_InlineSandboxPreview> {
 
   @override
   Widget build(BuildContext context) {
-    const borderColor = Color(0xFF2E2E2E);
+    final borderColor =
+        widget.isLight ? const Color(0x1F000000) : const Color(0xFF2E2E2E);
     return Container(
       height: 340,
-      decoration: const BoxDecoration(
-        color: Color(0xFF121212),
+      decoration: BoxDecoration(
+        color: widget.isLight ? const Color(0xFFFFFFFF) : const Color(0xFF121212),
         border: Border(
           bottom: BorderSide(color: borderColor, width: 1.0),
         ),
@@ -737,14 +748,17 @@ class _Actions extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const actionColor = Color(0xFF8E8E93); // Muted gray #8E8E93
+    // Gris de acción: legible sobre cromo blanco y sobre grafito.
+    final actionColor =
+        isDark ? const Color(0xFF8E8E93) : const Color(0xFF6E6A63);
 
     Widget actionBtn({
       required IconData icon,
       required String label,
       required VoidCallback onTap,
-      Color color = actionColor,
+      Color? color,
     }) {
+      final effectiveColor = color ?? actionColor;
       return InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(6),
@@ -753,13 +767,13 @@ class _Actions extends StatelessWidget {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(icon, size: 14, color: color),
+              Icon(icon, size: 14, color: effectiveColor),
               const SizedBox(width: 5),
               Text(
                 label,
                 style: TextStyle(
                   fontFamily: 'AnthropicSans',
-                  color: color,
+                  color: effectiveColor,
                   fontSize: 11.5,
                   fontWeight: FontWeight.w500,
                   letterSpacing: -0.1,

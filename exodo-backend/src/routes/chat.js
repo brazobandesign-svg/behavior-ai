@@ -76,6 +76,25 @@ function adaptChunksForPrompt(chunks) {
 }
 
 /**
+ * Hosts estructurales/técnicos que NUNCA son fuentes documentales: namespaces
+ * XML (w3.org/schema.org — venían del xmlns de los SVG de los artefactos),
+ * CDNs de librerías y fuentes tipográficas.
+ */
+const NON_SOURCE_URL_PATTERN =
+  /w3\.org|schema\.org|jsdelivr\.net|unpkg\.com|cdnjs\.cloudflare\.com|fonts\.googleapis\.com|fonts\.gstatic\.com|data:|javascript:/i;
+
+/**
+ * Elimina bloques de código cercados del texto antes de extraer fuentes.
+ * El HTML de los artefactos contiene URLs estructurales (xmlns, CDNs) que
+ * no son documentación: extraerlas producía "Sources" rotos e irrelevantes.
+ */
+function stripCodeBlocksForSources(text) {
+  return String(text || '')
+    .replace(/```[\s\S]*?(?:```|$)/g, ' ')
+    .replace(/~~~[\s\S]*?(?:~~~|$)/g, ' ');
+}
+
+/**
  * Extrae enlaces markdown [Título](URL), URLs en texto plano, chunks RAG y referencias de conocimiento.
  * Garantiza que las fuentes consultadas se entreguen en formato estructurado a la app móvil (SourcesSheet)
  * y persistan en SQLite y Supabase.
@@ -85,10 +104,13 @@ function extractSourcesFromText(text, existingSources = [], contextChunks = [], 
   const seenTitles = new Set();
   const seenUrls = new Set();
 
+  // Solo se extraen URLs de la PROSA: el código de artefactos va fuera.
+  const proseText = stripCodeBlocksForSources(text);
+
   const addSource = (title, url, favicon) => {
     if (!title || !url) return;
     const cleanUrl = url.trim();
-    if (cleanUrl.includes('localhost') || seenUrls.has(cleanUrl)) return;
+    if (cleanUrl.includes('localhost') || NON_SOURCE_URL_PATTERN.test(cleanUrl) || seenUrls.has(cleanUrl)) return;
     seenUrls.add(cleanUrl);
     seenTitles.add(title);
     found.push({
@@ -116,10 +138,10 @@ function extractSourcesFromText(text, existingSources = [], contextChunks = [], 
     }
   }
 
-  // 3. Extraer enlaces markdown reales [Título](URL)
+  // 3. Extraer enlaces markdown reales [Título](URL) — solo en prosa
   const mdRegex = /\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g;
   let match;
-  while ((match = mdRegex.exec(text)) !== null) {
+  while ((match = mdRegex.exec(proseText)) !== null) {
     const title = (match[1] || '').trim();
     const url = (match[2] || '').trim();
     let host = url;
@@ -127,9 +149,9 @@ function extractSourcesFromText(text, existingSources = [], contextChunks = [], 
     addSource(title || host, url, host.slice(0, 3));
   }
 
-  // 4. Extraer URLs explícitas en texto plano https://...
+  // 4. Extraer URLs explícitas en texto plano https://... — solo en prosa
   const urlRegex = /(https?:\/\/[a-zA-Z0-9\-\.]+\.[a-zA-Z]{2,}(?:\/[^\s\)\]\>"]*)?)/g;
-  while ((match = urlRegex.exec(text)) !== null) {
+  while ((match = urlRegex.exec(proseText)) !== null) {
     const url = (match[1] || '').trim();
     let host = url;
     try { host = new URL(url).host.replace(/^www\./, ''); } catch (_) {}

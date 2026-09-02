@@ -1744,7 +1744,11 @@ class _SafeArtifactCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     try {
-      return ArtifactCard(artifact: artifact, isStreaming: isStreaming);
+      return ArtifactCard(
+        artifact: artifact,
+        isStreaming: isStreaming,
+        isLight: isLight,
+      );
     } catch (e, stack) {
       debugPrint('[SafeArtifactCard] Fallback error: $e\n$stack');
       final cardBg = isLight ? const Color(0xFFF4F2EB) : const Color(0xFF1E1E1E);
