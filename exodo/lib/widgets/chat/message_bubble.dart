@@ -21,7 +21,6 @@ import '../artifacts/artifact_card.dart';
 import 'model_selector.dart';
 import 'exodo_thinking_indicator.dart';
 import 'image_generating_placeholder.dart';
-import 'image_viewer_screen.dart';
 
 bool _isDeviceEnglish(BuildContext context) {
   return AppI18n.of(context).localeCode == 'en';
@@ -377,6 +376,18 @@ class MessageBubble extends StatelessWidget {
     }
     // DOCTRINA eco (30-ago): el aviso va FUERA y DEBAJO de la respuesta,
     // centrado a lo ancho — no dentro del texto.
+    final validSources = message.sources.where((s) {
+      final url = s.url.toLowerCase();
+      if (url.contains('aliyuncs.com') ||
+          url.contains('dashscope-result') ||
+          url.endsWith('.png') ||
+          url.endsWith('.jpg') ||
+          url.endsWith('.jpeg')) {
+        return false;
+      }
+      return true;
+    }).toList();
+
     final body = Container(
       width: double.infinity,
       margin: const EdgeInsets.symmetric(vertical: 10),
@@ -391,13 +402,9 @@ class MessageBubble extends StatelessWidget {
             copiedLabel: copiedLabel,
             isStreaming: isLastAssistant && context.select<AppState, bool>((s) => s.isGenerating),
           ),
-          // [Fix LG V60 #1] Eliminado: el badge "Intención: VISION" era
-          // un debug leak que mostraba el intent detectado al usuario final.
-          // El intent sigue guardándose en BD/Supabase para analítica interna,
-          // pero NO se renderiza en la burbuja.
-          if (message.sources.isNotEmpty) ...[
+          if (validSources.isNotEmpty) ...[
             const SizedBox(height: 14),
-            _SourcesSheet(sources: message.sources),
+            _SourcesSheet(sources: validSources),
           ],
           if (message.id != 'error' && message.content.trim().isNotEmpty) ...[
             const SizedBox(height: 10),
@@ -1461,6 +1468,11 @@ class _AssistantContentWithArtifacts extends StatelessWidget {
     // 3. Purge raw HTML open/close/self-closing tags so flutter_markdown AST inline stack is 100% clean
     s = s.replaceAll(RegExp(r'<\/?([a-zA-Z0-9_-]+)(?:\s+[^>]*)?\/?>'), '');
 
+    // 3.5. Purge residual "Prompt: ..." text or links from T2I responses
+    s = s.replaceAll(RegExp(r'\[Prompt:[^\]]*\]\([^\)]*\)', caseSensitive: false), '');
+    s = s.replaceAll(RegExp(r'\*\*Prompt:\*\*.*', caseSensitive: false), '');
+    s = s.replaceAll(RegExp(r'Prompt:\s+.*', caseSensitive: false), '');
+
     // 4. Live Streaming Structure Auto-Closer (Estándar Claude/ChatGPT):
     // Cierra automáticamente bloques incompletos durante el streaming para que
     // el parser pinte títulos, negritas, cursivas y cajas de código en tiempo real.
@@ -1606,43 +1618,9 @@ class _AssistantContentWithArtifacts extends StatelessWidget {
         },
         sizedImageBuilder: (config) {
           final src = config.uri.toString();
-          return Padding(
-            padding: const EdgeInsets.symmetric(vertical: 10),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(14),
-              child: GestureDetector(
-                onTap: () {
-                  HapticFeedback.lightImpact();
-                  Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) => ImageViewerScreen(imageUrl: src),
-                    ),
-                  );
-                },
-                child: Image.network(
-                  src,
-                  fit: BoxFit.contain,
-                  width: double.infinity,
-                  loadingBuilder: (context, child, loadingProgress) {
-                    if (loadingProgress == null) return child;
-                    final total = loadingProgress.expectedTotalBytes;
-                    final progress = total != null && total > 0
-                        ? loadingProgress.cumulativeBytesLoaded / total
-                        : null;
-                    return _ImageLoadingPlaceholder(progress: progress);
-                  },
-                  errorBuilder: (context, error, stack) => SelectableText(
-                    config.alt ?? src,
-                    style: const TextStyle(
-                      fontFamily: 'AnthropicSans',
-                      fontSize: 13,
-                      color: ExodoColors.amber,
-                      decoration: TextDecoration.underline,
-                    ),
-                  ),
-                ),
-              ),
-            ),
+          return ExodoRevealedImage(
+            imageUrl: src,
+            altText: config.alt,
           );
         },
         builders: {
@@ -1772,50 +1750,6 @@ class _SafeArtifactCard extends StatelessWidget {
         ),
       );
     }
-  }
-}
-
-/// Estado de carga de una imagen de red dentro del Markdown: shimmer + spinner
-/// (y % de progreso cuando el servidor reporta el tamaño total).
-class _ImageLoadingPlaceholder extends StatelessWidget {
-  final double? progress;
-  const _ImageLoadingPlaceholder({this.progress});
-
-  @override
-  Widget build(BuildContext context) {
-    return ExodoShimmer(
-      borderRadius: BorderRadius.circular(14),
-      child: SizedBox(
-        width: double.infinity,
-        height: 220,
-        child: Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const SizedBox(
-                width: 28,
-                height: 28,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2.5,
-                  color: ExodoColors.amber,
-                ),
-              ),
-              if (progress != null) ...[
-                const SizedBox(height: 12),
-                Text(
-                  '${(progress! * 100).toStringAsFixed(0)}%',
-                  style: const TextStyle(
-                    fontFamily: 'AnthropicSans',
-                    fontSize: 12,
-                    color: ExodoColors.textSecondary,
-                  ),
-                ),
-              ],
-            ],
-          ),
-        ),
-      ),
-    );
   }
 }
 

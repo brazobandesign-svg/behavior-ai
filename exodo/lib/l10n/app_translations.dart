@@ -127,6 +127,7 @@ const Map<String, String> _es = <String, String>{
   'chat.thinking_label': 'Pensando',
   // Placeholder shimmer mientras se genera una imagen (t2i).
   'chat.creating_image': 'Éxodo está creando tu imagen...',
+  'chat.image_synthesizing': 'Dando vida a los detalles...',
   'artifacts.generating': 'Generando...',
   'artifacts.building': 'Construyendo visualización...',
 
@@ -436,6 +437,7 @@ const Map<String, String> _en = <String, String>{
   'chat.thinking_label': 'Thinking',
   // Placeholder shimmer mientras se genera una imagen (t2i).
   'chat.creating_image': 'Exodo is creating your image...',
+  'chat.image_synthesizing': 'Bringing details to life...',
   'artifacts.generating': 'Generating...',
   'artifacts.building': 'Building visualization...',
 
@@ -724,6 +726,7 @@ const Map<String, String> _fr = <String, String>{
   'chat.thinking_en': 'Exodo reasoning...',
   'chat.thinking_label': 'Réflexion',
   'chat.creating_image': 'Éxodo crée votre image...',
+  'chat.image_synthesizing': 'Donner vie aux détails...',
   'artifacts.generating': 'Génération...',
   'artifacts.building': 'Construction de la visualisation...',
 
@@ -941,6 +944,7 @@ const Map<String, String> _pt = <String, String>{
   'chat.thinking': 'Exodo pensando...',
   'chat.thinking_label': 'Pensando',
   'chat.creating_image': 'Éxodo está criando sua imagem...',
+  'chat.image_synthesizing': 'Dando vida aos detalhes...',
   'artifacts.generating': 'Gerando...',
   'artifacts.building': 'Construindo visualização...',
 
@@ -1157,6 +1161,7 @@ const Map<String, String> _it = <String, String>{
   'chat.thinking': 'Exodo sta ragionando...',
   'chat.thinking_label': 'Pensando',
   'chat.creating_image': 'Éxodo sta creando la tua immagine...',
+  'chat.image_synthesizing': 'Dando vita ai dettagli...',
   'artifacts.generating': 'Generazione...',
   'artifacts.building': 'Creazione visualizzazione...',
 
@@ -1371,6 +1376,7 @@ const Map<String, String> _de = <String, String>{
   'chat.edit_message': 'Nachricht bearbeiten',
   'chat.thinking_label': 'Denke nach',
   'chat.creating_image': 'Éxodo erstellt dein Bild...',
+  'chat.image_synthesizing': 'Details werden zum Leben erweckt...',
   'artifacts.generating': 'Generieren...',
   'artifacts.building': 'Visualisierung wird erstellt...',
 
@@ -1591,6 +1597,7 @@ final Map<String, String> _ru = <String, String>{
   'chat.thinking_en': 'Exodo reasoning...',
   'chat.thinking_label': 'Думаю',
   'chat.creating_image': 'Éxodo создает ваше изображение...',
+  'chat.image_synthesizing': 'Воплощение деталей...',
   'artifacts.generating': 'Генерация...',
   'artifacts.building': 'Создание визуализации...',
 
@@ -1789,6 +1796,7 @@ final Map<String, String> _zh = <String, String>{
   'chat.thinking_en': 'Exodo reasoning...',
   'chat.thinking_label': '思考中',
   'chat.creating_image': 'Éxodo 正在生成您的图片...',
+  'chat.image_synthesizing': '正在渲染画面细节...',
   'artifacts.generating': '生成中...',
   'artifacts.building': '正在构建可视化组件...',
 
@@ -1971,6 +1979,7 @@ final Map<String, String> _ja = <String, String>{
   'chat.thinking': 'Exodoが思考中...',
   'chat.thinking_label': '考え中',
   'chat.creating_image': 'Éxodoが画像を生成しています...',
+  'chat.image_synthesizing': '細部を描き込んでいます...',
   'artifacts.generating': '生成中...',
   'artifacts.building': '視覚化を構築しています...',
 
@@ -2155,6 +2164,7 @@ final Map<String, String> _ar = <String, String>{
   'chat.thinking': 'Exodo يفكر...',
   'chat.thinking_label': 'يفكر',
   'chat.creating_image': 'يقوم إكسودو بإنشاء صورتك...',
+  'chat.image_synthesizing': 'إضفاء الحياة على التفاصيل...',
   'artifacts.generating': 'جارٍ الإنشاء...',
   'artifacts.building': 'جارٍ إنشاء المخطط التفاعلي...',
 
@@ -2346,6 +2356,7 @@ final Map<String, String> _ko = <String, String>{
   'chat.thinking': 'Exodo 생각 중...',
   'chat.thinking_label': '생각 중',
   'chat.creating_image': 'Éxodo가 이미지를 생성하고 있습니다...',
+  'chat.image_synthesizing': '디테일을 살려내는 중...',
   'artifacts.generating': '생성 중...',
   'artifacts.building': '시각화 생성 중...',
 
@@ -2527,6 +2538,7 @@ final Map<String, String> _hi = <String, String>{
   'chat.edit_message': 'संदेश संपादित करें',
   'chat.thinking_label': 'सोच रहा है',
   'chat.creating_image': 'Éxodo आपकी छवि बना रहा है...',
+  'chat.image_synthesizing': 'विवरणों को जीवंत कर रहे हैं...',
   'artifacts.generating': 'तैयार हो रहा है...',
   'artifacts.building': 'विज़ुअलाइज़ेशन बनाया जा रहा है...',
 
@@ -2718,6 +2730,7 @@ final Map<String, String> _ht = <String, String>{
   'chat.edit_message': 'Modifye mesaj la',
   'chat.thinking_label': 'Ap reflechi',
   'chat.creating_image': 'Éxodo ap kreye imaj ou a...',
+  'chat.image_synthesizing': 'N ap bay detay yo lavi...',
   'artifacts.generating': 'Ap jenere...',
   'artifacts.building': 'Ap bati vizyalizasyon an...',
 

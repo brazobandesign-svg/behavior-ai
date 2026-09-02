@@ -81,15 +81,16 @@ function adaptChunksForPrompt(chunks) {
  * CDNs de librerías y fuentes tipográficas.
  */
 const NON_SOURCE_URL_PATTERN =
-  /w3\.org|schema\.org|jsdelivr\.net|unpkg\.com|cdnjs\.cloudflare\.com|fonts\.googleapis\.com|fonts\.gstatic\.com|data:|javascript:/i;
+  /w3\.org|schema\.org|aliyuncs\.com|dashscope-result|jsdelivr\.net|unpkg\.com|cdnjs\.cloudflare\.com|fonts\.googleapis\.com|fonts\.gstatic\.com|data:|javascript:/i;
 
 /**
- * Elimina bloques de código cercados del texto antes de extraer fuentes.
- * El HTML de los artefactos contiene URLs estructurales (xmlns, CDNs) que
- * no son documentación: extraerlas producía "Sources" rotos e irrelevantes.
+ * Elimina bloques de código cercados e imágenes del texto antes de extraer fuentes.
+ * El HTML de los artefactos contiene URLs estructurales (xmlns, CDNs) y las imágenes
+ * generadas contienen URLs de almacenamiento efímero que no son fuentes documentales.
  */
 function stripCodeBlocksForSources(text) {
   return String(text || '')
+    .replace(/!\[[\s\S]*?\]\([^\)]+\)/g, ' ')
     .replace(/```[\s\S]*?(?:```|$)/g, ' ')
     .replace(/~~~[\s\S]*?(?:~~~|$)/g, ' ');
 }
@@ -431,13 +432,11 @@ router.post('/', auth, guestLimit, planGuard, upload.array('files', 5), async (r
         } catch (e) {
           console.warn('[chat] uso de imagen no contabilizado:', e.message);
         }
-        const md = `![imagen generada por Éxodo](${img.url})
-
-[Prompt: ${cleanPrompt}](${img.url})`;
+        const md = `![imagen generada por Éxodo](${img.url})`;
         if (conversationId && !isGuest && !anonymous) {
           try {
             await saveMessage(conversationId, 'user', message || '[Imagen solicitada]', { intent });
-            await saveMessage(conversationId, 'assistant', md, { intent: 'IMAGEN' });
+            await saveMessage(conversationId, 'assistant', md, { intent: 'IMAGEN', sources: [] });
           } catch (e) {
             console.error('[chat] saveMessage imagen falló:', e.message);
           }

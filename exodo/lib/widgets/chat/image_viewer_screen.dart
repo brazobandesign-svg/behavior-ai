@@ -9,6 +9,7 @@ import 'package:path_provider/path_provider.dart';
 
 import '../../l10n/app_i18n.dart';
 import '../../services/export/exporters.dart';
+import '../../services/image_cache_service.dart';
 import '../../theme/exodo_theme.dart';
 import 'image_generating_placeholder.dart';
 
@@ -37,6 +38,10 @@ class _ImageViewerScreenState extends State<ImageViewerScreen> {
   Uri get _uri => Uri.tryParse(widget.imageUrl) ?? Uri();
 
   Future<Uint8List> _downloadBytes() async {
+    final cached = ImageCacheService.getCachedFileFast(widget.imageUrl);
+    if (cached != null && cached.existsSync() && cached.lengthSync() > 0) {
+      return await cached.readAsBytes();
+    }
     final resp = await http.get(_uri).timeout(const Duration(seconds: 30));
     if (resp.statusCode != 200) {
       throw Exception('HTTP ${resp.statusCode}');
@@ -180,11 +185,21 @@ class _ImageViewerScreenState extends State<ImageViewerScreen> {
               maxScale: 5.0,
               clipBehavior: Clip.none,
               child: Center(
-                child: Image.network(
-                  widget.imageUrl,
-                  fit: BoxFit.contain,
-                  width: double.infinity,
-                  loadingBuilder: (context, child, loadingProgress) {
+                child: Builder(
+                  builder: (context) {
+                    final cached = ImageCacheService.getCachedFileFast(widget.imageUrl);
+                    if (cached != null && cached.existsSync() && cached.lengthSync() > 0) {
+                      return Image.file(
+                        cached,
+                        fit: BoxFit.contain,
+                        width: double.infinity,
+                      );
+                    }
+                    return Image.network(
+                      widget.imageUrl,
+                      fit: BoxFit.contain,
+                      width: double.infinity,
+                      loadingBuilder: (context, child, loadingProgress) {
                     if (loadingProgress == null) return child;
                     final total = loadingProgress.expectedTotalBytes;
                     final progress = total != null && total > 0
@@ -226,8 +241,10 @@ class _ImageViewerScreenState extends State<ImageViewerScreen> {
                       style: TextStyle(color: Colors.white70),
                     ),
                   ),
-                ),
-              ),
+                );
+              },
+            ),
+          ),
             ),
           ),
         ],
