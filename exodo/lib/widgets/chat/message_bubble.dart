@@ -1521,7 +1521,11 @@ class _AssistantContentWithArtifacts extends StatelessWidget {
         final artId = match.group(1);
         final artifact = allArtifacts[artId];
         if (artifact != null) {
-          segments.add(_SafeArtifactCard(artifact: artifact, isLight: isLight));
+          segments.add(_SafeArtifactCard(
+            artifact: artifact,
+            isLight: isLight,
+            isStreaming: isStreaming,
+          ));
         }
         lastEnd = match.end;
       }
@@ -1729,16 +1733,18 @@ class _AssistantContentWithArtifacts extends StatelessWidget {
 class _SafeArtifactCard extends StatelessWidget {
   final Artifact artifact;
   final bool isLight;
+  final bool isStreaming;
 
   const _SafeArtifactCard({
     required this.artifact,
     required this.isLight,
+    this.isStreaming = false,
   });
 
   @override
   Widget build(BuildContext context) {
     try {
-      return ArtifactCard(artifact: artifact);
+      return ArtifactCard(artifact: artifact, isStreaming: isStreaming);
     } catch (e, stack) {
       debugPrint('[SafeArtifactCard] Fallback error: $e\n$stack');
       final cardBg = isLight ? const Color(0xFFF4F2EB) : const Color(0xFF1E1E1E);

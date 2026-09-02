@@ -1,6 +1,11 @@
+import 'dart:convert';
+
+import 'package:flutter/foundation.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_highlight/flutter_highlight.dart';
+import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:provider/provider.dart';
 
 import '../../data/artifacts/artifact.dart';
@@ -16,14 +21,24 @@ import '../../widgets/artifacts/github_commit_sheet.dart';
 /// Single, cohesive, minimal artifact container.
 /// Background: #1E1E1E (Dark) / #F4F2EB (Light) with subtle 1px border.
 /// Actions: Single compact minimal row: [ Vista previa ] [ Copiar ] [ Abrir ].
+///
+/// Artefactos ejecutables (HTML/SVG/Mermaid): renderizan una vista previa
+/// viva INLINE dentro del chat (mismo sandbox que pantalla completa), con
+/// toggle Vista/Código en la cabecera. Durante el streaming se muestra el
+/// código y, al terminar, la tarjeta conmuta sola a la vista renderizada.
 class ArtifactCard extends StatefulWidget {
   final Artifact artifact;
   final VoidCallback? onOpen;
+
+  /// true mientras el mensaje sigue generándose: aplaza la vista previa
+  /// inline hasta que el HTML esté completo (evita WebViews recargando).
+  final bool isStreaming;
 
   const ArtifactCard({
     super.key,
     required this.artifact,
     this.onOpen,
+    this.isStreaming = false,
   });
 
   @override
@@ -35,6 +50,22 @@ class _ArtifactCardState extends State<ArtifactCard> {
   bool _copied = false;
   bool _savedToExpedientes = false;
   bool _savingExpediente = false;
+
+  /// Vista por defecto: render viva para ejecutables completos; código
+  /// mientras llega el resto del mensaje en streaming.
+  late bool _viewPreview =
+      widget.artifact.isExecutable && !widget.isStreaming;
+
+  @override
+  void didUpdateWidget(covariant ArtifactCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Fin del streaming: primera vez que el HTML está completo → render viva.
+    if (oldWidget.isStreaming && !widget.isStreaming) {
+      if (widget.artifact.isExecutable && !_viewPreview) {
+        setState(() => _viewPreview = true);
+      }
+    }
+  }
 
   void _copy() {
     Clipboard.setData(ClipboardData(text: widget.artifact.sourceCode));
@@ -171,10 +202,17 @@ class _ArtifactCardState extends State<ArtifactCard> {
             isDark: true,
             borderColor: borderColor,
             isExpanded: _isExpanded,
+            showPreviewToggle: widget.artifact.isExecutable,
+            previewActive: _viewPreview,
+            onTogglePreview: widget.artifact.isExecutable
+                ? () => setState(() => _viewPreview = !_viewPreview)
+                : null,
             onToggleExpand: () => setState(() => _isExpanded = !_isExpanded),
           ),
           if (widget.artifact.isTabular)
             _TablePreview(artifact: widget.artifact, isDark: true, isExpanded: _isExpanded)
+          else if (_viewPreview && widget.artifact.isExecutable)
+            _InlineSandboxPreview(artifact: widget.artifact)
           else
             _CodePreview(artifact: widget.artifact, isDark: true, isExpanded: _isExpanded),
           _Actions(
@@ -203,6 +241,9 @@ class _Header extends StatelessWidget {
   final bool isDark;
   final Color borderColor;
   final bool isExpanded;
+  final bool showPreviewToggle;
+  final bool previewActive;
+  final VoidCallback? onTogglePreview;
   final VoidCallback onToggleExpand;
 
   const _Header({
@@ -210,6 +251,9 @@ class _Header extends StatelessWidget {
     required this.isDark,
     required this.borderColor,
     required this.isExpanded,
+    this.showPreviewToggle = false,
+    this.previewActive = false,
+    this.onTogglePreview,
     required this.onToggleExpand,
   });
 
@@ -266,6 +310,21 @@ class _Header extends StatelessWidget {
               fontSize: 11,
             ),
           ),
+          if (showPreviewToggle) ...[
+            const SizedBox(width: 4),
+            InkWell(
+              onTap: onTogglePreview,
+              borderRadius: BorderRadius.circular(6),
+              child: Padding(
+                padding: const EdgeInsets.all(4),
+                child: Icon(
+                  previewActive ? Icons.code_rounded : Icons.visibility_outlined,
+                  size: 16,
+                  color: previewActive ? const Color(0xFFD4A843) : const Color(0xFF8E8E93),
+                ),
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -395,6 +454,109 @@ class _CodePreview extends StatelessWidget {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// Vista previa viva INLINE del artefacto dentro del chat: mismo sandbox
+/// (CSP + polyfill DOM) y mismos ajustes de seguridad que ArtifactFullscreen,
+/// pero en altura fija para convivir con el scroll del chat.
+class _InlineSandboxPreview extends StatefulWidget {
+  final Artifact artifact;
+
+  const _InlineSandboxPreview({required this.artifact});
+
+  @override
+  State<_InlineSandboxPreview> createState() => _InlineSandboxPreviewState();
+}
+
+class _InlineSandboxPreviewState extends State<_InlineSandboxPreview> {
+  InAppWebViewController? _controller;
+  bool _loading = true;
+
+  void _loadSandbox() {
+    final html = SandboxTemplate.wrap(
+      kind: widget.artifact.kind,
+      source: widget.artifact.sourceCode,
+    );
+    _controller?.loadUrl(
+      urlRequest: URLRequest(
+        url: WebUri(
+          Uri.dataFromString(
+            html,
+            mimeType: 'text/html',
+            encoding: Encoding.getByName('utf-8'),
+          ).toString(),
+        ),
+      ),
+    );
+  }
+
+  @override
+  void didUpdateWidget(covariant _InlineSandboxPreview oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.artifact.sourceCode != widget.artifact.sourceCode ||
+        oldWidget.artifact.kind != widget.artifact.kind) {
+      _loadSandbox();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    const borderColor = Color(0xFF2E2E2E);
+    return Container(
+      height: 340,
+      decoration: const BoxDecoration(
+        color: Color(0xFF121212),
+        border: Border(
+          bottom: BorderSide(color: borderColor, width: 1.0),
+        ),
+      ),
+      child: Stack(
+        children: [
+          InAppWebView(
+            gestureRecognizers: <Factory<OneSequenceGestureRecognizer>>{
+              Factory<OneSequenceGestureRecognizer>(
+                () => EagerGestureRecognizer(),
+              ),
+            },
+            initialSettings: InAppWebViewSettings(
+              javaScriptEnabled: true,
+              domStorageEnabled: true,
+              supportZoom: false,
+              useWideViewPort: true,
+              loadWithOverviewMode: true,
+              transparentBackground: true,
+              // Igual que ArtifactFullscreen (C8): el artefacto viaja como
+              // data URI y no puede tocar el sistema de archivos local.
+              allowFileAccess: false,
+              allowFileAccessFromFileURLs: false,
+              allowUniversalAccessFromFileURLs: false,
+              mixedContentMode: MixedContentMode.MIXED_CONTENT_ALWAYS_ALLOW,
+            ),
+            onWebViewCreated: (controller) {
+              _controller = controller;
+              _loadSandbox();
+            },
+            onLoadStop: (controller, url) {
+              if (mounted) setState(() => _loading = false);
+            },
+            onReceivedError: (controller, request, error) {
+              if (mounted) setState(() => _loading = false);
+            },
+          ),
+          if (_loading)
+            const IgnorePointer(
+              child: Center(
+                child: SizedBox(
+                  width: 22,
+                  height: 22,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }
