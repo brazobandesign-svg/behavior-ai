@@ -343,6 +343,14 @@ class MessageBubble extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
+                  Text(
+                    _formatTime(context, message.createdAt),
+                    style: GoogleFonts.inter(
+                      fontSize: 10,
+                      color: isLight ? Colors.black38 : Colors.white38,
+                    ),
+                  ),
+                  const SizedBox(width: 6),
                   _EditMessageButton(
                     message: message,
                     isLight: isLight,
@@ -353,14 +361,6 @@ class MessageBubble extends StatelessWidget {
                     color: isLight ? Colors.black38 : Colors.white38,
                     copyLabel: copyLabel,
                     copiedLabel: copiedLabel,
-                  ),
-                  const SizedBox(width: 6),
-                  Text(
-                    _formatTime(context, message.createdAt),
-                    style: GoogleFonts.inter(
-                      fontSize: 10,
-                      color: isLight ? Colors.black38 : Colors.white38,
-                    ),
                   ),
                 ],
               ),

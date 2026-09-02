@@ -83,7 +83,7 @@ class _ExodoShimmerState extends State<ExodoShimmer>
 /// Cuadro de espera minimalista para generación de foto:
 /// - Cuadro cuadrado 1:1 (300x300) que reserva el espacio exacto de la foto.
 /// - Completamente vacío, limpio y sin texto.
-/// - Fluctuación/parpadeo súper lento (3600 ms) que indica carga con una respiración orgánica de luz.
+/// - Fluctuación pura de opacidad que sube y baja suavemente sobre un gris universal neutro.
 class ImageGeneratingPlaceholder extends StatefulWidget {
   const ImageGeneratingPlaceholder({super.key});
 
@@ -96,13 +96,16 @@ class _ImageGeneratingPlaceholderState extends State<ImageGeneratingPlaceholder>
     with SingleTickerProviderStateMixin {
   late final AnimationController _pulseController = AnimationController(
     vsync: this,
-    duration: const Duration(milliseconds: 3600),
+    duration: const Duration(milliseconds: 2000),
   )..repeat(reverse: true);
 
-  late final Animation<double> _pulseAnim = CurvedAnimation(
+  late final Animation<double> _opacityAnim = Tween<double>(
+    begin: 0.25,
+    end: 0.85,
+  ).animate(CurvedAnimation(
     parent: _pulseController,
     curve: Curves.easeInOutSine,
-  );
+  ));
 
   @override
   void dispose() {
@@ -113,71 +116,24 @@ class _ImageGeneratingPlaceholderState extends State<ImageGeneratingPlaceholder>
   @override
   Widget build(BuildContext context) {
     final isLight = Theme.of(context).brightness == Brightness.light;
+    final neutralGray = isLight
+        ? const Color(0xFFE0DDD6)
+        : const Color(0xFF262524);
 
     return Align(
       alignment: Alignment.centerLeft,
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 8),
-        child: AnimatedBuilder(
-          animation: _pulseAnim,
-          builder: (context, _) {
-            final pulseVal = _pulseAnim.value;
-
-            // Fluctuación súper lenta de tonalidad base
-            final baseColor = isLight
-                ? Color.lerp(
-                    const Color(0xFFF0ECE3),
-                    const Color(0xFFFAF8F3),
-                    pulseVal,
-                  )!
-                : Color.lerp(
-                    const Color(0xFF151413),
-                    const Color(0xFF22201E),
-                    pulseVal,
-                  )!;
-
-            // Parpadeo sutil en el borde
-            final borderColor = isLight
-                ? Colors.black.withValues(alpha: 0.04 + 0.06 * pulseVal)
-                : Colors.white.withValues(alpha: 0.06 + 0.09 * pulseVal);
-
-            // Resplandor ambiental de carga
-            final glowColor = ExodoColors.amber.withValues(
-              alpha: isLight
-                  ? (0.02 + 0.05 * pulseVal)
-                  : (0.03 + 0.07 * pulseVal),
-            );
-
-            return Container(
-              width: 300,
-              height: 300,
-              decoration: BoxDecoration(
-                color: baseColor,
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: borderColor, width: 1.2),
-                boxShadow: [
-                  BoxShadow(
-                    color: glowColor,
-                    blurRadius: 18 + 16 * pulseVal,
-                    spreadRadius: 1 + 2 * pulseVal,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-                gradient: RadialGradient(
-                  center: Alignment.center,
-                  radius: 0.8 + 0.3 * pulseVal,
-                  colors: [
-                    ExodoColors.amber.withValues(
-                      alpha: isLight
-                          ? 0.025 + 0.055 * pulseVal
-                          : 0.050 + 0.075 * pulseVal,
-                    ),
-                    baseColor,
-                  ],
-                ),
-              ),
-            );
-          },
+        child: FadeTransition(
+          opacity: _opacityAnim,
+          child: Container(
+            width: 300,
+            height: 300,
+            decoration: BoxDecoration(
+              color: neutralGray,
+              borderRadius: BorderRadius.circular(18),
+            ),
+          ),
         ),
       ),
     );
