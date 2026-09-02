@@ -715,7 +715,7 @@ body, html, #root {
   display: inline-flex;
   align-items: center;
   gap: 3px;
-  width: 50px;
+  width: 60px;
   height: 20px;
   overflow: hidden;
   vertical-align: middle;

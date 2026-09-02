@@ -1122,7 +1122,7 @@ class _SourceChipElementBuilder extends MarkdownElementBuilder {
         if (uri != null) launchUrl(uri, mode: LaunchMode.externalApplication);
       },
       child: Container(
-        width: 50,
+        width: 60,
         height: 20,
         padding: const EdgeInsets.symmetric(horizontal: 4),
         decoration: BoxDecoration(
