@@ -36,4 +36,5 @@ export interface Message {
   created_at: string;
   isThinking?: boolean;
   sources?: Source[] | null;
+  isDegraded?: boolean;
 }

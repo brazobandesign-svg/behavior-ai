@@ -762,6 +762,104 @@ body, html, #root {
 .markdown-body .md-source-chip:hover {
   background: #333330;
 }
+
+/* ── Tarjeta de artefacto (paridad ArtifactCard móvil) ── */
+.artifact-card {
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--surface-card);
+}
+.artifact-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--border-color);
+}
+.artifact-card-title {
+  font-family: 'AnthropicSans', sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--amber-exodo);
+}
+.artifact-card-toggle {
+  background: transparent;
+  border: 1px solid var(--border-color);
+  border-radius: 14px;
+  color: var(--text-secondary);
+  font-family: 'Inter', sans-serif;
+  font-size: 11px;
+  padding: 3px 12px;
+  cursor: pointer;
+}
+.artifact-card-toggle:hover {
+  color: var(--text-primary);
+  border-color: var(--text-secondary);
+}
+.artifact-code {
+  margin: 0;
+  padding: 14px;
+  background: #252525;
+  color: #F4F2EB;
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-size: 12px;
+  overflow: auto;
+  max-height: 340px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.artifact-generating {
+  height: 340px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
+  background: var(--surface-input);
+  animation: artifactBreath 3s ease-in-out infinite;
+}
+@keyframes artifactBreath {
+  0%, 100% { opacity: 0.45; }
+  50% { opacity: 0.9; }
+}
+
+/* ── Aviso modo eco (paridad _EcoModeNotice móvil) ── */
+.eco-notice {
+  margin-top: 8px;
+  padding: 8px 14px;
+  border-radius: 10px;
+  border: 1px solid rgba(201, 147, 58, 0.35);
+  background: rgba(201, 147, 58, 0.08);
+  color: var(--amber-exodo);
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  text-align: center;
+}
+
+/* ── Toast de avisos del chat (notices SSE) ── */
+.chat-notice-toast {
+  position: absolute;
+  bottom: 118px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 40;
+  background: var(--surface-card);
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
+  border-radius: 16px;
+  padding: 9px 18px;
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+  animation: fadeIn 0.15s ease-out;
+  white-space: nowrap;
+  max-width: 90vw;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 [data-theme="light"] .markdown-body .md-source-chip {
   background: #FFFFFF;
   border-color: rgba(0, 0, 0, 0.12);

@@ -30,6 +30,7 @@ import remarkGfm from 'remark-gfm';
 import TextareaAutosize from 'react-textarea-autosize';
 import { supabase, type Conversation, type Message, type Source } from './lib/supabase';
 import { AuthModal } from './components/AuthModal';
+import { ArtifactMessageBody } from './components/ArtifactMessage';
 
 // ── Doctrina de Fuentes (paridad con _SourcesSheet móvil) ──────────────────
 
@@ -168,6 +169,9 @@ export default function App() {
   const [isAnnualPlan, setIsAnnualPlan] = useState(false);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [hoveredConvId, setHoveredConvId] = useState<string | null>(null);
+  const [renamingId, setRenamingId] = useState<string | null>(null);
+  const [renameDraft, setRenameDraft] = useState('');
+  const [chatNotice, setChatNotice] = useState<string | null>(null);
   const [selectedModel, setSelectedModel] = useState({
     id: 'origo',
     title: 'G1.1',
@@ -354,10 +358,46 @@ export default function App() {
           return [...unsaved.filter((u) => !dataIds.has(u.id)), ...data];
         });
       }
-    } catch (e) {
-      console.warn('Error fetching conversations:', e);
+      } catch (e) {
+        console.warn('Error fetching conversations:', e);
+      }
     }
-  }
+
+  // ── CRUD de conversaciones (paridad con la app: renombrar / fijar / eliminar) ──
+  const commitRename = async (convId: string) => {
+    const newTitle = renameDraft.trim();
+    setRenamingId(null);
+    if (!newTitle) return;
+    const conv = conversations.find((c) => c.id === convId);
+    if (!conv || conv.title === newTitle) return;
+    setConversations((prev) => prev.map((c) => (c.id === convId ? { ...c, title: newTitle } : c)));
+    if (!convId.startsWith('conv-')) {
+      const { error } = await supabase.from('conversations').update({ title: newTitle }).eq('id', convId);
+      if (error) console.warn('Error renombrando conversación:', error.message);
+    }
+  };
+
+  const toggleStarred = async (conv: Conversation) => {
+    const next = !conv.is_starred;
+    setConversations((prev) => prev.map((c) => (c.id === conv.id ? { ...c, is_starred: next } : c)));
+    if (!conv.id.startsWith('conv-')) {
+      const { error } = await supabase.from('conversations').update({ is_starred: next }).eq('id', conv.id);
+      if (error) console.warn('Error fijando conversación:', error.message);
+    }
+  };
+
+  const deleteConversation = async (convId: string) => {
+    setOpenMenuId(null);
+    setConversations((prev) => prev.filter((c) => c.id !== convId));
+    if (!convId.startsWith('conv-')) {
+      // La FK ON DELETE CASCADE borra los mensajes asociados.
+      const { error } = await supabase.from('conversations').delete().eq('id', convId);
+      if (error) console.warn('Error eliminando conversación:', error.message);
+    }
+    if (activeConvId === convId) {
+      handleCreateNewChat();
+    }
+  };
 
   async function fetchMessages(convId: string) {
     try {
@@ -528,7 +568,25 @@ export default function App() {
               if (dataStr === '[DONE]') continue;
               try {
                 const parsed = JSON.parse(dataStr);
-                if (parsed.type === 'done') {
+                if (parsed.type === 'meta') {
+                  // Paridad móvil: isDegraded marca el aviso de modo eco bajo el mensaje.
+                  if (parsed.isDegraded) {
+                    setMessages((prev) =>
+                      prev.map((m) => (m.id === assistantMsgId ? { ...m, isDegraded: true } : m))
+                    );
+                  }
+                } else if (parsed.type === 'notice') {
+                  // Avisos del backend (login requerido para imágenes, límite diario, etc.)
+                  const noticeText: Record<string, string> = {
+                    image_login_required: 'Inicia sesión para generar imágenes.',
+                    image_daily_limit_reached: 'Límite diario de imágenes alcanzado.',
+                    image_generation_failed: 'No se pudo generar la imagen.',
+                  };
+                  setChatNotice(noticeText[parsed.code] || parsed.code || 'Aviso de Éxodo.');
+                  setTimeout(() => setChatNotice(null), 5000);
+                } else if (parsed.type === 'generating_image') {
+                  setChatNotice('Sintetizando imagen...');
+                } else if (parsed.type === 'done') {
                   // El evento done trae el texto FINAL y las fuentes extraídas por el backend.
                   // Se REEMPLAZA el contenido (no se concatena) para no duplicar la respuesta.
                   setMessages((prev) =>
@@ -1026,8 +1084,24 @@ export default function App() {
               }}
               style={{ padding: '12px 20px', justifyContent: 'space-between', position: 'relative', zIndex: openMenuId === conv.id ? 1000 : 1 }}
             >
-              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: '0.92rem' }}>{conv.title}</span>
-              {(hoveredConvId === conv.id || openMenuId === conv.id) && (
+              {renamingId === conv.id ? (
+                <input
+                  autoFocus
+                  className="search-input"
+                  style={{ flex: 1, minWidth: 0, background: 'var(--surface-input)', border: 'none', borderRadius: 6, padding: '4px 8px', fontSize: '0.92rem', color: 'var(--text-primary)' }}
+                  value={renameDraft}
+                  onChange={(e) => setRenameDraft(e.target.value)}
+                  onClick={(e) => e.stopPropagation()}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') commitRename(conv.id);
+                    if (e.key === 'Escape') setRenamingId(null);
+                  }}
+                  onBlur={() => commitRename(conv.id)}
+                />
+              ) : (
+                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: '0.92rem' }}>{conv.title}</span>
+              )}
+              {(hoveredConvId === conv.id || openMenuId === conv.id) && renamingId !== conv.id && (
                 <button
                   type="button"
                   onClick={(e) => {
@@ -1056,13 +1130,13 @@ export default function App() {
                   boxShadow: '0 4px 12px rgba(0,0,0,0.5)',
                   minWidth: 120
                 }}>
-                  <button type="button" className="drawer-item" style={{ padding: '6px 12px', fontSize: '0.85rem' }} onClick={(e) => { e.stopPropagation(); /* TODO rename */ setOpenMenuId(null); }}>
+                  <button type="button" className="drawer-item" style={{ padding: '6px 12px', fontSize: '0.85rem' }} onClick={(e) => { e.stopPropagation(); setRenameDraft(conv.title); setRenamingId(conv.id); setOpenMenuId(null); }}>
                     <Edit2 size={14} style={{ marginRight: 8 }} /> Renombrar
                   </button>
-                  <button type="button" className="drawer-item" style={{ padding: '6px 12px', fontSize: '0.85rem' }} onClick={(e) => { e.stopPropagation(); setConversations(conversations.map(c => c.id === conv.id ? { ...c, is_starred: false } : c)); setOpenMenuId(null); }}>
+                  <button type="button" className="drawer-item" style={{ padding: '6px 12px', fontSize: '0.85rem' }} onClick={(e) => { e.stopPropagation(); toggleStarred(conv); setOpenMenuId(null); }}>
                     <Pin size={14} style={{ marginRight: 8 }} /> Desfijar
                   </button>
-                  <button type="button" className="drawer-item" style={{ padding: '6px 12px', fontSize: '0.85rem', color: '#ff4d4f' }} onClick={(e) => { e.stopPropagation(); /* TODO delete */ setOpenMenuId(null); }}>
+                  <button type="button" className="drawer-item" style={{ padding: '6px 12px', fontSize: '0.85rem', color: '#ff4d4f' }} onClick={(e) => { e.stopPropagation(); deleteConversation(conv.id); }}>
                     <Trash2 size={14} color="#ff4d4f" style={{ marginRight: 8 }} /> Eliminar
                   </button>
                 </div>
@@ -1091,8 +1165,24 @@ export default function App() {
               }}
               style={{ padding: '12px 20px', justifyContent: 'space-between', position: 'relative', zIndex: openMenuId === conv.id ? 1000 : 1 }}
             >
-              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: '0.92rem' }}>{conv.title}</span>
-              {(hoveredConvId === conv.id || openMenuId === conv.id) && (
+              {renamingId === conv.id ? (
+                <input
+                  autoFocus
+                  className="search-input"
+                  style={{ flex: 1, minWidth: 0, background: 'var(--surface-input)', border: 'none', borderRadius: 6, padding: '4px 8px', fontSize: '0.92rem', color: 'var(--text-primary)' }}
+                  value={renameDraft}
+                  onChange={(e) => setRenameDraft(e.target.value)}
+                  onClick={(e) => e.stopPropagation()}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') commitRename(conv.id);
+                    if (e.key === 'Escape') setRenamingId(null);
+                  }}
+                  onBlur={() => commitRename(conv.id)}
+                />
+              ) : (
+                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: '0.92rem' }}>{conv.title}</span>
+              )}
+              {(hoveredConvId === conv.id || openMenuId === conv.id) && renamingId !== conv.id && (
                 <button
                   type="button"
                   onClick={(e) => {
@@ -1121,13 +1211,13 @@ export default function App() {
                   boxShadow: '0 4px 12px rgba(0,0,0,0.5)',
                   minWidth: 120
                 }}>
-                  <button type="button" className="drawer-item" style={{ padding: '6px 12px', fontSize: '0.85rem' }} onClick={(e) => { e.stopPropagation(); /* TODO rename */ setOpenMenuId(null); }}>
+                  <button type="button" className="drawer-item" style={{ padding: '6px 12px', fontSize: '0.85rem' }} onClick={(e) => { e.stopPropagation(); setRenameDraft(conv.title); setRenamingId(conv.id); setOpenMenuId(null); }}>
                     <Edit2 size={14} style={{ marginRight: 8 }} /> Renombrar
                   </button>
-                  <button type="button" className="drawer-item" style={{ padding: '6px 12px', fontSize: '0.85rem' }} onClick={(e) => { e.stopPropagation(); setConversations(conversations.map(c => c.id === conv.id ? { ...c, is_starred: true } : c)); setOpenMenuId(null); }}>
+                  <button type="button" className="drawer-item" style={{ padding: '6px 12px', fontSize: '0.85rem' }} onClick={(e) => { e.stopPropagation(); toggleStarred(conv); setOpenMenuId(null); }}>
                     <Pin size={14} style={{ marginRight: 8 }} /> Fijar
                   </button>
-                  <button type="button" className="drawer-item" style={{ padding: '6px 12px', fontSize: '0.85rem', color: '#ff4d4f' }} onClick={(e) => { e.stopPropagation(); /* TODO delete */ setOpenMenuId(null); }}>
+                  <button type="button" className="drawer-item" style={{ padding: '6px 12px', fontSize: '0.85rem', color: '#ff4d4f' }} onClick={(e) => { e.stopPropagation(); deleteConversation(conv.id); }}>
                     <Trash2 size={14} color="#ff4d4f" style={{ marginRight: 8 }} /> Eliminar
                   </button>
                 </div>
@@ -1319,12 +1409,28 @@ export default function App() {
                             <div className="thinking-logo-mask" />
                             <span className="thinking-label">Pensando</span>
                           </div>
+                        ) : msg.role === 'assistant' ? (
+                          <ArtifactMessageBody
+                            content={msg.content}
+                            isStreaming={isStreaming && msg.id === messages[messages.length - 1]?.id}
+                            renderMarkdown={(text) => (
+                              <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
+                                {text}
+                              </ReactMarkdown>
+                            )}
+                          />
                         ) : (
                           <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
                             {msg.content}
                           </ReactMarkdown>
                         )}
                       </div>
+
+                      {msg.role === 'assistant' && msg.isDegraded && (
+                        <div className="eco-notice">
+                          Modo Eco: cuota diaria de alta potencia agotada — respondiendo con el modelo ligero hasta las 12:00 AM.
+                        </div>
+                      )}
 
                       {msg.role === 'assistant' && (() => {
                         const vs = validSourcesOf(msg);
@@ -1416,6 +1522,9 @@ export default function App() {
               </button>
             )}
 
+            {chatNotice && (
+              <div className="chat-notice-toast">{chatNotice}</div>
+            )}
             <div className="composer-pinned" style={{ width: '100%', display: 'flex', justifyContent: 'center' }}>
               {renderChatComposer(true)}
             </div>
