@@ -9,6 +9,7 @@
 // ═══════════════════════════════════════════════════════════════════════════════
 
 import 'dart:io';
+import 'dart:ui';
 
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
@@ -95,8 +96,10 @@ class NotificationService {
         channelDescription: 'Avisa cuando una respuesta terminó de escribirse en segundo plano',
         importance: Importance.high,
         priority: Priority.high,
-        // Logo real de la app (ícono launcher), no un ícono genérico
+        // Logo oficial Behavior AI
         icon: 'exodo_notification_icon',
+        largeIcon: DrawableResourceAndroidBitmap('logo_behavior'),
+        color: Color(0xFFC9933A),
         showWhen: true,
       );
       const iosDetails = DarwinNotificationDetails();
@@ -130,6 +133,8 @@ class NotificationService {
         importance: Importance.defaultImportance,
         priority: Priority.defaultPriority,
         icon: 'exodo_notification_icon',
+        largeIcon: DrawableResourceAndroidBitmap('logo_behavior'),
+        color: Color(0xFFC9933A),
       );
       const iosDetails = DarwinNotificationDetails();
       await _plugin.show(
