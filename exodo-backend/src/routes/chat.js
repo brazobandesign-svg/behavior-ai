@@ -159,11 +159,13 @@ function extractSourcesFromText(text, existingSources = [], contextChunks = [], 
   const mdRegex = /\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g;
   let match;
   while ((match = mdRegex.exec(proseText)) !== null) {
-    const title = (match[1] || '').trim();
+    let rawTitle = (match[1] || '').trim();
+    // Limpieza de prefijos de citación en línea: "consultar:", "fuente:", "ver:", "source:"
+    const cleanTitle = rawTitle.replace(/^(consultar|fuente|ver|source|ref):\s*/i, '').trim() || rawTitle;
     const url = (match[2] || '').trim();
     let host = url;
     try { host = new URL(url).host.replace(/^www\./, ''); } catch (_) {}
-    addSource(title || host, url, host.slice(0, 3));
+    addSource(cleanTitle || host, url, host.slice(0, 3));
   }
 
   // 4. Extraer URLs explícitas en texto plano https://... — solo en prosa
