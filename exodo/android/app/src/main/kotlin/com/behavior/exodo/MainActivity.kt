@@ -8,6 +8,7 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
+import android.view.WindowManager
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
@@ -18,6 +19,8 @@ class MainActivity : FlutterActivity() {
         private const val TAG = "MainActivity"
         private const val CHANNEL = "com.behavior.exodo/widgets"
         private const val APP_INFO_CHANNEL = "exodo/app_info"
+        // [Fix LG V60 #3 / #482] FLAG_SECURE para el Modo Incógnito.
+        private const val WINDOW_CHANNEL = "exodo/window"
         private const val EXTRA_WIDGET_PROMPT = "widget_prompt"
         private const val MAX_DELIVERY_RETRIES = 3
         private const val RETRY_DELAY_MS = 1500L
@@ -102,6 +105,31 @@ class MainActivity : FlutterActivity() {
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
+
+        // [Fix LG V60 #3 / #482] FLAG_SECURE: bloquea capturas de pantalla y
+        // la miniatura en la vista de apps recientes mientras el Modo
+        // Incógnito está activo; se desactiva al volver al modo normal.
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, WINDOW_CHANNEL).setMethodCallHandler { call, result ->
+            when (call.method) {
+                "setSecure" -> {
+                    val secure = call.argument<Boolean>("secure") ?: false
+                    try {
+                        if (secure) {
+                            window.setFlags(
+                                WindowManager.LayoutParams.FLAG_SECURE,
+                                WindowManager.LayoutParams.FLAG_SECURE,
+                            )
+                        } else {
+                            window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
+                        }
+                        result.success(true)
+                    } catch (e: Exception) {
+                        result.error("FLAG_SECURE_ERROR", e.message, null)
+                    }
+                }
+                else -> result.notImplemented()
+            }
+        }
 
         // Auto-actualización: exponer el versionCode instalado a Dart
         // (UpdateService compara contra version.json de GitHub Releases).

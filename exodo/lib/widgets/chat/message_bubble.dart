@@ -1557,37 +1557,42 @@ class _AssistantContentWithArtifacts extends StatelessWidget {
               children: segments,
             );
 
-      return SelectionArea(
-        contextMenuBuilder: (context, selectableRegionState) {
-          final defaultButtons = selectableRegionState.contextMenuButtonItems;
-          final askLabel = AppI18n.of(context).t('chat.ask_exodo');
-          final buttonItems = <ContextMenuButtonItem>[
-            ContextMenuButtonItem(
-              type: ContextMenuButtonType.custom,
-              label: askLabel.isNotEmpty ? askLabel : 'Preguntar a Éxodo',
-              onPressed: () async {
-                selectableRegionState.hideToolbar();
-                HapticFeedback.lightImpact();
-                // Copiar por el canal oficial y leer el portapapeles DESPUÉS.
-                // Reusar el copyButton síncrono provocaba colisión de eventos
-                // y ejecutaba "copiar" en lugar de capturar la cita.
-                selectableRegionState.copySelection(SelectionChangedCause.toolbar);
-                await Future.delayed(const Duration(milliseconds: 50));
-                final clipData = await Clipboard.getData(Clipboard.kTextPlain);
-                final text = clipData?.text ?? '';
-                if (text.trim().isNotEmpty && context.mounted) {
-                  context.read<AppState>().setQuotedSnippet(text.trim());
-                }
-              },
-            ),
-            ...defaultButtons,
-          ];
-          return AdaptiveTextSelectionToolbar.buttonItems(
-            anchors: selectableRegionState.contextMenuAnchors,
-            buttonItems: buttonItems,
-          );
-        },
-        child: contentWidget,
+      String currentSelectedText = '';
+      return DefaultSelectionStyle(
+        selectionColor: isLight
+            ? ExodoColors.amber.withValues(alpha: 0.28)
+            : ExodoColors.amber.withValues(alpha: 0.38),
+        cursorColor: ExodoColors.amber,
+        child: SelectionArea(
+          magnifierConfiguration: TextMagnifier.adaptiveMagnifierConfiguration,
+          onSelectionChanged: (content) {
+            currentSelectedText = content?.plainText ?? '';
+          },
+          contextMenuBuilder: (context, selectableRegionState) {
+            final defaultButtons = selectableRegionState.contextMenuButtonItems;
+            final askLabel = AppI18n.of(context).t('chat.ask_exodo');
+            final buttonItems = <ContextMenuButtonItem>[
+              ContextMenuButtonItem(
+                type: ContextMenuButtonType.custom,
+                label: askLabel.isNotEmpty ? askLabel : 'Preguntar a Éxodo',
+                onPressed: () {
+                  final text = currentSelectedText;
+                  selectableRegionState.hideToolbar();
+                  HapticFeedback.selectionClick();
+                  if (text.trim().isNotEmpty && context.mounted) {
+                    context.read<AppState>().setQuotedSnippet(text.trim());
+                  }
+                },
+              ),
+              ...defaultButtons,
+            ];
+            return AdaptiveTextSelectionToolbar.buttonItems(
+              anchors: selectableRegionState.contextMenuAnchors,
+              buttonItems: buttonItems,
+            );
+          },
+          child: contentWidget,
+        ),
       );
     } catch (e, stack) {
       debugPrint('[AssistantContentWithArtifacts] Parsing error: $e\n$stack');

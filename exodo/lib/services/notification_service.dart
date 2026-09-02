@@ -80,8 +80,10 @@ class NotificationService {
   /// Notificación con el logo de la app y un cuerpo ya localizado por el
   /// llamador ("Ver respuesta de Éxodo"). El tap abre la app (intent por
   /// defecto de la activity principal — no requiere payload extra).
+  /// [Fix LG V60 #3] `title` permite "Éxodo ha respondido" con preview.
   Future<void> showReplyReady({
     required String body,
+    String? title,
     int id = 1001,
   }) async {
     if (!Platform.isAndroid && !Platform.isIOS) return;
@@ -100,7 +102,7 @@ class NotificationService {
       const iosDetails = DarwinNotificationDetails();
       await _plugin.show(
         id,
-        'Éxodo',
+        title ?? 'Éxodo',
         body,
         const NotificationDetails(
           android: androidDetails,

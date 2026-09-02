@@ -37,6 +37,11 @@ class ExodoTheme {
         onPrimary: ExodoColors.background,
         onSurface: ExodoColors.textPrimary,
       ),
+      textSelectionTheme: TextSelectionThemeData(
+        cursorColor: ExodoColors.amber,
+        selectionColor: ExodoColors.amber.withValues(alpha: 0.35),
+        selectionHandleColor: ExodoColors.amber,
+      ),
       textTheme: TextTheme(
         displayLarge: TextStyle(fontFamily: 'Syne', color: ExodoColors.textPrimary, fontWeight: FontWeight.bold),
         displayMedium: TextStyle(fontFamily: 'Syne', color: ExodoColors.textPrimary, fontWeight: FontWeight.bold),
@@ -100,6 +105,11 @@ class ExodoTheme {
         error: ExodoColors.error,
         onPrimary: creamBg,
         onSurface: darkInk,
+      ),
+      textSelectionTheme: TextSelectionThemeData(
+        cursorColor: ExodoColors.amber,
+        selectionColor: ExodoColors.amber.withValues(alpha: 0.28),
+        selectionHandleColor: ExodoColors.amber,
       ),
       textTheme: TextTheme(
         displayLarge: TextStyle(fontFamily: 'Syne', color: darkInk, fontWeight: FontWeight.bold),

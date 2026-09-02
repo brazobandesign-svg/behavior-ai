@@ -59,10 +59,14 @@ class _ChatScreenState extends State<ChatScreen>
     final state = context.read<AppState>();
     _observedState = state;
     state.addListener(_syncAnimations);
+    // [Fix LG V60 #3 / #482] FLAG_SECURE en Modo Incógnito: bloquea capturas
+    // y miniatura en multitarea; se apaga al volver al modo normal.
+    state.addListener(_syncFlagSecure);
     // [Fix LG V60 #5] Al citar texto ("Preguntar a Éxodo"), el chat baja al
     // final para que composer + chip de cita queden a la vista con teclado.
     state.onRequestChatScrollToBottom = _scrollChatToBottom;
     _syncAnimations();
+    _syncFlagSecure();
 
     // Trigger reload
     WidgetService.instance.getInitialPrompt().then((prompt) {
@@ -215,6 +219,7 @@ class _ChatScreenState extends State<ChatScreen>
   void dispose() {
     ChatService.cancelStream();
     _observedState?.removeListener(_syncAnimations);
+    _observedState?.removeListener(_syncFlagSecure);
     _observedState?.onRequestChatScrollToBottom = null;
     WidgetsBinding.instance.removeObserver(this);
     _inputCtrl.dispose();
@@ -235,6 +240,26 @@ class _ChatScreenState extends State<ChatScreen>
         duration: const Duration(milliseconds: 250),
         curve: Curves.easeOut,
       );
+    });
+  }
+
+  static const _windowChannel = MethodChannel('exodo/window');
+  bool _flagSecureActive = false;
+
+  /// [Fix LG V60 #3 / #482] Sincroniza FLAG_SECURE con el Modo Incógnito:
+  /// activa la ventana segura al entrar y la libera al salir. Solo invoca el
+  /// canal nativo cuando cambia el estado (los notifies son frecuentes).
+  void _syncFlagSecure() {
+    final incognito = _observedState?.isIncognito ?? false;
+    if (incognito == _flagSecureActive) return;
+    _flagSecureActive = incognito;
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      try {
+        await _windowChannel.invokeMethod('setSecure', {'secure': incognito});
+      } catch (_) {
+        // Plataforma sin el canal (web/Windows): la privacidad del modo
+        // incógnito no depende de FLAG_SECURE para funcionar.
+      }
     });
   }
 

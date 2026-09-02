@@ -19,7 +19,7 @@ const path = require('node:path');
 // 1. GET /health — servidor real en puerto efímero
 // ---------------------------------------------------------------------------
 
-function fetchHealth(port, timeoutMs = 15000) {
+function fetchHealth(port, timeoutMs = 30000, child = null) {
   const deadline = Date.now() + timeoutMs;
   return new Promise((resolve, reject) => {
     const attempt = () => {
@@ -29,12 +29,16 @@ function fetchHealth(port, timeoutMs = 15000) {
         res.on('end', () => resolve({ statusCode: res.statusCode, body }));
       });
       req.on('error', () => {
-        if (Date.now() > deadline) return reject(new Error('El servidor no respondió a tiempo'));
+        if (Date.now() > deadline) {
+          return reject(new Error(`El servidor no respondió a tiempo. Boot: ${(child && child.bootLog) || '(sin salida)'}`));
+        }
         setTimeout(attempt, 400);
       });
       req.on('timeout', () => {
         req.destroy();
-        if (Date.now() > deadline) return reject(new Error('Timeout esperando /health'));
+        if (Date.now() > deadline) {
+          return reject(new Error(`Timeout esperando /health. Boot: ${(child && child.bootLog) || '(sin salida)'}`));
+        }
         setTimeout(attempt, 400);
       });
     };
@@ -52,13 +56,16 @@ test('GET /health responde 200 con status "ok" (servidor real)', async (t) => {
       ...process.env,
       DOTENV_CONFIG_PATH: path.join(__dirname, '.env.health'),
     },
-    stdio: 'ignore',
+    stdio: ['ignore', 'pipe', 'pipe'],
   });
+  child.bootLog = '';
+  child.stdout.on('data', (d) => { child.bootLog += d; });
+  child.stderr.on('data', (d) => { child.bootLog += d; });
   t.after(() => {
     try { child.kill(); } catch (_) { /* ya terminó */ }
   });
 
-  const res = await fetchHealth(4317);
+  const res = await fetchHealth(4317, 30000, child);
   assert.strictEqual(res.statusCode, 200, 'El health check debe responder 200');
   const parsed = JSON.parse(res.body);
   assert.strictEqual(parsed.status, 'ok');

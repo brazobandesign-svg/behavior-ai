@@ -113,7 +113,12 @@ class ContextExportService {
   /// EXPORTAR TODOS LOS DATOS del usuario (como GPT/Claude/Gemini): un solo
   /// HTML con todas las conversaciones locales del dispositivo, listas para
   /// leer o adjuntar a cualquier IA. No-op en Web.
-  static Future<bool> exportAllConversations({
+  ///
+  /// [Fix LG V60 #7] `onProgress` reporta avance (0.0–1.0) y paso actual para
+  /// que la UI muestre un diálogo modal de progreso. Con `autoShare: false`
+  /// NO abre el Share Sheet: devuelve el archivo para que el llamador lo
+  /// comparta DESPUÉS de cerrar su diálogo.
+  static Future<File?> exportAllConversations({
     required String locale,
     required List<Conversation> conversations,
     required Future<List<ChatMessage>> Function(String conversationId) messagesOf,
@@ -121,14 +126,20 @@ class ContextExportService {
     required String roleUserLabel,
     required String roleAiLabel,
     required String reimportHint,
+    void Function(double percent, String status)? onProgress,
+    bool autoShare = true,
   }) async {
-    if (kIsWeb) return false;
+    if (kIsWeb) return null;
     try {
       final sb = StringBuffer();
       sb.writeln('<h1>Éxodo — Exportación completa de datos</h1>');
+      final total = conversations.length;
+      var done = 0;
       for (final conv in conversations) {
         final msgs = await messagesOf(conv.id);
+        done++;
         if (msgs.isEmpty) continue;
+        onProgress?.call(done / total, 'Procesando mensajes... (${done ~/ 1}/$total)');
         sb.writeln('<hr style="margin:32px 0;border:none;border-top:2px solid #d97706">');
         sb.writeln(buildContextHtml(
           title: conv.title,
@@ -140,6 +151,7 @@ class ContextExportService {
           reimportHint: reimportHint,
         ).split('<body>')[1].split('</body>')[0]);
       }
+      onProgress?.call(0.95, 'Empaquetando...');
       final dir = await getTemporaryDirectory();
       final stamp = DateTime.now().millisecondsSinceEpoch;
       final file = File('${dir.path}/exodo-mis-datos-$stamp.html');
@@ -150,14 +162,17 @@ class ContextExportService {
         '${sb.toString()}</body></html>',
         flush: true,
       );
-      await ShareService.instance.shareFile(
-        file,
-        subject: 'Éxodo — Mis datos',
-      );
-      return true;
+      onProgress?.call(1.0, 'Listo');
+      if (autoShare) {
+        await ShareService.instance.shareFile(
+          file,
+          subject: 'Éxodo — Mis datos',
+        );
+      }
+      return file;
     } catch (e) {
       debugPrint('[ContextExport] exportAll falló: $e');
-      return false;
+      return null;
     }
   }
 

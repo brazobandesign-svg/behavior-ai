@@ -4,8 +4,9 @@
  * src/routes/artifacts.js
  *
  * Endpoints Cloud Artifacts:
- *   - POST /api/artifacts/publish   (autenticado)   -> crea y devuelve { slug, url }
+ *   - POST /api/artifacts/publish   (autenticado)   -> crea y devuelve { slug, url, short_url }
  *   - GET  /api/artifacts/:slug     (público)       -> HTML con OG meta tags + iframe sandbox
+ *   - GET  /a/:slug                 (público)       -> visor corto con pestañas Vista/Código (montado en index.js)
  *   - GET  /api/artifacts/:slug/raw (público)       -> JSON con source_code y metadatos
  *   - GET  /api/artifacts/me        (autenticado)   -> lista mis artefactos
  *   - DELETE /api/artifacts/:slug   (autenticado)   -> elimina mi artefacto
@@ -111,6 +112,172 @@ function sanitizeSource(kind, source) {
     return sanitizeHtml(source, SANITIZE_OPTS);
   }
   return source;
+}
+
+/**
+ * Documento interno que vive dentro del iframe sandbox (srcdoc). Compartido
+ * por el visor clásico y el visor corto /a/:slug. Para tipos no renderizables
+ * (code/markdown/mermaid) el contenido se escapa en un <pre> — jamás se
+ * inyecta crudo: un fuente JS contendría <script> ejecutable.
+ */
+function buildArtifactSrcdoc(artifact, sanitized) {
+  const renderable = artifact.kind === 'html' || artifact.kind === 'svg' || artifact.kind === 'react';
+  const body = renderable ? sanitized : `<pre>${escapeAttr(artifact.source_code)}</pre>`;
+  return `<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>${escapeAttr(artifact.title)}</title>
+  <style>
+    :root { color-scheme: light dark; }
+    body { margin: 0; padding: 16px; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; line-height: 1.55; }
+    pre, code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+    pre { padding: 12px; background: rgba(127,127,127,.08); border-radius: 8px; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word; }
+    img, svg { max-width: 100%; height: auto; }
+    table { border-collapse: collapse; width: 100%; }
+    th, td { border: 1px solid rgba(127,127,127,.3); padding: 6px 10px; text-align: left; }
+  </style>
+</head>
+<body>${body}</body>
+</html>`;
+}
+
+/**
+ * [T13 / pregunta 13 auditoría] Resaltado básico server-side sobre el código
+ * YA ESCAPADO: una sola pasada (los spans insertados no se re-escanean).
+ */
+function highlightBasic(code) {
+  const esc = escapeAttr(code);
+  const token = /(&lt;!--[\s\S]*?--&gt;|\/\*[\s\S]*?\*\/|\/\/[^\n&]*)|(&lt;\/?[a-zA-Z][^&\n]*?&gt;)|(&quot;[^&\n]*&quot;|&#39;[^&\n]*&#39;)|\b(function|const|let|var|return|if|else|for|while|class|new|async|await|import|export|true|false|null|undefined)\b/g;
+  return esc.replace(token, (m, comment, tag, str, kw) => {
+    if (comment) return `<span class="tk-c">${comment}</span>`;
+    if (tag) return `<span class="tk-t">${tag}</span>`;
+    if (str) return `<span class="tk-s">${str}</span>`;
+    if (kw) return `<span class="tk-k">${kw}</span>`;
+    return m;
+  });
+}
+
+// Favicon inline de Éxodo (sin dependencia de assets estáticos).
+const EXODO_FAVICON =
+  "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230E0C0A'/%3E%3Crect x='6' y='6' width='52' height='6' rx='3' fill='%23C9933A'/%3E%3Ctext x='32' y='48' font-family='Georgia,serif' font-size='34' font-weight='700' fill='%23C9933A' text-anchor='middle'%3EE%3C/text%3E%3C/svg%3E";
+
+/**
+ * Visor corto /a/:slug — página completa responsive con pestañas
+ * "Vista Previa" (iframe sandbox="allow-scripts") y "Código Fuente"
+ * (resaltado básico), botón "Copiar código" y OpenGraph para shares.
+ */
+function buildSharedViewerHtml({ artifact, authorName }) {
+  const sanitized = sanitizeSource(artifact.kind, artifact.source_code);
+  const renderable = artifact.kind === 'html' || artifact.kind === 'svg' || artifact.kind === 'react';
+  const publicUrl = `${PUBLIC_BASE_URL}/api/artifacts/${artifact.slug}`;
+  const shortUrl = `${PUBLIC_BASE_URL}/a/${artifact.slug}`;
+  const description = artifact.description || artifact.title;
+  const codeHtml = highlightBasic(artifact.source_code);
+  const srcdoc = buildArtifactSrcdoc(artifact, sanitized);
+
+  return `<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <title>${escapeAttr(artifact.title)} · Éxodo</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="description" content="${escapeAttr(description)}">
+  <link rel="icon" href="${EXODO_FAVICON}">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="${escapeAttr(artifact.title)}">
+  <meta property="og:description" content="${escapeAttr(description)}">
+  <meta property="og:url" content="${escapeAttr(shortUrl)}">
+  <meta property="og:site_name" content="Éxodo">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="${escapeAttr(artifact.title)}">
+  <meta name="twitter:description" content="${escapeAttr(description)}">
+  <meta name="referrer" content="strict-origin-when-cross-origin">
+  <style>
+    :root { --gold:#C9933A; --bg:#fbfaf6; --fg:#1a1a1a; --muted:#6b6b6b; --line:rgba(127,127,127,.25); --chip:rgba(127,127,127,.08); }
+    @media (prefers-color-scheme: dark) { :root { --bg:#0E0C0A; --fg:#f4f1ea; --muted:#a8a8a8; --chip:rgba(255,255,255,.08); } }
+    * { box-sizing: border-box; }
+    html, body { margin:0; padding:0; background:var(--bg); color:var(--fg); font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; }
+    header { padding:14px 18px; border-bottom:1px solid var(--line); }
+    .brand { font-weight:700; letter-spacing:.5px; color:var(--gold); font-size:14px; }
+    h1 { font-size:1.25rem; margin:8px 0 2px; line-height:1.3; }
+    .byline { color:var(--muted); font-size:13px; margin:0; }
+    .toolbar { display:flex; gap:8px; align-items:center; padding:10px 18px; border-bottom:1px solid var(--line); flex-wrap:wrap; }
+    .tab { border:1px solid var(--line); background:var(--chip); color:var(--fg); border-radius:8px; padding:7px 14px; font-size:13px; cursor:pointer; }
+    .tab.active { background:var(--gold); border-color:var(--gold); color:#0E0C0A; font-weight:600; }
+    .copy { margin-left:auto; border:1px solid var(--gold); color:var(--gold); background:transparent; border-radius:8px; padding:7px 14px; font-size:13px; cursor:pointer; }
+    .copy:active { transform:scale(.97); }
+    main { padding:14px 18px 40px; }
+    iframe { display:block; width:100%; min-height:70vh; border:0; border-radius:10px; background:var(--bg); }
+    pre.exo-code { background:var(--chip); border:1px solid var(--line); border-radius:10px; padding:16px; overflow-x:auto; font-size:13px; line-height:1.55; font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; white-space:pre-wrap; word-wrap:break-word; }
+    .tk-c { color:#8e8e93; font-style:italic; }
+    .tk-t { color:#C9933A; font-weight:600; }
+    .tk-s { color:#b0653a; }
+    .tk-k { color:#4a7bb5; font-weight:600; }
+    footer { padding:14px 18px; border-top:1px solid var(--line); font-size:12px; color:var(--muted); text-align:center; }
+    footer a { color:var(--gold); text-decoration:none; }
+    .hidden { display:none; }
+  </style>
+</head>
+<body>
+  <header>
+    <span class="brand">ÉXODO</span>
+    <h1>${escapeAttr(artifact.title)}</h1>
+    <p class="byline">Creado con Éxodo AI${authorName ? ' · ' + escapeAttr(authorName) : ''}</p>
+  </header>
+
+  <div class="toolbar">
+    <button class="tab active" id="tab-preview" onclick="exoTab('preview')">Vista Previa</button>
+    <button class="tab" id="tab-code" onclick="exoTab('code')">Código Fuente</button>
+    <button class="copy" onclick="exoCopy(this)">Copiar código</button>
+  </div>
+
+  <main>
+    <div id="pane-preview">
+      ${renderable
+        ? `<iframe sandbox="allow-scripts" referrerpolicy="no-referrer" title="${escapeAttr(artifact.title)}" srcdoc="${escapeAttr(srcdoc)}"></iframe>`
+        : `<pre class="exo-code">${codeHtml}</pre>`}
+    </div>
+    <div id="pane-code" class="hidden">
+      <pre class="exo-code"><code id="exo-code">${codeHtml}</code></pre>
+    </div>
+  </main>
+
+  <footer>
+    Compartido con <a href="${escapeAttr(PUBLIC_BASE_URL)}">Éxodo</a> ·
+    <a href="${escapeAttr(publicUrl)}.raw">JSON crudo</a>
+  </footer>
+
+  <script>
+    function exoTab(which) {
+      var pv = document.getElementById('pane-preview');
+      var cd = document.getElementById('pane-code');
+      var tp = document.getElementById('tab-preview');
+      var tc = document.getElementById('tab-code');
+      var showPreview = which === 'preview';
+      pv.className = showPreview ? '' : 'hidden';
+      cd.className = showPreview ? 'hidden' : '';
+      tp.className = 'tab' + (showPreview ? ' active' : '');
+      tc.className = 'tab' + (showPreview ? '' : ' active');
+    }
+    function exoCopy(btn) {
+      var text = document.getElementById('exo-code').textContent;
+      var done = function () { var old = btn.textContent; btn.textContent = '¡Copiado!'; setTimeout(function(){ btn.textContent = old; }, 1600); };
+      var fallback = function () {
+        try {
+          var ta = document.createElement('textarea');
+          ta.value = text; document.body.appendChild(ta); ta.select();
+          document.execCommand('copy'); document.body.removeChild(ta); done();
+        } catch (e) { btn.textContent = 'No se pudo copiar'; }
+      };
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(done, fallback);
+      } else { fallback(); }
+    }
+  </script>
+</body>
+</html>`;
 }
 
 // ---------------------------------------------------------------------------
@@ -390,6 +557,7 @@ router.post('/publish', auth, chatRateLimiter, planGuard, async (req, res, next)
       id: inserted.id,
       slug: inserted.slug,
       url: `${PUBLIC_BASE_URL}/api/artifacts/${inserted.slug}`,
+      short_url: `${PUBLIC_BASE_URL}/a/${inserted.slug}`,
       raw_url: `${PUBLIC_BASE_URL}/api/artifacts/${inserted.slug}/raw`,
       expires_at: inserted.expires_at,
       created_at: inserted.created_at,
@@ -441,15 +609,20 @@ router.get('/:slug', chatRateLimiter, async (req, res, next) => {
     });
     const ogImage = `data:image/svg+xml;utf8,${encodeURIComponent(ogSvg)}`;
 
-    const html = buildViewerHtml({
-      artifact: { ...artifact, views_count: artifact.views_count + 1 },
-      og: {
-        title: artifact.title,
-        description: artifact.description || artifact.title,
-        authorName,
-        ogImage,
-      },
-    });
+    const viewedArtifact = { ...artifact, views_count: artifact.views_count + 1 };
+    // Dos pieles sobre el mismo lookup: /a/:slug (enlace corto compartido)
+    // usa el visor con pestañas; /api/artifacts/:slug conserva el clásico.
+    const html = req.baseUrl === '/a'
+      ? buildSharedViewerHtml({ artifact: viewedArtifact, authorName })
+      : buildViewerHtml({
+          artifact: viewedArtifact,
+          og: {
+            title: artifact.title,
+            description: artifact.description || artifact.title,
+            authorName,
+            ogImage,
+          },
+        });
 
     res.set('Content-Type', 'text/html; charset=utf-8');
     res.set('Cache-Control', 'public, max-age=30, s-maxage=60');

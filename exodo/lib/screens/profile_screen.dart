@@ -1,8 +1,12 @@
+import 'dart:async';
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../services/app_state.dart';
 import '../services/context_export_service.dart';
+import '../services/export/exporters.dart' show ShareService;
 import '../l10n/app_i18n.dart';
 import '../theme/exodo_theme.dart';
 
@@ -172,9 +176,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
+  /// [Fix LG V60 #7] Exportar datos con diálogo modal de progreso no
+  /// cancelable: porcentaje + paso actual ("Procesando mensajes...",
+  /// "Empaquetando...", "Listo"). El diálogo se cierra ANTES de abrir el
+  /// Share Sheet nativo.
   Future<void> _exportMyData(BuildContext context, AppState state) async {
     final t = AppI18n.of(context).t;
     final messenger = ScaffoldMessenger.of(context);
+    final navigator = Navigator.of(context);
     var count = 0;
     for (final conv in state.conversations) {
       final msgs = await state.localChatRepo.getMessages(conv.id);
@@ -184,15 +193,74 @@ class _ProfileScreenState extends State<ProfileScreen> {
       messenger.showSnackBar(SnackBar(content: Text(t('banner.context_default_title'))));
       return;
     }
-    await ContextExportService.exportAllConversations(
-      locale: state.effectiveLocale,
-      conversations: state.conversations,
-      messagesOf: (convId) => state.localChatRepo.getMessages(convId),
-      transcriptLabel: t('banner.context_transcript'),
-      roleUserLabel: t('banner.context_role_user'),
-      roleAiLabel: t('banner.context_role_ai'),
-      reimportHint: t('banner.context_reimport_hint'),
-    );
+    if (!context.mounted) return;
+
+    double percent = 0;
+    String status = 'Procesando mensajes...';
+    StateSetter? dialogSetState;
+
+    unawaited(showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => StatefulBuilder(
+        builder: (dialogContext, setState) {
+          dialogSetState = setState;
+          return AlertDialog(
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const CircularProgressIndicator(),
+                const SizedBox(height: 18),
+                Text(
+                  status,
+                  style: const TextStyle(fontFamily: 'AnthropicSans', fontSize: 14),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  '${(percent * 100).toStringAsFixed(0)}%',
+                  style: const TextStyle(
+                    fontFamily: 'AnthropicSans',
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: ExodoColors.amber,
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    ));
+
+    // Pequeña pausa para que el diálogo esté visible antes del primer tick.
+    await Future<void>.delayed(const Duration(milliseconds: 60));
+
+    File? file;
+    try {
+      file = await ContextExportService.exportAllConversations(
+        locale: state.effectiveLocale,
+        conversations: state.conversations,
+        messagesOf: (convId) => state.localChatRepo.getMessages(convId),
+        transcriptLabel: t('banner.context_transcript'),
+        roleUserLabel: t('banner.context_role_user'),
+        roleAiLabel: t('banner.context_role_ai'),
+        reimportHint: t('banner.context_reimport_hint'),
+        autoShare: false,
+        onProgress: (p, s) {
+          percent = p;
+          status = s;
+          dialogSetState?.call(() {});
+        },
+      );
+    } finally {
+      // El diálogo SIEMPRE se cierra antes de abrir el Share Sheet.
+      if (navigator.canPop()) navigator.pop();
+    }
+
+    if (file != null) {
+      await ShareService.instance.shareFile(file, subject: 'Éxodo — Mis datos');
+    }
   }
 
   @override

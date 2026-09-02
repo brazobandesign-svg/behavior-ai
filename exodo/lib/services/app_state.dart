@@ -147,10 +147,19 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
 
   bool _updateNotified = false;
 
-  void _notifyIfBackground() {
+  /// [Fix LG V60 #3] Aviso heads-up al terminar en segundo plano: título
+  /// "Éxodo ha respondido" + primeros 80 caracteres de la respuesta como
+  /// cuerpo; fallback al texto localizado genérico si no hay contenido.
+  void _notifyIfBackground({String? responsePreview}) {
     if (!isAppInBackground) return;
+    var body = AppI18n.instance.t('notification.response_ready');
+    final preview = responsePreview?.replaceAll(RegExp(r'\s+'), ' ').trim();
+    if (preview != null && preview.isNotEmpty) {
+      body = preview.length > 80 ? '${preview.substring(0, 80)}…' : preview;
+    }
     NotificationService.instance.showReplyReady(
-      body: AppI18n.instance.t('notification.response_ready'),
+      title: 'Éxodo ha respondido',
+      body: body,
     );
     _stopForegroundService();
   }
@@ -1307,7 +1316,7 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
       onComplete: (fullText, sources) {
         _endStreamingMessage();
         isGenerating = false;
-        _notifyIfBackground();
+        _notifyIfBackground(responsePreview: fullText);
         if (!isGuestUser) {
           tokensUsed += (fullText.length ~/ 3) + 35;
           if (tokensUsed > tokensLimit) tokensUsed = tokensLimit;
@@ -1670,7 +1679,7 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
               );
             }
           }
-          _notifyIfBackground();
+          _notifyIfBackground(responsePreview: fullText);
           HapticFeedback.vibrate();
           notifyListeners();
         },

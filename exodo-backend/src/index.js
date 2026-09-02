@@ -66,6 +66,9 @@ app.use('/api/chat', chatRoutes);
 app.use('/api/stripe', stripeRoutes);
 app.use('/api/user', userRoutes);
 app.use('/api/artifacts', artifactsRoutes);
+// [T13] Enlace corto compartido: GET /a/:slug renderiza el visor con pestañas
+// (Vista Previa sandbox / Código Fuente). Mismo router, otra piel por baseUrl.
+app.use('/a', artifactsRoutes);
 app.use('/api/expedientes', expedientesRoutes);
 app.use('/api/voice', voiceRoutes);
 app.use('/api/images', imagesRoutes);
