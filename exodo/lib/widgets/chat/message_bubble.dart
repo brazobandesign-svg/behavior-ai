@@ -478,6 +478,8 @@ class _SourcesSheet extends StatelessWidget {
       const Color(0xFFC9933A),
     ];
 
+    final displayLabel = sources.length > 1 ? '$label · ${sources.length}' : label;
+
     return InkWell(
       onTap: () {
         HapticFeedback.lightImpact();
@@ -595,7 +597,7 @@ class _SourcesSheet extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
-              label,
+              displayLabel,
               style: GoogleFonts.inter(
                 fontSize: 13,
                 fontWeight: FontWeight.w500,
@@ -1617,6 +1619,7 @@ class _AssistantContentWithArtifacts extends StatelessWidget {
         data: content,
         onTapLink: (text, href, title) {
           if (href != null) {
+            HapticFeedback.lightImpact();
             final uri = Uri.tryParse(href);
             if (uri != null) launchUrl(uri, mode: LaunchMode.externalApplication);
           }
@@ -1633,6 +1636,15 @@ class _AssistantContentWithArtifacts extends StatelessWidget {
           'table': _TableElementBuilder(isLight),
         },
         styleSheet: MarkdownStyleSheet.fromTheme(Theme.of(context)).copyWith(
+          a: TextStyle(
+            fontFamily: 'AnthropicSans',
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+            color: ExodoColors.amber,
+            decoration: TextDecoration.underline,
+            decorationColor: ExodoColors.amber.withValues(alpha: 0.5),
+            decorationThickness: 1.5,
+          ),
           blockSpacing: 12.0,
           blockquotePadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
           blockquoteDecoration: BoxDecoration(
