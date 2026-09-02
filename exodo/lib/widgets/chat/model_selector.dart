@@ -275,18 +275,57 @@ class UpgradeModal {
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Icon(
-                                      !isAnnual
-                                          ? Icons.radio_button_checked
-                                          : Icons.radio_button_unchecked,
-                                      size: 18,
-                                      color: !isAnnual
-                                          ? ExodoColors.amber
-                                          : radioOff,
+                                    Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        Icon(
+                                          !isAnnual
+                                              ? Icons.radio_button_checked
+                                              : Icons.radio_button_unchecked,
+                                          size: 18,
+                                          color: !isAnnual
+                                              ? ExodoColors.amber
+                                              : radioOff,
+                                        ),
+                                        const SizedBox(width: 4),
+                                        Flexible(
+                                          child: FittedBox(
+                                            fit: BoxFit.scaleDown,
+                                            child: Container(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                horizontal: 5,
+                                                vertical: 2,
+                                              ),
+                                              decoration: BoxDecoration(
+                                                color: ExodoColors.amber
+                                                    .withValues(
+                                                  alpha: 0.2,
+                                                ),
+                                                borderRadius:
+                                                    BorderRadius.circular(
+                                                  6,
+                                                ),
+                                              ),
+                                              child: Text(
+                                                AppI18n.of(
+                                                  context,
+                                                ).t('billing.up_to_80_off'),
+                                                style: GoogleFonts.inter(
+                                                  fontSize: 9,
+                                                  fontWeight: FontWeight.bold,
+                                                  color: ExodoColors.amber,
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ],
                                     ),
                                     const SizedBox(height: 10),
                                     Text(
-                                      '\$0.50',
+                                      '\$0.99',
                                       style: TextStyle(fontFamily: 'AnthropicSans', 
                                         fontSize: 18,
                                         fontWeight: FontWeight.bold,
