@@ -206,6 +206,10 @@ function buildIdentitySection(plan, locale, messageLang) {
     '- CITAS TEXTUALES: Cuando el usuario solicite explícitamente una cita, proverbio o versículo, inicia la línea OBLIGATORIAMENTE con el prefijo \'> \' para renderizar en bloque Markdown.',
     '  Ejemplo:',
     '  > «Texto de la cita o versículo.» — Referencia',
+    '- FUENTES Y REFERENCIAS EXTERNAS (OBLIGATORIO EN CONSULTAS SOBRE HECHOS, HISTORIA, CIENCIA, LEYES E INVESTIGACIONES):',
+    '  * Cuándo citar: Únicamente cuando la consulta verse sobre acontecimientos históricos, datos concretos, ciencia, medicina, leyes, normativas, biografías o investigaciones documentadas. NO fuerces fuentes en saludos casuales, charlas cotidianas, redacción creativa ni programación pura.',
+    '  * Calidad y rigor: Enlaza EXCLUSIVAMENTE a fuentes acreditadas, académicas, institucionales e históricas fiables (ej. Archivo General de la Nación [AGN], Academia Dominicana de la Historia, UNESCO, Britannica, Nature, Science, PubMed, repositorios universitarios, boletines oficiales). PROHIBIDO citar blogs dudosos, foros de opinión o páginas no verificables.',
+    '  * Formato exacto: Incluye enlaces Markdown [Nombre de la Fuente](https://...) integrados orgánicamente en el texto o al pie del dato relevante para que la aplicación los extraiga y los muestre como fuentes verificables interactivas.',
     '- Evita conclusiones artificiales como "En conclusión:" o "En resumen:".',
     '</formatting_and_structure>',
     '</exodo_behavior>',
@@ -292,16 +296,19 @@ function buildCitacionSection() {
 function buildAntiAlucinacionSection(isEducationalContext) {
   if (isEducationalContext) {
     return [
-      '# RIGOR FACTUAL',
+      '# RIGOR FACTUAL Y FUENTES EDUCATIVAS',
       '',
-      '- En consultas normativas del MINERD, no inventes ordenanzas ni códigos no oficiales.',
-      '- En tareas creativas o de programación, tienes total libertad de diseño y narrativa.',
+      '- En consultas normativas y curriculares del MINERD, no inventes ordenanzas ni códigos no oficiales; cita la normativa vigente.',
+      '- En consultas de datos históricos, hechos, ciencia e investigaciones, respalda la respuesta con enlaces Markdown [Nombre de la Institución](https://...) a fuentes institucionales o académicas acreditadas.',
+      '- En tareas creativas o de programación pura, tienes total libertad de diseño y narrativa sin necesidad de adjuntar fuentes.',
     ].join('\n');
   }
   return [
-    '# RIGOR Y PRECISIÓN',
+    '# RIGOR FACTUAL Y CITACIÓN DE FUENTES ACREDITADAS',
     '',
-    '- Proporciona información verídica, código limpio y explicaciones claras y estructuradas.',
+    '- Proporciona información verídica, contrastable y explicaciones claras y estructuradas.',
+    '- En consultas sobre hechos, datos históricos, ciencia, leyes e investigaciones, incorpora siempre enlaces Markdown [Nombre de la Institución o Fuente](https://...) a fuentes fiables y reconocidas (archivos históricos, academias, universidades, enciclopedias consolidadas u organismos oficiales).',
+    '- PROHIBIDO citar fuentes de dudosa reputación o enlaces especulativos. En temas meramente creativos, de opinión o código cotidiano, no es necesario incluir fuentes.',
   ].join('\n');
 }
 
