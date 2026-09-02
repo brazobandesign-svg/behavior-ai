@@ -83,7 +83,7 @@ class _ExodoShimmerState extends State<ExodoShimmer>
 /// Cuadro de espera minimalista para generación de foto:
 /// - Cuadro cuadrado 1:1 (300x300) que reserva el espacio exacto de la foto.
 /// - Completamente vacío, limpio y sin texto.
-/// - Fluctuación pura de opacidad que sube y baja suavemente sobre un gris universal neutro.
+/// - Fluctuación ultra suave y calmada (3000 ms) sin parpadeos bruscos ni efecto estroboscópico en OLED/dark mode.
 class ImageGeneratingPlaceholder extends StatefulWidget {
   const ImageGeneratingPlaceholder({super.key});
 
@@ -96,16 +96,13 @@ class _ImageGeneratingPlaceholderState extends State<ImageGeneratingPlaceholder>
     with SingleTickerProviderStateMixin {
   late final AnimationController _pulseController = AnimationController(
     vsync: this,
-    duration: const Duration(milliseconds: 2000),
+    duration: const Duration(milliseconds: 3000),
   )..repeat(reverse: true);
 
-  late final Animation<double> _opacityAnim = Tween<double>(
-    begin: 0.25,
-    end: 0.85,
-  ).animate(CurvedAnimation(
+  late final Animation<double> _pulseAnim = CurvedAnimation(
     parent: _pulseController,
     curve: Curves.easeInOutSine,
-  ));
+  );
 
   @override
   void dispose() {
@@ -116,24 +113,34 @@ class _ImageGeneratingPlaceholderState extends State<ImageGeneratingPlaceholder>
   @override
   Widget build(BuildContext context) {
     final isLight = Theme.of(context).brightness == Brightness.light;
-    final neutralGray = isLight
-        ? const Color(0xFFE0DDD6)
-        : const Color(0xFF262524);
 
     return Align(
       alignment: Alignment.centerLeft,
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 8),
-        child: FadeTransition(
-          opacity: _opacityAnim,
-          child: Container(
-            width: 300,
-            height: 300,
-            decoration: BoxDecoration(
-              color: neutralGray,
-              borderRadius: BorderRadius.circular(18),
-            ),
-          ),
+        child: AnimatedBuilder(
+          animation: _pulseAnim,
+          builder: (context, _) {
+            final v = _pulseAnim.value;
+            // Respiración sutil y aterciopelada: delta de tono mínimo para evitar parpadeos bruscos
+            final surfaceColor = isLight
+                ? Color.lerp(const Color(0xFFE8E6E0), const Color(0xFFF3F1EC), v)!
+                : Color.lerp(const Color(0xFF1E1E1E), const Color(0xFF292929), v)!;
+
+            final borderColor = isLight
+                ? Colors.black.withValues(alpha: 0.04 + 0.03 * v)
+                : Colors.white.withValues(alpha: 0.05 + 0.03 * v);
+
+            return Container(
+              width: 300,
+              height: 300,
+              decoration: BoxDecoration(
+                color: surfaceColor,
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(color: borderColor, width: 1.0),
+              ),
+            );
+          },
         ),
       ),
     );
