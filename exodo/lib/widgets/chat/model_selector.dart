@@ -350,21 +350,19 @@ class UpgradeModal {
                           ),
                           const SizedBox(width: 10),
                           Expanded(
-                            child: GestureDetector(
-                              onTap: () => setModalState(() => isAnnual = true),
+                            child: Opacity(
+                              opacity: 0.42,
                               child: Container(
                                 padding: const EdgeInsets.symmetric(
                                   horizontal: 10,
                                   vertical: 12,
                                 ),
                                 decoration: BoxDecoration(
-                                  color: isAnnual ? planSelectedBg : planUnselectedBg,
+                                  color: planUnselectedBg,
                                   borderRadius: BorderRadius.circular(14),
                                   border: Border.all(
-                                    color: isAnnual
-                                        ? ExodoColors.amber
-                                        : borderColor,
-                                    width: isAnnual ? 1.5 : 1,
+                                    color: borderColor,
+                                    width: 1,
                                   ),
                                 ),
                                 child: Column(
@@ -375,13 +373,9 @@ class UpgradeModal {
                                           MainAxisAlignment.spaceBetween,
                                       children: [
                                         Icon(
-                                          isAnnual
-                                              ? Icons.radio_button_checked
-                                              : Icons.radio_button_unchecked,
+                                          Icons.radio_button_unchecked,
                                           size: 18,
-                                          color: isAnnual
-                                              ? ExodoColors.amber
-                                              : radioOff,
+                                          color: radioOff,
                                         ),
                                         const SizedBox(width: 4),
                                         Flexible(
@@ -394,9 +388,8 @@ class UpgradeModal {
                                                 vertical: 2,
                                               ),
                                               decoration: BoxDecoration(
-                                                color: ExodoColors.amber
-                                                    .withValues(
-                                                  alpha: 0.2,
+                                                color: radioOff.withValues(
+                                                  alpha: 0.15,
                                                 ),
                                                 borderRadius:
                                                     BorderRadius.circular(
@@ -406,11 +399,11 @@ class UpgradeModal {
                                               child: Text(
                                                 AppI18n.of(
                                                   context,
-                                                ).t('billing.save_pct'),
+                                                ).t('billing.out_of_service'),
                                                 style: GoogleFonts.inter(
                                                   fontSize: 9,
                                                   fontWeight: FontWeight.bold,
-                                                  color: ExodoColors.amber,
+                                                  color: textSecondary,
                                                 ),
                                               ),
                                             ),
@@ -421,10 +414,12 @@ class UpgradeModal {
                                     const SizedBox(height: 10),
                                     Text(
                                       '\$49.99',
-                                      style: TextStyle(fontFamily: 'AnthropicSans', 
+                                      style: TextStyle(
+                                        fontFamily: 'AnthropicSans',
                                         fontSize: 18,
                                         fontWeight: FontWeight.bold,
-                                        color: textPrimary,
+                                        color: textSecondary,
+                                        decoration: TextDecoration.lineThrough,
                                       ),
                                     ),
                                     Text(

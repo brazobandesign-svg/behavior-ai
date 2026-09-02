@@ -77,7 +77,7 @@ router.post('/checkout', auth, async (req, res) => {
           : {
               // P0 auditoría: precio mensual parametrizado por entorno.
               // El fallback es el price ID mensual de Stripe ($0.99).
-              price: process.env.STRIPE_PRICE_ID_MONTHLY || 'price_1U92MtBg1fTdi6UM67WbnavU',
+              price: process.env.STRIPE_PRICE_ID_MONTHLY || 'price_1UBGpXBg1fTdi6UMZinpTsRs',
             }
         ),
       }],
