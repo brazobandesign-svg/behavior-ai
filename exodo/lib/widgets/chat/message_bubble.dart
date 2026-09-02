@@ -1084,14 +1084,28 @@ class _SmartCopyButtonState extends State<_SmartCopyButton> {
 
 
 /// Barra discreta de fuente en línea (estilo chip, paridad con exodo-web):
-/// fondo grafito #252525, texto yeso #F4F2EB, esquinas curvas y ancho máximo
-/// fijo con elipsis — el nombre largo nunca empuja el layout de la línea.
+/// favicon circular del sitio + nombre corto, fondo grafito #252525, texto
+/// yeso #F4F2EB, borde sutil y ancho máximo fijo con elipsis — el nombre
+/// largo nunca empuja el layout de la línea.
 class _SourceChipElementBuilder extends MarkdownElementBuilder {
   @override
   Widget? visitElementAfter(md.Element element, TextStyle? preferredStyle) {
     final href = element.attributes['href'];
     final label = element.textContent.trim();
     if (label.isEmpty) return null;
+
+    // Favicon del dominio vía Google S2 (estándar de la industria); si el
+    // sitio no expone icono, cae a un avatar de inicial ámbar.
+    String? faviconUrl;
+    if (href != null) {
+      try {
+        final host = Uri.parse(href).host;
+        if (host.isNotEmpty) {
+          faviconUrl = 'https://www.google.com/s2/favicons?domain=$host&sz=32';
+        }
+      } catch (_) {}
+    }
+
     return GestureDetector(
       onTap: () {
         HapticFeedback.lightImpact();
@@ -1099,22 +1113,72 @@ class _SourceChipElementBuilder extends MarkdownElementBuilder {
         if (uri != null) launchUrl(uri, mode: LaunchMode.externalApplication);
       },
       child: Container(
-        constraints: const BoxConstraints(maxWidth: 120),
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+        constraints: const BoxConstraints(maxWidth: 150),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
         decoration: BoxDecoration(
           color: const Color(0xFF252525),
-          borderRadius: BorderRadius.circular(7),
+          borderRadius: BorderRadius.circular(9),
+          border: Border.all(color: const Color(0xFF3A3A3A), width: 0.8),
         ),
-        child: Text(
-          label,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: const TextStyle(
-            fontFamily: 'AnthropicSans',
-            fontSize: 11.5,
-            fontWeight: FontWeight.w500,
-            color: Color(0xFFF4F2EB),
-          ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (faviconUrl != null) ...[
+              ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: Image.network(
+                  faviconUrl,
+                  width: 15,
+                  height: 15,
+                  fit: BoxFit.contain,
+                  errorBuilder: (_, _, _) => _SourceChipInitial(label),
+                ),
+              ),
+              const SizedBox(width: 6),
+            ],
+            Flexible(
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontFamily: 'AnthropicSans',
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w500,
+                  color: Color(0xFFF4F2EB),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Avatar de respaldo del chip cuando el favicon no está disponible.
+class _SourceChipInitial extends StatelessWidget {
+  final String label;
+  const _SourceChipInitial(this.label);
+
+  @override
+  Widget build(BuildContext context) {
+    final initial = label.isEmpty ? '?' : label[0].toUpperCase();
+    return Container(
+      width: 15,
+      height: 15,
+      alignment: Alignment.center,
+      decoration: const BoxDecoration(
+        color: Color(0xFFC9933A),
+        shape: BoxShape.circle,
+      ),
+      child: Text(
+        initial,
+        style: const TextStyle(
+          fontFamily: 'AnthropicSans',
+          fontSize: 9,
+          fontWeight: FontWeight.bold,
+          color: Colors.white,
         ),
       ),
     );
@@ -1512,6 +1576,15 @@ class _AssistantContentWithArtifacts extends StatelessWidget {
     s = s.replaceAll(RegExp(r'\[Prompt:[^\]]*\]\([^\)]*\)', caseSensitive: false), '');
     s = s.replaceAll(RegExp(r'\*\*Prompt:\*\*.*', caseSensitive: false), '');
     s = s.replaceAll(RegExp(r'Prompt:\s+.*', caseSensitive: false), '');
+
+    // 3.6. Colapsa saltos de línea DENTRO del label de un enlace [label](url).
+    // Si el modelo parte el nombre de la fuente en varias líneas, flutter_markdown
+    // genera hijos inline múltiples y el chip de fuente solo reemplaza el primero,
+    // dejando el resto como enlace suelto con estilo por defecto.
+    s = s.replaceAllMapped(
+      RegExp(r'\[([^\[\]]*[\n][^\[\]]*)\]\('),
+      (m) => '[${(m[1] ?? '').replaceAll(RegExp(r'\s*\n\s*'), ' ')}](',
+    );
 
     // 4. Live Streaming Structure Auto-Closer (Estándar Claude/ChatGPT):
     // Cierra automáticamente bloques incompletos durante el streaming para que

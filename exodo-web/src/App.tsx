@@ -85,13 +85,36 @@ const openSourceUrl = (url: string) => {
 };
 
 // Cita en línea estilo barra/chip (paridad con _SourceChipElementBuilder móvil):
-// fondo grafito #252525, texto yeso, ancho máximo fijo con elipsis, pestaña nueva.
+// favicon del sitio + nombre corto, fondo grafito #252525, texto yeso, borde
+// sutil, ancho máximo fijo con elipsis; apertura en pestaña nueva.
+const chipHost = (href: string) => {
+  try {
+    return href ? new URL(href, window.location.origin).host : '';
+  } catch {
+    return '';
+  }
+};
+
 const markdownComponents = {
-  a: ({ node: _node, href, children, ...rest }: React.ComponentProps<'a'> & { node?: unknown }) => (
-    <a {...rest} href={href} target="_blank" rel="noopener noreferrer" className="md-source-chip">
-      {children}
-    </a>
-  ),
+  a: ({ node: _node, href, children, ...rest }: React.ComponentProps<'a'> & { node?: unknown }) => {
+    const host = chipHost(href || '');
+    return (
+      <a {...rest} href={href} target="_blank" rel="noopener noreferrer" className="md-source-chip">
+        {host && (
+          <img
+            src={`https://www.google.com/s2/favicons?domain=${host}&sz=32`}
+            alt=""
+            width={15}
+            height={15}
+            onError={(e) => {
+              e.currentTarget.style.display = 'none';
+            }}
+          />
+        )}
+        <span className="md-source-chip-label">{children}</span>
+      </a>
+    );
+  },
 };
 
 const PsychologyIcon = ({ size = 14, color = 'currentColor' }: { size?: number; color?: string }) => (
