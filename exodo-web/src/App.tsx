@@ -16,7 +16,6 @@ import {
   Pin,
   Lock,
   ChevronDown,
-  PanelLeftClose,
   MoreVertical,
   Edit2,
   Trash2,
@@ -177,6 +176,35 @@ export default function App() {
   const isGuestUser = !!session?.user?.is_anonymous;
   const [searchQuery, setSearchQuery] = useState('');
   const [showSearchBox, setShowSearchBox] = useState(false);
+  // Ids con coincidencia en el CONTENIDO (paridad _matchingIds móvil: nube +
+  // local; en web solo nube vía tabla messages).
+  const [contentMatchIds, setContentMatchIds] = useState<Set<string>>(new Set());
+  // Sin hover (táctil) el ⋮ siempre visible: sin esto en móvil no hay menú.
+  const [canHover] = useState(() =>
+    typeof window !== 'undefined' && typeof window.matchMedia !== 'undefined'
+      ? window.matchMedia('(hover: hover)').matches
+      : true
+  );
+
+  useEffect(() => {
+    const q = searchQuery.trim();
+    if (q.length < 2 || !session?.user || isGuestUser) {
+      setContentMatchIds(new Set());
+      return;
+    }
+    const t = setTimeout(async () => {
+      try {
+        const { data } = await supabase
+          .from('messages')
+          .select('conversation_id')
+          .ilike('content', `%${q.replace(/[%_]/g, '')}%`)
+          .limit(100);
+        setContentMatchIds(new Set((data || []).map((r: any) => r.conversation_id).filter(Boolean)));
+      } catch (_) {}
+    }, 300);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchQuery]);
   // Paridad móvil: tap en el logo del drawer muestra el badge de versión.
   const [showWebVersion, setShowWebVersion] = useState(false);
   const [showTokenPopup, setShowTokenPopup] = useState(false);
@@ -1063,7 +1091,8 @@ export default function App() {
   })();
 
   const filteredConvs = conversations.filter((c) =>
-    c.title.toLowerCase().includes(searchQuery.toLowerCase())
+    c.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    contentMatchIds.has(c.id)
   );
 
   const getUserDisplayName = () => {
@@ -1592,7 +1621,7 @@ export default function App() {
         {isStarred && renamingId !== conv.id && (
           <Pin size={14} color={active ? '#C9933A' : 'var(--text-secondary)'} style={{ flexShrink: 0 }} />
         )}
-        {(hoveredConvId === conv.id || openMenuId === conv.id) && renamingId !== conv.id && (
+        {(hoveredConvId === conv.id || openMenuId === conv.id || !canHover) && renamingId !== conv.id && (
           <button
             type="button"
             onClick={(e) => { e.stopPropagation(); openConvMenu(conv.id); }}
@@ -1693,8 +1722,8 @@ export default function App() {
             )}
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <button type="button" className="icon-btn" onClick={() => setDrawerOpen(false)} style={{ width: 32, height: 32 }}>
-              <PanelLeftClose size={18} color="var(--text-secondary)" />
+            <button type="button" className="icon-btn" onClick={() => setDrawerOpen(false)} style={{ width: 32, height: 32 }} title="Cerrar">
+              <ChevronRight size={24} color="var(--text-secondary)" />
             </button>
           </div>
         </div>
