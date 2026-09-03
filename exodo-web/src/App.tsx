@@ -33,6 +33,24 @@ import { supabase, type Conversation, type Message, type Source } from './lib/su
 import { AuthModal } from './components/AuthModal';
 import { ArtifactMessageBody } from './components/ArtifactMessage';
 
+// Indicador de pensamiento (paridad ExodoThinkingIndicator: esferas ámbar
+// en onda + cronómetro en segundos).
+const ThinkingIndicator: React.FC = () => {
+  const [secs, setSecs] = useState(0);
+  useEffect(() => {
+    const t0 = Date.now();
+    const t = setInterval(() => setSecs(Math.floor((Date.now() - t0) / 1000)), 1000);
+    return () => clearInterval(t);
+  }, []);
+  return (
+    <span className="thinking-row">
+      <span className="thinking-dots"><span /><span /><span /></span>
+      <span className="thinking-label">Pensando</span>
+      <span className="thinking-secs">{secs}s</span>
+    </span>
+  );
+};
+
 // ── Doctrina de Fuentes (paridad con _SourcesSheet móvil) ──────────────────
 
 // Etiquetas localizadas de fuentes (paridad con sources.title / sources.consulted de la app móvil).
@@ -183,6 +201,14 @@ export default function App() {
   // comentario → insert en tabla `feedback`; envío silencioso).
   const [feedbackTarget, setFeedbackTarget] = useState<{ msg: Message; isLike: boolean } | null>(null);
   const [feedbackComment, setFeedbackComment] = useState('');
+  // Consent gate (paridad _maybeShowConsentGate de chat_screen.dart): edad +
+  // nube en el primer login con cuenta. Sin aceptar edad no se continúa.
+  const [showConsentGate, setShowConsentGate] = useState(false);
+  const [consentAge, setConsentAge] = useState(false);
+  const [consentCloud, setConsentCloud] = useState(true);
+  // Terms & Privacy (paridad settings.legal_body).
+  const [showTerms, setShowTerms] = useState(false);
+  const [isCheckingOut, setIsCheckingOut] = useState(false);
   // Historial en la nube (paridad setCloudHistoryEnabled de app_state.dart):
   // OFF = turnos efímeros (no se crea conversación en DB ni se envía
   // conversationId al backend, como incógnito pero con UI normal).
@@ -357,6 +383,8 @@ export default function App() {
           fetchProfile(session.user.id);
           fetchConversations();
           fetchTodayUsage();
+          processBillingReturn();
+          maybeShowConsentGate();
         } else {
           // Invitado: limpiar restos de una sesión anterior con cuenta.
           setUserProfile(null);
@@ -451,6 +479,11 @@ export default function App() {
   };
 
   const deleteConversation = async (convId: string) => {
+    const conv = conversations.find((c) => c.id === convId);
+    const title = conv?.title || 'esta conversación';
+    // Paridad móvil (_showDeleteConfirmationDialog): confirmación previa.
+    const confirmed = window.confirm(`¿Eliminar conversación?\n\n"${title}"\n\nEsta acción no se puede deshacer.`);
+    if (!confirmed) return;
     setOpenMenuId(null);
     setConversations((prev) => prev.filter((c) => c.id !== convId));
     if (!convId.startsWith('conv-')) {
@@ -463,6 +496,134 @@ export default function App() {
     }
   };
 
+  // ── Consent gate (paridad _maybeShowConsentGate) ──
+  const maybeShowConsentGate = () => {
+    try {
+      if (localStorage.getItem('exodo_age_confirmed') === '1') return;
+    } catch (_) { return; }
+    // Marcar antes de mostrar (paridad FIX doble-diálogo: un remount no repite).
+    try { localStorage.setItem('exodo_age_confirmed', '1'); } catch (_) {}
+    setConsentAge(false);
+    setConsentCloud(cloudHistoryEnabled);
+    setShowConsentGate(true);
+  };
+
+  const acceptConsent = async () => {
+    if (!consentAge) return;
+    const ts = new Date().toISOString();
+    try {
+      localStorage.setItem('exodo_consent', JSON.stringify({ age: true, cloud: consentCloud, ts, v: 1 }));
+    } catch (_) {}
+    toggleCloudHistory(consentCloud);
+    setShowConsentGate(false);
+    // Registro en la nube, best-effort (paridad móvil: onboarding).
+    try {
+      if (session?.user) {
+        const existing = (userProfile?.onboarding && typeof userProfile.onboarding === 'object')
+          ? { ...userProfile.onboarding } : {};
+        (existing as any)['age_confirmed'] = true;
+        (existing as any)['cloud_history_consent'] = consentCloud;
+        (existing as any)['consent_ts'] = ts;
+        await supabase.from('profiles').update({ onboarding: existing }).eq('id', session.user.id);
+        setUserProfile((prev) => (prev ? { ...prev, onboarding: existing } : prev));
+      }
+    } catch (_) {}
+  };
+
+  // ── Stripe Checkout real (paridad StripeService + web_billing_adapter:
+  // misma pestaña; el retorno ?session_id=&status= lo procesa el arranque) ──
+  const startCheckout = async (isAnnual: boolean) => {
+    if (!session?.user || isGuestUser || isCheckingOut) {
+      if (isGuestUser) { try { navigator.vibrate?.(10); } catch (_) {} }
+      return;
+    }
+    setIsCheckingOut(true);
+    try {
+      const base = import.meta.env.PROD
+        ? 'https://behavior-ai-production.up.railway.app'
+        : 'http://localhost:3000';
+      const res = await fetch(`${base}/api/stripe/checkout`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+        },
+        body: JSON.stringify({ isAnnual, origin: window.location.origin }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data?.url) throw new Error(data?.error || 'Error al crear sesión de pago');
+      window.location.href = data.url;
+    } catch (e: any) {
+      setChatNotice(e?.message || 'No se pudo iniciar el pago.');
+      setTimeout(() => setChatNotice(null), 4000);
+      setIsCheckingOut(false);
+    }
+  };
+
+  // Retorno de Stripe (?session_id + /success | /canceled): refrescar perfil
+  // con reintentos (el webhook tarda segundos en escribir plan='hazak').
+  const processBillingReturn = async () => {
+    try {
+      const path = window.location.pathname;
+      const params = new URLSearchParams(window.location.search);
+      const isSuccess = path.includes('success') || params.get('status') === 'success';
+      const isCanceled = path.includes('canceled') || params.get('status') === 'canceled';
+      if (!isSuccess && !isCanceled) return;
+      const es = (locale || 'es').toLowerCase().startsWith('es');
+      if (isCanceled) {
+        setChatNotice(es ? 'Pago cancelado. Sigues en Free.' : 'Payment canceled. Still on Free.');
+        setTimeout(() => setChatNotice(null), 4000);
+      } else {
+        for (let i = 0; i < 6; i++) {
+          await new Promise((r) => setTimeout(r, 2500));
+          if (session?.user) await fetchProfile(session.user.id);
+          // fetchProfile actualiza userProfile async; revalidamos vía lectura directa
+          try {
+            if (!session?.user) break;
+            const { data } = await supabase.from('profiles').select('plan').eq('id', session.user.id).single();
+            if ((data as any)?.plan === 'hazak') break;
+          } catch (_) {}
+        }
+        if (session?.user) await fetchProfile(session.user.id);
+        setChatNotice(es ? '¡Bienvenido a XPi PRO!' : 'Welcome to XPi PRO!');
+        setTimeout(() => setChatNotice(null), 5000);
+      }
+      window.history.replaceState({}, document.title, '/');
+    } catch (_) {}
+  };
+
+  // ── Titulado LLM en segundo plano (paridad app_state: tras cada turno,
+  // POST /api/chat/title y se actualiza título local + Supabase) ──
+  const refreshTitleInBackground = (convId: string | null, userText: string, assistantText: string) => {
+    if (!convId || convId.startsWith('conv-') || !session?.user || isGuestUser || isIncognito || !cloudHistoryEnabled) return;
+    (async () => {
+      try {
+        const base = import.meta.env.PROD
+          ? 'https://behavior-ai-production.up.railway.app'
+          : 'http://localhost:3000';
+        const res = await fetch(`${base}/api/chat/title`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+          },
+          body: JSON.stringify({
+            conversationId: convId,
+            messages: [
+              { role: 'user', content: userText },
+              { role: 'assistant', content: (assistantText || '').slice(0, 300) },
+            ],
+            locale: locale || 'es',
+          }),
+        });
+        const data = await res.json().catch(() => ({}));
+        const title = typeof data?.title === 'string' ? data.title.trim() : '';
+        if (!title) return;
+        setConversations((prev) => prev.map((c) => (c.id === convId ? { ...c, title } : c)));
+        await supabase.from('conversations').update({ title }).eq('id', convId);
+      } catch (_) {}
+    })();
+  };
   // ── Feedback (paridad submitFeedback de supabase_service.dart) ──
   const submitFeedback = async () => {
     const target = feedbackTarget;
@@ -594,6 +755,22 @@ export default function App() {
     }
   };
 
+  // ── Cancelar Pro (paridad cancelProPlan de app_state.dart) ──
+  const cancelProPlan = async () => {
+    if (!session?.user) return;
+    const es = (locale || 'es').toLowerCase().startsWith('es');
+    try {
+      const { error } = await supabase.from('profiles').update({ plan: 'genesis' }).eq('id', session.user.id);
+      if (error) throw error;
+      setUserProfile((prev) => (prev ? { ...prev, plan: 'genesis' } : prev));
+      setSelectedModel({ id: 'origo', title: 'G1.1', subtitle: 'Origo', plan: 'genesis', description: 'Modelo rápido para uso general' });
+      setChatNotice(es ? 'Has regresado al plan G1.1 Gratis' : 'You have returned to G1.1 Free plan');
+    } catch (e) {
+      setChatNotice(es ? 'No se pudo cancelar. Intenta de nuevo.' : 'Could not cancel. Try again.');
+    }
+    setTimeout(() => setChatNotice(null), 4000);
+  };
+  // FK cascade borra mensajes; resetea estado local + cachés web) ──
   // ── Limpiar historial (paridad clearHistory: borra conversations en nube,
   // FK cascade borra mensajes; resetea estado local + cachés web) ──
   const clearHistory = async () => {
@@ -681,6 +858,13 @@ export default function App() {
     if (e) e.preventDefault();
     if ((!input.trim() && pendingAttachments.length === 0) || isStreaming) return;
 
+    // Paridad móvil (chat_screen: gate de tokens): si se acabó la cuota se
+    // abre Planes (vibra) pero el mensaje SE ENVÍA igual.
+    if (!isGuestUser && !isIncognito && tokensUsed >= tokensLimit) {
+      try { navigator.vibrate(60); } catch (_) {}
+      setShowPlansModal(true);
+    }
+
     const userText = input.trim();
     const outgoingAttachments = pendingAttachments.map((a) => ({ mime_type: a.mime, file_name: a.name, base64: a.base64 }));
     const outgoingPreviews = pendingAttachments.map((a) => ({ name: a.name, mime: a.mime, preview: a.preview }));
@@ -738,6 +922,7 @@ export default function App() {
     setMessages((prev) => [...prev, userMsg, thinkingMsg]);
     setIsStreaming(true);
     setTimeout(() => scrollToBottom(), 50);
+    let finalAssistantText = '';
 
     try {
       const backendEndpoint = import.meta.env.PROD
@@ -813,12 +998,13 @@ export default function App() {
                 } else if (parsed.type === 'done') {
                   // El evento done trae el texto FINAL y las fuentes extraídas por el backend.
                   // Se REEMPLAZA el contenido (no se concatena) para no duplicar la respuesta.
+                  finalAssistantText = parsed.content || accumulatedText;
                   setMessages((prev) =>
                     prev.map((m) =>
                       m.id === assistantMsgId
                         ? {
                             ...m,
-                            content: parsed.content || accumulatedText,
+                            content: finalAssistantText,
                             sources: Array.isArray(parsed.sources) ? parsed.sources : []
                           }
                         : m
@@ -859,6 +1045,8 @@ export default function App() {
       setIsStreaming(false);
       // Refrescar el medidor de tokens tras cada turno (paridad móvil).
       fetchTodayUsage();
+      // Titulado LLM en segundo plano (paridad app_state).
+      refreshTitleInBackground(currentConvId, userText, finalAssistantText);
     }
   };
 
@@ -1777,18 +1965,21 @@ export default function App() {
           <div style={{ flex: 1 }} />
         ) : !messages.some((m) => m.role === 'user') ? (
           <div className="welcome-center">
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: 100, marginBottom: 36 }}>
+            {/* Paridad chat_stage móvil: saludo centrado 22px bold (2 líneas)
+                + watermark debajo (40% ancho, aspecto 7.02, gap 16) */}
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', marginBottom: 36, padding: '0 24px' }}>
               {!isIncognito && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 24 }}>
-                  <img 
-                    src="/Logo_behavior.png" 
-                    alt="Éxodo Logo" 
-                    style={{ width: 72, height: 72, objectFit: 'contain', flexShrink: 0 }} 
-                  />
-                  <div className="greeting-text-exodo" style={{ textAlign: 'left' }}>
+                <>
+                  <div className="greeting-text-exodo" style={{ textAlign: 'center', maxWidth: '100%', overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
                     {getExodoGreeting()}
                   </div>
-                </div>
+                  <img
+                    src={(theme === 'dark' || isIncognito) ? '/watermark2.png' : '/watermark1.png'}
+                    alt=""
+                    draggable={false}
+                    style={{ width: 'min(40vw, 340px)', aspectRatio: '7.0208', objectFit: 'fill', marginTop: 16, pointerEvents: 'none', userSelect: 'none' }}
+                  />
+                </>
               )}
               {isIncognito && (
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
@@ -1816,10 +2007,7 @@ export default function App() {
                       {!(msg.role === 'user' && !msg.content.trim() && msg.attachments && msg.attachments.length > 0) && (
                       <div className="msg-bubble markdown-body">
                         {msg.isThinking ? (
-                          <div className="thinking-row">
-                            <div className="thinking-logo-mask" />
-                            <span className="thinking-label">Pensando</span>
-                          </div>
+                          <ThinkingIndicator />
                         ) : msg.role === 'assistant' ? (
                           <ArtifactMessageBody
                             content={msg.content}
@@ -2083,7 +2271,7 @@ export default function App() {
               </div>
               )}
 
-              <div style={{ background: 'var(--surface-input)', borderRadius: 16, padding: '18px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer' }} onClick={() => setShowAccountMenu(false)}>
+              <div style={{ background: 'var(--surface-input)', borderRadius: 16, padding: '18px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer' }} onClick={() => { try { (window as any).open('https://play.google.com/store/apps/details?id=com.behavior.exodo', '_blank'); } catch (_) {} }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
                   <Smartphone size={22} color="var(--text-primary)" />
                   <span style={{ fontSize: '1.05rem', fontWeight: 600, color: 'var(--text-primary)' }}>Exodo App</span>
@@ -2124,7 +2312,7 @@ export default function App() {
               </button>
             </div>
 
-            <div style={{ background: 'var(--surface-input)', borderRadius: 16, padding: '18px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer' }} onClick={() => setShowAccountMenu(false)}>
+            <div style={{ background: 'var(--surface-input)', borderRadius: 16, padding: '18px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer' }} onClick={() => setShowTerms(true)}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
                 <MaterialPrivacyIcon size={22} color="var(--text-primary)" />
                 <span style={{ fontSize: '1.05rem', fontWeight: 600, color: 'var(--text-primary)' }}>Terms & Privacy</span>
@@ -2447,7 +2635,7 @@ export default function App() {
 
             <div style={{ marginTop: 24 }}>
               {userProfile?.plan === 'hazak' ? (
-                <button type="button" style={{
+                <button type="button" onClick={cancelProPlan} style={{
                   width: '100%',
                   background: 'transparent',
                   color: '#E57373',
@@ -2462,7 +2650,7 @@ export default function App() {
                   Cancel Subscription
                 </button>
               ) : (
-                <button type="button" onClick={() => { setShowBillingMenu(false); setShowPlansModal(true); }} style={{
+                <button type="button" onClick={() => { setShowBillingMenu(false); startCheckout(isAnnualPlan); }} style={{
                   width: '100%',
                   background: 'var(--amber-exodo)',
                   color: '#000000',
@@ -2654,7 +2842,7 @@ export default function App() {
                   </span>
                 </div>
 
-                <button type="button" style={{ 
+                <button type="button" onClick={() => startCheckout(isAnnualPlan)} disabled={isCheckingOut} style={{ 
                   width: '100%', 
                   background: 'var(--amber-exodo)',
                   color: '#000000',
@@ -2664,10 +2852,11 @@ export default function App() {
                   fontSize: '0.95rem',
                   fontWeight: 700,
                   fontFamily: 'Inter, sans-serif',
-                  cursor: 'pointer',
-                  marginBottom: 8
+                  cursor: isCheckingOut ? 'wait' : 'pointer',
+                  marginBottom: 8,
+                  opacity: isCheckingOut ? 0.7 : 1
                 }}>
-                  Obtener Plan Pro
+                  {isCheckingOut ? 'Abriendo pago seguro...' : 'Obtener Plan Pro'}
                 </button>
                 <span style={{ textAlign: 'center', fontSize: '0.75rem', color: 'var(--text-secondary)', fontFamily: 'Inter, sans-serif', marginBottom: 32 }}>
                   Sin compromiso · Cancela cuando quieras
@@ -2754,6 +2943,79 @@ export default function App() {
                   style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--amber-exodo)', fontSize: '0.9rem', fontWeight: 700, padding: '8px 12px' }}
                 >
                   {es ? 'Enviar' : 'Send'}
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* Consent gate (paridad _maybeShowConsentGate móvil, no descartable) */}
+      {showConsentGate && (() => {
+        const es = (locale || 'es').toLowerCase().startsWith('es');
+        const row = (checked: boolean, onTap: () => void, label: string) => (
+          <div onClick={onTap} style={{ display: 'flex', gap: 10, alignItems: 'flex-start', cursor: 'pointer', padding: '6px 0' }}>
+            <div style={{
+              width: 20, height: 20, borderRadius: 4, flexShrink: 0, marginTop: 1,
+              border: `2px solid ${checked ? 'var(--amber-exodo)' : 'var(--text-secondary)'}`,
+              background: checked ? 'var(--amber-exodo)' : 'transparent',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>
+              {checked && <Check size={14} color="#000" />}
+            </div>
+            <span style={{ fontSize: '14px', color: 'var(--text-primary)', fontFamily: 'AnthropicSans, sans-serif', lineHeight: 1.45 }}>{label}</span>
+          </div>
+        );
+        return (
+          <div style={{ position: 'fixed', inset: 0, zIndex: 1100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+            <div style={{ position: 'absolute', inset: 0, background: 'rgba(0, 0, 0, 0.7)' }} />
+            <div style={{ position: 'relative', background: 'var(--surface-card)', width: '100%', maxWidth: 420, borderRadius: 16, padding: '24px 20px 16px 20px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                {row(consentAge, () => setConsentAge((v) => !v), es ? 'Confirmo que tengo más de 13 años.' : "I confirm I'm over 13 years old.")}
+                {row(consentCloud, () => setConsentCloud((v) => !v), es ? 'Acepto guardar mis chats en la nube. Behavior podrá leerlos únicamente para mejorar la herramienta.' : 'I agree to store my chats in the cloud. Behavior may read them only to improve the tool.')}
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 16 }}>
+                <button
+                  type="button"
+                  onClick={acceptConsent}
+                  disabled={!consentAge}
+                  style={{
+                    background: 'none', border: 'none', cursor: consentAge ? 'pointer' : 'default',
+                    color: consentAge ? 'var(--amber-exodo)' : 'var(--text-secondary)',
+                    fontSize: '0.95rem', fontWeight: 700, padding: '8px 12px',
+                    fontFamily: 'Inter, sans-serif', opacity: consentAge ? 1 : 0.5,
+                  }}
+                >
+                  {es ? 'Continuar' : 'Continue'}
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* Terms & Privacy (paridad settings.legal_body) */}
+      {showTerms && (() => {
+        const es = (locale || 'es').toLowerCase().startsWith('es');
+        return (
+          <div style={{ position: 'fixed', inset: 0, zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+            <div style={{ position: 'absolute', inset: 0, background: 'rgba(0, 0, 0, 0.6)', backdropFilter: 'blur(4px)' }} onClick={() => setShowTerms(false)} />
+            <div style={{ position: 'relative', background: 'var(--surface-card)', width: '100%', maxWidth: 420, borderRadius: 16, padding: '24px 20px 16px 20px' }}>
+              <h2 style={{ fontSize: '18px', fontWeight: 700, fontFamily: 'Syne, sans-serif', color: 'var(--text-primary)', margin: '0 0 12px 0' }}>
+                Terms & Privacy
+              </h2>
+              <p style={{ fontSize: '14px', color: 'var(--text-secondary)', fontFamily: 'Inter, sans-serif', lineHeight: 1.5, margin: 0 }}>
+                {es
+                  ? 'Éxodo AI opera bajo estricto cumplimiento de privacidad de datos e IA generativa.'
+                  : 'Exodo AI operates under strict compliance with data privacy and generative AI.'}
+              </p>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 16 }}>
+                <button
+                  type="button"
+                  onClick={() => setShowTerms(false)}
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--amber-exodo)', fontSize: '0.9rem', fontWeight: 700, padding: '8px 12px' }}
+                >
+                  {es ? 'Cerrar' : 'Close'}
                 </button>
               </div>
             </div>
