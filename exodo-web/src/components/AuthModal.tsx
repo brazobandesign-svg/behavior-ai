@@ -34,6 +34,29 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess
     }
   };
 
+  const handleGithubSignIn = async () => {
+    setLoading(true);
+    try {
+      // Paridad móvil (punto 5: GitHub operativo, scope repo): OAuth real.
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'github',
+        options: {
+          redirectTo: window.location.origin,
+          scopes: 'repo',
+        },
+      });
+      if (error) {
+        console.error('Error reportado al iniciar con GitHub:', error);
+        alert(`Error al iniciar con GitHub: ${error.message || error}`);
+        setLoading(false);
+      }
+    } catch (err: any) {
+      console.error('Error en catch de GitHub OAuth:', err);
+      alert(`No se pudo iniciar sesión: ${err.message || err}`);
+      setLoading(false);
+    }
+  };
+
   const handleGuestSignIn = async () => {
     setLoading(true);
     try {
@@ -206,7 +229,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess
           <span>Continuar con Apple</span>
         </button>
 
-        {/* 3. Opciones sociales circulares (𝕏 y GitHub) */}
+        {/* 3. Opción social GitHub — paridad móvil (operativa, scope repo) */}
         <div style={{
           display: 'flex',
           alignItems: 'center',
@@ -216,28 +239,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess
         }}>
           <button
             type="button"
-            onClick={() => alert('Autenticación con X / Twitter en desarrollo')}
-            style={{
-              width: 50,
-              height: 50,
-              borderRadius: 25,
-              backgroundColor: '#191919',
-              border: 'none',
-              color: '#F5F2EB',
-              fontSize: '1.35rem',
-              fontWeight: 'bold',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              cursor: 'pointer'
-            }}
-          >
-            𝕏
-          </button>
-
-          <button
-            type="button"
-            onClick={() => alert('Autenticación con GitHub en desarrollo')}
+            onClick={handleGithubSignIn}
+            disabled={loading}
+            title="Continuar con GitHub"
             style={{
               width: 50,
               height: 50,

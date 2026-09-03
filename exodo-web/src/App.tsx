@@ -145,7 +145,7 @@ const MaterialPrivacyIcon = ({ size = 22, color = 'currentColor' }: { size?: num
 export default function App() {
   // Estados de sesión y autenticación
   const [session, setSession] = useState<any>(null);
-  const [userProfile, setUserProfile] = useState<{ plan?: string; full_name?: string } | null>(null);
+  const [userProfile, setUserProfile] = useState<{ plan?: string; full_name?: string; onboarding?: any } | null>(null);
   const [showAuthModal, setShowAuthModal] = useState(false);
 
   // Estados de interfaz exacta a móvil
@@ -172,8 +172,47 @@ export default function App() {
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameDraft, setRenameDraft] = useState('');
   const [chatNotice, setChatNotice] = useState<string | null>(null);
-  const [selectedModel, setSelectedModel] = useState({
-    id: 'origo',
+  // Historial en la nube (paridad setCloudHistoryEnabled de app_state.dart):
+  // OFF = turnos efímeros (no se crea conversación en DB ni se envía
+  // conversationId al backend, como incógnito pero con UI normal).
+  const [cloudHistoryEnabled, setCloudHistoryEnabled] = useState<boolean>(() => {
+    try {
+      const saved = localStorage.getItem('exodo_cloud_history');
+      return saved === null ? true : saved === '1';
+    } catch { return true; }
+  });
+  const toggleCloudHistory = (v: boolean) => {
+    setCloudHistoryEnabled(v);
+    try { localStorage.setItem('exodo_cloud_history', v ? '1' : '0'); } catch (_) {}
+  };
+  // Medidor de tokens (paridad app_state.dart): user_usage por período diario UTC.
+  const [tokensUsed, setTokensUsed] = useState(0);
+  const tokensLimit = userProfile?.plan === 'hazak' ? 50000 : 6000;
+
+  // Período diario en AST (America/Santo_Domingo, UTC-4), igual que el
+  // backend (tokenCounter.getAstDates). Con UTC el medidor se desfasaba ±4h.
+  const astToday = () => {
+    const now = new Date();
+    const ast = new Date(now.getTime() - 4 * 3600 * 1000);
+    return ast.toISOString().slice(0, 10);
+  };
+
+  const fetchTodayUsage = async () => {
+    if (!session?.user || isIncognito) {
+      setTokensUsed(0);
+      return;
+    }
+    try {
+      const { data } = await supabase
+        .from('user_usage')
+        .select('tokens_used')
+        .eq('user_id', session.user.id)
+        .eq('period', astToday())
+        .maybeSingle();
+      setTokensUsed(data?.tokens_used ?? 0);
+    } catch (_) {}
+  };
+  const [selectedModel, setSelectedModel] = useState({    id: 'origo',
     title: 'G1.1',
     subtitle: 'Origo',
     plan: 'genesis',
@@ -298,6 +337,7 @@ export default function App() {
       if (session?.user) {
         fetchProfile(session.user.id);
         fetchConversations();
+        fetchTodayUsage();
         setShowAuthModal(false);
         if (window.location.search.includes('code=') || window.location.hash.includes('access_token=')) {
           window.history.replaceState({}, document.title, window.location.pathname);
@@ -335,7 +375,7 @@ export default function App() {
     try {
       const { data } = await supabase
         .from('profiles')
-        .select('plan, full_name')
+        .select('plan, full_name, onboarding')
         .eq('id', userId)
         .single();
       if (data) {
@@ -397,6 +437,104 @@ export default function App() {
     if (activeConvId === convId) {
       handleCreateNewChat();
     }
+  };
+
+  // ── Ajustes de cuenta (paridad móvil: exportar datos / borrar cuenta) ──
+  const exportMyData = async () => {
+    setShowAccountMenu(false);
+    try {
+      const convs = conversations.filter((c) => !c.id.startsWith('conv-'));
+      const rows: string[] = [];
+      for (const c of convs) {
+        const { data: msgs } = await supabase
+          .from('messages')
+          .select('role, content, created_at')
+          .eq('conversation_id', c.id)
+          .order('created_at');
+        const body = (msgs || [])
+          .map((m: any) => {
+            const who = m.role === 'user' ? 'Tú' : 'Éxodo';
+            const time = m.created_at ? new Date(m.created_at).toLocaleString() : '';
+            return `<p><strong>${who}</strong> <small>${time}</small></p><div>${(m.content || '').replace(/</g, '&lt;')}</div><hr>`;
+          })
+          .join('');
+        rows.push(`<section><h2>${(c.title || '').replace(/</g, '&lt;')}</h2>${body}</section>`);
+      }
+      const html = `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Éxodo — Mis datos</title>
+<style>body{font-family:sans-serif;max-width:720px;margin:24px auto;padding:0 16px;background:#F5F2EB;color:#171615}h1{color:#C9933A}section{background:#fff;border-radius:12px;padding:16px;margin:16px 0}small{color:#9E9689}</style>
+</head><body><h1>Éxodo — Mis datos</h1><p>${convs.length} conversación(es) · ${new Date().toLocaleString()}</p>${rows.join('')}</body></html>`;
+      const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `exodo-datos-${new Date().toISOString().slice(0, 10)}.html`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      console.warn('Error exportando datos:', e);
+    }
+  };
+
+  const deleteMyAccount = async () => {
+    setShowAccountMenu(false);
+    const confirmed = window.confirm('¿Borrar tu cuenta y TODOS tus datos (conversaciones, expedientes, perfil)? Esta acción es permanente y no se puede deshacer.');
+    if (!confirmed) return;
+    try {
+      // RPC SECURITY DEFINER (007_delete_user_account.sql): purga profiles +
+      // conversations + expedientes + auth.users. Igual que la app móvil.
+      const { error } = await supabase.rpc('delete_user_account');
+      if (error) throw error;
+    } catch (e: any) {
+      alert(`No se pudo borrar la cuenta: ${e?.message || e}. Intenta de nuevo.`);
+      return;
+    }
+    try { await supabase.auth.signOut(); } catch (_) {}
+    Object.keys(localStorage)
+      .filter((k) => k.startsWith('exodo_'))
+      .forEach((k) => localStorage.removeItem(k));
+    window.location.reload();
+  };
+
+  // ── Perfil (paridad updateProfileDetails de app_state.dart) ──
+  const saveProfile = async (fullName: string, nickname: string) => {
+    if (!session?.user) return false;
+    const name = fullName.trim();
+    const nick = nickname.trim();
+    const prev = userProfile;
+    const updatedOnboarding = { ...(prev?.onboarding || {}), nickname: nick };
+    setUserProfile({ ...(prev || {}), full_name: name, onboarding: updatedOnboarding });
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ full_name: name, onboarding: updatedOnboarding })
+        .eq('id', session.user.id);
+      if (error) throw error;
+      return true;
+    } catch (e) {
+      console.warn('Error guardando perfil:', e);
+      setUserProfile(prev);
+      return false;
+    }
+  };
+
+  // ── Limpiar historial (paridad clearHistory: borra conversations en nube,
+  // FK cascade borra mensajes; resetea estado local + cachés web) ──
+  const clearHistory = async () => {
+    const confirmed = window.confirm('¿Borrar TODO tu historial de conversaciones? Esta acción no se puede deshacer.');
+    if (!confirmed) return;
+    try {
+      if (session?.user) {
+        const { error } = await supabase.from('conversations').delete().eq('user_id', session.user.id);
+        if (error) throw error;
+      }
+    } catch (e: any) {
+      alert(`No se pudo borrar el historial: ${e?.message || e}. Intenta de nuevo.`);
+      return;
+    }
+    setConversations([]);
+    setShowProfileMenu(false);
+    handleCreateNewChat();
+    localStorage.removeItem('exodo_web_temp_conv');
   };
 
   async function fetchMessages(convId: string) {
@@ -471,8 +609,10 @@ export default function App() {
 
     let currentConvId = activeConvId;
 
-    // Si es un chat temporal y el usuario está logueado, crear la conversación real en DB primero
-    if (currentConvId && currentConvId.startsWith('conv-') && session?.user && !isIncognito) {
+    // Si es un chat temporal y el usuario está logueado (y con historial en
+    // la nube activado), crear la conversación real en DB primero.
+    const persistToCloud = !!session?.user && !isIncognito && cloudHistoryEnabled;
+    if (currentConvId && currentConvId.startsWith('conv-') && persistToCloud) {
       const { data, error } = await supabase.from('conversations').insert({
         user_id: session.user.id,
         title: userText.length > 35 ? userText.substring(0, 35) + '...' : userText,
@@ -529,9 +669,9 @@ export default function App() {
         },
         body: JSON.stringify({
           message: userText,
-          conversationId: currentConvId && currentConvId.startsWith('conv-') ? undefined : currentConvId,
+          conversationId: persistToCloud && currentConvId && !currentConvId.startsWith('conv-') ? currentConvId : undefined,
           model_override: selectedModel.id,
-          isIncognito,
+          isIncognito: isIncognito || !cloudHistoryEnabled,
           locale: locale || 'es'
         })
       });
@@ -633,6 +773,8 @@ export default function App() {
       scrollToBottom();
     } finally {
       setIsStreaming(false);
+      // Refrescar el medidor de tokens tras cada turno (paridad móvil).
+      fetchTodayUsage();
     }
   };
 
@@ -1009,37 +1151,45 @@ export default function App() {
         </div>
 
         <div style={{ padding: '0 16px 12px 16px', position: 'relative' }}>
-          <div 
-            className="header-token-bar" 
-            onClick={() => setShowTokenPopup(!showTokenPopup)}
+          <div
+            className="header-token-bar"
+            onClick={() => { fetchTodayUsage(); setShowTokenPopup(!showTokenPopup); }}
             title="Capacidad y tokens de Éxodo"
             style={{ width: '100%', justifyContent: 'space-between' }}
           >
             <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
-              0/50000 tk
+              {tokensUsed}/{tokensLimit} tk
             </span>
             <div className="token-bar-progress" style={{ width: 100 }}>
-              <div className="token-bar-fill" style={{ width: '2%' }} />
+              <div className="token-bar-fill" style={{ width: `${Math.min(100, (tokensUsed / tokensLimit) * 100)}%` }} />
             </div>
           </div>
 
-          {showTokenPopup && (
-            <div className="token-popup-card" style={{ top: 44, left: 16, transform: 'none', width: '258px', zIndex: 60, color: 'var(--text-primary)' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem' }}>
-                <span>Consumido</span>
-                <span style={{ fontWeight: 700 }}>0 (0.0%)</span>
+          {showTokenPopup && (() => {
+            // Reinicio a las 12:00 AM AST (America/Santo_Domingo), como la app.
+            const nowAst = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Santo_Domingo' }));
+            const reset = new Date(nowAst); reset.setHours(24, 0, 0, 0);
+            const diffMs = reset.getTime() - nowAst.getTime();
+            const hh = String(Math.floor(diffMs / 3600000)).padStart(2, '0');
+            const mm = String(Math.floor((diffMs % 3600000) / 60000)).padStart(2, '0');
+            const pct = tokensLimit > 0 ? ((tokensUsed / tokensLimit) * 100).toFixed(1) : '0';
+            return (
+              <div className="token-popup-card" style={{ top: 44, left: 16, transform: 'none', width: '258px', zIndex: 60, color: 'var(--text-primary)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem' }}>
+                  <span>Consumido</span>
+                  <span style={{ fontWeight: 700 }}>{tokensUsed} ({pct}%)</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem' }}>
+                  <span>Disponible</span>
+                  <span style={{ fontWeight: 700 }}>{Math.max(0, tokensLimit - tokensUsed).toLocaleString()} tk</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem' }}>
+                  <span>Reinicio en</span>
+                  <span style={{ fontWeight: 700 }}>{hh}h {mm}m</span>
+                </div>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem' }}>
-                <span>Disponible</span>
-                <span style={{ fontWeight: 700 }}>50,000 tk</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem' }}>
-                <span>Reinicio en</span>
-                <span style={{ fontWeight: 700 }}>24h 00m</span>
-              </div>
-
-            </div>
-          )}
+            );
+          })()}
         </div>
 
         {(showSearchBox || searchQuery.length > 0) && (
@@ -1661,9 +1811,57 @@ export default function App() {
                 </div>
                 <ChevronRight size={20} color="var(--text-secondary)" />
               </div>
+
+              {/* Historial en la nube (paridad drawer móvil: switch con consentimiento) */}
+              <div style={{ marginTop: 12, background: 'var(--surface-input)', borderRadius: 16, padding: '14px 20px', display: 'flex', alignItems: 'center', gap: 16 }}>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: '0.95rem', fontWeight: 600, color: cloudHistoryEnabled ? 'var(--text-primary)' : 'var(--amber-exodo)' }}>
+                    Historial en la nube
+                  </div>
+                  <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginTop: 2, lineHeight: 1.35 }}>
+                    {cloudHistoryEnabled
+                      ? 'Tus chats se guardan y dan contexto a Éxodo.'
+                      : 'Apagado: turnos efímeros, sin guardar ni contexto previo.'}
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={cloudHistoryEnabled}
+                  aria-label="Historial en la nube"
+                  onClick={() => toggleCloudHistory(!cloudHistoryEnabled)}
+                  style={{
+                    width: 46, height: 26, borderRadius: 13, border: 'none', cursor: 'pointer',
+                    background: cloudHistoryEnabled ? 'var(--amber-exodo)' : 'rgba(128,128,128,0.4)',
+                    position: 'relative', flexShrink: 0, transition: 'background 0.15s'
+                  }}
+                >
+                  <span style={{
+                    position: 'absolute', top: 3, left: cloudHistoryEnabled ? 23 : 3,
+                    width: 20, height: 20, borderRadius: '50%', background: '#fff',
+                    transition: 'left 0.15s'
+                  }} />
+                </button>
+              </div>
             </div>
 
             <div style={{ marginTop: 24, marginBottom: 8 }}>
+              <div style={{ background: 'var(--surface-input)', borderRadius: 16, padding: '18px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer' }} onClick={exportMyData}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+                  <Download size={22} color="var(--text-primary)" />
+                  <span style={{ fontSize: '1.05rem', fontWeight: 600, color: 'var(--text-primary)' }}>Export my data</span>
+                </div>
+                <ChevronRight size={20} color="var(--text-secondary)" />
+              </div>
+
+              <div style={{ marginTop: 12, background: 'var(--surface-input)', borderRadius: 16, padding: '18px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer' }} onClick={deleteMyAccount}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+                  <Trash2 size={22} color="#E57373" />
+                  <span style={{ fontSize: '1.05rem', fontWeight: 600, color: '#E57373' }}>Delete account</span>
+                </div>
+                <ChevronRight size={20} color="var(--text-secondary)" />
+              </div>
+
               <div style={{ padding: '12px 8px', display: 'flex', alignItems: 'center', gap: 16, cursor: 'pointer' }} onClick={() => { setShowAccountMenu(false); supabase.auth.signOut(); }}>
                 <LogOut size={22} color="#E57373" />
                 <span style={{ fontSize: '1.05rem', fontWeight: 600, color: '#E57373' }}>Log out</span>
@@ -1740,6 +1938,7 @@ export default function App() {
                   </label>
                   <input 
                     type="text" 
+                    id="exodo-profile-fullname"
                     defaultValue={userProfile?.full_name || session?.user?.email?.split('@')[0] || ''}
                     placeholder="Enter your full name"
                     style={{ 
@@ -1761,7 +1960,8 @@ export default function App() {
                   </label>
                   <input 
                     type="text" 
-                    defaultValue={userProfile?.full_name || ''}
+                    id="exodo-profile-nickname"
+                    defaultValue={userProfile?.onboarding?.nickname || ''}
                     placeholder="Nickname"
                     style={{ 
                       width: '100%', 
@@ -1777,7 +1977,13 @@ export default function App() {
                 </div>
 
                 <div style={{ marginTop: 12 }}>
-                  <button type="button" style={{ 
+                  <button type="button" onClick={async () => {
+                    const fn = (document.getElementById('exodo-profile-fullname') as HTMLInputElement)?.value ?? '';
+                    const nn = (document.getElementById('exodo-profile-nickname') as HTMLInputElement)?.value ?? '';
+                    const ok = await saveProfile(fn, nn);
+                    if (ok) { setShowProfileMenu(false); setShowAccountMenu(true); }
+                    else alert('No se pudo guardar el perfil. Intenta de nuevo.');
+                  }} style={{ 
                     width: '100%', 
                     background: 'var(--surface-input)', 
                     color: 'var(--text-primary)', 
@@ -1794,7 +2000,7 @@ export default function App() {
                 </div>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 16, marginTop: 16 }}>
-                  <button type="button" style={{ 
+                  <button type="button" onClick={clearHistory} style={{ 
                     display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
                     width: '100%', background: 'transparent', color: 'var(--text-primary)', 
                     border: 'none', borderRadius: 14, padding: '14px', 
@@ -1804,7 +2010,7 @@ export default function App() {
                     Clear History
                   </button>
                   
-                  <button type="button" style={{ 
+                  <button type="button" onClick={() => { setShowProfileMenu(false); deleteMyAccount(); }} style={{ 
                     display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
                     width: '100%', background: 'transparent', color: '#E57373', 
                     border: 'none', borderRadius: 14, padding: '16px', 
