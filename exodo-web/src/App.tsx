@@ -23,7 +23,8 @@ import {
   Globe,
   Smartphone,
   Zap,
-  ExternalLink
+  ExternalLink,
+  Mic
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -278,9 +279,11 @@ export default function App() {
 
   const currentConvKey = activeConvId || 'initial';
   const input = drafts[currentConvKey] || '';
-  const setInput = (val: string) => {
+  const setInput = (val: string | ((prev: string) => string)) => {
     setDrafts(prev => {
-      const newDrafts = { ...prev, [currentConvKey]: val };
+      const cur = prev[currentConvKey] || '';
+      const next = typeof val === 'function' ? (val as (p: string) => string)(cur) : val;
+      const newDrafts = { ...prev, [currentConvKey]: next };
       localStorage.setItem('exodo_web_drafts', JSON.stringify(newDrafts));
       return newDrafts;
     });
@@ -515,6 +518,7 @@ export default function App() {
   // ── Ajustes de cuenta (paridad móvil: exportar datos / borrar cuenta) ──
   const exportMyData = async () => {
     setShowAccountMenu(false);
+    setShowProfileMenu(false);
     try {
       const convs = conversations.filter((c) => !c.id.startsWith('conv-'));
       const rows: string[] = [];
@@ -899,6 +903,70 @@ export default function App() {
   // como {mime_type, file_name, base64}).
   const [pendingAttachments, setPendingAttachments] = useState<Array<{ name: string; mime: string; base64: string; preview?: string }>>([]);
   const fileInputRef = React.useRef<HTMLInputElement | null>(null);
+  // Voz (paridad composer móvil: mic en reposo/vacío → grabar → transcribir
+  // vía POST /api/voice/transcribe e insertar el texto en el composer).
+  const [isRecording, setIsRecording] = useState(false);
+  const [isTranscribing, setIsTranscribing] = useState(false);
+  const mediaRecorderRef = React.useRef<MediaRecorder | null>(null);
+  const audioChunksRef = React.useRef<Blob[]>([]);
+
+  const voiceEndpoint = (path: string) => import.meta.env.PROD
+    ? `https://behavior-ai-production.up.railway.app${path}`
+    : `http://localhost:3000${path}`;
+
+  const startRecording = async () => {
+    if (isRecording || isTranscribing || isStreaming) return;
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const rec = new MediaRecorder(stream, { mimeType: MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : undefined });
+      audioChunksRef.current = [];
+      rec.ondataavailable = (e) => { if (e.data && e.data.size > 0) audioChunksRef.current.push(e.data); };
+      rec.onstop = () => {
+        stream.getTracks().forEach((t) => t.stop());
+        transcribeRecording();
+      };
+      mediaRecorderRef.current = rec;
+      rec.start();
+      setIsRecording(true);
+    } catch (_) {
+      setChatNotice('No se pudo acceder al micrófono.');
+      setTimeout(() => setChatNotice(null), 3000);
+    }
+  };
+
+  const stopRecording = () => {
+    try { mediaRecorderRef.current?.stop(); } catch (_) {}
+    setIsRecording(false);
+  };
+
+  const transcribeRecording = async () => {
+    const chunks = audioChunksRef.current;
+    audioChunksRef.current = [];
+    if (chunks.length === 0) return;
+    setIsTranscribing(true);
+    try {
+      const blob = new Blob(chunks, { type: 'audio/webm' });
+      const form = new FormData();
+      form.append('file', blob, 'nota.webm');
+      const res = await fetch(voiceEndpoint('/api/voice/transcribe'), {
+        method: 'POST',
+        headers: { ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}) },
+        body: form,
+      });
+      const data = await res.json().catch(() => ({}));
+      const text = typeof data?.text === 'string' ? data.text.trim() : '';
+      if (text) setInput((prev) => (prev ? `${prev} ${text}` : text));
+      else {
+        setChatNotice('No se entendió el audio. Intenta de nuevo.');
+        setTimeout(() => setChatNotice(null), 3000);
+      }
+    } catch (_) {
+      setChatNotice('No se pudo transcribir el audio.');
+      setTimeout(() => setChatNotice(null), 3000);
+    } finally {
+      setIsTranscribing(false);
+    }
+  };
 
   const pickAttachments = () => {
     fileInputRef.current?.click();
@@ -1223,27 +1291,47 @@ export default function App() {
               </div>
             </div>
 
+            {((input.trim() || pendingAttachments.length > 0) && !isRecording && !isTranscribing) ? (
             <button
               type="submit"
-              disabled={!(input.trim() || pendingAttachments.length > 0) || isStreaming}
+              disabled={isStreaming}
               style={{
                 width: 38,
                 height: 38,
                 borderRadius: '50%',
-                background: (input.trim() || pendingAttachments.length > 0) && !isStreaming ? 'var(--send-btn-bg)' : 'var(--send-btn-disabled)',
-                color: (input.trim() || pendingAttachments.length > 0) && !isStreaming ? 'var(--send-btn-color)' : 'var(--text-muted)',
+                background: !isStreaming ? 'var(--send-btn-bg)' : 'var(--send-btn-disabled)',
+                color: !isStreaming ? 'var(--send-btn-color)' : 'var(--text-muted)',
                 border: 'none',
                 outline: 'none',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                cursor: (input.trim() || pendingAttachments.length > 0) && !isStreaming ? 'pointer' : 'default',
+                cursor: !isStreaming ? 'pointer' : 'default',
                 transition: 'background 0.2s ease, color 0.2s ease'
               }}
               title="Enviar"
             >
               <ArrowUp size={19} strokeWidth={2.5} />
             </button>
+            ) : (
+            <button
+              type="button"
+              onClick={() => { if (isRecording) stopRecording(); else startRecording(); }}
+              disabled={isTranscribing || isStreaming}
+              style={{
+                width: 38, height: 38, background: 'transparent', border: 'none', outline: 'none',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                cursor: (isTranscribing || isStreaming) ? 'default' : 'pointer', padding: 8,
+              }}
+              title={isRecording ? 'Detener y transcribir' : isTranscribing ? 'Transcribiendo...' : 'Dictar por voz'}
+            >
+              <Mic
+                size={26}
+                color={isRecording || isTranscribing ? 'var(--amber-exodo)' : 'var(--text-secondary)'}
+                style={isRecording ? { animation: 'micPulse 1.2s ease-in-out infinite' } : undefined}
+              />
+            </button>
+            )}
           </div>
         </form>
         <div style={{ marginTop: isPinned ? 4 : 10, marginBottom: isPinned ? 2 : 0, textAlign: 'center', fontFamily: 'AnthropicSans, sans-serif', fontSize: '12px', color: 'var(--text-secondary)' }}>
@@ -1252,6 +1340,122 @@ export default function App() {
       </div>
     </div>
   );
+  };
+
+  // ── Item de conversación (paridad _buildConvItem de drawer_menu.dart) ──
+  const openConvMenu = (convId: string) => {
+    setOpenMenuId(openMenuId === convId ? null : convId);
+  };
+
+  const renderConvMenuOptions = (conv: Conversation, isStarred: boolean) => (
+    <>
+      <button type="button" className="drawer-item" style={{ padding: '6px 12px', fontSize: '0.85rem' }} onClick={(e) => { e.stopPropagation(); setRenameDraft(conv.title); setRenamingId(conv.id); setOpenMenuId(null); }}>
+        <Edit2 size={14} style={{ marginRight: 8 }} /> Renombrar
+      </button>
+      <button type="button" className="drawer-item" style={{ padding: '6px 12px', fontSize: '0.85rem' }} onClick={(e) => { e.stopPropagation(); toggleStarred(conv); setOpenMenuId(null); }}>
+        <Pin size={14} style={{ marginRight: 8 }} /> {isStarred ? 'Desfijar' : 'Fijar'}
+      </button>
+      <button type="button" className="drawer-item" style={{ padding: '6px 12px', fontSize: '0.85rem', color: '#ff4d4f' }} onClick={(e) => { e.stopPropagation(); deleteConversation(conv.id); }}>
+        <Trash2 size={14} color="#ff4d4f" style={{ marginRight: 8 }} /> Eliminar
+      </button>
+    </>
+  );
+
+  const renderConvItem = (conv: Conversation, isStarred: boolean) => {
+    const active = activeConvId === conv.id;
+    const isMobileView = typeof window !== 'undefined' && window.matchMedia('(max-width: 640px)').matches;
+    return (
+      <div
+        key={conv.id}
+        className={`conv-item ${active ? 'active' : ''}`}
+        onMouseEnter={() => setHoveredConvId(conv.id)}
+        onMouseLeave={() => setHoveredConvId(null)}
+        onClick={() => {
+          setActiveConvId(conv.id);
+          localStorage.setItem('exodo_web_active_conv', conv.id);
+          localStorage.removeItem('exodo_web_temp_conv');
+          fetchMessages(conv.id);
+          setDrawerOpen(false);
+        }}
+        style={{ padding: '11px 10px', justifyContent: 'space-between', position: 'relative', zIndex: openMenuId === conv.id ? 1000 : 1 }}
+      >
+        {active && <span className="conv-active-bar" />}
+        {renamingId === conv.id ? (
+          <input
+            autoFocus
+            className="search-input"
+            style={{ flex: 1, minWidth: 0, background: 'var(--surface-input)', border: 'none', borderRadius: 6, padding: '4px 8px', fontSize: '0.92rem', color: 'var(--text-primary)' }}
+            value={renameDraft}
+            onChange={(e) => setRenameDraft(e.target.value)}
+            onClick={(e) => e.stopPropagation()}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') commitRename(conv.id);
+              if (e.key === 'Escape') setRenamingId(null);
+            }}
+            onBlur={() => commitRename(conv.id)}
+          />
+        ) : (
+          <span style={{
+            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+            fontSize: '13.5px', fontFamily: 'AnthropicSans, sans-serif', letterSpacing: '-0.1px',
+            fontWeight: active ? 700 : 400, flex: 1, minWidth: 0,
+          }}>{conv.title}</span>
+        )}
+        {isStarred && renamingId !== conv.id && (
+          <Pin size={14} color={active ? '#C9933A' : 'var(--text-secondary)'} style={{ flexShrink: 0 }} />
+        )}
+        {(hoveredConvId === conv.id || openMenuId === conv.id) && renamingId !== conv.id && (
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); openConvMenu(conv.id); }}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 2, display: 'flex', alignItems: 'center', flexShrink: 0 }}
+            title="Opciones"
+          >
+            <MoreVertical size={16} color="var(--text-secondary)" />
+          </button>
+        )}
+        {openMenuId === conv.id && !isMobileView && (
+          <div style={{
+            position: 'absolute', right: 32, top: 24, background: 'var(--surface-input)',
+            border: 'none', borderRadius: 8, padding: '4px', zIndex: 100,
+            display: 'flex', flexDirection: 'column', gap: 2,
+            boxShadow: '0 4px 12px rgba(0,0,0,0.5)', minWidth: 120
+          }}>
+            {renderConvMenuOptions(conv, isStarred)}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // Bottom sheet contextual móvil (paridad _showChatContextMenu).
+  const renderConvContextSheet = () => {
+    const conv = conversations.find((c) => c.id === openMenuId);
+    if (!conv || !openMenuId) return null;
+    if (typeof window !== 'undefined' && !window.matchMedia('(max-width: 640px)').matches) return null;
+    const isStarred = !!conv.is_starred;
+    return (
+      <div style={{ position: 'fixed', inset: 0, zIndex: 1200 }}>
+        <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.6)' }} onClick={() => setOpenMenuId(null)} />
+        <div style={{
+          position: 'absolute', left: 0, right: 0, bottom: 0,
+          background: 'var(--surface-card)', borderRadius: '20px 20px 0 0',
+          padding: '12px 16px calc(16px + env(safe-area-inset-bottom, 0px))',
+        }}>
+          <div style={{ width: 36, height: 4, borderRadius: 2, background: 'var(--text-secondary)', opacity: 0.4, margin: '0 auto 16px auto' }} />
+          <button type="button" className="drawer-item" style={{ padding: '12px', fontSize: '15px', fontWeight: 500 }} onClick={() => { setRenameDraft(conv.title); setRenamingId(conv.id); setOpenMenuId(null); }}>
+            <Edit2 size={18} style={{ marginRight: 12 }} /> Renombrar
+          </button>
+          <button type="button" className="drawer-item" style={{ padding: '12px', fontSize: '15px', fontWeight: 500 }} onClick={() => { toggleStarred(conv); setOpenMenuId(null); }}>
+            <Pin size={18} style={{ marginRight: 12 }} /> {isStarred ? 'Desfijar' : 'Fijar'}
+          </button>
+          <button type="button" className="drawer-item" style={{ padding: '12px', fontSize: '15px', fontWeight: 500, color: '#ff4d4f' }} onClick={() => { deleteConversation(conv.id); }}>
+            <Trash2 size={18} color="#ff4d4f" style={{ marginRight: 12 }} /> Eliminar
+          </button>
+          <div style={{ height: 12 }} />
+        </div>
+      </div>
+    );
   };
 
   return (
@@ -1405,219 +1609,80 @@ export default function App() {
           </div>
         )}
 
+        {/* Divisor tras opciones (paridad drawer móvil) */}
+        <div style={{ height: 6 }} />
+        <div style={{ height: 1, background: 'var(--border-color)', margin: '0 16px' }} />
+        <div style={{ height: 8 }} />
+
         {/* Chats Historial (Fijados y Recientes) */}
-        <div className="conv-list" style={{ flex: 1, overflowY: 'auto' }}>
-          {/* Fijos (Starred) */}
+        <div className="conv-list" style={{ flex: 1, overflowY: 'auto', paddingBottom: 130 }}>
           {filteredConvs.some((c) => c.is_starred) && (
-            <div style={{ padding: '16px 20px 8px 20px', fontSize: '0.75rem', fontWeight: 500, color: '#9E9689' }}>
+            <div style={{ padding: '6px 20px 4px 20px', fontSize: '11.5px', fontWeight: 700, color: 'var(--text-secondary)', letterSpacing: '-0.1px', fontFamily: 'AnthropicSans, sans-serif' }}>
               Destacados
             </div>
           )}
-          {filteredConvs.filter((c) => c.is_starred).map((conv) => (
-            <div
-              key={conv.id}
-              className={`conv-item ${activeConvId === conv.id ? 'active' : ''}`}
-              onMouseEnter={() => setHoveredConvId(conv.id)}
-              onMouseLeave={() => setHoveredConvId(null)}
-              onClick={() => {
-                setActiveConvId(conv.id);
-                localStorage.setItem('exodo_web_active_conv', conv.id);
-                localStorage.removeItem('exodo_web_temp_conv');
-                fetchMessages(conv.id);
-                setDrawerOpen(false);
-              }}
-              style={{ padding: '12px 20px', justifyContent: 'space-between', position: 'relative', zIndex: openMenuId === conv.id ? 1000 : 1 }}
-            >
-              {renamingId === conv.id ? (
-                <input
-                  autoFocus
-                  className="search-input"
-                  style={{ flex: 1, minWidth: 0, background: 'var(--surface-input)', border: 'none', borderRadius: 6, padding: '4px 8px', fontSize: '0.92rem', color: 'var(--text-primary)' }}
-                  value={renameDraft}
-                  onChange={(e) => setRenameDraft(e.target.value)}
-                  onClick={(e) => e.stopPropagation()}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') commitRename(conv.id);
-                    if (e.key === 'Escape') setRenamingId(null);
-                  }}
-                  onBlur={() => commitRename(conv.id)}
-                />
-              ) : (
-                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: '0.92rem' }}>{conv.title}</span>
-              )}
-              {(hoveredConvId === conv.id || openMenuId === conv.id) && renamingId !== conv.id && (
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setOpenMenuId(openMenuId === conv.id ? null : conv.id);
-                  }}
-                  style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 2, display: 'flex', alignItems: 'center' }}
-                  title="Opciones"
-                >
-                  <MoreVertical size={16} color="var(--text-secondary)" />
-                </button>
-              )}
-              {openMenuId === conv.id && (
-                <div style={{
-                  position: 'absolute',
-                  right: 32,
-                  top: 24,
-                  background: 'var(--surface-input)',
-                  border: 'none',
-                  borderRadius: 8,
-                  padding: '4px',
-                  zIndex: 100,
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: 2,
-                  boxShadow: '0 4px 12px rgba(0,0,0,0.5)',
-                  minWidth: 120
-                }}>
-                  <button type="button" className="drawer-item" style={{ padding: '6px 12px', fontSize: '0.85rem' }} onClick={(e) => { e.stopPropagation(); setRenameDraft(conv.title); setRenamingId(conv.id); setOpenMenuId(null); }}>
-                    <Edit2 size={14} style={{ marginRight: 8 }} /> Renombrar
-                  </button>
-                  <button type="button" className="drawer-item" style={{ padding: '6px 12px', fontSize: '0.85rem' }} onClick={(e) => { e.stopPropagation(); toggleStarred(conv); setOpenMenuId(null); }}>
-                    <Pin size={14} style={{ marginRight: 8 }} /> Desfijar
-                  </button>
-                  <button type="button" className="drawer-item" style={{ padding: '6px 12px', fontSize: '0.85rem', color: '#ff4d4f' }} onClick={(e) => { e.stopPropagation(); deleteConversation(conv.id); }}>
-                    <Trash2 size={14} color="#ff4d4f" style={{ marginRight: 8 }} /> Eliminar
-                  </button>
-                </div>
-              )}
-            </div>
-          ))}
+          {filteredConvs.filter((c) => c.is_starred).map((conv) => renderConvItem(conv, true))}
+          {filteredConvs.some((c) => c.is_starred) && <div style={{ height: 10 }} />}
 
-          {/* Recientes */}
-          {filteredConvs.length > 0 && (
-            <div style={{ padding: '16px 20px 8px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: '0.75rem', fontWeight: 500, color: '#9E9689' }}>Recientes</span>
-            </div>
-          )}
-          {filteredConvs.filter((c) => !c.is_starred).map((conv) => (
-            <div
-              key={conv.id}
-              className={`conv-item ${activeConvId === conv.id ? 'active' : ''}`}
-              onMouseEnter={() => setHoveredConvId(conv.id)}
-              onMouseLeave={() => setHoveredConvId(null)}
-              onClick={() => {
-                setActiveConvId(conv.id);
-                localStorage.setItem('exodo_web_active_conv', conv.id);
-                localStorage.removeItem('exodo_web_temp_conv');
-                fetchMessages(conv.id);
-                setDrawerOpen(false);
-              }}
-              style={{ padding: '12px 20px', justifyContent: 'space-between', position: 'relative', zIndex: openMenuId === conv.id ? 1000 : 1 }}
-            >
-              {renamingId === conv.id ? (
-                <input
-                  autoFocus
-                  className="search-input"
-                  style={{ flex: 1, minWidth: 0, background: 'var(--surface-input)', border: 'none', borderRadius: 6, padding: '4px 8px', fontSize: '0.92rem', color: 'var(--text-primary)' }}
-                  value={renameDraft}
-                  onChange={(e) => setRenameDraft(e.target.value)}
-                  onClick={(e) => e.stopPropagation()}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') commitRename(conv.id);
-                    if (e.key === 'Escape') setRenamingId(null);
-                  }}
-                  onBlur={() => commitRename(conv.id)}
-                />
-              ) : (
-                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: '0.92rem' }}>{conv.title}</span>
-              )}
-              {(hoveredConvId === conv.id || openMenuId === conv.id) && renamingId !== conv.id && (
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setOpenMenuId(openMenuId === conv.id ? null : conv.id);
-                  }}
-                  style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 2, display: 'flex', alignItems: 'center' }}
-                  title="Opciones"
-                >
-                  <MoreVertical size={16} color="var(--text-secondary)" />
-                </button>
-              )}
-              {openMenuId === conv.id && (
-                <div style={{
-                  position: 'absolute',
-                  right: 32,
-                  top: 24,
-                  background: 'var(--surface-input)',
-                  border: 'none',
-                  borderRadius: 8,
-                  padding: '4px',
-                  zIndex: 100,
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: 2,
-                  boxShadow: '0 4px 12px rgba(0,0,0,0.5)',
-                  minWidth: 120
-                }}>
-                  <button type="button" className="drawer-item" style={{ padding: '6px 12px', fontSize: '0.85rem' }} onClick={(e) => { e.stopPropagation(); setRenameDraft(conv.title); setRenamingId(conv.id); setOpenMenuId(null); }}>
-                    <Edit2 size={14} style={{ marginRight: 8 }} /> Renombrar
-                  </button>
-                  <button type="button" className="drawer-item" style={{ padding: '6px 12px', fontSize: '0.85rem' }} onClick={(e) => { e.stopPropagation(); toggleStarred(conv); setOpenMenuId(null); }}>
-                    <Pin size={14} style={{ marginRight: 8 }} /> Fijar
-                  </button>
-                  <button type="button" className="drawer-item" style={{ padding: '6px 12px', fontSize: '0.85rem', color: '#ff4d4f' }} onClick={(e) => { e.stopPropagation(); deleteConversation(conv.id); }}>
-                    <Trash2 size={14} color="#ff4d4f" style={{ marginRight: 8 }} /> Eliminar
-                  </button>
-                </div>
-              )}
-            </div>
-          ))}
+          {/* Recientes (siempre visible, paridad móvil) */}
+          <div style={{ padding: '6px 20px 4px 20px', fontSize: '11.5px', fontWeight: 700, color: 'var(--text-secondary)', letterSpacing: '-0.1px', fontFamily: 'AnthropicSans, sans-serif' }}>
+            Recientes
+          </div>
+          {filteredConvs.filter((c) => !c.is_starred).map((conv) => renderConvItem(conv, false))}
 
           {filteredConvs.length === 0 && (
-            <div style={{ padding: '16px 20px', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
-              No hay conversaciones.
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '32px 24px' }}>
+              <div style={{
+                width: 56, height: 56, borderRadius: '50%',
+                background: 'var(--surface-input)', border: '1px solid var(--border-color)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 16
+              }}>
+                <MessageSquare size={26} color="var(--amber-exodo)" />
+              </div>
+              <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)', letterSpacing: '-0.1px', fontFamily: 'AnthropicSans, sans-serif', textAlign: 'center' }}>
+                {conversations.length === 0 ? 'Sin historial todavía' : 'Sin resultados'}
+              </div>
+              <div style={{ fontSize: '12px', color: 'var(--text-secondary)', opacity: 0.7, lineHeight: 1.4, fontFamily: 'Inter, sans-serif', textAlign: 'center', marginTop: 6 }}>
+                {conversations.length === 0 ? 'Inicia una conversación para verla aquí.' : 'Prueba con otra búsqueda.'}
+              </div>
             </div>
           )}
         </div>
+        {renderConvContextSheet()}
 
-        <div style={{ borderTop: '1px solid var(--border-color)', position: 'relative' }}>
+        <div style={{ borderTop: '1px solid var(--border-color)', position: 'relative', background: 'var(--surface-card)' }}>
           {session?.user && !isGuestUser ? (
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', cursor: 'pointer' }} onClick={() => setShowAccountMenu(true)}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: '12px 20px 14px 20px', cursor: 'pointer' }} onClick={() => setShowAccountMenu(true)}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12, overflow: 'hidden' }}>
                 {(session.user.user_metadata?.avatar_url || session.user.user_metadata?.picture) ? (
-                  <img 
-                    src={session.user.user_metadata?.avatar_url || session.user.user_metadata?.picture} 
-                    alt="Avatar" 
-                    style={{ width: 34, height: 34, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} 
+                  <img
+                    src={session.user.user_metadata?.avatar_url || session.user.user_metadata?.picture}
+                    alt="Avatar"
+                    style={{ width: 38, height: 38, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }}
                   />
                 ) : (
                   <div style={{
-                    width: 34,
-                    height: 34,
+                    width: 38,
+                    height: 38,
                     borderRadius: '50%',
-                    background: 'var(--text-primary)',
-                    color: '#0E0C0A',
+                    background: 'var(--amber-exodo)',
+                    color: '#000000',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    fontWeight: 600,
-                    fontSize: '1rem',
+                    fontFamily: 'Syne, sans-serif',
+                    fontWeight: 700,
+                    fontSize: '19px',
                     flexShrink: 0
                   }}>
-                    {(userProfile?.full_name || session.user.email || 'U').charAt(0).toUpperCase()}
+                    {((userProfile?.full_name || '').trim().charAt(0) || 'U').toUpperCase()}
                   </div>
                 )}
-                <div style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-                  <span style={{ fontSize: '0.92rem', fontWeight: 500, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                    {userProfile?.full_name || session.user.email}
-                  </span>
-                  <span style={{ fontSize: '0.78rem', color: '#9E9689' }}>
-                    Plan {userProfile?.plan || 'gratuito'}
-                  </span>
-                </div>
+                <span style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', letterSpacing: '-0.2px', fontFamily: 'AnthropicSans, sans-serif' }}>
+                  {(userProfile?.full_name || '').trim() || 'Usuario Éxodo'}
+                </span>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
-                <div style={{ position: 'relative' }}>
-                  <Download size={16} color="var(--text-secondary)" />
-                  <div style={{ position: 'absolute', top: -2, right: -2, width: 6, height: 6, borderRadius: '50%', background: '#4D90FE' }} />
-                </div>
-              </div>
+              <img src="/bybehavior_text.png" alt="by Behavior" style={{ height: 18, objectFit: 'contain', objectPosition: 'left', opacity: 0.75 }} />
             </div>
           ) : (
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px' }}>
@@ -1747,6 +1812,8 @@ export default function App() {
                 {messages.map((msg) => (
                   <div key={msg.id} className={`msg-row ${msg.role}`}>
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: msg.role === 'user' ? 'flex-end' : 'flex-start', maxWidth: '100%', width: msg.role === 'assistant' ? '100%' : 'auto' }}>
+                      {/* Paridad móvil: contenido vacío + adjuntos = solo adjuntos, sin marco */}
+                      {!(msg.role === 'user' && !msg.content.trim() && msg.attachments && msg.attachments.length > 0) && (
                       <div className="msg-bubble markdown-body">
                         {msg.isThinking ? (
                           <div className="thinking-row">
@@ -1768,20 +1835,24 @@ export default function App() {
                             {msg.content}
                           </ReactMarkdown>
                         )}
-                        {msg.role === 'user' && msg.attachments && msg.attachments.length > 0 && (
-                          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: msg.content.trim() ? 8 : 0 }}>
-                            {msg.attachments.map((a, i) => (
-                              <div key={i} style={{ width: 48, height: 48, borderRadius: 10, overflow: 'hidden', background: 'var(--surface-card)', display: 'flex', alignItems: 'center', justifyContent: 'center' }} title={a.name}>
-                                {a.preview ? (
-                                  <img src={a.preview} alt={a.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                                ) : (
-                                  <span style={{ fontSize: '0.55rem', color: 'var(--text-secondary)', padding: 3, textAlign: 'center', overflow: 'hidden' }}>{a.name}</span>
-                                )}
-                              </div>
-                            ))}
-                          </div>
-                        )}
                       </div>
+                      )}
+
+                      {msg.role === 'user' && msg.attachments && msg.attachments.length > 0 && (
+                        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: msg.content.trim() ? 8 : 0, maxWidth: '82%', justifyContent: 'flex-end' }}>
+                          {msg.attachments.map((a, i) => (
+                            a.preview ? (
+                              <div key={i} style={{ width: 72, height: 72, borderRadius: 14, overflow: 'hidden' }} title={a.name}>
+                                <img src={a.preview} alt={a.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                              </div>
+                            ) : (
+                              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 12px 8px 8px', borderRadius: 10, background: 'rgba(128,128,128,0.15)' }} title={a.name}>
+                                <span style={{ fontSize: '13px', color: 'var(--text-primary)', fontFamily: 'Inter, sans-serif', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 140 }}>{a.name}</span>
+                              </div>
+                            )
+                          ))}
+                        </div>
+                      )}
 
                       {msg.role === 'assistant' && msg.isDegraded && (
                         <div className="eco-notice">
@@ -1824,7 +1895,7 @@ export default function App() {
                       })()}
                       
                       {msg.role === 'user' && (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', color: 'var(--text-secondary)', marginTop: '4px', opacity: 0.7, paddingRight: '6px', fontFamily: 'Inter, sans-serif' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '10px', color: 'var(--text-secondary)', marginTop: '3px', opacity: 0.7, paddingRight: '6px', fontFamily: 'Inter, sans-serif' }}>
                           <button style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', color: 'inherit' }} onClick={() => editMessage(msg)} title="Editar">
                             <Edit2 size={14} />
                           </button>
@@ -1948,38 +2019,39 @@ export default function App() {
         );
       })()}
 
-      {/* Settings Modal */}
+      {/* Settings bottom sheet (paridad _ClaudeAccountModal móvil) */}
       {showAccountMenu && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ position: 'fixed', inset: 0, zIndex: 1000 }}>
           <div style={{ position: 'absolute', inset: 0, background: 'rgba(0, 0, 0, 0.6)', backdropFilter: 'blur(4px)' }} onClick={() => setShowAccountMenu(false)} />
-          
-          <div style={{ 
-            position: 'relative', 
-            background: 'var(--surface-card)', 
-            width: '90%', 
-            maxWidth: 500, 
-            borderRadius: 24, 
-            padding: '24px 20px', 
-            display: 'flex', 
-            flexDirection: 'column', 
-            gap: 16,
-            maxHeight: '90vh',
+
+          <div style={{
+            position: 'absolute',
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'var(--surface-card)',
+            borderRadius: '28px 28px 0 0',
+            padding: '12px 20px calc(24px + env(safe-area-inset-bottom, 0px))',
+            maxWidth: 640,
+            margin: '0 auto',
+            maxHeight: '88vh',
             overflowY: 'auto'
           }}>
-            
-            <h2 style={{ textAlign: 'center', fontSize: '1.2rem', fontWeight: 600, fontFamily: 'Syne, sans-serif', color: 'var(--text-primary)', marginBottom: 8, marginTop: 4 }}>Settings</h2>
-            
-            <div style={{ background: 'var(--surface-input)', borderRadius: 16, padding: '16px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <span style={{ fontSize: '1.05rem', fontWeight: 500, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {session?.user?.email || 'usuario@exodo.ai'}
+            <div style={{ width: 36, height: 4, borderRadius: 2, background: 'var(--text-secondary)', opacity: 0.3, margin: '0 auto 16px auto' }} />
+            <h2 style={{ textAlign: 'center', fontSize: '18px', fontWeight: 700, fontFamily: 'Syne, sans-serif', color: 'var(--text-primary)', margin: '0 0 20px 0' }}>Settings</h2>
+
+            <div style={{ background: 'var(--surface-input)', borderRadius: 16, padding: '14px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', letterSpacing: '-0.2px', fontFamily: 'AnthropicSans, sans-serif' }}>
+                {session?.user?.email || 'Sin correo'}
               </span>
-              <div style={{ background: 'var(--text-primary)', color: 'var(--surface-card)', padding: '4px 12px', borderRadius: 20, fontSize: '0.85rem', fontWeight: 700 }}>
+              <div style={{ background: 'var(--text-primary)', color: 'var(--surface-card)', padding: '4px 10px', borderRadius: 20, fontSize: '12px', fontWeight: 700, marginLeft: 12, flexShrink: 0 }}>
                 {userProfile?.plan === 'hazak' ? 'Pro' : 'Free'}
               </div>
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              {/* Paridad móvil: Profile y Billing NO disponibles para invitados */}
+            <div style={{ height: 16 }} />
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               {!isGuestUser && (
               <div style={{ background: 'var(--surface-input)', borderRadius: 16, padding: '18px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer' }} onClick={() => { setShowAccountMenu(false); setShowProfileMenu(true); }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
@@ -2018,107 +2090,84 @@ export default function App() {
                 </div>
                 <ChevronRight size={20} color="var(--text-secondary)" />
               </div>
-
-              <div style={{ background: 'var(--surface-input)', borderRadius: 16, padding: '18px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer' }} onClick={() => setShowAccountMenu(false)}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-                  <MaterialPrivacyIcon size={22} color="var(--text-primary)" />
-                  <span style={{ fontSize: '1.05rem', fontWeight: 600, color: 'var(--text-primary)' }}>Terms & Privacy</span>
-                </div>
-                <ChevronRight size={20} color="var(--text-secondary)" />
-              </div>
-
-              {/* Historial en la nube (paridad drawer móvil: switch con consentimiento) */}
-              <div style={{ marginTop: 12, background: 'var(--surface-input)', borderRadius: 16, padding: '14px 20px', display: 'flex', alignItems: 'center', gap: 16 }}>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: '0.95rem', fontWeight: 600, color: cloudHistoryEnabled ? 'var(--text-primary)' : 'var(--amber-exodo)' }}>
-                    Historial en la nube
-                  </div>
-                  <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginTop: 2, lineHeight: 1.35 }}>
-                    {cloudHistoryEnabled
-                      ? 'Tus chats se guardan y dan contexto a Éxodo.'
-                      : 'Apagado: turnos efímeros, sin guardar ni contexto previo.'}
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  role="switch"
-                  aria-checked={cloudHistoryEnabled}
-                  aria-label="Historial en la nube"
-                  onClick={() => toggleCloudHistory(!cloudHistoryEnabled)}
-                  style={{
-                    width: 46, height: 26, borderRadius: 13, border: 'none', cursor: 'pointer',
-                    background: cloudHistoryEnabled ? 'var(--amber-exodo)' : 'rgba(128,128,128,0.4)',
-                    position: 'relative', flexShrink: 0, transition: 'background 0.15s'
-                  }}
-                >
-                  <span style={{
-                    position: 'absolute', top: 3, left: cloudHistoryEnabled ? 23 : 3,
-                    width: 20, height: 20, borderRadius: '50%', background: '#fff',
-                    transition: 'left 0.15s'
-                  }} />
-                </button>
-              </div>
             </div>
 
-            <div style={{ marginTop: 24, marginBottom: 8 }}>
-              <div style={{ background: 'var(--surface-input)', borderRadius: 16, padding: '18px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer' }} onClick={exportMyData}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-                  <Download size={22} color="var(--text-primary)" />
-                  <span style={{ fontSize: '1.05rem', fontWeight: 600, color: 'var(--text-primary)' }}>Export my data</span>
+            {/* Historial en la nube (paridad drawer móvil: switch con consentimiento) */}
+            <div style={{ marginTop: 12, marginBottom: 12, background: 'var(--surface-input)', borderRadius: 16, padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 16 }}>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: '13.5px', fontWeight: 600, color: cloudHistoryEnabled ? 'var(--text-primary)' : 'var(--amber-exodo)', fontFamily: 'AnthropicSans, sans-serif' }}>
+                  Historial en la nube
                 </div>
-                <ChevronRight size={20} color="var(--text-secondary)" />
-              </div>
-
-              <div style={{ marginTop: 12, background: 'var(--surface-input)', borderRadius: 16, padding: '18px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer' }} onClick={deleteMyAccount}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-                  <Trash2 size={22} color="#E57373" />
-                  <span style={{ fontSize: '1.05rem', fontWeight: 600, color: '#E57373' }}>Delete account</span>
+                <div style={{ fontSize: '10.5px', color: 'var(--text-secondary)', marginTop: 2, lineHeight: 1.3, fontFamily: 'AnthropicSans, sans-serif' }}>
+                  {cloudHistoryEnabled
+                    ? 'Tus chats se guardan y dan contexto a Éxodo.'
+                    : 'Apagado: turnos efímeros, sin guardar ni contexto previo.'}
                 </div>
-                <ChevronRight size={20} color="var(--text-secondary)" />
               </div>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={cloudHistoryEnabled}
+                aria-label="Historial en la nube"
+                onClick={() => toggleCloudHistory(!cloudHistoryEnabled)}
+                style={{
+                  width: 46, height: 26, borderRadius: 13, border: 'none', cursor: 'pointer',
+                  background: cloudHistoryEnabled ? 'var(--amber-exodo)' : 'rgba(128,128,128,0.4)',
+                  position: 'relative', flexShrink: 0, transition: 'background 0.15s'
+                }}
+              >
+                <span style={{
+                  position: 'absolute', top: 3, left: cloudHistoryEnabled ? 23 : 3,
+                  width: 20, height: 20, borderRadius: '50%', background: '#fff',
+                  transition: 'left 0.15s'
+                }} />
+              </button>
+            </div>
 
-              <div style={{ padding: '12px 8px', display: 'flex', alignItems: 'center', gap: 16, cursor: 'pointer' }} onClick={() => { setShowAccountMenu(false); supabase.auth.signOut(); }}>
-                <LogOut size={22} color="#E57373" />
-                <span style={{ fontSize: '1.05rem', fontWeight: 600, color: '#E57373' }}>Log out</span>
+            <div style={{ background: 'var(--surface-input)', borderRadius: 16, padding: '18px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer' }} onClick={() => setShowAccountMenu(false)}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+                <MaterialPrivacyIcon size={22} color="var(--text-primary)" />
+                <span style={{ fontSize: '1.05rem', fontWeight: 600, color: 'var(--text-primary)' }}>Terms & Privacy</span>
               </div>
+              <ChevronRight size={20} color="var(--text-secondary)" />
+            </div>
+
+            <div style={{ height: 16 }} />
+            <div style={{ height: 1, background: 'var(--border-color)' }} />
+            <div style={{ height: 8 }} />
+
+            {/* Log out 100% plano (paridad móvil): sin caja, solo icono + texto rojo */}
+            <div style={{ padding: '12px 8px', display: 'flex', alignItems: 'center', gap: 14, cursor: 'pointer' }} onClick={() => { setShowAccountMenu(false); supabase.auth.signOut(); }}>
+              <LogOut size={22} color="#E05252" />
+              <span style={{ fontSize: '15px', fontWeight: 600, color: '#E05252', letterSpacing: '-0.2px', fontFamily: 'AnthropicSans, sans-serif' }}>Log out</span>
+            </div>
+
+            <div style={{ height: 24 }} />
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, opacity: 0.6 }}>
+              <img src="/Logo_behavior.png" alt="Éxodo" style={{ height: 16, objectFit: 'contain' }} />
+              <span style={{ fontSize: '12px', color: 'var(--text-secondary)', fontFamily: 'AnthropicSans, sans-serif' }}>Éxodo Web</span>
             </div>
           </div>
         </div>
       )}
 
-      {/* Profile Modal */}
+      {/* Profile pantalla completa (paridad ProfileScreen móvil) */}
       {showProfileMenu && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div style={{ position: 'absolute', inset: 0, background: 'rgba(0, 0, 0, 0.6)', backdropFilter: 'blur(4px)' }} onClick={() => setShowProfileMenu(false)} />
-          
-          <div style={{ 
-            position: 'relative', 
-            background: 'var(--surface-card)', 
-            width: '100%', 
-            maxWidth: 500, 
-            height: '100%',
-            maxHeight: '90vh',
-            borderRadius: 24, 
-            display: 'flex', 
-            flexDirection: 'column',
-            overflow: 'hidden'
-          }}>
-            {/* Header */}
-            <div style={{ display: 'flex', alignItems: 'center', padding: '20px', position: 'relative' }}>
-              <button 
-                type="button" 
-                onClick={() => { setShowProfileMenu(false); setShowAccountMenu(true); }}
-                style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-              >
-                <ArrowLeft size={24} color="var(--text-primary)" />
-              </button>
-              <h2 style={{ flex: 1, textAlign: 'center', fontSize: '1.25rem', fontWeight: 700, fontFamily: 'Syne, sans-serif', color: 'var(--text-primary)', margin: 0, paddingRight: 40 }}>
-                Profile
-              </h2>
-            </div>
+        <div style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'var(--bg-color)', display: 'flex', flexDirection: 'column', overflowY: 'auto' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px 12px', position: 'relative' }}>
+            <button
+              type="button"
+              onClick={() => { setShowProfileMenu(false); setShowAccountMenu(true); }}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '8px', display: 'flex', position: 'absolute', left: 12 }}
+            >
+              <ArrowLeft size={24} color="var(--text-primary)" />
+            </button>
+            <h2 style={{ fontSize: '20px', fontWeight: 700, fontFamily: 'Syne, sans-serif', color: 'var(--text-primary)', margin: 0 }}>
+              Profile
+            </h2>
+          </div>
 
-            {/* Body */}
-            <div style={{ flex: 1, overflowY: 'auto', padding: '24px' }}>
+          <div style={{ flex: 1, overflowY: 'auto', padding: '24px', maxWidth: 640, width: '100%', margin: '0 auto', boxSizing: 'border-box' }}>
               
               <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 32 }}>
                 <div style={{
@@ -2214,6 +2263,20 @@ export default function App() {
                   </button>
                 </div>
 
+                {/* Export Data (paridad ProfileScreen: outlined ámbar) */}
+                <div style={{ marginTop: 16 }}>
+                  <button type="button" onClick={exportMyData} style={{
+                    width: '100%', height: 52,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                    background: 'transparent', color: 'var(--amber-exodo)',
+                    border: '1px solid var(--amber-exodo)', borderRadius: 14,
+                    fontSize: '15px', fontWeight: 600, fontFamily: 'Inter, sans-serif', cursor: 'pointer'
+                  }}>
+                    <Download size={20} />
+                    Export my data
+                  </button>
+                </div>
+
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 16, marginTop: 16 }}>
                   <button type="button" onClick={clearHistory} style={{ 
                     display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
@@ -2231,112 +2294,89 @@ export default function App() {
                     border: 'none', borderRadius: 14, padding: '16px', 
                     fontSize: '0.95rem', fontWeight: 600, fontFamily: 'Inter, sans-serif', cursor: 'pointer'
                   }}>
-                    <LogOut size={20} /> {/* Use appropriate delete icon here, LogOut is a placeholder for delete_forever */}
+                    <Trash2 size={20} />
                     Delete account
                   </button>
                 </div>
 
               </div>
-            </div>
           </div>
         </div>
       )}
 
-      {/* Language Modal */}
+      {/* Language bottom sheet (paridad _showLanguageSheet móvil) */}
       {showLanguageMenu && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ position: 'fixed', inset: 0, zIndex: 1000 }}>
           <div style={{ position: 'absolute', inset: 0, background: 'rgba(0, 0, 0, 0.6)', backdropFilter: 'blur(4px)' }} onClick={() => setShowLanguageMenu(false)} />
-          
-          <div style={{ 
-            position: 'relative', 
-            background: 'var(--surface-card)', 
-            width: '100%', 
-            maxWidth: 500, 
-            height: '100%',
-            maxHeight: '90vh',
-            borderRadius: 24, 
-            display: 'flex', 
-            flexDirection: 'column',
-            overflow: 'hidden'
+
+          <div style={{
+            position: 'absolute', left: 0, right: 0, bottom: 0,
+            background: 'var(--surface-card)', borderRadius: '24px 24px 0 0',
+            padding: '12px 0 calc(8px + env(safe-area-inset-bottom, 0px))',
+            maxWidth: 640, margin: '0 auto', maxHeight: '75vh',
+            display: 'flex', flexDirection: 'column', overflow: 'hidden'
           }}>
-            {/* Header */}
-            <div style={{ display: 'flex', alignItems: 'center', padding: '20px', position: 'relative' }}>
-              <button 
-                type="button" 
-                onClick={() => { setShowLanguageMenu(false); setShowAccountMenu(true); }}
-                style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-              >
-                <ArrowLeft size={24} color="var(--text-primary)" />
-              </button>
-              <div style={{ flex: 1, textAlign: 'center', paddingRight: 40 }}>
-                <h2 style={{ fontSize: '1.25rem', fontWeight: 700, fontFamily: 'Syne, sans-serif', color: 'var(--text-primary)', margin: 0 }}>
-                  App language
-                </h2>
-                <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', fontFamily: 'Inter, sans-serif' }}>
-                  Select your preferred language
-                </span>
-              </div>
+            <div style={{ width: 36, height: 4, borderRadius: 2, background: 'var(--text-secondary)', opacity: 0.3, margin: '0 auto 12px auto', flexShrink: 0 }} />
+            <div style={{ padding: '4px 20px' }}>
+              <h2 style={{ fontSize: '18px', fontWeight: 700, fontFamily: 'Syne, sans-serif', color: 'var(--text-primary)', margin: 0, textAlign: 'left' }}>
+                App language
+              </h2>
+            </div>
+            <div style={{ padding: '0 20px 12px 20px' }}>
+              <span style={{ fontSize: '12.5px', color: 'var(--text-secondary)', fontFamily: 'Inter, sans-serif' }}>
+                Select your preferred language
+              </span>
             </div>
 
-            {/* Body */}
-            <div style={{ flex: 1, overflowY: 'auto', padding: '12px 24px 24px' }}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                
-                {[
-                  { flag: null, title: 'System', subtitle: 'Auto-detect', code: null },
-                  { flag: 'mx', title: 'Español (Latinoamérica)', subtitle: 'ES', code: 'es' },
-                  { flag: 'us', title: 'English (US)', subtitle: 'EN', code: 'en' },
-                  { flag: 'gb', title: 'English (UK)', subtitle: 'EN_GB', code: 'en_GB' },
-                  { flag: 'br', title: 'Português (Brasil)', subtitle: 'PT_BR', code: 'pt_BR' },
-                  { flag: 'pt', title: 'Português (Portugal)', subtitle: 'PT', code: 'pt' },
-                  { flag: 'fr', title: 'Français', subtitle: 'FR', code: 'fr' },
-                  { flag: 'ht', title: 'Kreyòl Ayisyen', subtitle: 'HT', code: 'ht' },
-                  { flag: 'it', title: 'Italiano', subtitle: 'IT', code: 'it' },
-                  { flag: 'de', title: 'Deutsch', subtitle: 'DE', code: 'de' },
-                  { flag: 'ru', title: 'Русский', subtitle: 'RU', code: 'ru' },
-                  { flag: 'cn', title: '中文', subtitle: 'ZH', code: 'zh' },
-                  { flag: 'jp', title: '日本語', subtitle: 'JA', code: 'ja' },
-                  { flag: 'sa', title: 'العربية', subtitle: 'AR', code: 'ar' },
-                  { flag: 'kr', title: '한국어', subtitle: 'KO', code: 'ko' },
-                  { flag: 'in', title: 'हिन्दी', subtitle: 'HI', code: 'hi' }
-                ].map((lang) => (
-                  <div 
-                    key={lang.title}
-                    style={{ 
-                      background: 'var(--surface-input)', 
-                      borderRadius: 16, 
-                      padding: '14px 20px', 
-                      display: 'flex', 
-                      alignItems: 'center', 
-                      justifyContent: 'space-between', 
-                      cursor: 'pointer' 
-                    }} 
-                    onClick={() => { 
+            <div style={{ overflowY: 'auto', paddingBottom: 8 }}>
+              {[
+                { flag: '🌐', title: 'System', subtitle: 'Auto-detect', code: null },
+                { flag: '🇲🇽', title: 'Español (Latinoamérica)', subtitle: 'ES', code: 'es' },
+                { flag: '🇺🇸', title: 'English (US)', subtitle: 'EN', code: 'en' },
+                { flag: '🇬🇧', title: 'English (UK)', subtitle: 'EN_GB', code: 'en_GB' },
+                { flag: '🇧🇷', title: 'Português (Brasil)', subtitle: 'PT_BR', code: 'pt_BR' },
+                { flag: '🇵🇹', title: 'Português (Portugal)', subtitle: 'PT', code: 'pt' },
+                { flag: '🇫🇷', title: 'Français', subtitle: 'FR', code: 'fr' },
+                { flag: '🇭🇹', title: 'Kreyòl Ayisyen', subtitle: 'HT', code: 'ht' },
+                { flag: '🇮🇹', title: 'Italiano', subtitle: 'IT', code: 'it' },
+                { flag: '🇩🇪', title: 'Deutsch', subtitle: 'DE', code: 'de' },
+                { flag: '🇷🇺', title: 'Русский', subtitle: 'RU', code: 'ru' },
+                { flag: '🇨🇳', title: '中文', subtitle: 'ZH', code: 'zh' },
+                { flag: '🇯🇵', title: '日本語', subtitle: 'JA', code: 'ja' },
+                { flag: '🇸🇦', title: 'العربية', subtitle: 'AR', code: 'ar' },
+                { flag: '🇰🇷', title: '한국어', subtitle: 'KO', code: 'ko' },
+                { flag: '🇮🇳', title: 'हिन्दी', subtitle: 'HI', code: 'hi' }
+              ].map((lang, idx) => (
+                <div key={lang.title}>
+                  {idx === 1 && <div style={{ height: 1, background: 'var(--border-color)', margin: '0 20px' }} />}
+                  <div
+                    style={{
+                      padding: '12px 20px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      cursor: 'pointer'
+                    }}
+                    onClick={() => {
                       const selectedCode = lang.code || 'es';
                       setLocale(selectedCode);
                       localStorage.setItem('exodo_web_locale', selectedCode);
-                      setShowLanguageMenu(false); 
-                      setShowAccountMenu(true); 
+                      setShowLanguageMenu(false);
+                      setShowAccountMenu(true);
                     }}
                   >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-                      <div style={{ width: 28, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        {lang.flag ? (
-                          <img src={`https://flagcdn.com/w40/${lang.flag}.png`} alt={lang.title} style={{ width: '100%', borderRadius: 2 }} />
-                        ) : (
-                          <Globe size={22} color="var(--text-primary)" />
-                        )}
-                      </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                      <span style={{ fontSize: '22px', width: 28, textAlign: 'center' }}>{lang.flag}</span>
                       <div style={{ display: 'flex', flexDirection: 'column' }}>
-                        <span style={{ 
-                          fontSize: '1.05rem', 
-                          fontWeight: (locale === lang.code || (!lang.code && locale.startsWith('es'))) ? 700 : 500, 
+                        <span style={{
+                          fontSize: '15px',
+                          fontWeight: (locale === lang.code || (!lang.code && locale.startsWith('es'))) ? 700 : 500,
                           color: 'var(--text-primary)',
                           fontFamily: 'Inter, sans-serif'
                         }}>
                           {lang.title}
                         </span>
-                        <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontFamily: 'Inter, sans-serif' }}>
+                        <span style={{ fontSize: '12px', color: 'var(--text-secondary)', fontFamily: 'Inter, sans-serif' }}>
                           {lang.subtitle}
                         </span>
                       </div>
@@ -2345,108 +2385,100 @@ export default function App() {
                       <Check size={20} color="var(--amber-exodo)" />
                     )}
                   </div>
-                ))}
-
-              </div>
+                </div>
+              ))}
             </div>
           </div>
         </div>
       )}
 
-      {/* Billing Modal */}
+      {/* Billing bottom sheet (paridad _showBillingModal móvil) */}
       {showBillingMenu && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ position: 'fixed', inset: 0, zIndex: 1000 }}>
           <div style={{ position: 'absolute', inset: 0, background: 'rgba(0, 0, 0, 0.6)', backdropFilter: 'blur(4px)' }} onClick={() => setShowBillingMenu(false)} />
-          
-          <div style={{ 
-            position: 'relative', 
-            background: 'var(--surface-card)', 
-            width: '100%', 
-            maxWidth: 500, 
-            borderRadius: 24, 
-            display: 'flex', 
-            flexDirection: 'column',
-            overflow: 'hidden'
+
+          <div style={{
+            position: 'absolute', left: 0, right: 0, bottom: 0,
+            background: 'var(--surface-card)', borderRadius: '24px 24px 0 0',
+            padding: '12px 24px calc(24px + env(safe-area-inset-bottom, 0px))',
+            maxWidth: 640, margin: '0 auto', maxHeight: '80vh', overflowY: 'auto'
           }}>
-            {/* Header */}
-            <div style={{ display: 'flex', alignItems: 'center', padding: '20px', position: 'relative' }}>
-              <button 
-                type="button" 
-                onClick={() => { setShowBillingMenu(false); setShowAccountMenu(true); }}
-                style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-              >
-                <ArrowLeft size={24} color="var(--text-primary)" />
-              </button>
-              <h2 style={{ flex: 1, textAlign: 'center', fontSize: '1.25rem', fontWeight: 700, fontFamily: 'Syne, sans-serif', color: 'var(--text-primary)', margin: 0, paddingRight: 40 }}>
-                Billing
-              </h2>
-            </div>
+            <div style={{ width: 36, height: 4, borderRadius: 2, background: 'var(--text-secondary)', opacity: 0.3, margin: '0 auto 16px auto' }} />
+            <h2 style={{ fontSize: '18px', fontWeight: 700, fontFamily: 'Inter, sans-serif', color: 'var(--text-primary)', margin: '0 0 16px 0' }}>
+              Billing
+            </h2>
 
-            {/* Body */}
-            <div style={{ padding: '8px 24px 24px' }}>
-              
-              <div style={{ 
-                background: 'var(--surface-input)', 
-                borderRadius: 16, 
-                padding: '20px', 
-                display: 'flex', 
-                flexDirection: 'column',
-                gap: 16
-              }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ fontSize: '0.95rem', color: 'var(--text-secondary)', fontFamily: 'Inter, sans-serif' }}>
-                    Current plan
-                  </span>
-                  <span style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--amber-exodo)', fontFamily: 'Inter, sans-serif' }}>
-                    {userProfile?.plan === 'pro' ? 'Pro' : 'Free'}
-                  </span>
+            <div style={{
+              background: 'var(--surface-input)',
+              borderRadius: 16,
+              padding: '20px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 16
+            }}>
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', marginBottom: 6 }}>
+                  <span style={{ color: 'var(--text-secondary)' }}>Consumido</span>
+                  <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{tokensUsed} ({tokensLimit > 0 ? ((tokensUsed / tokensLimit) * 100).toFixed(1) : '0'}%)</span>
                 </div>
-                
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ fontSize: '0.95rem', color: 'var(--text-secondary)', fontFamily: 'Inter, sans-serif' }}>
-                    Gateway
-                  </span>
-                  <span style={{ fontSize: '1rem', color: 'var(--text-primary)', fontFamily: 'Inter, sans-serif' }}>
-                    {userProfile?.plan === 'pro' ? 'Stripe / Web Pay' : 'None'}
-                  </span>
+                <div className="token-bar-progress" style={{ width: '100%' }}>
+                  <div className="token-bar-fill" style={{ width: `${Math.min(100, (tokensUsed / tokensLimit) * 100)}%` }} />
                 </div>
               </div>
 
-              <div style={{ marginTop: 24 }}>
-                {userProfile?.plan === 'pro' ? (
-                  <button type="button" style={{ 
-                    width: '100%', 
-                    background: 'transparent', 
-                    color: '#E57373', 
-                    border: '1px solid #E57373', 
-                    borderRadius: 14, 
-                    padding: '16px', 
-                    fontSize: '1rem', 
-                    fontWeight: 700,
-                    fontFamily: 'Inter, sans-serif',
-                    cursor: 'pointer'
-                  }}>
-                    Cancel Subscription
-                  </button>
-                ) : (
-                  <button type="button" onClick={() => { setShowBillingMenu(false); setShowPlansModal(true); }} style={{ 
-                    width: '100%', 
-                    background: 'var(--amber-exodo)', 
-                    color: '#000000', 
-                    border: 'none', 
-                    borderRadius: 14, 
-                    padding: '16px', 
-                    fontSize: '1rem', 
-                    fontWeight: 700,
-                    fontFamily: 'Inter, sans-serif',
-                    cursor: 'pointer'
-                  }}>
-                    Upgrade to Pro
-                  </button>
-                )}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: '0.95rem', color: 'var(--text-secondary)', fontFamily: 'Inter, sans-serif' }}>
+                  Current plan
+                </span>
+                <span style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--amber-exodo)', fontFamily: 'Inter, sans-serif' }}>
+                  {userProfile?.plan === 'hazak' ? 'Pro' : 'Free'}
+                </span>
               </div>
 
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: '0.95rem', color: 'var(--text-secondary)', fontFamily: 'Inter, sans-serif' }}>
+                  Gateway
+                </span>
+                <span style={{ fontSize: '1rem', color: 'var(--text-primary)', fontFamily: 'Inter, sans-serif' }}>
+                  {userProfile?.plan === 'hazak' ? 'Stripe / Web Pay' : 'None'}
+                </span>
+              </div>
             </div>
+
+            <div style={{ marginTop: 24 }}>
+              {userProfile?.plan === 'hazak' ? (
+                <button type="button" style={{
+                  width: '100%',
+                  background: 'transparent',
+                  color: '#E57373',
+                  border: '1px solid #E57373',
+                  borderRadius: 14,
+                  padding: '16px',
+                  fontSize: '1rem',
+                  fontWeight: 700,
+                  fontFamily: 'Inter, sans-serif',
+                  cursor: 'pointer'
+                }}>
+                  Cancel Subscription
+                </button>
+              ) : (
+                <button type="button" onClick={() => { setShowBillingMenu(false); setShowPlansModal(true); }} style={{
+                  width: '100%',
+                  background: 'var(--amber-exodo)',
+                  color: '#000000',
+                  border: 'none',
+                  borderRadius: 14,
+                  padding: '16px',
+                  fontSize: '1rem',
+                  fontWeight: 700,
+                  fontFamily: 'Inter, sans-serif',
+                  cursor: 'pointer'
+                }}>
+                  Upgrade to Pro
+                </button>
+              )}
+            </div>
+
           </div>
         </div>
       )}
