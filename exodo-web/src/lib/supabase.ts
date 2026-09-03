@@ -8,7 +8,9 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     persistSession: true,
     autoRefreshToken: true,
     detectSessionInUrl: true,
-    flowType: 'implicit',
+    // PKCE (paridad con el flujo moderno de Supabase): el implicit legacy
+    // mete tokens en el hash y Google lo trata peor (SetSID 400).
+    flowType: 'pkce',
   },
 });
 
