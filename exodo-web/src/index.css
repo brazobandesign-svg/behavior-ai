@@ -187,6 +187,12 @@ body, html, #root {
   flex-shrink: 0;
 }
 
+/* Hamburger del header: solo táctil/móvil (paridad app bar de la app) */
+.header-hamburger {
+  display: none;
+  margin-right: auto;
+}
+
 .floating-token-banner {
   position: absolute;
   top: 18px;
@@ -1282,6 +1288,13 @@ body, html, #root {
 
 /* ── Responsive viewport estrecho (paridad "todo pegado" LG V60, ≤640px) ── */
 @media (max-width: 640px) {
+  /* Sin rail permanente en móvil (la app no lo tiene): se entra por el header */
+  .sidebar-rail {
+    display: none;
+  }
+  .header-hamburger {
+    display: flex;
+  }
   .greeting-text-exodo {
     font-size: 22px;
     text-align: center;

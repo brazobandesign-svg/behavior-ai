@@ -207,7 +207,6 @@ export default function App() {
   }, [searchQuery]);
   // Paridad móvil: tap en el logo del drawer muestra el badge de versión.
   const [showWebVersion, setShowWebVersion] = useState(false);
-  const [showTokenPopup, setShowTokenPopup] = useState(false);
   const [showAccountMenu, setShowAccountMenu] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [showLanguageMenu, setShowLanguageMenu] = useState(false);
@@ -283,7 +282,6 @@ export default function App() {
     plan: 'genesis',
     description: 'Modelo capaz para tareas diarias.'
   });
-  const [showUpgradeBanner, setShowUpgradeBanner] = useState(true);
 
   // Estados de conversación
   const [conversations, setConversations] = useState<Conversation[]>(() => {
@@ -1227,51 +1225,6 @@ export default function App() {
 
     return (
     <div style={{ width: '100%', maxWidth: 820, margin: '0 auto', position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-      {showUpgradeBanner && !isIncognito && (
-        <div style={{
-          width: 'min(92%, 360px)',
-          padding: '4px 16px 24px 16px',
-          position: 'absolute' as const,
-          bottom: 'calc(100% - 18px)',
-          left: '50%',
-          transform: 'translateX(-50%)',
-          zIndex: 1,
-          background: 'var(--banner-bg, #252525)',
-          border: '1px solid var(--banner-border, transparent)',
-          borderBottom: 'none',
-          borderRadius: '20px 20px 0 0',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          flexWrap: 'wrap',
-          gap: '4px 10px',
-          boxSizing: 'border-box' as const,
-          textAlign: 'center'
-        }}>
-          <span style={{ fontFamily: 'AnthropicSans, sans-serif', fontSize: '12px', fontWeight: 600, color: 'var(--banner-text, #F5F2EB)', lineHeight: 1.2 }}>
-            Más capacidad con XPi PRO
-          </span>
-          <button
-            type="button"
-            onClick={() => {
-              // Paridad móvil (punto 6): invitado = no-op silencioso con
-              // háptica suave; nunca abre el modal de compra.
-              if (isGuestUser) { try { navigator.vibrate?.(10); } catch (_) {} return; }
-              setShowPlansModal(true);
-            }}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px', fontFamily: 'AnthropicSans, sans-serif', fontSize: '12px', fontWeight: 700, color: 'var(--amber-exodo)' }}
-          >
-            Actualizar
-          </button>
-          <button
-            type="button"
-            onClick={() => setShowUpgradeBanner(false)}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px 6px', display: 'flex', alignItems: 'center' }}
-          >
-            <X size={16} color="var(--banner-text, #F5F2EB)" />
-          </button>
-        </div>
-      )}
       <div style={{
         width: '100%',
         position: 'relative',
@@ -1765,48 +1718,6 @@ export default function App() {
           </button>
         </div>
 
-        <div style={{ padding: '0 16px 12px 16px', position: 'relative' }}>
-          <div
-            className="header-token-bar"
-            onClick={() => { fetchTodayUsage(); setShowTokenPopup(!showTokenPopup); }}
-            title="Capacidad y tokens de Éxodo"
-            style={{ width: '100%', justifyContent: 'space-between' }}
-          >
-            <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
-              {tokensUsed}/{tokensLimit} tk
-            </span>
-            <div className="token-bar-progress" style={{ width: 100 }}>
-              <div className="token-bar-fill" style={{ width: `${Math.min(100, (tokensUsed / tokensLimit) * 100)}%` }} />
-            </div>
-          </div>
-
-          {showTokenPopup && (() => {
-            // Reinicio a las 12:00 AM AST (America/Santo_Domingo), como la app.
-            const nowAst = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Santo_Domingo' }));
-            const reset = new Date(nowAst); reset.setHours(24, 0, 0, 0);
-            const diffMs = reset.getTime() - nowAst.getTime();
-            const hh = String(Math.floor(diffMs / 3600000)).padStart(2, '0');
-            const mm = String(Math.floor((diffMs % 3600000) / 60000)).padStart(2, '0');
-            const pct = tokensLimit > 0 ? ((tokensUsed / tokensLimit) * 100).toFixed(1) : '0';
-            return (
-              <div className="token-popup-card" style={{ top: 44, left: 16, transform: 'none', width: '258px', zIndex: 60, color: 'var(--text-primary)' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem' }}>
-                  <span>Consumido</span>
-                  <span style={{ fontWeight: 700 }}>{tokensUsed} ({pct}%)</span>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem' }}>
-                  <span>Disponible</span>
-                  <span style={{ fontWeight: 700 }}>{Math.max(0, tokensLimit - tokensUsed).toLocaleString()} tk</span>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem' }}>
-                  <span>Reinicio en</span>
-                  <span style={{ fontWeight: 700 }}>{hh}h {mm}m</span>
-                </div>
-              </div>
-            );
-          })()}
-        </div>
-
         {(showSearchBox || searchQuery.length > 0) && (
           <div className="search-box" style={{ margin: '4px 16px 12px 16px' }}>
             <Search size={16} color="var(--text-muted)" />
@@ -1954,40 +1865,76 @@ export default function App() {
       <main className={`chat-main ${isIncognito ? 'incognito-mode' : ''}`}>
         {/* Barra superior responsiva al zoom (solo iconos derechos ya que menú está en la barra lateral) */}
         <header className="chat-header-bar">
+          <button
+            type="button"
+            className="icon-btn header-hamburger"
+            onClick={() => setDrawerOpen(true)}
+            title="Menú"
+          >
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 5, padding: '4px 2px' }}>
+              <div style={{ width: 20, height: 2, background: 'var(--text-primary)', borderRadius: 1 }} />
+              <div style={{ width: 20, height: 2, background: 'var(--text-primary)', borderRadius: 1 }} />
+              <div style={{ width: 12, height: 2, background: 'var(--text-primary)', borderRadius: 1 }} />
+            </div>
+          </button>
+
+          {isIncognito ? (
+            <div style={{ flex: 1, textAlign: 'center', fontSize: '16px', fontWeight: 600, color: 'var(--text-primary)', letterSpacing: '-0.2px', fontFamily: 'AnthropicSans, sans-serif' }}>
+              Incógnito
+            </div>
+          ) : (
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <button 
-              type="button" 
-              className="icon-btn" 
+            <button
+              type="button"
+              className="icon-btn"
               onClick={handleCreateNewChat}
               title="Nuevo chat"
             >
               <MessageSquare size={20} />
             </button>
 
-            <button 
-              type="button" 
-              className="icon-btn" 
+            <button
+              type="button"
+              className="icon-btn"
               onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
               title="Cambiar tema"
             >
               {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
             </button>
 
-            <button 
-              type="button" 
-              className="icon-btn" 
+            <button
+              type="button"
+              className="icon-btn"
               onClick={() => handleToggleIncognito()}
               title={isIncognito ? "Modo Incógnito activo" : "Modo Incógnito"}
               style={{ color: isIncognito ? 'var(--amber-exodo)' : undefined }}
             >
-              <div 
-                className="mask-icon-incognito" 
-                style={{ 
-                  backgroundColor: isIncognito ? 'var(--amber-exodo)' : undefined 
-                }} 
+              <div
+                className="mask-icon-incognito"
+                style={{
+                  backgroundColor: isIncognito ? 'var(--amber-exodo)' : undefined
+                }}
               />
             </button>
           </div>
+          )}
+
+          {isIncognito && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <button
+                type="button"
+                className="icon-btn"
+                onClick={() => handleToggleIncognito()}
+                title="Salir de incógnito"
+                style={{ color: 'var(--amber-exodo)' }}
+              >
+                <div
+                  className="mask-icon-incognito"
+                  style={{ backgroundColor: 'var(--amber-exodo)' }}
+                />
+              </button>
+            </div>
+          )}
         </header>
 
         {isInitializing ? (
