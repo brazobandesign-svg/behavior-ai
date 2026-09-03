@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Shield } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
@@ -10,6 +10,23 @@ interface AuthModalProps {
 
 export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess }) => {
   const [loading, setLoading] = useState(false);
+
+  // Si se vuelve al modal sin sesión (botón atrás, 400 de Google, etc.),
+  // desbloquear: sin esto los botones quedan disabled para siempre y
+  // "no pasa nada" al pulsar (sin ningún aviso visual).
+  useEffect(() => {
+    if (isOpen) setLoading(false);
+  }, [isOpen]);
+
+  useEffect(() => {
+    const unlock = () => setLoading(false);
+    window.addEventListener('pageshow', unlock);
+    window.addEventListener('focus', unlock);
+    return () => {
+      window.removeEventListener('pageshow', unlock);
+      window.removeEventListener('focus', unlock);
+    };
+  }, []);
 
   if (!isOpen) return null;
 
@@ -182,6 +199,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess
             justifyContent: 'center',
             gap: 14,
             cursor: loading ? 'wait' : 'pointer',
+            opacity: loading ? 0.6 : 1,
             boxShadow: '0 2px 10px rgba(0,0,0,0.3)',
             fontWeight: 700,
             fontSize: '16px',
@@ -245,13 +263,14 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess
               borderRadius: 25,
               backgroundColor: '#191919',
               border: 'none',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              cursor: 'pointer'
-            }}
-          >
-            <img src="/github_logo.png" alt="GitHub" style={{ width: 26, height: 26 }} />
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            cursor: 'pointer',
+            opacity: loading ? 0.6 : 1
+          }}
+        >
+          <img src="/github_logo.png" alt="GitHub" style={{ width: 26, height: 26 }} />
           </button>
         </div>
 
