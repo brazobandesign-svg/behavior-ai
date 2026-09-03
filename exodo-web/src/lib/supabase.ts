@@ -28,6 +28,12 @@ export interface Source {
   favicon?: string;
 }
 
+export interface Attachment {
+  name: string;
+  mime: string;
+  preview?: string;
+}
+
 export interface Message {
   id: string;
   conversation_id: string;
@@ -37,4 +43,5 @@ export interface Message {
   isThinking?: boolean;
   sources?: Source[] | null;
   isDegraded?: boolean;
+  attachments?: Attachment[] | null;
 }

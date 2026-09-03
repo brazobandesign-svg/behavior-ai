@@ -152,8 +152,14 @@ export default function App() {
   const [theme, setTheme] = useState<'dark' | 'light'>(() => (localStorage.getItem('exodo_theme') as 'dark' | 'light') || 'dark');
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [isIncognito, setIsIncognito] = useState(false);
+  // Invitado (paridad isGuestUser de app_state.dart): usuario anónimo de
+  // Supabase = solo local, sin nube (sin perfil, sin conversaciones en DB,
+  // sin medidor), modelo bloqueado y sin upgrade — como la app.
+  const isGuestUser = !!session?.user?.is_anonymous;
   const [searchQuery, setSearchQuery] = useState('');
-  const [showSearchBox] = useState(false);
+  const [showSearchBox, setShowSearchBox] = useState(false);
+  // Paridad móvil: tap en el logo del drawer muestra el badge de versión.
+  const [showWebVersion, setShowWebVersion] = useState(false);
   const [showTokenPopup, setShowTokenPopup] = useState(false);
   const [showAccountMenu, setShowAccountMenu] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
@@ -172,6 +178,10 @@ export default function App() {
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameDraft, setRenameDraft] = useState('');
   const [chatNotice, setChatNotice] = useState<string | null>(null);
+  // Feedback de mensajes (paridad _AssistantActionsBar móvil: modal con
+  // comentario → insert en tabla `feedback`; envío silencioso).
+  const [feedbackTarget, setFeedbackTarget] = useState<{ msg: Message; isLike: boolean } | null>(null);
+  const [feedbackComment, setFeedbackComment] = useState('');
   // Historial en la nube (paridad setCloudHistoryEnabled de app_state.dart):
   // OFF = turnos efímeros (no se crea conversación en DB ni se envía
   // conversationId al backend, como incógnito pero con UI normal).
@@ -198,7 +208,7 @@ export default function App() {
   };
 
   const fetchTodayUsage = async () => {
-    if (!session?.user || isIncognito) {
+    if (!session?.user || isIncognito || session.user.is_anonymous) {
       setTokensUsed(0);
       return;
     }
@@ -323,7 +333,12 @@ export default function App() {
         }
         if (session) setSession(session);
         if (session?.user) {
-          fetchProfile(session.user.id);
+          // Invitado: sin nube (paridad guest móvil: todo local).
+          if (!session.user.is_anonymous) {
+            fetchProfile(session.user.id);
+            fetchConversations();
+            fetchTodayUsage();
+          }
           setShowAuthModal(false);
           if (window.location.search.includes('code=') || window.location.hash.includes('access_token=')) {
             window.history.replaceState({}, document.title, window.location.pathname);
@@ -335,9 +350,15 @@ export default function App() {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
       if (session?.user) {
-        fetchProfile(session.user.id);
-        fetchConversations();
-        fetchTodayUsage();
+        if (!session.user.is_anonymous) {
+          fetchProfile(session.user.id);
+          fetchConversations();
+          fetchTodayUsage();
+        } else {
+          // Invitado: limpiar restos de una sesión anterior con cuenta.
+          setUserProfile(null);
+          setTokensUsed(0);
+        }
         setShowAuthModal(false);
         if (window.location.search.includes('code=') || window.location.hash.includes('access_token=')) {
           window.history.replaceState({}, document.title, window.location.pathname);
@@ -439,6 +460,58 @@ export default function App() {
     }
   };
 
+  // ── Feedback (paridad submitFeedback de supabase_service.dart) ──
+  const submitFeedback = async () => {
+    const target = feedbackTarget;
+    if (!target || !session?.user) { setFeedbackTarget(null); return; }
+    const es = (locale || 'es').toLowerCase().startsWith('es');
+    try {
+      const { error } = await supabase.from('feedback').insert({
+        user_id: session.user.id,
+        is_like: target.isLike,
+        comment: feedbackComment.trim(),
+        message_excerpt: target.msg.content.length > 500 ? target.msg.content.substring(0, 500) : target.msg.content,
+        conversation_id: activeConvId && !activeConvId.startsWith('conv-') ? activeConvId : null,
+        app_locale: es ? 'es' : 'en',
+        app_version: 'web',
+      });
+      if (error) throw error;
+      setChatNotice(es ? '¡Gracias por tu feedback!' : 'Thanks for your feedback!');
+    } catch (e) {
+      console.warn('Error enviando feedback:', e);
+      setChatNotice(es ? 'No se pudo enviar el feedback. Intenta de nuevo.' : 'Could not send feedback. Please try again.');
+    }
+    setTimeout(() => setChatNotice(null), 3000);
+    setFeedbackTarget(null);
+    setFeedbackComment('');
+  };
+
+  // ── Compartir respuesta (paridad share móvil: contenido + Play URL) ──
+  const shareMessage = async (content: string) => {
+    const es = (locale || 'es').toLowerCase().startsWith('es');
+    const text = `${content}\n\n${es ? 'Descarga Éxodo AI en Google Play:' : 'Download Exodo AI on Google Play:'}\nhttps://play.google.com/store/apps/details?id=com.behavior.exodo`;
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: 'Éxodo AI', text });
+        return;
+      }
+      throw new Error('no-share');
+    } catch (_) {
+      try {
+        await navigator.clipboard.writeText(text);
+        setChatNotice(es ? 'Respuesta copiada para compartir.' : 'Answer copied to share.');
+        setTimeout(() => setChatNotice(null), 3000);
+      } catch (_) {}
+    }
+  };
+
+  // ── Editar mensaje propio (paridad startEditingMessage simplificada:
+  // carga el texto en el composer para reenviarlo corregido) ──
+  const editMessage = (msg: Message) => {
+    setInput(msg.content);
+    scrollToBottom();
+    try { document.querySelector<HTMLTextAreaElement>('.composer-input')?.focus(); } catch (_) {}
+  };
   // ── Ajustes de cuenta (paridad móvil: exportar datos / borrar cuenta) ──
   const exportMyData = async () => {
     setShowAccountMenu(false);
@@ -602,20 +675,25 @@ export default function App() {
 
   const handleSendMessage = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    if (!input.trim() || isStreaming) return;
+    if ((!input.trim() && pendingAttachments.length === 0) || isStreaming) return;
 
     const userText = input.trim();
+    const outgoingAttachments = pendingAttachments.map((a) => ({ mime_type: a.mime, file_name: a.name, base64: a.base64 }));
+    const outgoingPreviews = pendingAttachments.map((a) => ({ name: a.name, mime: a.mime, preview: a.preview }));
     setInput('');
+    setPendingAttachments([]);
 
     let currentConvId = activeConvId;
 
-    // Si es un chat temporal y el usuario está logueado (y con historial en
-    // la nube activado), crear la conversación real en DB primero.
-    const persistToCloud = !!session?.user && !isIncognito && cloudHistoryEnabled;
+    // Si es un chat temporal y hay cuenta real con historial en la nube,
+    // crear la conversación real en DB primero. Invitado e incógnito:
+    // todo local, sin nube (paridad guest móvil).
+    const persistToCloud = !!session?.user && !isIncognito && !isGuestUser && cloudHistoryEnabled;
     if (currentConvId && currentConvId.startsWith('conv-') && persistToCloud) {
+      const titleSeed = userText || outgoingAttachments[0]?.file_name || 'Nueva conversación';
       const { data, error } = await supabase.from('conversations').insert({
         user_id: session.user.id,
-        title: userText.length > 35 ? userText.substring(0, 35) + '...' : userText,
+        title: titleSeed.length > 35 ? titleSeed.substring(0, 35) + '...' : titleSeed,
         model_plan: selectedModel.plan || 'genesis',
         is_incognito: isIncognito
       }).select().single();
@@ -640,7 +718,8 @@ export default function App() {
       conversation_id: currentConvId || 'default',
       role: 'user',
       content: userText,
-      created_at: new Date().toISOString()
+      created_at: new Date().toISOString(),
+      attachments: outgoingPreviews.length > 0 ? outgoingPreviews : undefined
     };
 
     const thinkingMsg: Message = {
@@ -672,7 +751,8 @@ export default function App() {
           conversationId: persistToCloud && currentConvId && !currentConvId.startsWith('conv-') ? currentConvId : undefined,
           model_override: selectedModel.id,
           isIncognito: isIncognito || !cloudHistoryEnabled,
-          locale: locale || 'es'
+          locale: locale || 'es',
+          attachments: outgoingAttachments.length > 0 ? outgoingAttachments : undefined
         })
       });
 
@@ -778,6 +858,18 @@ export default function App() {
     }
   };
 
+  // Nombre visible del idioma actual (paridad _currentLocaleFlag móvil).
+  const localeDisplayName = (() => {
+    const map: Record<string, string> = {
+      es: 'Español (Latinoamérica)', en: 'English (US)', en_GB: 'English (UK)',
+      pt_BR: 'Português (Brasil)', pt: 'Português (Portugal)', fr: 'Français',
+      ht: 'Kreyòl Ayisyen', it: 'Italiano', de: 'Deutsch', ru: 'Русский',
+      zh: '中文', ja: '日本語', ar: 'العربية', ko: '한국어', hi: 'हिन्दी',
+    };
+    if (!locale || locale.startsWith('es')) return map.es;
+    return map[locale] || map[locale.split(/[-_]/)[0]] || 'English (US)';
+  })();
+
   const filteredConvs = conversations.filter((c) =>
     c.title.toLowerCase().includes(searchQuery.toLowerCase())
   );
@@ -802,9 +894,51 @@ export default function App() {
     return `Buenas noches, ${name}`;
   };
 
+  // Adjuntos pendientes (paridad ChatComposer móvil: imágenes a visión,
+  // documentos a extracción de texto; el backend los recibe en `attachments`
+  // como {mime_type, file_name, base64}).
+  const [pendingAttachments, setPendingAttachments] = useState<Array<{ name: string; mime: string; base64: string; preview?: string }>>([]);
+  const fileInputRef = React.useRef<HTMLInputElement | null>(null);
+
+  const pickAttachments = () => {
+    fileInputRef.current?.click();
+  };
+
+  const onFilesPicked = async (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+    const MAX_FILES = 3;
+    const MAX_BYTES = 5 * 1024 * 1024;
+    const room = Math.max(0, MAX_FILES - pendingAttachments.length);
+    const chosen = Array.from(files).slice(0, room);
+    const read: Array<{ name: string; mime: string; base64: string; preview?: string }> = [];
+    for (const f of chosen) {
+      if (f.size > MAX_BYTES) {
+        setChatNotice(`"${f.name}" supera 5 MB y no se adjuntó.`);
+        setTimeout(() => setChatNotice(null), 4000);
+        continue;
+      }
+      const base64: string = await new Promise<string>((resolve, reject) => {
+        const r = new FileReader();
+        r.onload = () => resolve(String(r.result || ''));
+        r.onerror = reject;
+        r.readAsDataURL(f);
+      }).catch(() => '');
+      if (!base64) continue;
+      const b64 = base64.includes(',') ? base64.split(',')[1] : base64;
+      read.push({
+        name: f.name,
+        mime: f.type || 'application/octet-stream',
+        base64: b64,
+        preview: f.type.startsWith('image/') ? base64 : undefined,
+      });
+    }
+    if (read.length > 0) setPendingAttachments((prev) => [...prev, ...read].slice(0, MAX_FILES));
+  };
+
   const renderChatComposer = (isPinned: boolean = false) => {
-    const isModelLocked = !session?.user || isIncognito;
-    const displayModelTitle = !session?.user ? 'G1.1' : selectedModel.title;
+    // Paridad móvil (punto 6): incógnito E invitado tienen el modelo bloqueado.
+    const isModelLocked = !session?.user || isIncognito || isGuestUser;
+    const displayModelTitle = (!session?.user || isGuestUser) ? 'G1.1' : selectedModel.title;
 
     return (
     <div style={{ width: '100%', maxWidth: 820, margin: '0 auto', position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
@@ -834,7 +968,12 @@ export default function App() {
           </span>
           <button
             type="button"
-            onClick={() => alert('Upgrade modal')}
+            onClick={() => {
+              // Paridad móvil (punto 6): invitado = no-op silencioso con
+              // háptica suave; nunca abre el modal de compra.
+              if (isGuestUser) { try { navigator.vibrate?.(10); } catch (_) {} return; }
+              setShowPlansModal(true);
+            }}
             style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px', fontFamily: 'AnthropicSans, sans-serif', fontSize: '12px', fontWeight: 700, color: 'var(--amber-exodo)' }}
           >
             Actualizar
@@ -874,6 +1013,27 @@ export default function App() {
             transition: 'background 0.25s ease, box-shadow 0.25s ease'
           }}
         >
+          {pendingAttachments.length > 0 && (
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', padding: '0 6px 10px 6px' }}>
+              {pendingAttachments.map((a, i) => (
+                <div key={`${a.name}-${i}`} style={{ position: 'relative', width: 56, height: 56, borderRadius: 12, overflow: 'hidden', background: 'var(--surface-card)', border: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'center' }} title={a.name}>
+                  {a.preview ? (
+                    <img src={a.preview} alt={a.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  ) : (
+                    <span style={{ fontSize: '0.6rem', color: 'var(--text-secondary)', padding: 4, textAlign: 'center', overflow: 'hidden' }}>{a.name}</span>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setPendingAttachments((prev) => prev.filter((_, j) => j !== i))}
+                    style={{ position: 'absolute', top: 2, right: 2, width: 18, height: 18, borderRadius: '50%', background: 'rgba(0,0,0,0.65)', color: '#fff', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}
+                    title="Quitar"
+                  >
+                    <X size={12} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
           <div style={{ position: 'relative', width: '100%', display: 'flex' }}>
             <TextareaAutosize
               ref={textareaRef as any}
@@ -942,10 +1102,18 @@ export default function App() {
                 className="icon-btn" 
                 style={{ width: 36, height: 36, borderRadius: '50%', background: 'var(--model-chip-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                 title="Adjuntar archivos"
-                onClick={() => alert('Selector de adjuntos sincronizado con nube')}
+                onClick={pickAttachments}
               >
                 <Plus size={20} color="var(--chip-icon-color)" />
               </button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                multiple
+                accept="image/*,.pdf,.txt,.md,.csv"
+                style={{ display: 'none' }}
+                onChange={(e) => { onFilesPicked(e.target.files); e.target.value = ''; }}
+              />
 
               <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
                 <button
@@ -1057,19 +1225,19 @@ export default function App() {
 
             <button
               type="submit"
-              disabled={!input.trim() || isStreaming}
+              disabled={!(input.trim() || pendingAttachments.length > 0) || isStreaming}
               style={{
                 width: 38,
                 height: 38,
                 borderRadius: '50%',
-                background: input.trim() && !isStreaming ? 'var(--send-btn-bg)' : 'var(--send-btn-disabled)',
-                color: input.trim() && !isStreaming ? 'var(--send-btn-color)' : 'var(--text-muted)',
+                background: (input.trim() || pendingAttachments.length > 0) && !isStreaming ? 'var(--send-btn-bg)' : 'var(--send-btn-disabled)',
+                color: (input.trim() || pendingAttachments.length > 0) && !isStreaming ? 'var(--send-btn-color)' : 'var(--text-muted)',
                 border: 'none',
                 outline: 'none',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                cursor: input.trim() && !isStreaming ? 'pointer' : 'default',
+                cursor: (input.trim() || pendingAttachments.length > 0) && !isStreaming ? 'pointer' : 'default',
                 transition: 'background 0.2s ease, color 0.2s ease'
               }}
               title="Enviar"
@@ -1112,9 +1280,25 @@ export default function App() {
 
       <aside className={`drawer-slide ${drawerOpen ? 'open' : ''}`}>
         <div className="drawer-header" style={{ padding: '16px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: 'none' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <img src="/Logo_behavior.png" alt="Éxodo Logo" style={{ width: 28, height: 28, objectFit: 'contain' }} />
-            <div className="mask-text-yeso" style={{ width: 84, height: 24 }} />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }} onClick={() => setShowWebVersion((v) => !v)} title="Versión">
+              <img src="/Logo_behavior.png" alt="Éxodo Logo" style={{ width: 28, height: 28, objectFit: 'contain' }} />
+              <div className="mask-text-yeso" style={{ width: 84, height: 24 }} />
+            </div>
+            {showWebVersion && (
+              <div style={{
+                alignSelf: 'flex-start',
+                padding: '4px 10px',
+                borderRadius: 6,
+                border: '1px solid rgba(201, 147, 58, 0.3)',
+                color: 'var(--amber-exodo)',
+                fontSize: '10.5px',
+                fontWeight: 600,
+                fontFamily: 'AnthropicSans, sans-serif'
+              }}>
+                Éxodo Web
+              </div>
+            )}
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             <button type="button" className="icon-btn" onClick={() => setDrawerOpen(false)} style={{ width: 32, height: 32 }}>
@@ -1145,8 +1329,18 @@ export default function App() {
             onClick={() => { handleToggleIncognito(); setDrawerOpen(false); }}
             style={{ marginBottom: 4, padding: '10px 12px' }}
           >
-            <div className="mask-icon-incognito" style={{ backgroundColor: 'var(--text-primary)' }} />
-            <span style={{ fontSize: '0.94rem' }}>Modo Incógnito</span>
+            <div className="mask-icon-incognito" style={{ backgroundColor: isIncognito ? 'var(--amber-exodo)' : 'var(--text-primary)' }} />
+            <span style={{ fontSize: '0.94rem', color: isIncognito ? 'var(--amber-exodo)' : undefined }}>Modo Incógnito</span>
+          </button>
+
+          <button
+            type="button"
+            className="drawer-item"
+            onClick={() => setShowSearchBox(true)}
+            style={{ marginBottom: 4, padding: '10px 12px' }}
+          >
+            <Search size={20} color="var(--text-primary)" />
+            <span style={{ fontSize: '0.94rem' }}>Buscar chats</span>
           </button>
         </div>
 
@@ -1204,7 +1398,7 @@ export default function App() {
               autoFocus
             />
             {searchQuery && (
-              <button type="button" onClick={() => setSearchQuery('')} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
+              <button type="button" onClick={() => { setSearchQuery(''); setShowSearchBox(false); }} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
                 <X size={16} color="var(--text-muted)" />
               </button>
             )}
@@ -1383,7 +1577,7 @@ export default function App() {
         </div>
 
         <div style={{ borderTop: '1px solid var(--border-color)', position: 'relative' }}>
-          {session?.user ? (
+          {session?.user && !isGuestUser ? (
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', cursor: 'pointer' }} onClick={() => setShowAccountMenu(true)}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12, overflow: 'hidden' }}>
                 {(session.user.user_metadata?.avatar_url || session.user.user_metadata?.picture) ? (
@@ -1574,6 +1768,19 @@ export default function App() {
                             {msg.content}
                           </ReactMarkdown>
                         )}
+                        {msg.role === 'user' && msg.attachments && msg.attachments.length > 0 && (
+                          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: msg.content.trim() ? 8 : 0 }}>
+                            {msg.attachments.map((a, i) => (
+                              <div key={i} style={{ width: 48, height: 48, borderRadius: 10, overflow: 'hidden', background: 'var(--surface-card)', display: 'flex', alignItems: 'center', justifyContent: 'center' }} title={a.name}>
+                                {a.preview ? (
+                                  <img src={a.preview} alt={a.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                ) : (
+                                  <span style={{ fontSize: '0.55rem', color: 'var(--text-secondary)', padding: 3, textAlign: 'center', overflow: 'hidden' }}>{a.name}</span>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </div>
 
                       {msg.role === 'assistant' && msg.isDegraded && (
@@ -1618,6 +1825,9 @@ export default function App() {
                       
                       {msg.role === 'user' && (
                         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', color: 'var(--text-secondary)', marginTop: '4px', opacity: 0.7, paddingRight: '6px', fontFamily: 'Inter, sans-serif' }}>
+                          <button style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', color: 'inherit' }} onClick={() => editMessage(msg)} title="Editar">
+                            <Edit2 size={14} />
+                          </button>
                           <button style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', color: 'inherit' }} onClick={() => navigator.clipboard.writeText(msg.content)} title="Copiar">
                             <div style={{ width: 14, height: 14, backgroundColor: 'currentColor', WebkitMaskImage: 'url(/copy-2-svgrepo-com.png)', WebkitMaskSize: 'contain', WebkitMaskRepeat: 'no-repeat', maskImage: 'url(/copy-2-svgrepo-com.png)', maskSize: 'contain', maskRepeat: 'no-repeat' }} />
                           </button>
@@ -1630,13 +1840,13 @@ export default function App() {
                           <button className="action-btn" onClick={() => navigator.clipboard.writeText(msg.content)} title="Copiar">
                             <div style={{ width: 16, height: 16, backgroundColor: 'var(--text-secondary)', WebkitMaskImage: 'url(/copy-2-svgrepo-com.png)', WebkitMaskSize: 'contain', WebkitMaskRepeat: 'no-repeat', maskImage: 'url(/copy-2-svgrepo-com.png)', maskSize: 'contain', maskRepeat: 'no-repeat' }} />
                           </button>
-                          <button className="action-btn" title="Me gusta">
+                          <button className="action-btn" onClick={() => { setFeedbackComment(''); setFeedbackTarget({ msg, isLike: true }); }} title="Me gusta">
                             <div style={{ width: 16, height: 16, backgroundColor: 'var(--text-secondary)', WebkitMaskImage: 'url(/like-1-svgrepo-com.png)', WebkitMaskSize: 'contain', WebkitMaskRepeat: 'no-repeat', maskImage: 'url(/like-1-svgrepo-com.png)', maskSize: 'contain', maskRepeat: 'no-repeat' }} />
                           </button>
-                          <button className="action-btn" title="No me gusta">
+                          <button className="action-btn" onClick={() => { setFeedbackComment(''); setFeedbackTarget({ msg, isLike: false }); }} title="No me gusta">
                             <div style={{ width: 16, height: 16, backgroundColor: 'var(--text-secondary)', WebkitMaskImage: 'url(/like-1-svgrepo-com.png)', WebkitMaskSize: 'contain', WebkitMaskRepeat: 'no-repeat', maskImage: 'url(/like-1-svgrepo-com.png)', maskSize: 'contain', maskRepeat: 'no-repeat', transform: 'scaleY(-1)' }} />
                           </button>
-                          <button className="action-btn" title="Compartir">
+                          <button className="action-btn" onClick={() => shareMessage(msg.content)} title="Compartir">
                             <div style={{ width: 16, height: 16, backgroundColor: 'var(--text-secondary)', WebkitMaskImage: 'url(/share-svgrepo-com.png)', WebkitMaskSize: 'contain', WebkitMaskRepeat: 'no-repeat', maskImage: 'url(/share-svgrepo-com.png)', maskSize: 'contain', maskRepeat: 'no-repeat' }} />
                           </button>
                         </div>
@@ -1764,11 +1974,13 @@ export default function App() {
                 {session?.user?.email || 'usuario@exodo.ai'}
               </span>
               <div style={{ background: 'var(--text-primary)', color: 'var(--surface-card)', padding: '4px 12px', borderRadius: 20, fontSize: '0.85rem', fontWeight: 700 }}>
-                {userProfile?.plan === 'pro' ? 'Pro' : 'Pro'}
+                {userProfile?.plan === 'hazak' ? 'Pro' : 'Free'}
               </div>
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              {/* Paridad móvil: Profile y Billing NO disponibles para invitados */}
+              {!isGuestUser && (
               <div style={{ background: 'var(--surface-input)', borderRadius: 16, padding: '18px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer' }} onClick={() => { setShowAccountMenu(false); setShowProfileMenu(true); }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
                   <MaterialProfileIcon size={22} color="var(--text-primary)" />
@@ -1776,18 +1988,20 @@ export default function App() {
                 </div>
                 <ChevronRight size={20} color="var(--text-secondary)" />
               </div>
+              )}
 
               <div style={{ background: 'var(--surface-input)', borderRadius: 16, padding: '14px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer' }} onClick={() => { setShowAccountMenu(false); setShowLanguageMenu(true); }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
                   <Globe size={22} color="var(--text-primary)" />
                   <div style={{ display: 'flex', flexDirection: 'column' }}>
                     <span style={{ fontSize: '1.05rem', fontWeight: 600, color: 'var(--text-primary)' }}>Language</span>
-                    <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>English (US) 🇺🇸</span>
+                    <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>{localeDisplayName}</span>
                   </div>
                 </div>
                 <ChevronRight size={20} color="var(--text-secondary)" />
               </div>
 
+              {!isGuestUser && (
               <div style={{ background: 'var(--surface-input)', borderRadius: 16, padding: '18px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer' }} onClick={() => { setShowAccountMenu(false); setShowBillingMenu(true); }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
                   <MaterialBillingIcon size={22} color="var(--text-primary)" />
@@ -1795,6 +2009,7 @@ export default function App() {
                 </div>
                 <ChevronRight size={20} color="var(--text-secondary)" />
               </div>
+              )}
 
               <div style={{ background: 'var(--surface-input)', borderRadius: 16, padding: '18px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer' }} onClick={() => setShowAccountMenu(false)}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
@@ -2462,6 +2677,57 @@ export default function App() {
           </div>
         </div>
       )}
+
+      {/* Feedback Modal (paridad showFeedbackModal móvil) */}
+      {feedbackTarget && (() => {
+        const es = (locale || 'es').toLowerCase().startsWith('es');
+        return (
+          <div style={{ position: 'fixed', inset: 0, zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+            <div style={{ position: 'absolute', inset: 0, background: 'rgba(0, 0, 0, 0.6)', backdropFilter: 'blur(4px)' }} onClick={() => { setFeedbackTarget(null); setFeedbackComment(''); }} />
+            <div style={{
+              position: 'relative', background: 'var(--surface-card)',
+              width: '100%', maxWidth: 420, borderRadius: 16, padding: '20px 20px 16px 20px',
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+                <span style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-primary)', fontFamily: 'AnthropicSans, sans-serif' }}>
+                  {feedbackTarget.isLike
+                    ? (es ? 'Comentarios positivos' : 'Provide positive feedback')
+                    : (es ? 'Comentarios de mejora' : 'Provide feedback')}
+                </span>
+              </div>
+              <textarea
+                autoFocus
+                rows={3}
+                value={feedbackComment}
+                onChange={(e) => setFeedbackComment(e.target.value)}
+                placeholder={es ? 'Cuéntanos qué te gustó o cómo podemos mejorar...' : 'Tell us what you liked or how we can improve...'}
+                style={{
+                  width: '100%', boxSizing: 'border-box', resize: 'vertical',
+                  background: 'var(--surface-input)', border: '1px solid transparent',
+                  borderRadius: 10, padding: '12px 14px', color: 'var(--text-primary)',
+                  fontSize: '0.9rem', fontFamily: 'AnthropicSans, sans-serif', outline: 'none',
+                }}
+              />
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 12 }}>
+                <button
+                  type="button"
+                  onClick={() => { setFeedbackTarget(null); setFeedbackComment(''); }}
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)', fontSize: '0.9rem', fontWeight: 500, padding: '8px 12px' }}
+                >
+                  {es ? 'Cancelar' : 'Cancel'}
+                </button>
+                <button
+                  type="button"
+                  onClick={submitFeedback}
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--amber-exodo)', fontSize: '0.9rem', fontWeight: 700, padding: '8px 12px' }}
+                >
+                  {es ? 'Enviar' : 'Send'}
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }

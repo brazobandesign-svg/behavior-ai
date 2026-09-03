@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Shield } from 'lucide-react';
+import { Shield } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
 interface AuthModalProps {
@@ -60,10 +60,16 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess
   const handleGuestSignIn = async () => {
     setLoading(true);
     try {
-      const { error } = await supabase.auth.signInAnonymously();
-      if (error) throw error;
+      // Paridad móvil (_signInAsGuest): anónimo con timeout de 2s; si cuelga,
+      // se entra igual en modo invitado (la app llama continueAsGuest).
+      await Promise.race([
+        supabase.auth.signInAnonymously().then(({ error }) => {
+          if (error) throw error;
+        }),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 2000)),
+      ]);
     } catch (err) {
-      console.warn('Fallback acceso como invitado al milisegundo 0:', err);
+      console.warn('Acceso como invitado (timeout o fallo, se continúa igual):', err);
     } finally {
       setLoading(false);
       onSuccess();
@@ -71,7 +77,15 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess
     }
   };
 
+  const handleAppleTap = () => {
+    // Paridad móvil: el botón no abre nada, solo háptica sutil
+    // ("Próximamente" para que no parezca roto).
+    try { navigator.vibrate?.(10); } catch (_) {}
+  };
+
   return (
+    // Paridad AuthScreen móvil: pantalla completa en Negro Cálido (#0E0C0A),
+    // SIN botón de cierre (el login es la puerta, no se descarta).
     <div style={{
       position: 'fixed',
       top: 0,
@@ -80,48 +94,27 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess
       bottom: 0,
       backgroundColor: '#0E0C0A',
       display: 'flex',
-      alignItems: 'center',
+      alignItems: 'flex-start',
       justifyContent: 'center',
       zIndex: 200,
-      padding: 28,
+      padding: '180px 28px 28px 28px',
       overflowY: 'auto'
     }}>
-      {/* Botón de cierre discreto arriba a la derecha */}
-      <button
-        onClick={onClose}
-        style={{
-          position: 'absolute',
-          top: 28,
-          right: 28,
-          background: 'transparent',
-          border: 'none',
-          color: '#9E9689',
-          cursor: 'pointer',
-          padding: 8
-        }}
-        title="Cerrar"
-      >
-        <X size={24} />
-      </button>
-
       <div style={{
         width: '100%',
         maxWidth: 360,
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
-        paddingTop: 40,
-        paddingBottom: 28
       }}>
-        {/* Pila de logos exacta del móvil (#0E0C0A) */}
+        {/* Pila de logos exacta del móvil: 96 / 60 / 40 con offset -22 */}
         <div style={{
-          height: 180,
+          height: 200,
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
           justifyContent: 'flex-end',
           position: 'relative',
-          marginBottom: 36
         }}>
           {/* Logo_behavior.png tintado ámbar (#C9933A) */}
           <div style={{
@@ -136,13 +129,12 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess
             maskSize: 'contain',
             maskRepeat: 'no-repeat',
             maskPosition: 'center',
-            marginBottom: 8
           }} />
 
           {/* exodo_text.png tintado yeso (#F5F2EB) */}
           <div style={{
-            width: 160,
-            height: 48,
+            width: 200,
+            height: 60,
             backgroundColor: '#F5F2EB',
             WebkitMaskImage: 'url(/exodo_text.png)',
             WebkitMaskSize: 'contain',
@@ -154,10 +146,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess
             maskPosition: 'center'
           }} />
 
-          {/* bybehavior_text.png tintado yeso offset -18px */}
+          {/* bybehavior_text.png tintado yeso offset -22px */}
           <div style={{
-            width: 110,
-            height: 28,
+            width: 157,
+            height: 40,
             backgroundColor: '#F5F2EB',
             WebkitMaskImage: 'url(/bybehavior_text.png)',
             WebkitMaskSize: 'contain',
@@ -167,9 +159,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess
             maskSize: 'contain',
             maskRepeat: 'no-repeat',
             maskPosition: 'center',
-            transform: 'translateY(-12px)'
+            transform: 'translateY(-22px)'
           }} />
         </div>
+
+        <div style={{ height: 24 }} />
 
         {/* 1. Botón Continuar con Google (#F5F2EB píldora) */}
         <button
@@ -196,14 +190,17 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess
             transition: 'all 0.15s'
           }}
         >
-          <img src="/google_logo.png" alt="Google" style={{ width: 24, height: 24 }} />
-          <span>{loading ? 'Conectando...' : 'Continuar con Google'}</span>
+          <img src="/google_logo.png" alt="Google" style={{ width: 26, height: 26 }} />
+          <span>Continuar con Google</span>
         </button>
 
-        {/* 2. Botón Continuar con Apple (Deshabilitado / surface #191919) */}
+        {/* 2. Botón Continuar con Apple (paridad móvil: no abre nada, solo
+            háptica sutil — "Próximamente" para que no parezca roto) */}
         <button
           type="button"
-          disabled
+          onClick={handleAppleTap}
+          disabled={loading}
+          title="Próximamente"
           style={{
             width: '100%',
             height: 54,
@@ -275,7 +272,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess
               gap: 8,
               cursor: loading ? 'wait' : 'pointer',
               fontFamily: 'Inter, sans-serif',
-              fontSize: '0.9rem',
+              fontSize: '14px',
               fontWeight: 500,
               textDecoration: 'underline'
             }}
