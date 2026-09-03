@@ -377,29 +377,64 @@ export default function App() {
       alert(`No se pudo iniciar sesión con Google.\nError: ${oauthError}\nDescripción: ${decodeURIComponent(oauthErrorDesc || 'Desconocida')}\n\n⚠️ Consejo: Verifica en tu proyecto de Supabase (zyvaakfsnlqlgrjdigkr -> Authentication -> URL Configuration -> Redirect URLs) que la URL "${window.location.origin}" esté agregada a la lista blanca de redirecciones permitidas.`);
     }
 
-    // Retraso de 100ms en getSession para no competir con el bloqueo interno (_acquireLock) de Supabase
+    // Retorno de OAuth (Google/GitHub): canje EXPLÍCITO del ?code= con
+    // diagnóstico visible. El auto-canje a veces falla en silencio y el
+    // usuario "selecciona cuenta y no entra" sin ningún mensaje.
     const sessionTimeout = setTimeout(() => {
-      supabase.auth.getSession().then(({ data: { session }, error }) => {
-        if (error) {
-          console.error('Error al obtener sesión / intercambiar código de Google:', error);
-          if (window.location.search.includes('code=')) {
-            alert(`Error al verificar la autenticación con Google: ${error.message}\n\nPor favor intenta de nuevo o verifica la configuración del dominio.`);
-          }
+      const hasCode = window.location.search.includes('code=');
+      const finishOAuthReturn = () => {
+        if (window.location.search.includes('code=') || window.location.hash.includes('access_token=')) {
+          window.history.replaceState({}, document.title, window.location.pathname);
         }
-        if (session) setSession(session);
-        if (session?.user) {
-          // Invitado: sin nube (paridad guest móvil: todo local).
-          if (!session.user.is_anonymous) {
-            fetchProfile(session.user.id);
-            fetchConversations();
-            fetchTodayUsage();
+      };
+      const doGetSession = () => {
+        supabase.auth.getSession().then(({ data: { session }, error }) => {
+          if (error) {
+            console.error('Error al obtener sesión / intercambiar código:', error);
+            if (hasCode) {
+              alert(`No se completó el acceso con Google.\n\nDetalle técnico: ${error.message}\n\nSi el detalle menciona cookies o "verifier", permite cookies de terceros para accounts.google.com y reintenta.`);
+              finishOAuthReturn();
+            }
+            return;
           }
-          setShowAuthModal(false);
-          if (window.location.search.includes('code=') || window.location.hash.includes('access_token=')) {
-            window.history.replaceState({}, document.title, window.location.pathname);
+          if (session) setSession(session);
+          if (!session && hasCode) {
+            // Código presente pero sin sesión y sin error: el canje no
+            // ocurrió (verifier perdido o retorno en otro origen).
+            console.warn('OAuth: code presente sin sesión ni error.');
+            alert(`No se completó el acceso con Google (código sin canjear).\n\nCausas típicas:\n1. Volviste a un origen distinto del que inició el login (ej. otro puerto).\n2. Cookies/datos locales bloqueados.\n\nReintenta desde ${window.location.origin} con cookies de terceros permitidas.`);
+            finishOAuthReturn();
+            return;
           }
-        }
-      });
+          if (session?.user) {
+            // Invitado: sin nube (paridad guest móvil: todo local).
+            if (!session.user.is_anonymous) {
+              fetchProfile(session.user.id);
+              fetchConversations();
+              fetchTodayUsage();
+            }
+            setShowAuthModal(false);
+            finishOAuthReturn();
+          }
+        });
+      };
+      if (hasCode) {
+        // Intentar canje explícito primero (si el auto-canje ya lo hizo,
+        // Supabase devuelve la sesión existente sin error).
+        const codeParam = new URLSearchParams(window.location.search).get('code') || '';
+        supabase.auth.exchangeCodeForSession(codeParam).then(({ data, error }) => {
+          if (!error && data?.session) {
+            setSession(data.session);
+            setShowAuthModal(false);
+            finishOAuthReturn();
+            return;
+          }
+          if (error) console.warn('Canje explícito:', error.message);
+          doGetSession();
+        }).catch(() => doGetSession());
+      } else {
+        doGetSession();
+      }
     }, 100);
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
