@@ -34,7 +34,7 @@ const EXPLICIT_SEARCH =
 const EXPLICIT_NOBROWSE =
   /(sin\s+buscar|no\s+busques|usa\s+solo\s+tu\s+conocimiento|sin\s+internet|no\s+uses\s+(la\s+web|internet))/i;
 const RECENCY =
-  /(actual(izado)?s?|hoy|ayer|esta\s+semana|este\s+mes|este\s+a[ñn]o|20 ?2[4-9]|últim[oa]s?|reciente?s?|precio?s?|qui[ée]n\s+gan[óo]|qu[ée]\s+pas[óo]\s+con|noticia?s?|ocurri[óo]|anunci[óo]|resultados?\s+de)/i;
+  /(actual(izado)?s?|hoy|ayer|esta\s+semana|este\s+mes|este\s+a[ñn]o|20 ?2[4-9]|últim[oa]s?|reciente?s?|precio?s?|qui[ée]n\s+gan[óo]|qu[ée]\s+pas[óo]\s+con|noticia?s?|ocurri[óo]|anunci[óo]|resultados?\s+de|lanzamiento|estreno|cu[aá]ndo\s+(sali[óo]|se\s+lanz[óo]|fue|anunciaron|ocurri[óo]|publicaron)|fecha\s+de\s+(lanzamiento|salida|publicaci[óo]n)|se\s+lanz[óo]|fue\s+anunciado)/i;
 
 const SKIP_INTENTS = new Set(['IMAGEN', 'DOCUMENTO', 'VISION']);
 
