@@ -31,6 +31,7 @@ import { ConsentGateModal } from './components/ConsentGateModal';
 import { TermsModal } from './components/TermsModal';
 import { ExpedientesModal } from './components/ExpedientesModal';
 import { SourcesModal } from './components/SourcesModal';
+import { ShortcutsModal } from './components/ShortcutsModal';
 import { flushSync } from 'react-dom';
 
 // Endpoint oficial de producción de Exodo (Cloud Run con fallback por env)
@@ -198,6 +199,8 @@ export default function App() {
   const [showConsentGate, setShowConsentGate] = useState(false);
   // Terms & Privacy (paridad settings.legal_body).
   const [showTerms, setShowTerms] = useState(false);
+  // Atajos de teclado (referencia visual de shortcuts).
+  const [showShortcuts, setShowShortcuts] = useState(false);
   const [isCheckingOut, setIsCheckingOut] = useState(false);
   // Historial en la nube (paridad setCloudHistoryEnabled de app_state.dart):
   // OFF = turnos efímeros (no se crea conversación en DB ni se envía
@@ -325,6 +328,101 @@ export default function App() {
       localStorage.setItem('exodo_theme', theme);
     }
   }, [effectiveTheme, isIncognito, theme]);
+
+  // ── Atajos de teclado globales (sin conflicto con el navegador) ──
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      const el = e.target as HTMLElement;
+      const isTyping =
+        el.tagName === 'INPUT' ||
+        el.tagName === 'TEXTAREA' ||
+        el.isContentEditable;
+
+      // Esc — siempre (cerrar modal/drawer activo), incluso si está escribiendo
+      if (e.key === 'Escape') {
+        // Los modales individuales ya manejan su propio Esc,
+        // pero el drawer no tiene uno — lo cerramos aquí.
+        if (drawerOpen) { setDrawerOpen(false); return; }
+        return; // deja que los modales lo capturen
+      }
+
+      // Los demás atajos solo si NO está escribiendo
+      if (isTyping) {
+        // Excepción: Ctrl+Enter para enviar mensaje sí funciona mientras escribe
+        if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+          e.preventDefault();
+          handleSendMessage();
+          return;
+        }
+        return;
+      }
+
+      // / → foco al composer
+      if (e.key === '/' && !e.ctrlKey && !e.altKey && !e.metaKey) {
+        e.preventDefault();
+        try { document.querySelector<HTMLTextAreaElement>('.composer-input')?.focus(); } catch (_) {}
+        return;
+      }
+
+      // Alt+N → Nuevo chat
+      if (e.altKey && e.key.toLowerCase() === 'n') {
+        e.preventDefault();
+        handleCreateNewChat();
+        return;
+      }
+
+      // Alt+I → Toggle incógnito
+      if (e.altKey && e.key.toLowerCase() === 'i') {
+        e.preventDefault();
+        handleToggleIncognito();
+        return;
+      }
+
+      // Alt+D → Toggle dark/light
+      if (e.altKey && e.key.toLowerCase() === 'd') {
+        e.preventDefault();
+        toggleTheme();
+        return;
+      }
+
+      // Alt+E → Abrir expedientes
+      if (e.altKey && e.key.toLowerCase() === 'e') {
+        e.preventDefault();
+        setShowExpedientes(true);
+        return;
+      }
+
+      // Alt+M → Toggle menú lateral
+      if (e.altKey && e.key.toLowerCase() === 'm') {
+        e.preventDefault();
+        setDrawerOpen((prev) => !prev);
+        return;
+      }
+
+      // Ctrl+Shift+S → Buscar chats (abre drawer en modo búsqueda)
+      if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === 's') {
+        e.preventDefault();
+        setDrawerOpen(true);
+        return;
+      }
+
+      // Alt+S → Abrir configuración
+      if (e.altKey && e.key.toLowerCase() === 's') {
+        e.preventDefault();
+        setShowAccountMenu(true);
+        return;
+      }
+
+      // Alt+? → Mostrar atajos
+      if (e.altKey && (e.key === '?' || e.key === '/')) {
+        e.preventDefault();
+        setShowShortcuts(true);
+        return;
+      }
+    };
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  });
 
   // Sincronización de sesión y Realtime
   useEffect(() => {
@@ -1862,6 +1960,7 @@ export default function App() {
         onOpenProfile={() => setShowProfileMenu(true)}
         onOpenLanguage={() => setShowLanguageMenu(true)}
         onOpenBilling={() => setShowBillingMenu(true)}
+        onOpenShortcuts={() => setShowShortcuts(true)}
         onOpenTerms={() => setShowTerms(true)}
         onSignOut={() => supabase.auth.signOut()}
         theme={effectiveTheme}
@@ -1953,6 +2052,14 @@ export default function App() {
         isOpen={showExpedientes}
         onClose={() => setShowExpedientes(false)}
         isGuestUser={isGuestUser}
+        locale={locale}
+        theme={effectiveTheme}
+      />
+
+      {/* Referencia de Atajos de Teclado */}
+      <ShortcutsModal
+        isOpen={showShortcuts}
+        onClose={() => setShowShortcuts(false)}
         locale={locale}
         theme={effectiveTheme}
       />
