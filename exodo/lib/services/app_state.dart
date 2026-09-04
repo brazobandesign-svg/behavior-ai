@@ -73,13 +73,20 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
   // [Misión down] Último texto cuyo envío falló (para el botón Reintentar
   // de la burbuja de error). Solo texto; los adjuntos no se reintentan.
   String? lastFailedSendText;
+  String? lastFailedUserMsgId;
 
   /// Reenvía el último mensaje fallido, si hay. Lo usa el botón Reintentar
-  /// de la burbuja de error. No hace nada si ya se está generando.
+  /// de la burbuja de error. Quita la burbuja original para no duplicar y
+  /// reenvía. No hace nada si ya se está generando.
   Future<void> retryLastFailedSend() async {
     final t = lastFailedSendText;
     if (t == null || t.trim().isEmpty || isGenerating) return;
+    final failedId = lastFailedUserMsgId;
     lastFailedSendText = null;
+    lastFailedUserMsgId = null;
+    if (failedId != null) {
+      currentMessages.removeWhere((m) => m.id == failedId);
+    }
     await sendUserMessage(t);
   }
 
@@ -1383,6 +1390,7 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
     final isGuest = isGuestUser;
     errorMessage = null;
     lastFailedSendText = null;
+    lastFailedUserMsgId = null;
 
     // Privacidad por capas: saveLocally ⇒ persiste en Drift (este
     // dispositivo); syncToCloud ⇒ además persiste en Supabase. Con el toggle
@@ -1712,6 +1720,7 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
             isGeneratingImage = false;
             errorMessage = err.replaceAll('Exception: ', '');
             lastFailedSendText = effectiveText;
+            lastFailedUserMsgId = userMsg.id;
             currentMessages.add(
               ChatMessage(
                 id: 'error',
@@ -1735,6 +1744,7 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
       isGeneratingImage = false;
       errorMessage = e.toString().replaceAll('Exception: ', '');
       lastFailedSendText = effectiveText;
+      lastFailedUserMsgId = userMsg.id;
       currentMessages.add(
         ChatMessage(
           id: 'error',
@@ -2074,3 +2084,4 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
     }
   }
 }
+
