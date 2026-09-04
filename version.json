@@ -1,6 +1,6 @@
 {
-  "latest_version_code": 3,
-  "latest_version_name": "1.2.0",
-  "download_url": "https://github.com/brazobandesign-svg/behavior-ai/releases/download/v1.2.0/exodo-1.2.0.apk",
-  "changelog": "Aviso de imagen para invitados, notificaciones con logo, privacidad reforzada (sin HTTP en claro), verificación de edad, matriz de modelos Free/Pro lista para lanzamiento."
+  "latest_version_code": 7,
+  "latest_version_name": "1.2.3",
+  "download_url": "https://github.com/brazobandesign-svg/behavior-ai/releases/download/v1.2.3/exodo-1.2.3.apk",
+  "changelog": "Arquitectura multi-tier, ruteo por capas, límites reforzados para invitados e incógnito, soporte de 14 idiomas y estabilidad optimizada."
 }
