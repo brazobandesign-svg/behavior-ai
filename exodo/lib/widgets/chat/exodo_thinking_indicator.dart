@@ -186,15 +186,14 @@ class _FourDotsPainter extends CustomPainter {
     );
   }
 
-  /// Rotación por esquinas (l38): cada ciclo los puntos avanzan una esquina.
+  /// Rotación por esquinas (l38): en cada ciclo de 0.5s cada punto se
+  /// desliza UNA esquina (como el CSS: interpola 0% -> 100% y repite).
   List<Offset> _cornersStops(double t) {
-    final k = (t * 4).floor() % 4;
-    final f = (t * 4) % 1.0;
     // Suavizado para deslizar en vez de saltar.
-    final s = f * f * (3 - 2 * f);
+    final s = t * t * (3 - 2 * t);
     return List<Offset>.generate(
       4,
-      (i) => Offset.lerp(_corners[(i + k) % 4], _corners[(i + k + 1) % 4], s)!,
+      (i) => Offset.lerp(_corners[i], _corners[(i + 1) % 4], s)!,
     );
   }
 
