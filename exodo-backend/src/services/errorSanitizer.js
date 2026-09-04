@@ -38,6 +38,9 @@ const SERVICE_DOWN_MESSAGE =
  * Nunca expone nada del vendor; solo clasifica.
  */
 function classifyUserError(err) {
+  // Flag interno puesto por wrapProviderError ANTES de redactar (incógnito):
+  // boolean ciego, sin datos del vendor.
+  if (err && err.down === true) return 'down';
   const status = extractStatus(err);
   if (status != null) {
     if (status === 429 || status === 413 || status === 529) return 'busy';
@@ -174,6 +177,13 @@ function wrapProviderError(err, model = 'unknown', phase = 'unknown', ctx = {}) 
     : vendorMessage;
   const wrapped = new Error(`[alibaba:${model}:${phase}] status=${status ?? 'n/a'}: ${safeBody}`);
   wrapped.status = status;
+  // Clasificar con el error CRUDO antes de que la redacción lo ciegue: el
+  // booleano no filtra nada sensible y sobrevive al modo incógnito.
+  try {
+    wrapped.down = classifyUserError(err) === 'down';
+  } catch (_) {
+    wrapped.down = false;
+  }
   wrapped.originalError = err;
   logInternalGatewayError(err, { provider: 'alibaba', model, phase, incognito: !!ctx.incognito });
   return wrapped;
