@@ -7,13 +7,9 @@ import '../../l10n/app_i18n.dart';
 import '../../services/app_state.dart';
 import '../../theme/exodo_theme.dart';
 
-/// Indicador de Pensamiento / Razonamiento de Éxodo (Estilo Grok & AGY).
-/// 
-/// Características de diseño:
-/// 1. Tres micro-esferas doradas/ámbar en onda sinusoidal continua y suave (Grok / AGY wave).
-/// 2. Brillo radiante sutil (auras cálidas con difuminado suave).
-/// 3. Cronómetro en vivo de precisión en segundos.
-/// 4. Tipografía oficial de Anthropic (`AnthropicSans`) para una estética limpia y cohesiva.
+/// Indicador de Pensamiento de Éxodo: 2 animaciones de 4 puntos elegidas
+/// al azar por episodio (intercambio l46 / esquinas l38), color neutro
+/// (yeso en dark, #252525 en light, igual que los textos) + cronómetro.
 class ExodoThinkingIndicator extends StatefulWidget {
   final Animation<double>? pulseAnim;
 
@@ -32,13 +28,16 @@ class _ExodoThinkingIndicatorState extends State<ExodoThinkingIndicator>
   late Stopwatch _stopwatch;
   Timer? _timer;
   int _elapsedSeconds = 0;
+  // Variante elegida al azar al montar (una por episodio de pensamiento).
+  late final bool _shuffle;
 
   @override
   void initState() {
     super.initState();
+    _shuffle = math.Random().nextBool();
     _animCtrl = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1600),
+      duration: Duration(milliseconds: _shuffle ? 1000 : 500),
     )..repeat();
 
     _stopwatch = Stopwatch()..start();
@@ -80,7 +79,8 @@ class _ExodoThinkingIndicatorState extends State<ExodoThinkingIndicator>
     final isDarkMode = context.select<AppState, bool>((s) => s.isDarkMode);
     final isIncognito = context.select<AppState, bool>((s) => s.isIncognito);
     final isLight = !isDarkMode && !isIncognito;
-    final primaryColor = isLight ? const Color(0xFF2C2A28) : ExodoColors.amber;
+    // Neutro igual que los textos: yeso en dark, #252525 en light.
+    final neutral = isLight ? const Color(0xFF252525) : ExodoColors.textPrimary;
 
     final phase = _getPhaseText(context, _elapsedSeconds);
     final displayText = '$phase · ${_elapsedSeconds}s';
@@ -97,14 +97,15 @@ class _ExodoThinkingIndicatorState extends State<ExodoThinkingIndicator>
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                // 1. Puntos animados estilo Grok / AGY en Canvas
+                // 1. Loader de 4 puntos (~alto del texto), variante al azar.
                 SizedBox(
-                  width: 28,
-                  height: 18,
+                  width: 14,
+                  height: 14,
                   child: CustomPaint(
-                    painter: GrokAgyDotsPainter(
+                    painter: _FourDotsPainter(
                       progress: progress,
-                      color: primaryColor,
+                      shuffle: _shuffle,
+                      color: neutral,
                     ),
                   ),
                 ),
@@ -117,7 +118,7 @@ class _ExodoThinkingIndicatorState extends State<ExodoThinkingIndicator>
                     key: ValueKey<String>(displayText),
                     style: TextStyle(
                       fontFamily: 'AnthropicSans',
-                      color: primaryColor.withValues(alpha: 0.85),
+                      color: neutral.withValues(alpha: 0.85),
                       fontSize: 13.5,
                       fontWeight: FontWeight.w500,
                       letterSpacing: -0.1,
@@ -134,70 +135,84 @@ class _ExodoThinkingIndicatorState extends State<ExodoThinkingIndicator>
 }
 
 /// ============================================================================
-/// PAINTER: PUNTOS EN ONDA SINUSOIDAL FLUIDA (ESTILO GROK & AGY)
+/// PAINTER: 4 PUNTOS, 2 PATRONES (l46 intercambio / l38 esquinas)
 /// ============================================================================
-class GrokAgyDotsPainter extends CustomPainter {
+class _FourDotsPainter extends CustomPainter {
   final double progress;
+  final bool shuffle;
   final Color color;
 
-  GrokAgyDotsPainter({
+  _FourDotsPainter({
     required this.progress,
+    required this.shuffle,
     required this.color,
   });
 
+  // Esquinas del grid unitario: TL, TR, BR, BL.
+  static const _corners = [
+    Offset(0.2, 0.2),
+    Offset(0.8, 0.2),
+    Offset(0.8, 0.8),
+    Offset(0.2, 0.8),
+  ];
+
+  /// Permutación de cada punto según keyframes CSS (l46: 0% / 45% / 95%).
+  List<Offset> _shuffleStops(double t) {
+    // P0: dot0 TL, dot1 TR, dot2 BR, dot3 BL
+    // P1: dot0 BR, dot1 TR, dot2 TL, dot3 BL
+    // P2: dot0 BR, dot1 BL, dot2 TL, dot3 TR
+    const p0 = [0, 1, 2, 3];
+    const p1 = [2, 1, 0, 3];
+    const p2 = [2, 3, 0, 1];
+    List<int> from, to;
+    double f;
+    if (t < 0.45) {
+      from = p0;
+      to = p1;
+      f = t / 0.45;
+    } else if (t < 0.95) {
+      from = p1;
+      to = p2;
+      f = (t - 0.45) / 0.5;
+    } else {
+      from = p2;
+      to = p0;
+      f = (t - 0.95) / 0.05;
+    }
+    f = f.clamp(0.0, 1.0);
+    return List<Offset>.generate(
+      4,
+      (i) => Offset.lerp(_corners[from[i]], _corners[to[i]], f)!,
+    );
+  }
+
+  /// Rotación por esquinas (l38): cada ciclo los puntos avanzan una esquina.
+  List<Offset> _cornersStops(double t) {
+    final k = (t * 4).floor() % 4;
+    final f = (t * 4) % 1.0;
+    // Suavizado para deslizar en vez de saltar.
+    final s = f * f * (3 - 2 * f);
+    return List<Offset>.generate(
+      4,
+      (i) => Offset.lerp(_corners[(i + k) % 4], _corners[(i + k + 1) % 4], s)!,
+    );
+  }
+
   @override
   void paint(Canvas canvas, Size size) {
-    const int dotCount = 3;
-    final double centerY = size.height / 2;
-    final double spacing = size.width / (dotCount + 1);
-    const double baseRadius = 2.4;
-    const double waveAmplitude = 3.5;
-
-    for (int i = 0; i < dotCount; i++) {
-      final double cx = spacing * (i + 1);
-      // Desfase armónico suave para cada punto (onda viajera)
-      final double phase = (progress * 2 * math.pi) - (i * (math.pi / 2.2));
-      final double sinVal = math.sin(phase);
-
-      // Desplazamiento vertical en onda continua
-      final double cy = centerY - (sinVal * waveAmplitude);
-
-      // Escala y opacidad viva en función de la altura de la onda
-      final double scale = 0.85 + (0.35 * ((sinVal + 1.0) / 2.0));
-      final double opacity = (0.40 + (0.60 * ((sinVal + 1.0) / 2.0))).clamp(0.0, 1.0);
-      final double currentRadius = baseRadius * scale;
-
-      // 1. Aura / resplandor suave exterior
-      final Paint glowPaint = Paint()
-        ..shader = RadialGradient(
-          colors: [
-            color.withValues(alpha: opacity * 0.35),
-            color.withValues(alpha: 0.0),
-          ],
-        ).createShader(
-          Rect.fromCircle(center: Offset(cx, cy), radius: currentRadius * 2.8),
-        );
-      canvas.drawCircle(Offset(cx, cy), currentRadius * 2.8, glowPaint);
-
-      // 2. Núcleo brillante con gradiente radial cálido
-      final Color coreLight = Color.lerp(color, Colors.white, 0.45)!;
-      final Paint dotPaint = Paint()
-        ..shader = RadialGradient(
-          center: const Alignment(-0.25, -0.25),
-          radius: 0.85,
-          colors: [
-            coreLight.withValues(alpha: opacity),
-            color.withValues(alpha: opacity),
-          ],
-        ).createShader(
-          Rect.fromCircle(center: Offset(cx, cy), radius: currentRadius),
-        );
-      canvas.drawCircle(Offset(cx, cy), currentRadius, dotPaint);
+    final stops = shuffle ? _shuffleStops(progress) : _cornersStops(progress);
+    final paint = Paint()..color = color;
+    // 40% del lado como en CSS (background-size 40%): radio = 20%.
+    final r = size.width * 0.2;
+    for (final u in stops) {
+      canvas.drawCircle(Offset(u.dx * size.width, u.dy * size.height), r, paint);
     }
   }
 
   @override
-  bool shouldRepaint(covariant GrokAgyDotsPainter oldDelegate) {
-    return oldDelegate.progress != progress || oldDelegate.color != color;
+  bool shouldRepaint(covariant _FourDotsPainter oldDelegate) {
+    return oldDelegate.progress != progress ||
+        oldDelegate.shuffle != shuffle ||
+        oldDelegate.color != color;
   }
 }
