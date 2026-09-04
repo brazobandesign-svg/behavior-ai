@@ -45,7 +45,7 @@ function classifyUserError(err) {
     return 'error';
   }
   const msg = err && err.message ? String(err.message) : String(err || '');
-  if (/econnrefused|enotfound|etimedout|eai_again|socket hang up|socket.+closed|fetch failed|failed to fetch|failed host|host lookup|connection refused|connection reset|connection closed|unreachable|network request failed|timed out|timeout|econnreset|epipe|temporarily unavailable|no address|nodename/i.test(msg)) {
+  if (/econnrefused|enotfound|etimedout|eai_again|socket hang up|socket.+closed|fetch failed|failed to fetch|failed host|host lookup|connection refused|connection reset|connection closed|connection error|connect error|unreachable|network request failed|timed out|timeout|econnreset|epipe|temporarily unavailable|no address|nodename/i.test(msg)) {
     return 'down';
   }
   return 'error';
