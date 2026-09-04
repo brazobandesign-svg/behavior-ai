@@ -185,12 +185,30 @@ class _DrawerMenuState extends State<DrawerMenu> {
 
                       // 2. Opciones de menú.
                       // (New chat, tema e incógnito viven en el app bar del
-                      // chat: aquí solo quedan Expedientes + Buscar.)
+                      // chat: aquí solo quedan Exodo Web, Expedientes + Buscar.)
                       IntrinsicHeight(
                         child: Wrap(
                           spacing: 0,
                           runSpacing: 0,
                           children: [
+                            _DrawerItem(
+                              horizontalPad: hPad,
+                              icon: Image.asset(
+                                'assets/images/laptop-alt-2-svgrepo-com.png',
+                                width: s(20),
+                                height: s(20),
+                                color: textCol,
+                              ),
+                              title: Text(AppI18n.of(context).t('drawer.web'), style: TextStyle(fontFamily: 'AnthropicSans', fontSize: s(14), color: textCol, fontWeight: FontWeight.w600, letterSpacing: -0.2)),
+                              onTap: () {
+                                Navigator.pop(context);
+                                HapticFeedback.lightImpact();
+                                launchUrl(
+                                  Uri.parse(exodoWebUrl),
+                                  mode: LaunchMode.externalApplication,
+                                );
+                              },
+                            ),
                             // [Punto 3] Expedientes es exclusivo de cuentas.
                             // Decisión de producto: en modo invitado el ítem
                             // se OCULTA por completo — sin opacidad reducida
@@ -989,20 +1007,7 @@ class _ClaudeAccountModal {
                 const SizedBox(height: 8),
               ],
 
-              _buildSettingTile(
-                assetIcon: 'assets/images/laptop-alt-2-svgrepo-com.png',
-                title: AppI18n.of(context).t('drawer.web'),
-                isLight: isLight,
-                onTap: () {
-                  Navigator.pop(ctx);
-                  HapticFeedback.lightImpact();
-                  launchUrl(
-                    Uri.parse(exodoWebUrl),
-                    mode: LaunchMode.externalApplication,
-                  );
-                },
-              ),
-              const SizedBox(height: 12),
+              // (Tile Exodo Web movido al menú lateral: vive en el drawer.)
 
               // Privacidad: historial en la nube (decisión del usuario con
               // consentimiento registrado en el primer login). Aquí puede
