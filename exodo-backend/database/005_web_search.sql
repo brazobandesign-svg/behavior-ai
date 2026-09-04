@@ -71,3 +71,14 @@ CREATE POLICY web_search_provider_usage_select_all ON web_search_provider_usage
 -- este índice acelera esa lectura.
 CREATE INDEX IF NOT EXISTS idx_web_search_cache_created
   ON web_search_cache (created_at DESC);
+
+-- ----------------------------------------------------------------------------
+-- GRANTs (las tablas nuevas no heredan privilegios: sin esto ni siquiera
+-- service_role puede leerlas pese al bypass RLS)
+-- ----------------------------------------------------------------------------
+GRANT ALL ON web_search_cache TO service_role;
+GRANT ALL ON web_search_usage TO service_role;
+GRANT ALL ON web_search_provider_usage TO service_role;
+GRANT SELECT ON web_search_cache TO anon, authenticated;
+GRANT SELECT, INSERT, UPDATE ON web_search_usage TO authenticated;
+GRANT SELECT ON web_search_provider_usage TO anon, authenticated;
