@@ -275,7 +275,7 @@ const Map<String, String> _es = <String, String>{
   // Errors
   'error.network': 'No pudimos conectar. Reintentar.',
   'error.generic': 'Algo salió mal.',
-  'error.service_down': 'Éxodo no está disponible en este momento. Estamos trabajando para restablecer el servicio. Inténtalo de nuevo en unos minutos.',
+  'error.service_down': 'Exodo no está disponible en este momento. Estamos trabajando para restablecer el servicio. Inténtalo de nuevo en unos minutos.',
   'error.retry': 'Reintentar',
 
   // Misc
@@ -581,7 +581,7 @@ const Map<String, String> _en = <String, String>{
 
   'error.network': 'We could not connect. Try again.',
   'error.generic': 'Something went wrong.',
-  'error.service_down': 'Éxodo is unavailable right now. We are working to restore the service. Try again in a few minutes.',
+  'error.service_down': 'Exodo is unavailable right now. We are working to restore the service. Try again in a few minutes.',
   'error.retry': 'Retry',
 
   'common.search_hint': 'Search...',
@@ -803,6 +803,8 @@ const Map<String, String> _fr = <String, String>{
 
   'error.network': 'Connexion impossible. Réessayer.',
   'error.generic': 'Une erreur est survenue.',
+  'error.service_down': 'Exodo est indisponible pour le moment. Nous travaillons à rétablir le service. Réessayez dans quelques minutes.',
+  'error.retry': 'Réessayer',
 
   'common.search_hint': 'Rechercher...',
   'common.yes': 'Oui',
@@ -1024,6 +1026,8 @@ const Map<String, String> _pt = <String, String>{
 
   'error.network': 'Não foi possível conectar. Tente de novo.',
   'error.generic': 'Algo deu errado.',
+  'error.service_down': 'O Exodo está indisponível no momento. Estamos trabalhando para restaurar o serviço. Tente novamente em alguns minutos.',
+  'error.retry': 'Tentar novamente',
 
   'common.search_hint': 'Buscar...',
   'common.yes': 'Sim',
@@ -1242,6 +1246,8 @@ const Map<String, String> _it = <String, String>{
 
   'error.network': 'Impossibile connettersi. Riprova.',
   'error.generic': 'Qualcosa è andato storto.',
+  'error.service_down': 'Exodo non è disponibile al momento. Stiamo lavorando per ripristinare il servizio. Riprova tra qualche minuto.',
+  'error.retry': 'Riprova',
 
   'common.search_hint': 'Cerca...',
   'common.yes': 'Sì',
@@ -1461,6 +1467,8 @@ const Map<String, String> _de = <String, String>{
 
   'error.network': 'Verbindung fehlgeschlagen. Erneut versuchen.',
   'error.generic': 'Etwas ist schiefgelaufen.',
+  'error.service_down': 'Exodo ist derzeit nicht verfügbar. Wir arbeiten daran, den Dienst wiederherzustellen. Bitte versuchen Sie es in wenigen Minuten erneut.',
+  'error.retry': 'Wiederholen',
 
   'common.search_hint': 'Suchen...',
   'common.yes': 'Ja',
@@ -1673,6 +1681,8 @@ final Map<String, String> _ru = <String, String>{
   'tokens.more': 'БОЛЬШЕ ЛИМИТА',
   'error.network': 'Не удалось подключиться. Повторить.',
   'error.generic': 'Что-то пошло не так.',
+  'error.service_down': 'Exodo сейчас недоступен. Мы работаем над восстановлением сервиса. Пожалуйста, повторите попытку через несколько минут.',
+  'error.retry': 'Повторить',
   'common.search_hint': 'Поиск...',
   'common.yes': 'Да',
   'common.no': 'Нет',
@@ -1872,6 +1882,8 @@ final Map<String, String> _zh = <String, String>{
   'tokens.more': '获取更多算力',
   'error.network': '连接失败，请重试。',
   'error.generic': '出错了，请稍后重试。',
+  'error.service_down': 'Exodo 当前不可用。我们正在努力恢复服务，请在几分钟后重试。',
+  'error.retry': '重试',
   'common.search_hint': '搜索...',
   'common.yes': '是',
   'common.no': '否',
@@ -2058,6 +2070,8 @@ final Map<String, String> _ja = <String, String>{
   'tokens.more': '容量を追加購入',
   'error.network': '接続できませんでした。再試行してください。',
   'error.generic': 'エラーが発生しました。',
+  'error.service_down': 'Exodo は現在ご利用いただけません。サービスの復旧に取り組んでいます。数分後にもう一度お試しください。',
+  'error.retry': '再試行',
   'common.search_hint': '検索...',
   'common.yes': 'はい',
   'common.no': 'いいえ',
@@ -2245,6 +2259,8 @@ final Map<String, String> _ar = <String, String>{
   'tokens.more': 'سعة إضافية',
   'error.network': 'تعذر الاتصال. حاول مرة أخرى.',
   'error.generic': 'حدث خطأ ما.',
+  'error.service_down': 'Exodo غير متاح حاليًا. نحن نعمل على استعادة الخدمة. يُرجى المحاولة مرة أخرى بعد بضع دقائق.',
+  'error.retry': 'إعادة المحاولة',
   'common.search_hint': 'بحث...',
   'common.yes': 'نعم',
   'common.no': 'لا',
@@ -2439,6 +2455,8 @@ final Map<String, String> _ko = <String, String>{
   'tokens.more': '용량 추가 구매',
   'error.network': '연결할 수 없습니다. 다시 시도하세요.',
   'error.generic': '오류가 발생했습니다.',
+  'error.service_down': '현재 Exodo 서비스를 이용할 수 없습니다. 서비스 복구 작업 중입니다. 몇 분 후에 다시 시도해 주세요.',
+  'error.retry': '다시 시도',
   'common.search_hint': '검색...',
   'common.yes': '예',
   'common.no': '아니오',
@@ -2625,6 +2643,8 @@ final Map<String, String> _hi = <String, String>{
   'tokens.more': 'अधिक क्षमता प्राप्त करें',
   'error.network': 'कनेक्ट नहीं हो सका। पुनः प्रयास करें।',
   'error.generic': 'कुछ गलत हो गया।',
+  'error.service_down': 'Exodo इस समय उपलब्ध नहीं है। हम सेवा को पुनर्स्थापित करने पर काम कर रहे हैं। कृपया कुछ मिनटों में पुनः प्रयास करें।',
+  'error.retry': 'पुनः प्रयास करें',
   'common.search_hint': 'खोजें...',
   'common.yes': 'हाँ',
   'common.no': 'नहीं',
@@ -2820,6 +2840,8 @@ final Map<String, String> _ht = <String, String>{
   'tokens.more': 'Plis Kapasite',
   'error.network': 'Koneksyon pa posib. Eseye ankò.',
   'error.generic': 'Yon erè rive.',
+  'error.service_down': 'Exodo pa disponib kounye a. N ap travay pou remete sèvis la. Tanpri eseye ankò nan kèk minit.',
+  'error.retry': 'Eseye ankò',
   'common.search_hint': 'Chèche...',
   'common.yes': 'Wi',
   'common.no': 'Non',
