@@ -79,7 +79,7 @@ const ArtifactCard: React.FC<{ code: string; isStreaming?: boolean }> = ({ code,
         <div className="artifact-generating">Construyendo visualización…</div>
       ) : (
         <iframe
-          title="Artefacto Éxodo"
+          title="Artefacto Exodo"
           sandbox="allow-scripts"
           srcDoc={srcDoc}
           style={{ width: '100%', height: 340, border: 'none', borderRadius: '0 0 12px 12px', background: '#FFFFFF', display: 'block' }}
@@ -121,7 +121,7 @@ const ArtifactCard: React.FC<{ code: string; isStreaming?: boolean }> = ({ code,
               </pre>
             ) : (
               <iframe
-                title="Artefacto Éxodo (pantalla completa)"
+                title="Artefacto Exodo (pantalla completa)"
                 sandbox="allow-scripts"
                 srcDoc={srcDoc}
                 style={{ width: '100%', height: '100%', minHeight: 400, border: 'none', borderRadius: 12, background: '#FFFFFF', display: 'block' }}

@@ -467,7 +467,7 @@ const Map<String, String> _en = <String, String>{
 
   'drawer.new_chat': 'New chat',
   'drawer.search_chats': 'Search chats',
-  'drawer.starred': 'Starred',
+  'drawer.starred': 'Pinned',
   'drawer.recents': 'Recents',
   'drawer.incognito': 'Incognito mode',
   'drawer.light_mode': 'Light mode',

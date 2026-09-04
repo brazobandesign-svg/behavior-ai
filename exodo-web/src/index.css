@@ -39,7 +39,7 @@
 }
 
 :root {
-  /* ═══ Paleta oficial Éxodo — espejo 1:1 de ExodoColors (exodo/lib/theme/exodo_theme.dart) ═══
+  /* ═══ Paleta oficial Exodo — espejo 1:1 de ExodoColors (exodo/lib/theme/exodo_theme.dart) ═══
      background #191919 (chat/app dark) · loginBg #0E0C0A (intocable, solo login) · surface #252525
      modelChipBg #141414 · amber #C9933A · textPrimary #F5F2EB · textSecondary #9E9689
      error #E5534B · light: yeso #F5F2EB + sheet #FFFFFF + tinta #171615 */
@@ -80,6 +80,8 @@
   --banner-text: var(--exodo-bg);
   --banner-border: transparent;
   --icon-dynamic-color: var(--exodo-text-primary);
+  /* Color neutro del indicador "Pensando" (dark: yeso, igual al texto) */
+  --thinking-neutral: var(--exodo-text-primary);
 }
 
 [data-theme="light"] {
@@ -105,6 +107,8 @@
   --banner-text: var(--exodo-text-primary);
   --banner-border: transparent;
   --icon-dynamic-color: var(--exodo-ink);
+  /* Color neutro del indicador "Pensando" (light: #252525 como los demás textos) */
+  --thinking-neutral: #252525;
 }
 
 * {
@@ -128,24 +132,35 @@ body, html, #root {
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
   font-synthesis: none;
+  transition: background-color 0.22s cubic-bezier(0.16, 1, 0.3, 1), color 0.22s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 8px;
+  height: 8px;
   cursor: default;
 }
 ::-webkit-scrollbar-track {
   background: transparent;
   cursor: default;
 }
+/* Pulgar sutil: píldora flotante semitransparente (el borde transparente la adelgaza) */
 ::-webkit-scrollbar-thumb {
-  background: #505050;
+  background: rgba(128, 128, 128, 0.35);
+  border: 2px solid transparent;
   border-radius: 99px;
+  background-clip: padding-box;
   cursor: default;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #606060;
+  background: rgba(128, 128, 128, 0.55);
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+/* Firefox: mismo tratamiento sutil */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(128, 128, 128, 0.35) transparent;
 }
 
 .app-container {
@@ -156,21 +171,56 @@ body, html, #root {
   background: var(--bg-warm-black);
   position: relative;
   overflow: hidden;
+  transition: background-color 0.22s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-/* Barra lateral vertical izquierda con línea hasta abajo separando menú del chat */
+/* Barra lateral vertical izquierda con iconos (Estilo Gemini Web sin separador) */
 .sidebar-rail {
   width: 64px;
   height: 100vh;
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 16px 0;
+  padding: 14px 0 16px 0;
   background-color: var(--bg-chat-main);
-  border-right: 1px solid var(--border-color);
+  border-right: none;
   flex-shrink: 0;
   z-index: 24;
   box-sizing: border-box;
+  transition: background-color 0.22s ease;
+}
+
+.rail-btn {
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  background: transparent;
+  border: none;
+  color: var(--text-primary);
+  transition: background-color var(--transition-fast), transform var(--transition-fast);
+}
+
+.rail-btn:hover {
+  background-color: var(--surface-card);
+}
+
+.rail-btn.active {
+  background-color: var(--surface-input);
+}
+
+.rail-avatar-btn {
+  border-radius: 50%;
+  padding: 0;
+}
+
+@media (max-width: 768px) {
+  .sidebar-rail {
+    display: none !important;
+  }
 }
 
 /* Barra superior del chat principal responsiva al zoom */
@@ -187,10 +237,16 @@ body, html, #root {
   flex-shrink: 0;
 }
 
-/* Hamburger del header: solo táctil/móvil (paridad app bar de la app) */
+/* Hamburger del header: en móvil se muestra en el header bar; en desktop está en la sidebar-rail */
 .header-hamburger {
-  display: none;
+  display: none !important;
   margin-right: auto;
+}
+
+@media (max-width: 768px) {
+  .header-hamburger {
+    display: flex !important;
+  }
 }
 
 .floating-token-banner {
@@ -212,7 +268,7 @@ body, html, #root {
   border: 1px solid transparent;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition: border-color var(--transition-fast), transform var(--transition-fast), box-shadow var(--transition-fast);
 }
 
 .header-token-bar:hover {
@@ -250,7 +306,6 @@ body, html, #root {
   flex-direction: column;
   gap: 12px;
   width: 290px;
-  animation: fadeIn 0.15s ease-out;
 }
 
 .capacity-upgrade-banner {
@@ -267,7 +322,7 @@ body, html, #root {
   font-weight: 700;
   font-size: 0.82rem;
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition: border-color var(--transition-fast);
 }
 
 .capacity-upgrade-banner:hover {
@@ -285,7 +340,7 @@ body, html, #root {
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: background var(--transition-fast);
+  transition: background-color var(--transition-fast), transform var(--transition-fast);
 }
 
 .icon-btn:hover {
@@ -326,7 +381,6 @@ body, html, #root {
   mask-repeat: no-repeat;
   mask-position: center;
   flex-shrink: 0;
-  transition: background-color var(--transition-fast);
 }
 
 .mask-text-yeso {
@@ -343,17 +397,25 @@ body, html, #root {
   mask-position: center;
 }
 
-/* Drawer Menu Deslizable (Exacto al móvil) */
+/* Drawer Menu Deslizable (Animación moderna fluida con elevación) */
 .drawer-backdrop {
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.65);
-  backdrop-filter: blur(4px);
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   z-index: 40;
-  animation: fadeIn 0.2s ease-out;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.drawer-backdrop.open {
+  opacity: 1;
+  pointer-events: auto;
 }
 
 .drawer-slide {
@@ -367,41 +429,58 @@ body, html, #root {
   z-index: 50;
   display: flex;
   flex-direction: column;
-  transition: transform var(--transition-normal);
   transform: translateX(-100%);
+  transition: transform 0.36s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.36s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.22s ease;
+  will-change: transform;
 }
 
 .drawer-slide.open {
   transform: translateX(0);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.05),
+              14px 0 42px -6px rgba(0, 0, 0, 0.6),
+              28px 0 72px -12px rgba(0, 0, 0, 0.7);
 }
 
-/* Enforce Strict Dark Mode Drawer Palette */
+[data-theme="light"] .drawer-slide.open {
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.05),
+              12px 0 34px -6px rgba(0, 0, 0, 0.12),
+              24px 0 60px -12px rgba(0, 0, 0, 0.16);
+}
+
+/* Drawer Theme Palette (Paridad móvil) */
 [data-theme="dark"] .drawer-slide {
   background: #191919 !important;
-  color: #F5F2EB !important;
+  color: #F5F2EB;
 }
-[data-theme="dark"] .drawer-slide * {
-  color: #F5F2EB !important;
-}
-[data-theme="dark"] .drawer-slide svg {
-  color: #FFFFFF !important;
-  stroke: #FFFFFF !important;
-}
-[data-theme="dark"] .drawer-slide .mask-logo-amber,
-[data-theme="dark"] .drawer-slide .mask-icon-incognito {
-  background-color: #FFFFFF !important;
-  background: #FFFFFF !important;
-}
-
-[data-theme="dark"] .drawer-slide .token-bar-fill {
-  background: #F5F2EB !important;
+[data-theme="dark"] .drawer-slide .drawer-item {
+  color: #F5F2EB;
 }
 [data-theme="dark"] .drawer-slide .mask-text-yeso {
-  background-color: #F5F2EB !important;
+  background-color: #F5F2EB;
+}
+[data-theme="light"] .drawer-slide {
+  background: #FFFFFF !important;
+  color: #171615;
+}
+[data-theme="light"] .drawer-slide .drawer-item {
+  color: #171615;
+}
+[data-theme="light"] .drawer-slide .mask-text-yeso {
+  background-color: #171615;
 }
 
-[data-theme="light"] .drawer-slide .token-bar-progress {
-  background: #FFFFFF !important;
+.mask-bybehavior {
+  width: 104px;
+  height: 22px;
+  background-color: var(--text-secondary);
+  -webkit-mask-image: url(/bybehavior_text.png);
+  -webkit-mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+  -webkit-mask-position: left center;
+  mask-image: url(/bybehavior_text.png);
+  mask-size: contain;
+  mask-repeat: no-repeat;
+  mask-position: left center;
 }
 [data-theme="light"] .drawer-slide .token-bar-fill {
   background: #252525 !important;
@@ -520,12 +599,25 @@ body, html, #root {
   overflow: hidden;
   background-color: var(--bg-chat-main);
   box-sizing: border-box;
-  transition: box-shadow 0.3s ease, border-radius 0.3s ease;
+  transition: background-color 0.22s cubic-bezier(0.16, 1, 0.3, 1), color 0.22s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .chat-main.incognito-mode {
-  box-shadow: inset 0 0 0 6px #505050;
-  border-radius: 20px;
+  position: relative;
+}
+
+/* 1. Perímetro de pantalla: Línea de trazo (Norma técnica ISO 128 / UNE 1032) */
+.chat-main.incognito-mode::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border: 2px dashed #707070;
+  pointer-events: none;
+  z-index: 30;
+}
+
+.chat-main.incognito-mode .msg-row.assistant .msg-bubble {
+  font-style: italic;
 }
 
 .chat-main::before {
@@ -550,7 +642,6 @@ body, html, #root {
   padding: 20px 24px 8vh 24px;
   width: 100%;
   box-sizing: border-box;
-  animation: fadeIn 0.25s ease-out;
   min-height: min-content;
   overflow-y: auto;
 }
@@ -562,11 +653,11 @@ body, html, #root {
 
 .greeting-text-exodo {
   font-family: 'AnthropicSerif', Georgia, serif;
-  font-size: 22px;
+  font-size: 30px;
   font-weight: 700;
   color: var(--text-primary);
-  line-height: 1.15;
-  letter-spacing: -0.3px;
+  line-height: 1.2;
+  letter-spacing: -0.4px;
   max-width: 860px;
   animation: slideUpGreeting 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
@@ -602,14 +693,14 @@ body, html, #root {
 }
 
 @keyframes slideUpFade {
-  from { opacity: 0; transform: translateY(16px); }
+  from { opacity: 0; transform: translateY(8px); }
   to { opacity: 1; transform: translateY(0); }
 }
 
 .msg-row {
   display: flex;
   width: 100%;
-  animation: slideUpFade 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: slideUpFade 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
   z-index: 1;
 }
 
@@ -618,7 +709,7 @@ body, html, #root {
 }
 
 .msg-bubble {
-  max-width: 82%;
+  max-width: 100%;
   padding: 14px 18px;
   border-radius: 20px;
   font-size: 0.98rem;
@@ -630,6 +721,9 @@ body, html, #root {
   background: #212121;
   color: var(--text-primary);
   border: 1px solid transparent;
+  padding: 10px 18px;
+  width: fit-content;
+  max-width: 100%;
 }
 
 .msg-row.user:hover .msg-bubble {
@@ -641,6 +735,53 @@ body, html, #root {
   background: #FFFFFF;
   border: 1px solid rgba(0, 0, 0, 0.12);
   color: #171615;
+}
+
+.user-msg-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10px;
+  color: var(--text-secondary);
+  margin-top: 3px;
+  padding-right: 6px;
+  font-family: 'Inter', sans-serif;
+  opacity: 0.45;
+  transition: opacity 0.2s ease;
+}
+
+.msg-row.user:hover .user-msg-actions {
+  opacity: 0.9;
+}
+
+.user-msg-actions button {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 2px;
+  display: flex;
+  align-items: center;
+  color: inherit;
+  border-radius: 4px;
+  transition: color 0.15s ease, background-color 0.15s ease;
+}
+
+.user-msg-actions button:hover {
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.ai-actions-bar {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+  padding-left: 4px;
+  opacity: 0.75;
+  animation: fadeIn 0.25s ease-out;
+}
+
+.ai-actions-bar:hover {
+  opacity: 1;
 }
 
 /* Tipografía estricta para la burbuja del usuario (AnthropicSans, 15px) igual a Flutter */
@@ -1078,28 +1219,47 @@ body, html, #root {
   font-family: 'AnthropicSans', sans-serif;
 }
 
-/* Paridad ExodoThinkingIndicator: 3 micro-esferas ámbar en onda + cronómetro */
-.thinking-dots {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
+/* Indicador "Pensando": 2 animaciones de carga elegidas al azar, color neutro
+   (dark yeso #F5F2EB / light #252525, igual que los textos) */
+
+/* Variante A: 4 puntos que intercambian posiciones (l46) */
+.thinking-loader {
+  flex-shrink: 0;
+  transform: translateY(-1px); /* ajuste óptico: los dots pesan visualmente hacia abajo */
+}
+.thinking-loader-shuffle {
+  width: 14px;
+  aspect-ratio: 1;
+  color: var(--thinking-neutral);
+  --_g: no-repeat radial-gradient(farthest-side, currentColor 90%, #0000);
+  background: var(--_g), var(--_g), var(--_g), var(--_g);
+  background-size: 40% 40%;
+  animation: thinkingLoaderShuffle 1s infinite;
+}
+@keyframes thinkingLoaderShuffle {
+  0%   { background-position: 0 0,       100% 0, 100% 100%, 0 100% }
+  40%,
+  50%  { background-position: 100% 100%, 100% 0, 0 0,       0 100% }
+  90%,
+  100% { background-position: 100% 100%, 0 100%, 0 0,       100% 0 }
 }
 
-.thinking-dots span {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: #C9933A;
-  box-shadow: 0 0 8px rgba(201, 147, 58, 0.55);
-  animation: thinkingWave 1.6s ease-in-out infinite;
+/* Variante B: 4 puntos en las esquinas rotando (l38) */
+.thinking-loader-corners {
+  width: 14px;
+  aspect-ratio: 1;
+  color: var(--thinking-neutral);
+  --_g: no-repeat radial-gradient(farthest-side, currentColor 94%, #0000);
+  background:
+    var(--_g) 0    0,
+    var(--_g) 100% 0,
+    var(--_g) 100% 100%,
+    var(--_g) 0    100%;
+  background-size: 40% 40%;
+  animation: thinkingLoaderCorners .5s infinite;
 }
-
-.thinking-dots span:nth-child(2) { animation-delay: 0.2s; }
-.thinking-dots span:nth-child(3) { animation-delay: 0.4s; }
-
-@keyframes thinkingWave {
-  0%, 100% { transform: translateY(0); opacity: 0.55; }
-  50% { transform: translateY(-5px); opacity: 1; }
+@keyframes thinkingLoaderCorners {
+  100% { background-position: 100% 0, 100% 100%, 0 100%, 0 0 }
 }
 
 .thinking-secs {
@@ -1108,31 +1268,9 @@ body, html, #root {
   font-variant-numeric: tabular-nums;
 }
 
-@keyframes pulseThinkingLogo {
-  0%, 100% { opacity: 0.4; }
-  50% { opacity: 1; }
-}
-
 @keyframes pulseThinkingText {
-  0%, 100% { opacity: 0.25; }
-  50% { opacity: 0.5; }
-}
-
-.thinking-logo-mask {
-  width: 28px;
-  height: 28px;
-  background-color: var(--amber-exodo);
-  -webkit-mask-image: url('/exodo_arrow_logo.png');
-  -webkit-mask-size: contain;
-  -webkit-mask-repeat: no-repeat;
-  mask-image: url('/exodo_arrow_logo.png');
-  mask-size: contain;
-  mask-repeat: no-repeat;
-  animation: pulseThinkingLogo 2.2s ease-in-out infinite;
-}
-
-[data-theme="light"] .thinking-logo-mask {
-  background-color: #0E0C0A;
+  0%, 100% { opacity: 0.45; }
+  50% { opacity: 0.9; }
 }
 
 .thinking-label {
@@ -1140,12 +1278,8 @@ body, html, #root {
   font-weight: 500;
   font-family: 'Inter', -apple-system, sans-serif;
   letter-spacing: 0.2px;
-  color: var(--amber-exodo);
+  color: var(--thinking-neutral);
   animation: pulseThinkingText 2.2s ease-in-out infinite;
-}
-
-[data-theme="light"] .thinking-label {
-  color: #0E0C0A;
 }
 
 /* Composer de Chat (Exacto al móvil ChatComposer #252525 / #FFFFFF) */
@@ -1175,7 +1309,7 @@ body, html, #root {
   padding: 16px 18px 14px 18px;
   display: flex;
   flex-direction: column;
-  transition: background 0.3s ease, box-shadow 0.3s ease, transform 0.3s ease, border-color 0.3s ease;
+  transition: background-color 0.22s ease, box-shadow 0.22s ease, transform 0.2s ease, border-color 0.22s ease;
 }
 
 [data-theme="light"] .composer-container {
@@ -1193,6 +1327,20 @@ body, html, #root {
   border-color: transparent !important;
   outline: none !important;
   box-shadow: var(--shadow-composer, none) !important;
+}
+
+/* 2. Cajón de type: Línea de trazo rodeando el contenedor exclusivamente en modo incógnito */
+.chat-main.incognito-mode .composer-container,
+div.chat-main.incognito-mode .composer-container {
+  border: 2px dashed #707070 !important;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.4) !important;
+}
+
+.chat-main.incognito-mode .composer-container:focus,
+.chat-main.incognito-mode .composer-container:focus-within,
+div.chat-main.incognito-mode .composer-container:focus-within {
+  border: 2px dashed #909090 !important;
+  border-color: #909090 !important;
 }
 
 .composer-input {
@@ -1296,10 +1444,10 @@ body, html, #root {
     display: flex;
   }
   .greeting-text-exodo {
-    font-size: 22px;
+    font-size: 30px;
     text-align: center;
-    line-height: 1.2;
-    letter-spacing: -0.3px;
+    line-height: 1.25;
+    letter-spacing: -0.4px;
     overflow-wrap: break-word;
   }
   .welcome-center {
@@ -1325,5 +1473,36 @@ body, html, #root {
   .composer-container {
     border-radius: 24px;
     padding: 12px 14px 10px 14px;
+  }
+}
+
+/* ─── Transición de tema suave (cross-fade, evita el flash agresivo dark↔light) ─── */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 280ms;
+  animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Fallback (navegadores sin View Transitions): transición temporal de colores */
+html.theme-animating,
+html.theme-animating * {
+  transition:
+    background-color 260ms ease,
+    color 260ms ease,
+    border-color 260ms ease,
+    fill 260ms ease,
+    stroke 260ms ease,
+    box-shadow 260ms ease !important;
+}
+
+/* Respeto a usuarios con movimiento reducido */
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation: none;
+  }
+  html.theme-animating,
+  html.theme-animating * {
+    transition: none !important;
   }
 }
