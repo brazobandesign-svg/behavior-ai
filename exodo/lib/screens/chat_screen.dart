@@ -14,6 +14,7 @@ import '../widgets/chat/chat_composer.dart';
 import '../widgets/chat/message_bubble.dart';
 import '../widgets/chat/model_selector.dart';
 import '../widgets/chat/image_generating_placeholder.dart';
+import '../widgets/chat/dashed_border.dart';
 import '../services/chat_service.dart';
 import '../services/supabase_service.dart';
 import '../services/notification_service.dart';
@@ -309,10 +310,12 @@ class _ChatScreenState extends State<ChatScreen>
       body: AnimatedAmbientBackground(
         animation: _ambientBgCtrl,
         child: SafeArea(
-          child: Column(
+          child: Stack(
             children: [
-              // Barra superior minimalista y limpia modularizada
-              const ChatAppBar(),
+              Column(
+                children: [
+                  // Barra superior minimalista y limpia modularizada
+                  const ChatAppBar(),
 
 
               // Stage principal o lista de mensajes (SIEMPRE VISIBLE y fluye tras el composer)
@@ -424,11 +427,28 @@ class _ChatScreenState extends State<ChatScreen>
               ),
             ],
           ),
-        ),
+          if (isIncognito)
+            const Positioned.fill(
+              child: IgnorePointer(
+                child: CustomPaint(
+                  painter: DashedBorderPainter(
+                    color: Color(0xFF707070),
+                    strokeWidth: 2.0,
+                    dashLength: 6.0,
+                    gapLength: 4.0,
+                    borderRadius: 0.0,
+                  ),
+                ),
+              ),
+            ),
+        ],
       ),
-    );
-  }
+    ),
+  ),
+);
 }
+}
+
 
 /// [Fix rendimiento streaming] Widget aislado que contiene TODO lo que
 /// depende de currentMessages y isGenerating. Su propio `context.watch<AppState>()`

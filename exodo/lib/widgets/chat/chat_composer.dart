@@ -20,6 +20,7 @@ import '../../services/supabase_service.dart';
 import '../../data/repositories/attachment_storage.dart';
 import '../../theme/exodo_theme.dart';
 import '../../l10n/app_i18n.dart';
+import 'dashed_border.dart';
 
 // [Punto 40] Datos temporales de un adjunto antes de leer sus bytes.
 // [filePath] apunta a la copia permanente en `attachments/` creada en el
@@ -172,6 +173,7 @@ class _ChatComposerState extends State<ChatComposer>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _inputFocusNode.addListener(_onFocusChange);
     _auraController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 3200),
@@ -1259,6 +1261,10 @@ class _ChatComposerState extends State<ChatComposer>
     widget.onSend(attachments.isEmpty ? null : attachments);
   }
 
+  void _onFocusChange() {
+    if (mounted) setState(() {});
+  }
+
   @override
   void dispose() {
     try {
@@ -1268,6 +1274,7 @@ class _ChatComposerState extends State<ChatComposer>
     WidgetsBinding.instance.removeObserver(this);
     _auraController.dispose();
     _voiceLevel.dispose();
+    _inputFocusNode.removeListener(_onFocusChange);
     _inputFocusNode.dispose();
     _abortPendingUploads();
     _pcmSub?.cancel();
@@ -1422,28 +1429,48 @@ class _ChatComposerState extends State<ChatComposer>
 
           Transform.translate(
             offset: const Offset(0, -14),
-            child: Container(
-              decoration: BoxDecoration(
-                color: isLight
-                    ? ExodoColors.textPrimary
-                    : ExodoColors.composerBg,
-                borderRadius: BorderRadius.circular(32),
-                border: Border.all(color: Colors.transparent, width: 1.0),
-                boxShadow: isLight
-                    ? [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.16),
-                          blurRadius: 20,
-                          offset: const Offset(0, 5),
-                        ),
-                      ]
-                    : null,
-              ),
-              padding: const EdgeInsets.fromLTRB(20, 8, 18, 8),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
+            child: CustomPaint(
+              foregroundPainter: isIncognito
+                  ? DashedBorderPainter(
+                      color: _inputFocusNode.hasFocus
+                          ? const Color(0xFF909090)
+                          : const Color(0xFF707070),
+                      strokeWidth: 2.0,
+                      dashLength: 6.0,
+                      gapLength: 4.0,
+                      borderRadius: 32.0,
+                    )
+                  : null,
+              child: Container(
+                decoration: BoxDecoration(
+                  color: isLight
+                      ? ExodoColors.textPrimary
+                      : ExodoColors.composerBg,
+                  borderRadius: BorderRadius.circular(32),
+                  border: Border.all(color: Colors.transparent, width: 1.0),
+                  boxShadow: isIncognito
+                      ? [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.40),
+                            blurRadius: 36,
+                            offset: const Offset(0, 12),
+                          ),
+                        ]
+                      : (isLight
+                          ? [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.16),
+                                blurRadius: 20,
+                                offset: const Offset(0, 5),
+                              ),
+                            ]
+                          : null),
+                ),
+                padding: const EdgeInsets.fromLTRB(20, 8, 18, 8),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
                         if (editingMessage != null)
                           Container(
                             margin: const EdgeInsets.only(bottom: 6),
@@ -1920,13 +1947,15 @@ class _ChatComposerState extends State<ChatComposer>
                         ),
                       ],
                     ),
-            ),
+                  ),
+                ),
+              ),
+            ],
           ),
-        ],
-      ),
-    );
-  }
-}
+        );
+      }
+    }
+
 
 /// Aplica un barrido fluido de luz blanca pura de izquierda a derecha
 /// de forma periódica sobre el texto ámbar "Actualizar", manteniendo su color
