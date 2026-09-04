@@ -15,6 +15,12 @@ function errorHandler(err, req, res, _next) {
     return res.status(400).json({ error: 'JSON inválido en el body del request' });
   }
 
+  if (err.code === 'LIMIT_FILE_SIZE') {
+    return res.status(400).json({
+      error: 'El adjunto supera el límite permitido (15MB).',
+    });
+  }
+
   if (err.type === 'entity.too.large' || err.status === 413) {
     return res.status(413).json({
       error: 'El mensaje o adjunto excede el tamaño máximo permitido (límite excedido).',

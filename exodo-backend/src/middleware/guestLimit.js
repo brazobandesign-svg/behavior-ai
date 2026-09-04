@@ -13,11 +13,13 @@ const DAILY_LIMIT = (() => {
   return Number.isFinite(n) && n > 0 ? n : 30;
 })();
 
+const { getLocalDateKey } = require('../utils/timezone');
+
 const _guestUsage = new Map(); // ip -> { date: 'YYYY-MM-DD', count }
 
-// Derivado de Date.now(): equivalente en producción y testeable congelando el reloj.
-function todayKey(nowMs = Date.now()) {
-  return new Date(nowMs).toISOString().slice(0, 10);
+function todayKey(req, nowMs = Date.now()) {
+  const tz = req?.headers?.['x-timezone'] || req?.body?.timezone || req?.query?.timezone;
+  return getLocalDateKey(tz, nowMs);
 }
 
 function getIp(req) {
@@ -31,7 +33,7 @@ function guestLimit(req, res, next) {
 
   const ip = getIp(req);
   const now = Date.now();
-  const today = todayKey(now);
+  const today = todayKey(req, now);
 
   // Poda perezosa: si el mapa crece demasiado, tira entradas de días pasados.
   if (_guestUsage.size > 5000) {

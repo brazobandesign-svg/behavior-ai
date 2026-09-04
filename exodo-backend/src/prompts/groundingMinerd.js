@@ -95,6 +95,7 @@ function buildSystemPrompt(opts) {
   const searchStatus = o.searchStatus === 'live' ? 'live'
     : (o.searchStatus === 'unavailable' ? 'unavailable' : null);
 
+  const isAnonymous = !!o.isAnonymous;
   const hasMinerdChunks = chunks.some((c) => !c || c.kind !== 'web');
   const isEducationalContext = hasMinerdChunks || !!subject;
 
@@ -116,7 +117,9 @@ function buildSystemPrompt(opts) {
       'NUNCA te presentas como empleado del MINERD ni de ninguna institución.',
       'CERO muletillas (¡Por supuesto!, Con gusto) y CERO auto-presentaciones: empieza directo con el contenido útil.',
       'Ante un saludo simple, responde con sobriedad y calidez en una línea (ej. Hola. ¿En qué te puedo colaborar hoy?).',
-      'Si piden un gráfico, visualización o pieza interactiva: entrega UN único bloque de código cercado html autocontenido (vanilla JS/SVG, sin CDN); la app lo renderiza interactivo dentro del chat. NUNCA digas que no puedes renderizarlo ni pidas abrir el archivo en un navegador.',
+      isAnonymous
+        ? 'Si piden un gráfico, visualización o pieza interactiva: proporciona únicamente el código estático o bloque de código Markdown sin interactividad y agrega al final de tu respuesta de forma natural: "Para previsualizar artefactos y ejecutar aplicaciones interactivas, inicia sesión en tu cuenta.". NUNCA digas que no puedes generar código.'
+        : 'Si piden un gráfico, visualización o pieza interactiva: entrega UN único bloque de código cercado html autocontenido (vanilla JS/SVG, sin CDN); la app lo renderiza interactivo dentro del chat. NUNCA digas que no puedes renderizarlo ni pidas abrir el archivo en un navegador.',
       'CITACIÓN OBLIGATORIA en temas de hechos históricos, datos empíricos, ciencia, medicina, leyes o biografías: tras CADA dato específico (fecha, cifra, nombre, evento) coloca INMEDIATAMENTE el enlace `[Nombre Corto](https://...)` (1-3 palabras, sin prefijos). Ejemplo: "La guerra culminó el 16 de agosto de 1865 [Britannica](https://www.britannica.com), fecha celebrada cada año. El detonante fue la Revolución de 1863 [AGN](https://agn.gob.do)."',
       'El enlace va PEGADO AL DATO, repartido por todo el texto — JAMÁS al final de toda la respuesta, en línea aparte ni agrupado al cierre. SOLO fuentes acreditadas: archivos nacionales, academias de historia, UNESCO, Britannica, Nature, PubMed, portales oficiales. En saludos, charla casual, creativa o código: CERO fuentes.',
       'NUNCA añadas sección final de fuentes (`### Fuentes` PROHIBIDA): la app extrae los enlaces y muestra su cápsula de Sources.',
@@ -144,7 +147,7 @@ function buildSystemPrompt(opts) {
     APP_KNOWLEDGE,
     buildVisionCapabilitySection(),
     buildBrowsingHonestySection(searchStatus),
-    buildArtifactsAndWritingStandardSection(),
+    buildArtifactsAndWritingStandardSection(isAnonymous),
     isEducationalContext ? buildBaseNormativaSection() : null,
     isEducationalContext ? buildCompetenciasSection() : null,
     isEducationalContext ? buildTerminologiaSection() : null,
@@ -299,7 +302,16 @@ function buildBrowsingHonestySection(searchStatus) {
   ].join('\n');
 }
 
-function buildArtifactsAndWritingStandardSection() {
+function buildArtifactsAndWritingStandardSection(isAnonymous = false) {
+  if (isAnonymous) {
+    return [
+      '# LIMITACIÓN DE ARTEFACTOS INTERACTIVOS (SESIÓN ANÓNIMA / INVITADO)',
+      '',
+      'El usuario actual se encuentra en una sesión anónima o como invitado.',
+      'Si el usuario solicita generar una aplicación web interactiva, juego, simulación o componente interactivo complejo, proporciona únicamente el código estático o bloque de código Markdown sin interactividad y agrega al final de tu respuesta de forma natural: "Para previsualizar artefactos y ejecutar aplicaciones interactivas, inicia sesión en tu cuenta."',
+    ].join('\n');
+  }
+
   return [
     '# ARTEFACTOS INTERACTIVOS: RENDERIZADO NATIVO EN LA APP (CAPACIDAD REAL)',
     '',

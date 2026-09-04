@@ -28,6 +28,22 @@ const upload = multer({
   limits: { fileSize: 15 * 1024 * 1024 },
 });
 
+const { getLocalDateKey } = require('../utils/timezone');
+
+// Tracker de extracción de documentos para sesiones anónimas (Guest / Incognito) por IP y medianoche local
+const _incognitoDocUsage = new Map(); // ip -> { date: 'YYYY-MM-DD', count }
+
+function getBase64ByteLength(b64Str) {
+  if (!b64Str || typeof b64Str !== 'string') return 0;
+  const clean = b64Str.includes(',') ? b64Str.split(',')[1] : b64Str;
+  const len = clean.length;
+  if (!len) return 0;
+  let padding = 0;
+  if (clean.endsWith('==')) padding = 2;
+  else if (clean.endsWith('=')) padding = 1;
+  return Math.floor((len * 3) / 4) - padding;
+}
+
 /**
  * Heurística ligera para detectar consultas pedagógicas / curriculares del MINERD.
  * Si hay discernimiento curricular (nivel, ciclo, grado, competencia, indicador,
@@ -300,6 +316,68 @@ router.post('/', auth, guestLimit, planGuard, upload.array('files', 5), async (r
       }
     }
 
+    const clientIp = req.ip || req.socket?.remoteAddress || 'unknown';
+    const userTimezone = req.headers['x-timezone'] || req.body?.timezone || req.query?.timezone;
+    const isAnonymous = isGuest || isIncognitoTurn;
+
+    // 1) Validación de tamaño máximo de archivos: 3MB para sesiones anónimas/invitados, 15MB para Free/Pro
+    const maxFileBytes = isAnonymous ? 3 * 1024 * 1024 : 15 * 1024 * 1024;
+    const sizeErrorMessage = isAnonymous
+      ? 'El adjunto supera el límite permitido (3MB).'
+      : 'El adjunto supera el límite permitido (15MB).';
+
+    for (const f of multipartFiles) {
+      const fSize = f.size || f.buffer?.length || 0;
+      if (fSize > maxFileBytes) {
+        return res.status(400).json({ error: sizeErrorMessage });
+      }
+    }
+
+    if (attachments && Array.isArray(attachments)) {
+      for (const att of attachments) {
+        if (att.base64) {
+          const b64Size = getBase64ByteLength(att.base64);
+          if (b64Size > maxFileBytes) {
+            return res.status(400).json({ error: sizeErrorMessage });
+          }
+        }
+      }
+    }
+
+    // 2) Límite de análisis de documentos diarios en sesiones anónimas (máx 3/día).
+    // Las fotos e imágenes (visión multimodal) son ILIMITADAS y no computan en este tope.
+    let docCountInTurn = 0;
+    for (const f of multipartFiles) {
+      const mime = (f.mimetype || '').toLowerCase();
+      if (!mime.startsWith('image/')) docCountInTurn++;
+    }
+    if (attachments && Array.isArray(attachments)) {
+      for (const att of attachments) {
+        const mime = (att.mime_type || '').toLowerCase();
+        if (!mime.startsWith('image/')) docCountInTurn++;
+      }
+    }
+
+    if (isAnonymous && docCountInTurn > 0) {
+      const todayDoc = getLocalDateKey(userTimezone);
+      if (_incognitoDocUsage.size > 5000) {
+        for (const [k, v] of _incognitoDocUsage) {
+          if (v.date !== todayDoc) _incognitoDocUsage.delete(k);
+        }
+      }
+      let docEntry = _incognitoDocUsage.get(clientIp);
+      if (!docEntry || docEntry.date !== todayDoc) {
+        docEntry = { date: todayDoc, count: 0 };
+        _incognitoDocUsage.set(clientIp, docEntry);
+      }
+      if (docEntry.count + docCountInTurn > 3) {
+        return res.status(400).json({
+          error: 'Has alcanzado el límite diario de análisis de documentos para sesiones anónimas. Inicia sesión en tu cuenta para continuar.',
+        });
+      }
+      docEntry.count += docCountInTurn;
+    }
+
     // PERF-2: headers SSE fuera INMEDIATAMENTE tras validar autenticación,
     // rate-limit e IDOR — antes de adjuntos, Supabase o cualquier await.
     // El cliente abre el stream sin esperar la preparación del turno.
@@ -482,19 +560,25 @@ router.post('/', auth, guestLimit, planGuard, upload.array('files', 5), async (r
       hasImages,
       isGuest,
       isIncognito: isIncognitoTurn,
+      clientIp,
+      timezone: userTimezone,
     });
     let webPrefetch = null;
     if (webGate.search && (!isMinerdQuery(enhancedMessage) || webGate.forced)) {
       webPrefetch = runWebSearch(enhancedMessage, {
         userId: (!isGuest && !isIncognitoTurn) ? userId : null,
         isPro: plan === 'hazak',
+        isGuest,
+        isIncognito: isIncognitoTurn,
+        clientIp,
+        timezone: userTimezone,
         signal: abortController.signal,
       }).catch(() => ({ results: [], provider: null, cached: false, unavailable: 'error' }));
     }
 
-    // IMAGEN + invitado: no quemar tokens del LLM con un "no puedo generar
+    // IMAGEN + invitado / incógnito: no quemar tokens del LLM con un "no puedo generar
     // imágenes". Aviso estructurado que la app pinta estilo disclaimer.
-    if (intent === 'IMAGEN' && isGuest) {
+    if (intent === 'IMAGEN' && (isGuest || isIncognitoTurn)) {
       sendSse({ type: 'notice', code: 'image_login_required' });
       sendSse({ type: 'done', content: '', sources: [] });
       res.end();
@@ -503,7 +587,7 @@ router.post('/', auth, guestLimit, planGuard, upload.array('files', 5), async (r
 
     // IMAGEN con sesión: generar en el chat (G1.1 3/día, XPi 25/día).
     // Mismo enforce y contabilidad que /api/images/generate.
-    if (intent === 'IMAGEN' && !isGuest && !hasImages) {
+    if (intent === 'IMAGEN' && !isGuest && !isIncognitoTurn && !hasImages) {
       const dailyImagesUsed = req.usage?.dailyImagesUsed || 0;
       const dailyImagesLimit = req.usage?.dailyImagesLimit || 0;
       if (dailyImagesLimit > 0 && dailyImagesUsed >= dailyImagesLimit) {
@@ -591,7 +675,7 @@ router.post('/', auth, guestLimit, planGuard, upload.array('files', 5), async (r
     }, 5000);
 
     const isDegraded = !!req.user.isDegraded;
-    const savedToCloud = !isGuest && !anonymous && !!conversationId;
+    const savedToCloud = !isGuest && !anonymous && !isIncognitoTurn && !!conversationId;
 
     sendSse({
       type: 'meta',
@@ -641,9 +725,12 @@ router.post('/', auth, guestLimit, planGuard, upload.array('files', 5), async (r
       try {
         sendSse({ type: 'notice', code: 'web_searching' });
         const webRes = await webPrefetch;
-        const minerdCovered = contextChunks.length > 0;
         if (webRes && webRes.results && webRes.results.length > 0 && (webGate.forced || !minerdCovered)) {
-          const enriched = await enrichWithReader(webRes.results, { signal: abortController.signal });
+          const enriched = await enrichWithReader(webRes.results, {
+            isGuest,
+            isIncognito: isIncognitoTurn,
+            signal: abortController.signal,
+          });
           const webChunks = enriched.map((r) => {
             const host = hostOf(r.url);
             return {
@@ -695,6 +782,7 @@ router.post('/', auth, guestLimit, planGuard, upload.array('files', 5), async (r
       contextChunks,
       lite: useLitePrompt,
       searchStatus,
+      isAnonymous: (isGuest || isIncognitoTurn),
     });
 
     // CONTEXT PRUNING: ventana de 50 mensajes (~25 turnos). Las grandes IA no
@@ -781,7 +869,7 @@ router.post('/', auth, guestLimit, planGuard, upload.array('files', 5), async (r
     const isEduQuery = isMinerdQuery(minerdContext);
     const sources = extractSourcesFromText(fullText, result.sources, contextChunks, isEduQuery);
 
-    if (conversationId && !isGuest && !anonymous) {
+    if (conversationId && !isGuest && !anonymous && !isIncognitoTurn) {
       try {
         const userMsgToSave = (message && message.trim()) ? message.trim() : (hasImages ? '[Foto adjunta]' : '');
         await saveMessage(conversationId, 'user', userMsgToSave, { intent });

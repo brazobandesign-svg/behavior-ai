@@ -36,16 +36,53 @@ const EXPLICIT_NOBROWSE =
 const RECENCY =
   /(actual(izado)?s?|hoy|ayer|esta\s+semana|este\s+mes|este\s+a[ñn]o|20 ?2[4-9]|últim[oa]s?|reciente?s?|precio?s?|qui[ée]n\s+gan[óo]|qu[ée]\s+pas[óo]\s+con|noticia?s?|ocurri[óo]|anunci[óo]|resultados?\s+de|lanzamiento|estreno|cu[aá]ndo\s+(sali[óo]|se\s+lanz[óo]|fue|anunciaron|ocurri[óo]|publicaron)|fecha\s+de\s+(lanzamiento|salida|publicaci[óo]n)|se\s+lanz[óo]|fue\s+anunciado)/i;
 
+const { getLocalDateKey } = require('../../utils/timezone');
+
+// Tracker de búsquedas para Guest e Incógnito en memoria por IP y medianoche local
+const _guestSearchUsage = new Map(); // ip -> { date: 'YYYY-MM-DD', count }
+
+function getGuestSearchCount(ip, timezone, nowMs = Date.now()) {
+  if (!ip) return 0;
+  const today = getLocalDateKey(timezone, nowMs);
+  const entry = _guestSearchUsage.get(ip);
+  if (!entry || entry.date !== today) return 0;
+  return entry.count;
+}
+
+function bumpGuestSearch(ip, timezone, nowMs = Date.now()) {
+  if (!ip) return;
+  const today = getLocalDateKey(timezone, nowMs);
+  if (_guestSearchUsage.size > 5000) {
+    for (const [k, v] of _guestSearchUsage) {
+      if (v.date !== today) _guestSearchUsage.delete(k);
+    }
+  }
+  let entry = _guestSearchUsage.get(ip);
+  if (!entry || entry.date !== today) {
+    entry = { date: today, count: 0 };
+    _guestSearchUsage.set(ip, entry);
+  }
+  entry.count += 1;
+}
+
 const SKIP_INTENTS = new Set(['IMAGEN', 'DOCUMENTO', 'VISION']);
 
 /**
  * ¿Este turno amerita búsqueda viva? Puro y barato (sin LLM).
- * Devuelve { search, forced } — forced=true solo con pedido explícito.
+ * Devuelve { search, forced, quotaExceeded } — forced=true solo con pedido explícito.
  */
-function needsWebSearch({ message, intent, hasImages, isGuest, isIncognito }) {
+function needsWebSearch({ message, intent, hasImages, isGuest, isIncognito, clientIp, timezone }) {
   if (process.env.WEB_SEARCH_ENABLED === 'false') return { search: false, forced: false };
-  if (isGuest || isIncognito) return { search: false, forced: false };
   if (hasImages) return { search: false, forced: false };
+
+  // Control estricto de búsquedas web para Guest e Incógnito (máx 3/día)
+  if (isGuest || isIncognito) {
+    const used = getGuestSearchCount(clientIp, timezone);
+    if (used >= 3) {
+      return { search: false, forced: false, quotaExceeded: true };
+    }
+  }
+
   const text = String(message || '');
   if (EXPLICIT_NOBROWSE.test(text)) return { search: false, forced: false };
   const forced = EXPLICIT_SEARCH.test(text);
@@ -201,10 +238,18 @@ async function bumpProvider(provider) {
  * Devuelve { results, provider, cached, unavailable }.
  * unavailable: null | 'disabled' | 'no_keys' | 'user_cap' | 'global_cap' | 'error'
  */
-async function runWebSearch(query, { userId = null, isPro = false, signal = null, onProvider = null } = {}) {
+async function runWebSearch(query, { userId = null, isPro = false, isGuest = false, isIncognito = false, clientIp = null, timezone = null, signal = null, onProvider = null } = {}) {
   const c = cfg();
   const q = String(query || '').trim().slice(0, 300);
   if (!c.enabled || !q) return { results: [], provider: null, cached: false, unavailable: 'disabled' };
+
+  // Control estricto de búsquedas para Guest / Incognito (máx 3/día)
+  if (isGuest || isIncognito) {
+    const used = getGuestSearchCount(clientIp, timezone);
+    if (used >= 3) {
+      return { results: [], provider: null, cached: false, unavailable: 'guest_search_limit' };
+    }
+  }
 
   const hasAnyKey =
     process.env.SERPER_API_KEY || process.env.BRAVE_API_KEY ||
@@ -214,7 +259,7 @@ async function runWebSearch(query, { userId = null, isPro = false, signal = null
     return { results: [], provider: null, cached: false, unavailable: 'no_keys' };
   }
 
-  // Tope diario por usuario (solo cuentas; invitados nunca llegan aquí).
+  // Tope diario por usuario registrado (Free / Pro).
   if (userId) {
     const limit = isPro ? c.proDaily : c.freeDaily;
     const used = await userDayCount(userId);
@@ -229,11 +274,14 @@ async function runWebSearch(query, { userId = null, isPro = false, signal = null
     return { results: [], provider: null, cached: false, unavailable: 'global_cap' };
   }
 
+  // Presupuesto de snippets diferenciado: 3 para Guest/Incógnito, 5 para Free, 10 para Pro
+  const maxSlice = (isGuest || isIncognito) ? 3 : (isPro ? 10 : 5);
+
   // Caché primero (no gasta cuota de nadie).
   const hash = hashQuery(q);
   const hit = await cacheGet(hash, c.cacheDays);
   if (hit) {
-    return { results: hit.results, provider: hit.provider, cached: true, unavailable: null };
+    return { results: (hit.results || []).slice(0, maxSlice), provider: hit.provider, cached: true, unavailable: null };
   }
 
   // Cadena con failover silencioso.
@@ -247,9 +295,10 @@ async function runWebSearch(query, { userId = null, isPro = false, signal = null
       if (results && results.length > 0) {
         await bumpProvider(p.name);
         if (userId) await bumpUserDay(userId);
+        if (isGuest || isIncognito) bumpGuestSearch(clientIp, timezone);
         await cachePut(hash, q, results, p.name);
         try { onProvider?.(p.name, Date.now() - started, false); } catch (_) {}
-        return { results: results.slice(0, 5), provider: p.name, cached: false, unavailable: null };
+        return { results: results.slice(0, maxSlice), provider: p.name, cached: false, unavailable: null };
       }
       // null o vacío: el siguiente lo intenta (sin registrar gasto si ni
       // siquiera respondió; si respondió vacío igual consumió llamada, pero
@@ -265,8 +314,9 @@ async function runWebSearch(query, { userId = null, isPro = false, signal = null
  * Enriquece con Jina Reader las 2 primeras URLs cuando los snippets son
  * pobres (<120 chars). Protege el saldo: máximo 2 extracciones por turno.
  */
-async function enrichWithReader(results, { signal = null } = {}) {
+async function enrichWithReader(results, { isGuest = false, isIncognito = false, signal = null } = {}) {
   const out = (results || []).slice(0, 5);
+  if (isGuest || isIncognito) return out; // Saldo protegido: invitados no disparan Jina Reader
   let used = 0;
   for (const r of out) {
     if (used >= 2) break;
@@ -288,6 +338,9 @@ module.exports = {
   enrichWithReader,
   hashQuery,
   PROVIDER_CHAIN,
+  _guestSearchUsage,
+  getGuestSearchCount,
+  bumpGuestSearch,
 };
 
 try {

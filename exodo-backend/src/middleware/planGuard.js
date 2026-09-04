@@ -1,6 +1,8 @@
 const supabase = require('../config/supabase');
 const { PLAN_CONFIG } = require('../config/models');
 
+const { getLocalDateKey } = require('../utils/timezone');
+
 const _memUsage = new Map();
 
 // P1 auditoría: TTL de sincronización del caché local con el contador atómico
@@ -9,11 +11,9 @@ const _memUsage = new Map();
 // relee la DB en vez de confiar en el mapa local (_memUsage) indefinidamente.
 const USAGE_SYNC_TTL_MS = 30_000;
 
-function getAstDates() {
-  const now = new Date();
-  const astOffset = 4 * 60 * 60 * 1000; // UTC-4
-  const astDate = new Date(now.getTime() - astOffset);
-  const currentDate = astDate.toISOString().split('T')[0];
+function getLocalDates(req, nowMs = Date.now()) {
+  const tz = req?.headers?.['x-timezone'] || req?.body?.timezone || req?.query?.timezone;
+  const currentDate = getLocalDateKey(tz, nowMs);
   const currentMonth = currentDate.substring(0, 7);
   return { currentDate, currentMonth };
 }
@@ -22,14 +22,15 @@ function getAstDates() {
  * Middleware de Guardia de Plan con Blindaje Total para Cuentas Guest.
  * 
  * Regla de Oro:
- * - Cuentas Guest / Anónimas -> Forzadas a Groq Modo Eco ($0.00).
- * - Cuentas Registradas Free -> 6,000 tokens diarios en DeepSeek V4 Flash.
- * - Cuentas Registradas Pro -> 50,000 tokens diarios en DeepSeek V4 Pro.
+ * - Cuentas Guest / Anónimas -> Forzadas a Modo Eco ($0.00).
+ * - Cuentas Registradas Free -> 6,000 tokens diarios.
+ * - Cuentas Registradas Pro -> 50,000 tokens diarios.
+ * - Visión ilimitada para todos los usuarios.
  */
 async function planGuard(req, res, next) {
   const { userId, plan, isGuest } = req.user;
 
-  // 1. BLINDAJE DE GUESTS: Modo Eco directo sin tocar base de datos ni saldo de DeepSeek
+  // 1. BLINDAJE DE GUESTS: Modo Eco directo sin tocar base de datos ni saldo
   if (isGuest || plan === 'guest' || !userId) {
     req.user.isGuest = true;
     req.user.isDegraded = false;
@@ -38,7 +39,7 @@ async function planGuard(req, res, next) {
       dailyTokensUsed: 0,
       dailyTokensLimit: 0,
       monthlyVisionUsed: 0,
-      monthlyVisionLimit: 1,
+      monthlyVisionLimit: Infinity,
       isDegraded: false,
     };
     return next();
@@ -47,7 +48,7 @@ async function planGuard(req, res, next) {
   const isPro = (plan === 'pro' || plan === 'hazak');
   const planKey = isPro ? 'pro' : 'free';
   const config = PLAN_CONFIG[planKey];
-  const { currentDate, currentMonth } = getAstDates();
+  const { currentDate, currentMonth } = getLocalDates(req);
 
   // 2. Revisar memoria para usuarios registrados (solo si está fresca; si no,
   //    re-sincronizar desde DB más abajo)

@@ -1,4 +1,4 @@
-﻿// Constantes de modelos, proveedores y límites — Matriz Éxodo DashScope Free Tier (1M tokens)
+// Constantes de modelos, proveedores y límites — Matriz Éxodo DashScope Free Tier (1M tokens)
 
 const ALIBABA_CONFIG = {
   baseURL: process.env.ALIBABA_BASE_URL || 'https://dashscope-intl.aliyuncs.com/compatible-mode/v1',
@@ -46,7 +46,7 @@ const PLAN_CONFIG = {
     // degradación; producción: 6000/50000 por defecto).
     dailyTokensLimit: parseInt(process.env.TOKENS_LIMIT_FREE, 10) || 6000,
     maxOutputTokensNormal: 8192,
-    monthlyVisionLimit: 1000,
+    monthlyVisionLimit: Infinity,
     dailyImagesLimit: 3,              // G1.1: pocas imágenes al día
     allowThinking: true,
     primaryModel: 'qwen3.6-max-preview',
@@ -61,7 +61,7 @@ const PLAN_CONFIG = {
     priceUsd: 4.99,
     dailyTokensLimit: parseInt(process.env.TOKENS_LIMIT_PRO, 10) || 50000,
     maxOutputTokens: 8192,
-    monthlyVisionLimit: 2000,
+    monthlyVisionLimit: Infinity,
     dailyImagesLimit: 25,             // XPi: 25 imágenes/día (antes 66/mes implícito)
     allowThinking: true,
     primaryModel: 'qwen3.6-max-preview',
