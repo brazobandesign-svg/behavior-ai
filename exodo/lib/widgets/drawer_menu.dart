@@ -184,40 +184,13 @@ class _DrawerMenuState extends State<DrawerMenu> {
                       ),
 
                       // 2. Opciones de menú.
+                      // (New chat, tema e incógnito viven en el app bar del
+                      // chat: aquí solo quedan Expedientes + Buscar.)
                       IntrinsicHeight(
                         child: Wrap(
                           spacing: 0,
                           runSpacing: 0,
                           children: [
-                            _DrawerItem(
-                              horizontalPad: hPad,
-                              icon: Icon(Icons.chat_bubble_outline_rounded, size: s(20), color: textCol),
-                              title: Text(AppI18n.of(context).t('drawer.new_chat'), style: TextStyle(fontFamily: 'AnthropicSans', fontSize: s(14), color: textCol, fontWeight: FontWeight.w600, letterSpacing: -0.2)),
-                              onTap: () {
-                                state.startNewChat();
-                                Navigator.pop(context);
-                              },
-                            ),
-                            _DrawerItem(
-                              horizontalPad: hPad,
-                              icon: Icon(state.isDarkMode ? Icons.light_mode_outlined : Icons.dark_mode_outlined, size: s(20), color: textCol),
-                              title: Text(state.isDarkMode ? AppI18n.of(context).t('drawer.light_mode') : AppI18n.of(context).t('drawer.dark_mode'), style: TextStyle(fontFamily: 'AnthropicSans', fontSize: s(14), color: textCol, fontWeight: FontWeight.w600, letterSpacing: -0.2)),
-                              onTap: () => state.toggleTheme(),
-                            ),
-                            _DrawerItem(
-                              horizontalPad: hPad,
-                              icon: Image.asset(
-                                'assets/images/incognito-svgrepo-com.png',
-                                width: s(20),
-                                height: s(20),
-                                color: state.isIncognito ? ExodoColors.amber : textCol,
-                              ),
-                              title: Text(AppI18n.of(context).t('drawer.incognito'), style: TextStyle(fontFamily: 'AnthropicSans', fontSize: s(14), color: state.isIncognito ? ExodoColors.amber : textCol, fontWeight: FontWeight.w600, letterSpacing: -0.2)),
-                              onTap: () {
-                                HapticFeedback.vibrate();
-                                state.toggleIncognito();
-                              },
-                            ),
                             // [Punto 3] Expedientes es exclusivo de cuentas.
                             // Decisión de producto: en modo invitado el ítem
                             // se OCULTA por completo — sin opacidad reducida
