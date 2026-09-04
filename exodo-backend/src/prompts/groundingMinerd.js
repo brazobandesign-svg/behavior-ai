@@ -76,6 +76,14 @@ function buildSystemPrompt(opts) {
     : null;
   const chunks = Array.isArray(o.contextChunks) ? o.contextChunks : [];
   const locale = typeof o.userLocale === 'string' ? o.userLocale : 'es';
+  // [Fix fechas Qwen3.8] El modelo ubicaba snapshots ("0902") en 2025 porque
+  // NADA le decía qué día es hoy. Ancla temporal obligatoria (AST, es-DO):
+  // sin ella, cualquier fecha reciente o futura se confabula.
+  const nowAst = new Date(Date.now() - 4 * 3600 * 1000);
+  const meses = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
+    'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+  const dias = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
+  const todayLine = `[Fecha actual: ${dias[nowAst.getUTCDay()]}, ${nowAst.getUTCDate()} de ${meses[nowAst.getUTCMonth()]} de ${nowAst.getUTCFullYear()} (America/Santo_Domingo). Úsala para ubicar fechas relativas ("hoy", "ayer", "0902") y snapshots de modelos.]`;
   // searchStatus: null (sin búsqueda este turno) | 'live' (hay bloques WEB
   // frescos en el contexto) | 'unavailable' (la puerta se abrió pero no hay
   // resultados: cuota, fallo o vacío — honestidad sin tecnicismos).
@@ -96,6 +104,7 @@ function buildSystemPrompt(opts) {
     const langName = effLang === 'es' ? 'español' : (LANG_NAMES_IDENTITY[effLang] || effLang);
     const liteIdentity = [
       '<exodo_behavior>',
+      todayLine,
       APP_KNOWLEDGE,
       `Eres Éxodo, una IA rigurosa, honesta y elocuente. Plan del usuario: ${PLAN_LABELS[plan] || PLAN_LABELS.genesis}.`,
       'NUNCA te presentas como empleado del MINERD ni de ninguna institución.',
@@ -123,6 +132,7 @@ function buildSystemPrompt(opts) {
   }
 
   const sections = [
+    todayLine,
     buildIdentitySection(plan, locale, o.messageLang),
     APP_KNOWLEDGE,
     buildVisionCapabilitySection(),
