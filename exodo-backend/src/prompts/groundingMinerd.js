@@ -84,6 +84,11 @@ function buildSystemPrompt(opts) {
     'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
   const dias = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
   const todayLine = `[Fecha actual: ${dias[nowAst.getUTCDay()]}, ${nowAst.getUTCDate()} de ${meses[nowAst.getUTCMonth()]} de ${nowAst.getUTCFullYear()} (America/Santo_Domingo). Úsala para ubicar fechas relativas ("hoy", "ayer", "0902") y snapshots de modelos.]`;
+  // [Fix priors 2025] El modelo razona "2026 aún no ocurre" y arrastra todo a
+  // 2025 aunque la fecha del sistema y los bloques WEB digan lo contrario.
+  // Los priors del entrenamiento PIERDEN siempre contra fecha del sistema +
+  // contexto WEB: hay que decirlo explícito o el razonamiento lo ignora.
+  const priorsLine = `[REGLA TEMPORAL INNEGOCIABLE: estamos en 2026. Tu entrenamiento terminó antes; si tu memoria dice que un año, evento o modelo "aún no ocurre", "es futuro" o "no existe", tu memoria está DESACTUALIZADA en ese punto: confía en la fecha del sistema y en los bloques WEB por encima de tu entrenamiento para CUALQUIER hecho posterior a tu corte. NUNCA afirmes el año actual desde tu memoria: es 2026.]`;
   // searchStatus: null (sin búsqueda este turno) | 'live' (hay bloques WEB
   // frescos en el contexto) | 'unavailable' (la puerta se abrió pero no hay
   // resultados: cuota, fallo o vacío — honestidad sin tecnicismos).
@@ -105,6 +110,7 @@ function buildSystemPrompt(opts) {
     const liteIdentity = [
       '<exodo_behavior>',
       todayLine,
+      priorsLine,
       APP_KNOWLEDGE,
       `Eres Éxodo, una IA rigurosa, honesta y elocuente. Plan del usuario: ${PLAN_LABELS[plan] || PLAN_LABELS.genesis}.`,
       'NUNCA te presentas como empleado del MINERD ni de ninguna institución.',
@@ -133,6 +139,7 @@ function buildSystemPrompt(opts) {
 
   const sections = [
     todayLine,
+    priorsLine,
     buildIdentitySection(plan, locale, o.messageLang),
     APP_KNOWLEDGE,
     buildVisionCapabilitySection(),
