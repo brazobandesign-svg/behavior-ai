@@ -406,6 +406,25 @@ class MessageBubble extends StatelessWidget {
             const SizedBox(height: 14),
             _SourcesSheet(sources: validSources),
           ],
+          // [Misión down] La burbuja de error trae Reintentar (reenvía el
+          // último texto fallido). Sin tecnicismos, una sola acción.
+          if (message.id == 'error') ...[
+            const SizedBox(height: 12),
+            OutlinedButton.icon(
+              onPressed: () => context.read<AppState>().retryLastFailedSend(),
+              icon: const Icon(Icons.refresh_rounded, size: 18),
+              label: Text(
+                AppI18n.of(context).t('error.retry'),
+                style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+              ),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: ExodoColors.amber,
+                side: const BorderSide(color: ExodoColors.amber),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              ),
+            ),
+          ],
           if (message.id != 'error' && message.content.trim().isNotEmpty) ...[
             const SizedBox(height: 10),
             _MessageActionBar(

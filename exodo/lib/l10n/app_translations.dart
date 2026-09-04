@@ -275,6 +275,8 @@ const Map<String, String> _es = <String, String>{
   // Errors
   'error.network': 'No pudimos conectar. Reintentar.',
   'error.generic': 'Algo salió mal.',
+  'error.service_down': 'Éxodo no está disponible en este momento. Estamos trabajando para restablecer el servicio. Inténtalo de nuevo en unos minutos.',
+  'error.retry': 'Reintentar',
 
   // Misc
   'common.search_hint': 'Buscar...',
@@ -365,7 +367,7 @@ const Map<String, String> _es = <String, String>{
   'chat.disclaimer_original':
       'Exodo es IA y puede cometer errores. Por favor verifica las respuestas.',
   'sources.consulted': 'Fuentes Consultadas',
-  'feedback.share_msg': 'Descarga Éxodo AI en Google Play:',
+  'feedback.share_msg': 'Descarga Exodo AI en Google Play:',
   'feedback.title_pos': 'Comentarios positivos',
   'feedback.title_neg': 'Comentarios de mejora',
   'feedback.hint': 'Cuéntanos qué te gustó o cómo podemos mejorar...',
@@ -579,6 +581,8 @@ const Map<String, String> _en = <String, String>{
 
   'error.network': 'We could not connect. Try again.',
   'error.generic': 'Something went wrong.',
+  'error.service_down': 'Éxodo is unavailable right now. We are working to restore the service. Try again in a few minutes.',
+  'error.retry': 'Retry',
 
   'common.search_hint': 'Search...',
   'common.yes': 'Yes',
@@ -656,7 +660,7 @@ const Map<String, String> _en = <String, String>{
   'offline.signin': 'sign in',
   // [Punto 43] Real offline (no internet) — different from guest block.
   'network.offline_title': 'No connection',
-  'network.offline_body': 'Connect to the internet to use Éxodo.',
+  'network.offline_body': 'Connect to the internet to use Exodo.',
   'tokens.more_cap': 'More capacity with XPi PRO',
   'tokens.upgrade_btn': 'Upgrade',
   'chat.intent': 'Intent',

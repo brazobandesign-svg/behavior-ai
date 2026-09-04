@@ -70,6 +70,18 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
   bool isGeneratingImage = false;
   String? errorMessage;
   int guestMessagesSessionCount = 0;
+  // [Misión down] Último texto cuyo envío falló (para el botón Reintentar
+  // de la burbuja de error). Solo texto; los adjuntos no se reintentan.
+  String? lastFailedSendText;
+
+  /// Reenvía el último mensaje fallido, si hay. Lo usa el botón Reintentar
+  /// de la burbuja de error. No hace nada si ya se está generando.
+  Future<void> retryLastFailedSend() async {
+    final t = lastFailedSendText;
+    if (t == null || t.trim().isEmpty || isGenerating) return;
+    lastFailedSendText = null;
+    await sendUserMessage(t);
+  }
 
   // ── Privacidad: historial en la nube (elección del usuario) ────────────
   // ON (default): los chats se guardan en Supabase + Drift, visibles en
@@ -1370,6 +1382,7 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
     if (effectiveText.trim().isEmpty && (attachments == null || attachments.isEmpty)) return;
     final isGuest = isGuestUser;
     errorMessage = null;
+    lastFailedSendText = null;
 
     // Privacidad por capas: saveLocally ⇒ persiste en Drift (este
     // dispositivo); syncToCloud ⇒ además persiste en Supabase. Con el toggle
@@ -1698,6 +1711,7 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
             isGenerating = false;
             isGeneratingImage = false;
             errorMessage = err.replaceAll('Exception: ', '');
+            lastFailedSendText = effectiveText;
             currentMessages.add(
               ChatMessage(
                 id: 'error',
@@ -1720,6 +1734,7 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
       isGenerating = false;
       isGeneratingImage = false;
       errorMessage = e.toString().replaceAll('Exception: ', '');
+      lastFailedSendText = effectiveText;
       currentMessages.add(
         ChatMessage(
           id: 'error',

@@ -14,6 +14,8 @@ const { searchMinerdChunks } = require('../services/minerdRetrievalService');
 const { needsWebSearch, runWebSearch, enrichWithReader, hostOf } = require('../services/webSearch');
 const {
   USER_FACING_ERROR_MESSAGE,
+  SERVICE_DOWN_MESSAGE,
+  userFacingError,
   handleGatewayError,
   isClientAbortError,
   logInternalGatewayError,
@@ -707,8 +709,9 @@ router.post('/', auth, guestLimit, planGuard, upload.array('files', 5), async (r
       }
       // Log interno completo (stack, vendor, modelo) — SOLO consola del servidor.
       logInternalGatewayError(streamErr, { provider: 'gateway', model: 'stream-dispatch', phase: 'chat-route-stream', incognito: chatLog.incognito });
-      // Respuesta sanitizada de marca al cliente.
-      sendSse({ type: 'error', content: USER_FACING_ERROR_MESSAGE });
+      // Respuesta sanitizada de marca al cliente, con código caído/ocupado.
+      const out = userFacingError(streamErr);
+      sendSse({ type: 'error', content: out.content, code: out.code });
       sendSse({ type: 'done', content: fullText || '', sources: [] });
       res.end();
       return;
@@ -723,12 +726,13 @@ router.post('/', auth, guestLimit, planGuard, upload.array('files', 5), async (r
 
     if (result.error) {
       // El router ya sanitizó el mensaje; jamás confiar en texto crudo.
-      // Doble escudo: si por cualquier razón el mensaje no es el genérico,
-      // se reemplaza por el de marca.
-      const safeMessage = result.message === USER_FACING_ERROR_MESSAGE
-        ? result.message
-        : USER_FACING_ERROR_MESSAGE;
-      sendSse({ type: 'error', content: safeMessage });
+      // Doble escudo: solo pasan los dos mensajes de marca (ocupado/caído)
+      // más su código; cualquier otra cosa se reemplaza por el genérico.
+      const allowed = result.message === USER_FACING_ERROR_MESSAGE ||
+        result.message === SERVICE_DOWN_MESSAGE;
+      const safeMessage = allowed ? result.message : USER_FACING_ERROR_MESSAGE;
+      const safeCode = allowed && typeof result.code === 'string' ? result.code : 'error';
+      sendSse({ type: 'error', content: safeMessage, code: safeCode });
       sendSse({ type: 'done', content: fullText || '', sources: [] });
       res.end();
       return;
@@ -790,15 +794,17 @@ router.post('/', auth, guestLimit, planGuard, upload.array('files', 5), async (r
     if (res.headersSent) {
       // Stream SSE ya iniciado: emitir eventos sanitizados y cerrar limpiamente.
       try {
-        res.write(`data: ${JSON.stringify({ type: 'error', content: USER_FACING_ERROR_MESSAGE })}\n\n`);
+        const out = userFacingError(error);
+        res.write(`data: ${JSON.stringify({ type: 'error', content: out.content, code: out.code })}\n\n`);
         res.write(`data: ${JSON.stringify({ type: 'done', content: '', sources: [] })}\n\n`);
         res.end();
       } catch (_) {
         // Socket ya cerrado.
       }
     } else {
-      // Respuesta JSON (pre-stream): mensaje genérico, sin detalles del vendor.
-      res.status(500).json({ error: USER_FACING_ERROR_MESSAGE });
+      // Respuesta JSON (pre-stream): mensaje de marca, sin detalles del vendor.
+      const out = userFacingError(error);
+      res.status(500).json({ error: out.content, code: out.code });
     }
   }
 });

@@ -27,6 +27,42 @@ const { REDACTED } = require('./logger');
 const USER_FACING_ERROR_MESSAGE =
   'El asistente está experimentando alta demanda. Por favor, reintenta tu consulta en unos momentos.';
 
+/** Mensaje de marca cuando el servicio está CAÍDO (no ocupado): sin tecnicismos. */
+const SERVICE_DOWN_MESSAGE =
+  'Éxodo no está disponible en este momento. Estamos trabajando para restablecer el servicio. Inténtalo de nuevo en unos minutos.';
+
+/**
+ * Clasifica un error para el usuario: 'down' (caído) | 'busy' (ocupado) | 'error' (genérico).
+ * - down: fallos de red (DNS, refused, reset, timeout) y 5xx del proveedor.
+ * - busy: 429/413/529 (límite/capacidad).
+ * Nunca expone nada del vendor; solo clasifica.
+ */
+function classifyUserError(err) {
+  const status = extractStatus(err);
+  if (status != null) {
+    if (status === 429 || status === 413 || status === 529) return 'busy';
+    if (status >= 500) return 'down';
+    return 'error';
+  }
+  const msg = err && err.message ? String(err.message) : String(err || '');
+  if (/econnrefused|enotfound|etimedout|eai_again|socket hang up|socket.+closed|fetch failed|failed to fetch|failed host|host lookup|connection refused|connection reset|connection closed|unreachable|network request failed|timed out|timeout|econnreset|epipe|temporarily unavailable|no address|nodename/i.test(msg)) {
+    return 'down';
+  }
+  return 'error';
+}
+
+/**
+ * Error sanitizado listo para el cliente: { content, code }.
+ * code: 'service_down' | 'service_busy' | 'error'. Ambos contenidos son de
+ * marca y seguros (los únicos textos que pueden llegar al cliente).
+ */
+function userFacingError(err) {
+  const kind = classifyUserError(err);
+  if (kind === 'down') return { content: SERVICE_DOWN_MESSAGE, code: 'service_down' };
+  if (kind === 'busy') return { content: USER_FACING_ERROR_MESSAGE, code: 'service_busy' };
+  return { content: USER_FACING_ERROR_MESSAGE, code: 'error' };
+}
+
 /**
  * Extrae el código de estado HTTP de un error de proveedor, si existe.
  * Compatible con el SDK de OpenAI (err.status), errores genéricos (err.statusCode)
@@ -144,8 +180,9 @@ function wrapProviderError(err, model = 'unknown', phase = 'unknown', ctx = {}) 
 }
 
 /**
- * Sanitiza cualquier error de gateway y devuelve SIEMPRE el mensaje genérico
+ * Sanitiza cualquier error de gateway y devuelve SIEMPRE un mensaje seguro
  * de marca. Este es el ÚNICO texto de error que puede llegar al cliente.
+ * (Compat: devuelve string; para contenido+código usar userFacingError.)
  *
  * @param {Error} err - Error crudo del proveedor.
  * @param {object} ctx - { provider, model, phase }.
@@ -153,20 +190,24 @@ function wrapProviderError(err, model = 'unknown', phase = 'unknown', ctx = {}) 
  */
 function handleGatewayError(err, ctx = {}) {
   logInternalGatewayError(err, ctx);
-  return USER_FACING_ERROR_MESSAGE;
+  return userFacingError(err).content;
 }
 
 /**
  * Escribe el par de eventos SSE sanitizados (error + done) y cierra el stream.
  * Garantiza que el cliente móvil reciba un cierre limpio y desbloquee su UI.
+ * Si se pasa `err`, el evento error lleva contenido+código según su clase
+ * (caído vs ocupado); sin `err` preserva el comportamiento anterior.
  *
  * @param {object} res - Response Express con headers SSE ya enviados.
  * @param {function} sendSse - Helper del route para escribir + flush.
  * @param {string} [partialText] - Texto parcial ya streameado (si existe).
+ * @param {Error} [err] - Error crudo para clasificar (opcional).
  */
-function sendSanitizedSseError(res, sendSse, partialText = '') {
+function sendSanitizedSseError(res, sendSse, partialText = '', err = null) {
   try {
-    sendSse({ type: 'error', content: USER_FACING_ERROR_MESSAGE });
+    const out = err ? userFacingError(err) : { content: USER_FACING_ERROR_MESSAGE, code: 'error' };
+    sendSse({ type: 'error', content: out.content, code: out.code });
     sendSse({ type: 'done', content: partialText || '', sources: [] });
   } catch (_) {
     // El socket pudo cerrarse; no hacer nada.
@@ -209,6 +250,9 @@ function containsVendorLeak(text) {
 
 module.exports = {
   USER_FACING_ERROR_MESSAGE,
+  SERVICE_DOWN_MESSAGE,
+  classifyUserError,
+  userFacingError,
   extractStatus,
   isClientAbortError,
   isCapacityError,

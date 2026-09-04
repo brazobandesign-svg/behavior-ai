@@ -325,8 +325,9 @@ class ChatService {
               'Sin conexión con el servidor. Verifica tu red e inténtalo de nuevo.';
           if (response != null) {
             if (response.statusCode >= 500) {
+              // [Misión down] Nada "reinicia" solo: mensaje honesto de caída.
               errMsg =
-                  'Error en el servidor (Cód. ${response.statusCode}). Intentando reiniciar...';
+                  'Éxodo no está disponible en este momento. Estamos trabajando para restablecer el servicio. Inténtalo de nuevo en unos minutos.';
             } else if (response.statusCode == 413) {
               errMsg =
                   'El archivo adjunto es demasiado grande. Por favor, intenta con uno más pequeño.';
@@ -457,12 +458,37 @@ class ChatService {
                 onError('La conexión se quedó sin respuesta. Inténtalo de nuevo.');
                 return;
               }
-              onError(e.toString());
+              // [Misión down] Los errores de red crudos (SocketException en
+              // inglés, ClientException...) nunca llegan al usuario tal cual.
+              onError(_mapNetworkError(e));
             },
           );
     } catch (e) {
-      if (!activeSession.isCancelled) onError(e.toString());
+      if (!activeSession.isCancelled) onError(_mapNetworkError(e));
     }
+  }
+
+  /// Mapea excepciones de red a mensaje de marca. Todo lo demás pasa tal cual
+  /// (ya viene sanitizado del backend o de las ramas de arriba).
+  static String _mapNetworkError(Object e) {
+    const networkTypes = [
+      'SocketException',
+      'HandshakeException',
+      'TlsException',
+      'ClientException',
+      'HttpException',
+      'Connection closed',
+      'Connection reset',
+      'Failed host lookup',
+      'Network is unreachable',
+    ];
+    final s = e.toString();
+    for (final t in networkTypes) {
+      if (s.contains(t)) {
+        return 'No pudimos conectar. Reintentar.';
+      }
+    }
+    return s;
   }
 
   static Future<List<Source>> _enrichSources(
@@ -571,3 +597,4 @@ class ChatService {
     return null;
   }
 }
+

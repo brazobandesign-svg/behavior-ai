@@ -6,6 +6,7 @@ const {
   logInternalGatewayError,
   isClientAbortError,
   USER_FACING_ERROR_MESSAGE,
+  userFacingError,
 } = require('./errorSanitizer');
 
 /**
@@ -14,8 +15,9 @@ const {
  * ============================================================================
  */
 
-function sanitizedErrorResult() {
-  return { text: '', error: true, message: USER_FACING_ERROR_MESSAGE };
+function sanitizedErrorResult(err = null) {
+  const out = err ? userFacingError(err) : { content: USER_FACING_ERROR_MESSAGE, code: 'error' };
+  return { text: '', error: true, message: out.content, code: out.code };
 }
 
 // DOCTRINA 30-ago: matriz Free/Pro lista para el lanzamiento (30-sept-2026),
@@ -157,7 +159,7 @@ async function routeMessage(plan, intent, messages, systemPrompt, modelOverride,
 
   if (lastError && isClientAbortError(lastError)) throw lastError;
   logInternalGatewayError(lastError || new Error('ALL_ALIBABA_MODELS_FAILED'), { provider: 'alibaba', phase: 'call-chain-exhausted', incognito: !!incognito });
-  return sanitizedErrorResult();
+  return sanitizedErrorResult(lastError);
 }
 
 /**
@@ -244,7 +246,7 @@ async function routeMessageStream(plan, intent, messages, systemPrompt, onChunk,
 
   if (lastError && isClientAbortError(lastError)) throw lastError;
   logInternalGatewayError(lastError || new Error('ALL_ALIBABA_MODELS_STREAM_FAILED'), { provider: 'alibaba', phase: 'stream-chain-exhausted', incognito: !!incognito });
-  return sanitizedErrorResult();
+  return sanitizedErrorResult(lastError);
 }
 
 module.exports = {
