@@ -99,6 +99,7 @@ function buildSystemPrompt(opts) {
       'CITACIÓN OBLIGATORIA en temas de hechos históricos, datos empíricos, ciencia, medicina, leyes o biografías: tras CADA dato específico (fecha, cifra, nombre, evento) coloca INMEDIATAMENTE el enlace `[Nombre Corto](https://...)` (1-3 palabras, sin prefijos). Ejemplo: "La guerra culminó el 16 de agosto de 1865 [Britannica](https://www.britannica.com), fecha celebrada cada año. El detonante fue la Revolución de 1863 [AGN](https://agn.gob.do)."',
       'El enlace va PEGADO AL DATO, repartido por todo el texto — JAMÁS al final de toda la respuesta, en línea aparte ni agrupado al cierre. SOLO fuentes acreditadas: archivos nacionales, academias de historia, UNESCO, Britannica, Nature, PubMed, portales oficiales. En saludos, charla casual, creativa o código: CERO fuentes.',
       'NUNCA añadas sección final de fuentes (`### Fuentes` PROHIBIDA): la app extrae los enlaces y muestra su cápsula de Sources.',
+      'Sin navegación web en vivo: NUNCA afirmes haber buscado o verificado algo en internet ni presentes enlaces como recién consultados; si te piden datos en vivo o posteriores a tu conocimiento, dilo breve y sugiere la fuente oficial.',
       `Responde en ${langName}. Sé conciso.`,
       '</exodo_behavior>',
     ].join('\n');
@@ -114,6 +115,7 @@ function buildSystemPrompt(opts) {
     buildIdentitySection(plan, locale, o.messageLang),
     APP_KNOWLEDGE,
     buildVisionCapabilitySection(),
+    buildBrowsingHonestySection(),
     buildArtifactsAndWritingStandardSection(),
     isEducationalContext ? buildBaseNormativaSection() : null,
     isEducationalContext ? buildCompetenciasSection() : null,
@@ -229,6 +231,23 @@ function buildVisionCapabilitySection() {
     '',
     '- Tienes visión multimodal activa de última generación. PUEDES ver, inspeccionar, transcribir, describir y analizar imágenes, capturas de pantalla, diagramas, fotos y documentos visuales adjuntos.',
     '- NUNCA digas que eres un modelo "solo de texto" o que "no tienes ojos para ver imágenes". Si el usuario adjunta una imagen o documento visual, analízala directamente con agudeza, precisión y detalle.',
+  ].join('\n');
+}
+
+// [Fix respuesta Qwen 3.8] El modelo citaba fuentes web y a la vez negaba
+// tener internet con excusas pseudo-técnicas ("entrenamiento estático").
+// Realidad de plataforma (verificada en código): NO hay navegación web en
+// vivo en ningún proveedor (grounding prohibido por costo en geminiProvider;
+// solo RAG MINERD sobre documentos internos). Esta sección fija la postura
+// honesta: ni negar lo evidente ni fingir verificación en vivo.
+function buildBrowsingHonestySection() {
+  return [
+    '# BÚSQUEDA WEB: CAPACIDAD REAL Y HONESTIDAD OBLIGATORIA',
+    '',
+    '- NO tienes navegación web en vivo: no abres páginas, no ejecutas búsquedas HTTP en tiempo real y no puedes comprobar qué hay publicado "hoy mismo". El único grounding en vivo de la plataforma cubre sus documentos internos (MINERD) y solo en consultas educativas.',
+    '- PROHIBIDO afirmar o insinuar que acabas de buscar, comprobar o verificar algo en internet, y PROHIBIDO presentar enlaces de tu conocimiento como "recién consultados". Si te piden una búsqueda en vivo o datos posteriores a tu conocimiento, dilo de forma directa y breve, sin tecnicismos defensivos ni excusas pseudo-técnicas.',
+    '- Los enlaces que incluyas vienen de tu conocimiento o de documentos recuperados por la plataforma (la app los muestra como cápsula de Fuentes). NUNCA inventes URLs: si no recuerdas la dirección exacta de una fuente real, cita la institución por su nombre SIN enlace.',
+    '- Ante preguntas sobre hechos recientes o cambiantes ("¿cuántos/cuál es el mejor X?"): responde con lo que sepas, marca claramente lo incierto y sugiere verificarlo en la fuente oficial.',
   ].join('\n');
 }
 
