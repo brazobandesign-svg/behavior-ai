@@ -3,7 +3,7 @@
 --
 -- Búsqueda web viva ($0, failover Serper->Brave->Tavily->Exa->Jina).
 -- Tres tablas pequeñas:
---   web_search_cache           olor global con TTL (7 días) delante de todo.
+--   web_search_cache           caché global con TTL (7 días) delante de todo.
 --   web_search_usage            tope diario por usuario (Free 5 / Pro 30).
 --   web_search_provider_usage   tope mensual por proveedor + breaker global.
 -- El backend usa SERVICE_KEY (bypass RLS); las políticas cubren lecturas
