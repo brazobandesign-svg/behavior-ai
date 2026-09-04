@@ -11,6 +11,7 @@ const { extractText } = require('../services/documentExtractor');
 const { buildSystemPrompt } = require('../prompts/groundingMinerd');
 const { createChatLogger } = require('../services/logger');
 const { searchMinerdChunks } = require('../services/minerdRetrievalService');
+const { needsWebSearch, runWebSearch, enrichWithReader, hostOf } = require('../services/webSearch');
 const {
   USER_FACING_ERROR_MESSAGE,
   handleGatewayError,
@@ -147,6 +148,14 @@ function extractSourcesFromText(text, existingSources = [], contextChunks = [], 
   // 2. Chunks recuperados por RAG
   if (Array.isArray(contextChunks) && contextChunks.length > 0) {
     for (const c of contextChunks) {
+      // Chunks WEB: URL real del resultado (no la fija del MINERD).
+      if (c.kind === 'web' && c.url && /^https?:\/\//i.test(c.url)) {
+        let host = c.url;
+        try { host = new URL(c.url).host.replace(/^www\./, ''); } catch (_) {}
+        const title = (c.short_name || host).replace(/^WEB · /, '');
+        addSource(title || host, c.url, host.slice(0, 3));
+        continue;
+      }
       const shortName = c.short_name || 'MINERD';
       const pageStr = c.page ? ` (pág. ${c.page})` : '';
       const sectionStr = c.section ? ` · ${c.section}` : '';
@@ -422,6 +431,26 @@ router.post('/', auth, guestLimit, planGuard, upload.array('files', 5), async (r
       intent = requestedTaskType === 'simple' ? 'SIMPLE' : 'RAZONAMIENTO';
     }
 
+    // PUERTA DE BÚSQUEDA VIVA ($0, failover Serper->Brave->Tavily->Exa->Jina).
+    // Barata y sin LLM: decide con intent + señales. MINERD primero: si la
+    // consulta parece educativa y NO hay pedido explícito, no se prefetch
+    // (el RAG interno la cubre sin gastar cuota web).
+    const webGate = needsWebSearch({
+      message: enhancedMessage,
+      intent,
+      hasImages,
+      isGuest,
+      isIncognito: isIncognitoTurn,
+    });
+    let webPrefetch = null;
+    if (webGate.search && (!isMinerdQuery(enhancedMessage) || webGate.forced)) {
+      webPrefetch = runWebSearch(enhancedMessage, {
+        userId: (!isGuest && !isIncognitoTurn) ? userId : null,
+        isPro: plan === 'hazak',
+        signal: abortController.signal,
+      }).catch(() => ({ results: [], provider: null, cached: false, unavailable: 'error' }));
+    }
+
     // IMAGEN + invitado: no quemar tokens del LLM con un "no puedo generar
     // imágenes". Aviso estructurado que la app pinta estilo disclaimer.
     if (intent === 'IMAGEN' && isGuest) {
@@ -563,16 +592,57 @@ router.post('/', auth, guestLimit, planGuard, upload.array('files', 5), async (r
       }
     }
 
+    // BÚSQUEDA VIVA: resolver el prefetch en paralelo. MINERD primero: si el
+    // RAG interno cubrió y NO hubo pedido explícito, se descartan los
+    // resultados web (no se gasta cuota). Con pedido explícito conviven.
+    let searchStatus = null; // null | 'live' | 'unavailable'
+    if (webPrefetch) {
+      try {
+        sendSse({ type: 'notice', code: 'web_searching' });
+        const webRes = await webPrefetch;
+        const minerdCovered = contextChunks.length > 0;
+        if (webRes && webRes.results && webRes.results.length > 0 && (webGate.forced || !minerdCovered)) {
+          const enriched = await enrichWithReader(webRes.results, { signal: abortController.signal });
+          const webChunks = enriched.map((r) => {
+            const host = hostOf(r.url);
+            return {
+              content: `${r.title}\n${r.url}\n${r.snippet}`,
+              short_name: host ? `WEB · ${host}` : 'WEB',
+              page: null,
+              section: null,
+              kind: 'web',
+              url: r.url,
+            };
+          });
+          contextChunks = [...contextChunks, ...webChunks];
+          searchStatus = 'live';
+          console.log(`[chat] Web viva: ${webChunks.length} chunk(s) vía ${webRes.provider}${webRes.cached ? ' (caché)' : ''}`);
+        } else if (webGate.search) {
+          // La puerta se abrió pero no hay resultados (cuota, fallo o vacío):
+          // el prompt debe mantenerse honesto sin detalles técnicos.
+          searchStatus = 'unavailable';
+        }
+      } catch (err) {
+        console.warn(`[chat] Web viva omitida (${err.code || err.name || 'error'}): ${err.message}. Continuando sin ella.`);
+        if (webGate.search) searchStatus = 'unavailable';
+      }
+    } else if (webGate.search) {
+      // Puerta abierta pero sin prefetch (educativa cubierta por MINERD sin
+      // pedido explícito): no hay resultados web que declarar.
+      searchStatus = null;
+    }
+
     // PERF (TTFT): modo lite para conversación simple sin adjuntos ni RAG —
     // identidad compacta (~110 tokens). Un "Hola" no debe pagar el prefill
-    // completo (~1,350 tokens).
+    // completo (~1,350 tokens). Con búsqueda viva siempre prompt completo.
     const useLitePrompt =
       !hasImages &&
       intent === 'SIMPLE' &&
       contextChunks.length === 0 &&
       !subject &&
       !req.body.conversationSubject &&
-      !isMinerdQuery(minerdContext);
+      !isMinerdQuery(minerdContext) &&
+      !webPrefetch;
 
     const { systemPrompt } = buildSystemPrompt({
       userPlan: plan,
@@ -583,6 +653,7 @@ router.post('/', auth, guestLimit, planGuard, upload.array('files', 5), async (r
       messageLang: detectMessageLang(enhancedMessage),
       contextChunks,
       lite: useLitePrompt,
+      searchStatus,
     });
 
     // CONTEXT PRUNING: ventana de 50 mensajes (~25 turnos). Las grandes IA no
