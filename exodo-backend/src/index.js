@@ -15,11 +15,9 @@ const { HOST, PORT, NODE_ENV, corsOrigins } = require('./config/network');
 
 const app = express();
 
-// C4: Detrás de reverse proxy (Railway) confiamos en 1 salto para que req.ip
-// sea la IP REAL del cliente. Sin esto, req.ip es la IP del load balancer y
-// TODOS los usuarios comparten un solo bucket del rate limiter (429 masivos).
-// TRUST_PROXY=false la desactiva (depuración de spoofing de X-Forwarded-For).
-app.set('trust proxy', process.env.TRUST_PROXY === 'false' ? false : 1);
+// C4: En producción detrás de reverse proxy (Railway) confiamos en 1 salto para que req.ip
+// sea la IP REAL. En desarrollo/local se desactiva por defecto para evitar spoofing de X-Forwarded-For.
+app.set('trust proxy', process.env.TRUST_PROXY ? (process.env.TRUST_PROXY === 'true' || process.env.TRUST_PROXY === '1') : (NODE_ENV === 'production' ? 1 : false));
 
 // Middlewares globales
 // CORS: fail-closed en producción — sin CORS_ORIGIN configurado, los navegadores
@@ -111,6 +109,11 @@ const server = app.listen(PORT, HOST, () => {
   console.log('  ╚════════════════════════════════════════════════════════════╝');
   console.log('');
 });
+
+// Hardening de Sockets HTTP (Mitigación Slowloris - F-06 auditoría Hy4)
+server.headersTimeout = 20_000;    // 20s para recibir cabeceras completas
+server.requestTimeout = 120_000;   // 120s para el cuerpo completo (soporta subidas multipart 15MB)
+server.keepAliveTimeout = 5_000;   // 5s para sockets inactivos
 
 // ============================================================================
 // C12: Apagado limpio (SIGTERM en Railway, SIGINT local con Ctrl+C).

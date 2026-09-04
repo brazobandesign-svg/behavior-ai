@@ -221,7 +221,7 @@ router.post('/', auth, guestLimit, planGuard, upload.array('files', 5), async (r
   const chatLog = createChatLogger(isIncognitoTurn);
 
   try {
-    const { message, conversationId, model_override, attachments, subject } = req.body;
+    const { message, conversationId, model_override, attachments, subject } = req.body || {};
     const { userId, plan, anonymous } = req.user;
     const isGuest = !!req.user?.isGuest;
     // taskType: el cliente puede forzar el modo de enrutado ('simple' | 'reasoning').
@@ -259,8 +259,45 @@ router.post('/', auth, guestLimit, planGuard, upload.array('files', 5), async (r
     const hasAttachments =
       (attachments && Array.isArray(attachments) && attachments.length > 0) ||
       multipartFiles.length > 0;
+    if (conversationId !== undefined && (typeof conversationId !== 'string' || conversationId.includes('\x00'))) {
+      return res.status(400).json({ error: 'El campo "conversationId" debe ser una cadena de texto válida' });
+    }
+
+    if (typeof message === 'string' && message.includes('\x00')) {
+      return res.status(400).json({ error: 'El mensaje contiene caracteres no permitidos' });
+    }
+
     if ((!message || typeof message !== 'string' || message.trim().length === 0) && !hasAttachments) {
       return res.status(400).json({ error: 'El campo "message" es requerido' });
+    }
+
+    if (req.body?.history !== undefined) {
+      if (!Array.isArray(req.body.history)) {
+        return res.status(400).json({ error: 'El campo "history" debe ser un arreglo' });
+      }
+      req.body.history = req.body.history.filter(
+        (h) => h && typeof h === 'object' && typeof h.role === 'string' && (typeof h.content === 'string' || Array.isArray(h.content))
+      );
+    }
+
+    if (attachments !== undefined) {
+      if (!Array.isArray(attachments)) {
+        return res.status(400).json({ error: 'El campo "attachments" debe ser un arreglo' });
+      }
+      for (const att of attachments) {
+        if (!att || typeof att !== 'object' || Array.isArray(att)) {
+          return res.status(400).json({ error: 'Cada elemento de "attachments" debe ser un objeto válido' });
+        }
+        if (att.mime_type !== undefined && typeof att.mime_type !== 'string') {
+          return res.status(400).json({ error: 'El campo "mime_type" en attachments debe ser texto' });
+        }
+        if (att.file_name !== undefined && typeof att.file_name !== 'string') {
+          return res.status(400).json({ error: 'El campo "file_name" en attachments debe ser texto' });
+        }
+        if (att.base64 !== undefined && typeof att.base64 !== 'string') {
+          return res.status(400).json({ error: 'El campo "base64" en attachments debe ser texto' });
+        }
+      }
     }
 
     // PERF-2: headers SSE fuera INMEDIATAMENTE tras validar autenticación,
@@ -377,17 +414,19 @@ router.post('/', auth, guestLimit, planGuard, upload.array('files', 5), async (r
     // isMinerdQuery se preserva (sin ella, cada mensaje gastaría embeddings).
     let ragPrefetch = null;
 
+    const textToClassify = (message && typeof message === 'string' && message.trim()) ? message.trim() : enhancedMessage;
+    const userWantsImage = classifyByKeywords(textToClassify) === 'IMAGEN';
+
     if (isGuest) {
       history = (Array.isArray(req.body.history) ? req.body.history.slice(-20) : []);
-      // Clasificar también a los invitados: sin esto, "genera una imagen"
-      // caía a SIMPLE y el LLM respondía "no puedo generar imágenes".
-      intent = hasImages ? 'VISION' : classifyByKeywords(enhancedMessage);
+      // Clasificar también a los invitados: si piden imagen (incluso con adjuntos), compuerta IMAGEN activa ($0 notice).
+      intent = userWantsImage ? 'IMAGEN' : (hasImages ? 'VISION' : classifyByKeywords(textToClassify));
     } else if (!conversationId && Array.isArray(req.body.history) && req.body.history.length > 0) {
       // PRIVACIDAD (historial en nube OFF): usuario registrado con chat
       // efémero (sin conversationId) manda su ventana local, igual que un
       // invitado. Es su propio contenido y solo afecta su propia respuesta.
       history = req.body.history.slice(-20);
-      intent = hasImages ? 'VISION' : 'SIMPLE';
+      intent = userWantsImage ? 'IMAGEN' : (hasImages ? 'VISION' : classifyByKeywords(textToClassify));
     } else {
       if (isMinerdQuery(enhancedMessage)) {
         ragPrefetch = searchMinerdChunks(enhancedMessage, { limit: 3 }).catch(() => null);
@@ -397,7 +436,7 @@ router.post('/', auth, guestLimit, planGuard, upload.array('files', 5), async (r
         // FIX TTFT: clasificación local por keywords (O(1), sin roundtrip a
         // DeepSeek). El clasificador LLM bloqueaba el inicio del stream 1-5s
         // en CADA mensaje antes de enrutar el modelo.
-        hasImages ? Promise.resolve('VISION') : Promise.resolve(classifyByKeywords(enhancedMessage)),
+        userWantsImage ? Promise.resolve('IMAGEN') : (hasImages ? Promise.resolve('VISION') : Promise.resolve(classifyByKeywords(textToClassify))),
         ragPrefetch, // PERF-2: RAG corre en paralelo (resultado ignorado aquí)
       ]);
       history = dbHistory;
@@ -911,13 +950,23 @@ function detectMessageLang(text) {
 router.post('/title', auth, async (req, res) => {
   try {
     const { conversationId, messages } = req.body || {};
+    if (conversationId !== undefined && (typeof conversationId !== 'string' || conversationId.includes('\x00'))) {
+      return res.status(400).json({ error: 'El campo "conversationId" debe ser una cadena de texto válida' });
+    }
+
     const locale = (typeof req.body?.locale === 'string' && req.body.locale.trim())
       ? req.body.locale.trim().slice(0, 5).toLowerCase()
       : 'es';
     const { userId, isGuest, anonymous } = req.user || {};
 
     // C1 (IDOR Guard): validar propiedad de la conversación
-    if (conversationId && !isGuest && !anonymous && userId) {
+    if (conversationId) {
+      if (isGuest || anonymous || !userId) {
+        return res.status(403).json({
+          error: 'forbidden',
+          message: 'Acceso denegado: las sesiones anónimas no pueden asociar conversationId existentes.',
+        });
+      }
       try {
         await assertConversationOwner(userId, conversationId);
       } catch (err) {
@@ -935,12 +984,20 @@ router.post('/title', auth, async (req, res) => {
       return res.status(400).json({ error: 'messages array is required' });
     }
 
-    const userMsg = messages.find((m) => m.role === 'user');
-    const asstMsg = messages.find((m) => m.role === 'assistant');
+    if (messages.some((m) => !m || typeof m?.content !== 'string' || !m.content.trim())) {
+      return res.status(400).json({ error: 'Cada mensaje debe contener un campo "content" de tipo string válido' });
+    }
+
+    // Proteger contra flood de mensajes (evitar OOM y consumo excesivo)
+    const safeMessages = messages.slice(-5);
+
+    const userMsg = safeMessages.find((m) => m && m.role === 'user');
+    const asstMsg = safeMessages.find((m) => m && m.role === 'assistant');
 
     const userText = (userMsg?.content || '').trim();
+    const asstText = (asstMsg?.content || '').trim();
 
-    if (!userText && !(asstMsg?.content || '').trim()) {
+    if (!userText && !asstText) {
       return res.json({ title: 'Nueva conversación' });
     }
 
@@ -950,7 +1007,7 @@ router.post('/title', auth, async (req, res) => {
       return res.json({ title: userText.slice(0, 40) });
     }
 
-    const asstSnippet = (asstMsg?.content || '').trim().slice(0, 300);
+    const asstSnippet = asstText.slice(0, 300);
 
     const TITLE_LANGS = {
       en: 'English', fr: 'Français', pt: 'Português', ht: 'Kreyòl Ayisyen',

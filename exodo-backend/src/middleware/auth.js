@@ -14,11 +14,27 @@ const SESSION_CACHE_MAX = 500;
  * - Si es usuario registrado (Google/Apple/Email) -> req.user.isGuest = false, plan = profile.plan || 'genesis'.
  */
 async function auth(req, res, next) {
-  const token = req.headers.authorization?.split('Bearer ')[1];
+  const authHeader = req.headers.authorization;
 
-  if (!token) {
+  if (!authHeader) {
     req.user = { userId: null, plan: 'guest', anonymous: true, isGuest: true };
     return next();
+  }
+
+  // Si envió Authorization pero está malformado o no es Bearer
+  if (!authHeader.toLowerCase().startsWith('bearer ') || authHeader.length <= 7) {
+    return res.status(401).json({
+      error: 'invalid_token',
+      message: 'Cabecera Authorization inválida o malformada (se espera Bearer <token>)',
+    });
+  }
+
+  const token = authHeader.slice(7).trim();
+  if (!token) {
+    return res.status(401).json({
+      error: 'invalid_token',
+      message: 'Token de autorización vacío',
+    });
   }
 
   if (!supabase) {
@@ -65,8 +81,10 @@ async function auth(req, res, next) {
     const { data: { user }, error } = await supabase.auth.getUser(token);
 
     if (error || !user) {
-      req.user = { userId: null, plan: 'guest', anonymous: true, isGuest: true };
-      return next();
+      return res.status(401).json({
+        error: 'invalid_token',
+        message: 'Token de sesión inválido o expirado',
+      });
     }
 
     const isGuest = user.is_anonymous === true;

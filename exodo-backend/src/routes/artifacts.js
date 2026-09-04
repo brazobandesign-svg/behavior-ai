@@ -493,7 +493,7 @@ async function fetchAuthorName(userId) {
 // POST /api/artifacts/publish
 // ---------------------------------------------------------------------------
 
-router.post('/publish', auth, chatRateLimiter, planGuard, async (req, res, next) => {
+router.post('/publish', auth, planGuard, async (req, res, next) => {
   try {
     if (!supabase) {
       return res.status(503).json({ error: 'database_unavailable' });
@@ -568,10 +568,41 @@ router.post('/publish', auth, chatRateLimiter, planGuard, async (req, res, next)
 });
 
 // ---------------------------------------------------------------------------
+// GET /api/artifacts/me   (lista mis artefactos, autenticado)
+// Debe declararse ANTES de /:slug para no ser capturado como slug inválido.
+// ---------------------------------------------------------------------------
+
+router.get('/me', auth, async (req, res, next) => {
+  try {
+    if (!supabase) {
+      return res.status(503).json({ error: 'database_unavailable' });
+    }
+    if (!req.user.userId) {
+      return res.status(401).json({ error: 'authentication_required' });
+    }
+    const limit = Math.min(parseInt(req.query.limit, 10) || 50, 200);
+    const offset = Math.max(parseInt(req.query.offset, 10) || 0, 0);
+    const { data, error } = await supabase
+      .from('published_artifacts')
+      .select('id, slug, title, kind, language, is_public, views_count, created_at, expires_at')
+      .eq('user_id', req.user.userId)
+      .order('created_at', { ascending: false })
+      .range(offset, offset + limit - 1);
+    if (error) {
+      console.warn('[artifacts] /me query notice:', error.message);
+      return res.json({ items: [], limit, offset });
+    }
+    return res.json({ items: data || [], limit, offset });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ---------------------------------------------------------------------------
 // GET /api/artifacts/:slug   (HTML viewer + OG meta tags)
 // ---------------------------------------------------------------------------
 
-router.get('/:slug', chatRateLimiter, async (req, res, next) => {
+router.get('/:slug', async (req, res, next) => {
   try {
     if (!supabase) {
       return res.status(503).json({ error: 'database_unavailable' });
@@ -678,35 +709,7 @@ router.get('/:slug/raw', async (req, res, next) => {
   }
 });
 
-// ---------------------------------------------------------------------------
-// GET /api/artifacts/me   (lista mis artefactos, autenticado)
-// ---------------------------------------------------------------------------
 
-router.get('/me', auth, async (req, res, next) => {
-  try {
-    if (!supabase) {
-      return res.status(503).json({ error: 'database_unavailable' });
-    }
-    if (!req.user.userId) {
-      return res.status(401).json({ error: 'authentication_required' });
-    }
-    const limit = Math.min(parseInt(req.query.limit, 10) || 50, 200);
-    const offset = Math.max(parseInt(req.query.offset, 10) || 0, 0);
-    const { data, error } = await supabase
-      .from('published_artifacts')
-      .select('id, slug, title, kind, language, is_public, views_count, created_at, expires_at')
-      .eq('user_id', req.user.userId)
-      .order('created_at', { ascending: false })
-      .range(offset, offset + limit - 1);
-    if (error) {
-      console.warn('[artifacts] /me query notice:', error.message);
-      return res.json({ items: [], limit, offset });
-    }
-    return res.json({ items: data || [], limit, offset });
-  } catch (err) {
-    next(err);
-  }
-});
 
 // ---------------------------------------------------------------------------
 // DELETE /api/artifacts/:slug   (autenticado, sólo dueño)

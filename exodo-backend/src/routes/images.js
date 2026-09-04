@@ -11,11 +11,10 @@ const express = require('express');
 const auth = require('../middleware/auth');
 const { planGuard } = require('../middleware/planGuard');
 const { generateImage } = require('../services/imageGen');
-const { chatRateLimiter } = require('../middleware/rateLimiter');
 
 const router = express.Router();
 
-router.post('/generate', auth, planGuard, chatRateLimiter, async (req, res) => {
+router.post('/generate', auth, planGuard, async (req, res) => {
   try {
     const { prompt, size } = req.body || {};
     if (!prompt || typeof prompt !== 'string' || !prompt.trim()) {

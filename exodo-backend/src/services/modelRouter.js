@@ -26,8 +26,23 @@ function sanitizedErrorResult(err = null) {
 //   G1.1 (genesis) → modelos rápidos/eco (flash / plus / vl-plus)
 const PLAN_ROUTING_ENABLED = process.env.PLAN_ROUTING_ENABLED === 'true';
 
-function getExecutionChain(plan, intent, modelOverride, imageDataUris, taskType) {
+function getExecutionChain(plan, intent, modelOverride, imageDataUris, taskType, isGuest = false) {
+  const isGuestUser = isGuest || plan === 'guest';
   const hasImages = imageDataUris && imageDataUris.length > 0;
+
+  // 0. Modo Eco Estricto para Invitados ($0.00): modelos flash/eco, sin flagship de pago
+  if (isGuestUser) {
+    if (hasImages) {
+      return [
+        ALIBABA_CONFIG.models.visionEco || 'qwen3-vl-plus',
+        ALIBABA_CONFIG.models.fastPrimary || 'qwen3.7-flash-2026-07-15',
+      ];
+    }
+    return [
+      ALIBABA_CONFIG.models.fastPrimary || 'qwen3.7-flash-2026-07-15',
+      ALIBABA_CONFIG.models.textFallback,
+    ];
+  }
 
   // 1. Visión e Imágenes
   if (hasImages) {
@@ -104,13 +119,13 @@ function getExecutionChain(plan, intent, modelOverride, imageDataUris, taskType)
   ];
 }
 
-function getEffectiveModel(plan, intent, modelOverride, imageDataUris, taskType) {
-  const chain = getExecutionChain(plan, intent, modelOverride, imageDataUris, taskType);
+function getEffectiveModel(plan, intent, modelOverride, imageDataUris, taskType, isGuest = false) {
+  const chain = getExecutionChain(plan, intent, modelOverride, imageDataUris, taskType, isGuest);
   return {
     provider: 'alibaba',
     modelId: chain[0],
     fallbackChain: chain,
-    isEco: false,
+    isEco: isGuest || plan === 'guest',
     maxTokens: 8192,
   };
 }
@@ -119,7 +134,7 @@ function getEffectiveModel(plan, intent, modelOverride, imageDataUris, taskType)
  * Llamada estándar con iteración estricta a través de la cadena Alibaba DashScope.
  */
 async function routeMessage(plan, intent, messages, systemPrompt, modelOverride, imageDataUris, taskType, isDegraded = false, isGuest = false, signal = null, incognito = false) {
-  const chain = getExecutionChain(plan, intent, modelOverride, imageDataUris, taskType);
+  const chain = getExecutionChain(plan, intent, modelOverride, imageDataUris, taskType, isGuest);
   const options = {
     max_tokens: 8192,
     signal,
@@ -174,7 +189,7 @@ async function routeMessage(plan, intent, messages, systemPrompt, modelOverride,
  * a la del cliente) y se salta al siguiente modelo de la cadena.
  */
 async function routeMessageStream(plan, intent, messages, systemPrompt, onChunk, modelOverride, imageDataUris, taskType, isDegraded = false, isGuest = false, signal = null, incognito = false) {
-  const chain = getExecutionChain(plan, intent, modelOverride, imageDataUris, taskType);
+  const chain = getExecutionChain(plan, intent, modelOverride, imageDataUris, taskType, isGuest);
   // TTFT timeout adaptativo: modelos de razonamiento (qwq-plus), visión y código
   // requieren margen para pensar/procesar tokens iniciales sin abortar prematuramente.
   const hasImages = Array.isArray(imageDataUris) && imageDataUris.length > 0;
