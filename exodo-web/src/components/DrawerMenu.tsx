@@ -850,7 +850,10 @@ export const DrawerMenu: React.FC<DrawerMenuProps> = ({
           display: 'flex',
           alignItems: 'center',
           gap: 8,
-          padding: '10px 10px',
+          height: 40,
+          minHeight: 40,
+          boxSizing: 'border-box',
+          padding: '0 10px',
           margin: '2px 4px',
           borderRadius: 12,
           position: 'relative',
@@ -932,8 +935,8 @@ export const DrawerMenu: React.FC<DrawerMenuProps> = ({
           />
         )}
 
-        {/* Botón de 3 puntos (Opciones) */}
-        {(hoveredConvId === conv.id || openMenuId === conv.id) && !isEditing && (
+        {/* Botón de 3 puntos (Opciones) — siempre en DOM con opacidad para NO alterar las dimensiones ni mover nada en hover */}
+        {!isEditing && (
           <button
             type="button"
             onClick={(e) => {
@@ -945,9 +948,15 @@ export const DrawerMenu: React.FC<DrawerMenuProps> = ({
               border: 'none',
               cursor: 'pointer',
               padding: 2,
+              width: 20,
+              height: 20,
               display: 'flex',
               alignItems: 'center',
+              justifyContent: 'center',
               flexShrink: 0,
+              opacity: hoveredConvId === conv.id || openMenuId === conv.id ? 1 : 0,
+              pointerEvents: hoveredConvId === conv.id || openMenuId === conv.id ? 'auto' : 'none',
+              transition: 'opacity 0.12s ease',
             }}
             title="Opciones"
           >

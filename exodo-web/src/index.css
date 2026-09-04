@@ -127,7 +127,8 @@ body, html, #root {
   background-color: var(--bg-warm-black);
   color: var(--text-primary);
   font-family: var(--font-sans);
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
@@ -167,10 +168,12 @@ body, html, #root {
   display: flex;
   flex-direction: row;
   width: 100vw;
-  height: 100vh;
+  min-height: 100vh;
+  height: 100%;
   background: var(--bg-warm-black);
   position: relative;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: visible;
   transition: background-color 0.22s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
@@ -1506,3 +1509,47 @@ html.theme-animating * {
     transition: none !important;
   }
 }
+
+/* ═══ Zoom & Accesibilidad (+200%, +300% super zoom / pantallas compactas) ═══
+   Cuando el viewport en píxeles CSS se reduce por zoom agresivo (<= 680px de alto o <= 600px de ancho),
+   se desbloquea el scroll vertical natural de la pantalla para permitir desplazamiento completo
+   con la rueda del ratón y barra de scroll visible, garantizando que el usuario pueda navegar
+   hacia arriba (saludo/mensajes) y hacia abajo (cajón de escritura) sin cortes. */
+@media (max-height: 680px), (max-width: 600px) {
+  body, html, #root {
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    height: auto !important;
+    min-height: 100% !important;
+  }
+  .app-container {
+    height: auto !important;
+    min-height: 100vh !important;
+    overflow: visible !important;
+  }
+  .chat-main {
+    height: auto !important;
+    min-height: 100vh !important;
+    overflow: visible !important;
+  }
+  .welcome-center {
+    justify-content: flex-start !important;
+    min-height: max-content !important;
+    padding-top: 24px !important;
+    padding-bottom: 40px !important;
+    overflow: visible !important;
+  }
+  .messages-list {
+    flex: none !important;
+    height: auto !important;
+    min-height: 280px !important;
+    overflow: visible !important;
+    padding-bottom: 120px !important;
+  }
+  .composer-pinned {
+    position: sticky !important;
+    bottom: 0 !important;
+    margin-top: -80px !important;
+  }
+}
+
