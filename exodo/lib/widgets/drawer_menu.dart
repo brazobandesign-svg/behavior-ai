@@ -184,31 +184,13 @@ class _DrawerMenuState extends State<DrawerMenu> {
                       ),
 
                       // 2. Opciones de menú.
-                      // (New chat, tema e incógnito viven en el app bar del
-                      // chat: aquí solo quedan Exodo Web, Expedientes + Buscar.)
+                      // (New chat, tema, incógnito y Exodo Web viven fuera:
+                      // app bar y fondo del drawer. Aquí: Expedientes + Buscar.)
                       IntrinsicHeight(
                         child: Wrap(
                           spacing: 0,
                           runSpacing: 0,
                           children: [
-                            _DrawerItem(
-                              horizontalPad: hPad,
-                              icon: Image.asset(
-                                'assets/images/laptop-alt-2-svgrepo-com.png',
-                                width: s(20),
-                                height: s(20),
-                                color: textCol,
-                              ),
-                              title: Text(AppI18n.of(context).t('drawer.web'), style: TextStyle(fontFamily: 'AnthropicSans', fontSize: s(14), color: textCol, fontWeight: FontWeight.w600, letterSpacing: -0.2)),
-                              onTap: () {
-                                Navigator.pop(context);
-                                HapticFeedback.lightImpact();
-                                launchUrl(
-                                  Uri.parse(exodoWebUrl),
-                                  mode: LaunchMode.externalApplication,
-                                );
-                              },
-                            ),
                             // [Punto 3] Expedientes es exclusivo de cuentas.
                             // Decisión de producto: en modo invitado el ítem
                             // se OCULTA por completo — sin opacidad reducida
@@ -413,8 +395,8 @@ class _DrawerMenuState extends State<DrawerMenu> {
                                 childCount: recentConvs.length,
                               ),
                             ),
-                            // Padding inferior para que el último item no quede tapado por el footer
-                            const SliverToBoxAdapter(child: SizedBox(height: 130)),
+                            // Padding inferior para que el último item no quede tapado por el footer (más alto ahora con Exodo Web)
+                            const SliverToBoxAdapter(child: SizedBox(height: 180)),
                           ],
                         ),
                   ),
@@ -433,6 +415,25 @@ class _DrawerMenuState extends State<DrawerMenu> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Divider(color: isLight ? const Color(0xFFE0E0E0) : const Color(0xFF212121), height: 1),
+                    // Exodo Web fijo bajo Recientes (encima de la cuenta).
+                    _DrawerItem(
+                      horizontalPad: hPad,
+                      icon: Image.asset(
+                        'assets/images/laptop-alt-2-svgrepo-com.png',
+                        width: s(20),
+                        height: s(20),
+                        color: textCol,
+                      ),
+                      title: Text(AppI18n.of(context).t('drawer.web'), style: TextStyle(fontFamily: 'AnthropicSans', fontSize: s(14), color: textCol, fontWeight: FontWeight.w600, letterSpacing: -0.2)),
+                      onTap: () {
+                        Navigator.pop(context);
+                        HapticFeedback.lightImpact();
+                        launchUrl(
+                          Uri.parse(exodoWebUrl),
+                          mode: LaunchMode.externalApplication,
+                        );
+                      },
+                    ),
                     GestureDetector(
                       behavior: HitTestBehavior.opaque,
                       onTap: () => _ClaudeAccountModal.show(context, state),
