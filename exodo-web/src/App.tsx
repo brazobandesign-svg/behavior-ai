@@ -334,6 +334,14 @@ export default function App() {
     }
   }, [effectiveTheme, isIncognito, theme]);
 
+  // Idioma del documento: <html lang> real (a11y, correctores, voces TTS) y
+  // dirección RTL para árabe (paridad Flutter, que espeja la UI con intl).
+  useLayoutEffect(() => {
+    const base = (locale || 'es').toLowerCase().split(/[-_]/)[0];
+    document.documentElement.lang = base;
+    document.documentElement.dir = base === 'ar' ? 'rtl' : 'ltr';
+  }, [locale]);
+
   // ── Atajos de teclado globales (sin conflicto con el navegador) ──
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {

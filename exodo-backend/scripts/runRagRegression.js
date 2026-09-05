@@ -33,14 +33,35 @@ const { buildSystemPrompt } = require('../src/prompts/groundingMinerd');
 const { routeMessageStream } = require('../src/services/modelRouter');
 
 const DATASET_PATH = path.join(__dirname, '..', 'src', 'data', 'rag', 'minerd_regression_tests.json');
-const EMBEDDING_MODEL = 'text-embedding-3-small';
+// Embeddings: OpenAI si hay key; si no, DashScope gratis (text-embedding-v4,
+// 1024 dim -> se rellena a 1536 como fitDimension del servicio). Sin ninguno,
+// retrieveContext muere en voz alta en vez de calificar fantasmas.
+const EMBEDDING_MODEL = process.env.EMBEDDING_MODEL ||
+  (process.env.OPENAI_API_KEY ? 'text-embedding-3-small' : 'text-embedding-v4');
+const TARGET_DIM = 1536;
 
 const supabase = process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_KEY
   ? createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY)
   : null;
-const embeddings = process.env.OPENAI_API_KEY
-  ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
+const _embKey = process.env.OPENAI_API_KEY || process.env.ALIBABA_FREE_KEY;
+const embeddings = _embKey
+  ? new OpenAI({
+      apiKey: _embKey,
+      ...(process.env.OPENAI_API_KEY
+        ? {}
+        : { baseURL: 'https://dashscope-intl.aliyuncs.com/compatible-mode/v1' }),
+    })
   : null;
+
+function fitDim(vec) {
+  if (!Array.isArray(vec) || vec.length === 0) throw new Error('embedding vacío');
+  if (vec.length === TARGET_DIM) return vec;
+  const out = new Array(TARGET_DIM).fill(0);
+  const n = Math.min(vec.length, TARGET_DIM);
+  for (let i = 0; i < n; i++) out[i] = vec[i];
+  const norm = Math.sqrt(out.reduce((a, b) => a + b * b, 0)) || 1;
+  return out.map((v) => v / norm);
+}
 
 function parseArgs() {
   const args = process.argv.slice(2);
@@ -54,13 +75,15 @@ function parseArgs() {
 }
 
 async function retrieveContext(query) {
-  if (!embeddings || !supabase) return [];
+  if (!embeddings || !supabase) {
+    throw new Error('Sin backend de embeddings (ni OPENAI_API_KEY ni ALIBABA_FREE_KEY): aborta en vez de calificar sin chunks.');
+  }
   try {
     const emb = await embeddings.embeddings.create({
       model: EMBEDDING_MODEL,
       input: query,
     });
-    const vector = emb.data[0].embedding;
+    const vector = fitDim(emb.data[0].embedding);
     const { data, error } = await supabase.rpc('hybrid_search', {
       query_text: query,
       query_embedding: vector,
@@ -104,11 +127,15 @@ async function callExodo(caseObj, retrievedChunks) {
 async function callLLMJudge(system, user, opts) {
   // [H3] Juez en DashScope (qwen3.8-flash, temperatura 0): usa la key que ya
   // existe en el deploy y no requiere balance en DeepSeek.
+  // Override opcional para jueces externos (ej. token plan): RAG_JUDGE_API_KEY
+  // y RAG_JUDGE_BASE_URL tienen prioridad; sin ellos, comportamiento clásico.
   const judgeClient = new OpenAI({
-    apiKey: process.env.DASHSCOPE_API_KEY ||
+    apiKey: process.env.RAG_JUDGE_API_KEY ||
+            process.env.DASHSCOPE_API_KEY ||
             process.env.ALIBABA_API_KEY ||
             process.env.ALIBABA_FREE_KEY,
-    baseURL: process.env.ALIBABA_BASE_URL ||
+    baseURL: process.env.RAG_JUDGE_BASE_URL ||
+             process.env.ALIBABA_BASE_URL ||
              'https://dashscope-intl.aliyuncs.com/compatible-mode/v1',
   });
   const completion = await judgeClient.chat.completions.create({

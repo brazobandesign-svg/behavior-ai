@@ -179,15 +179,25 @@ const LANG_NAMES_IDENTITY = {
   hi: 'hindi (हिन्दी)', ar: 'árabe (العربية)',
 };
 
+// [Mapa de Éxodo] Conocimiento estructurado de la propia interfaz (móvil y web
+// comparten backend). Permite que "¿dónde está X?" reciba la ruta EXACTA en
+// vez de una invención del modelo. Compacto a propósito: viaja en TODOS los
+// turnos (incluido el modo lite de saludos/SIMPLE, donde justo caen las
+// preguntas de "¿dónde está…?").
 const APP_KNOWLEDGE = [
   '<exodo_app_knowledge>',
-  'Cuando el usuario pregunte por la PROPIA app, respóndele con este conocimiento y guíalo:',
-  '- Planes: G1.1 (gratuito) y XPi (Pro, USD 4.99/mes). Ambos usan los mismos modelos durante la beta.',
-  '- Cuota diaria de "alta potencia": al agotarla la app pasa AUTOMÁTICAMENTE a modo eco (más simple, gratis) hasta las 12:00 AM AST; nunca se corta la conversación. El medidor de tokens de la interfaz muestra cuánta potencia queda.',
-  '- Imágenes: el usuario puede pedir "genera una foto/imagen de..." directamente en el chat (3/día en G1.1, 25/día en XPi).',
-  '- Privacidad: en Ajustes (menú lateral > Settings) está "Guardar historial en la nube"; al desactivarlo, los chats se guardan SOLO en el dispositivo.',
-  '- Exportar: los chats largos permiten "Exportar contexto" a HTML para continuarlos en un chat nuevo.',
-  '- El medidor de consumo de tokens, estado de la suscripción y opciones de facturación se encuentran en el Menú lateral (Drawer) → sección Cuenta → Facturación. Si el usuario pregunta por su saldo o tokens, indícale esa ruta exacta en la app.',
+  'MAPA DE ÉXODO — úsalo SIEMPRE que pregunten dónde está una opción, cómo activar algo o digan "no encuentro X": guía con la ruta exacta y breve. Los rótulos varían con el idioma de la interfaz; las rutas no.',
+  '• Cajón lateral (≡ arriba-izquierda; web Alt+M): Nuevo chat · Buscar chats · Recientes (cada chat tiene ⋮ u Opciones: fijar con estrella, renombrar, eliminar) · abajo del cajón: tema sol/luna, Modo Incógnito, Exodo App (descarga móvil) y avatar de cuenta.',
+  '• Barra de iconos izquierda (web): ≡ menú · lupa Buscar chats · carpeta Expedientes (visible solo con sesión iniciada) · avatar de cuenta/acceso.',
+  '• Barra superior: Nuevo chat · tema claro/oscuro · Modo Incógnito (web Alt+I): chats efímeros que NO se guardan y fuerzan tema oscuro.',
+  '• Cajón de escritura (abajo): ＋ adjuntar (máx 3 archivos: imágenes/PDF/texto/CSV, 5 MB c/u) · selector de modelo G1.1/XPi (los modelos avanzados requieren Pro; invitado: solo G1.1) · micrófono = dictado por voz (transcribe y pega en el campo) · enviar con ↑ o Enter (Shift+Enter salto de línea; web Ctrl+Enter también envía).',
+  '• Bajo cada respuesta: copiar · me gusta / no me gusta · compartir · cápsula "Fuentes · N" cuando hubo búsqueda web · bloques html se ven como artefactos interactivos (invitados: solo el código).',
+  '• Avatar de cuenta → Ajustes de cuenta: Perfil (nombre y apodo, exportar mis datos a HTML, borrar historial, borrar cuenta) · Idioma (14) · Facturación (tokens del día, plan activo, actualizar o cancelar Pro) · Historial en la nube ON/OFF (OFF = los chats viven SOLO en este dispositivo) · Atajos de teclado (web Alt+?) · Términos y Privacidad · Cerrar sesión.',
+  '• Planes: G1.1 Free = 6.000 tokens/día y 3 imágenes/día; XPi Pro = USD 4.99/mes (o anual) con 50.000 tokens/día y 25 imágenes/día. Actualizar: banner sobre el cajón o Ajustes → Facturación (pago con tarjeta vía Stripe; el plan activa al volver de pagar).',
+  '• Cuota de alta potencia agotada → modo eco automático (respuesta ligera, gratis) hasta las 12:00 AM hora de Santo Domingo; la conversación NUNCA se bloquea. El medidor de tokens vive en Ajustes → Facturación.',
+  '• Imágenes: pídelas en el chat ("genera una imagen de…"); requieren sesión iniciada. Expedientes: biblioteca personal de piezas guardadas (con sesión).',
+  '• Invitado = todo local, sin nube ni historial en servidor. Iniciar sesión (Google o GitHub) desbloquea historial en la nube, modelos Pro, Expedientes, imágenes y voz completa.',
+  '• Si algo no le aparece, casi siempre es el plan o la sesión: guíalo a iniciar sesión o a Ajustes → Facturación. NUNCA inventes rutas que no estén en este mapa.',
   '</exodo_app_knowledge>',
 ].join('\n');
 
