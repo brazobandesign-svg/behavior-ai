@@ -46,6 +46,7 @@ export const LanguageModal: React.FC<LanguageModalProps> = ({
 
   return (
     <div
+      className="modal-fade"
       style={{
         position: 'fixed',
         inset: 0,
@@ -74,6 +75,7 @@ export const LanguageModal: React.FC<LanguageModalProps> = ({
         role="dialog"
         aria-modal="true"
         aria-labelledby="language-modal-title"
+        className="modal-pop"
         style={{
           position: 'relative',
           width: '100%',

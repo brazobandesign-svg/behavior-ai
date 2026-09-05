@@ -146,6 +146,7 @@ export const UpgradeModal: React.FC<UpgradeModalProps> = ({
 
   return (
     <div
+      className="modal-fade"
       style={{
         position: 'fixed',
         inset: 0,
@@ -168,7 +169,7 @@ export const UpgradeModal: React.FC<UpgradeModalProps> = ({
       />
 
       {/* Modal Container (Paridad exacta UpgradeModal de model_selector.dart) */}
-      <div
+      <div className="modal-pop"
         style={{
           position: 'relative',
           background: bgColor,

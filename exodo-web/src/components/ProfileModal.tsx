@@ -170,6 +170,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
 
   return (
     <div
+      className="modal-fade"
       style={{
         position: 'fixed',
         inset: 0,
@@ -198,6 +199,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
         role="dialog"
         aria-modal="true"
         aria-labelledby="profile-modal-title"
+        className="modal-pop"
         style={{
           position: 'relative',
           width: '100%',

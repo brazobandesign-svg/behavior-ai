@@ -231,6 +231,7 @@ export const ExpedientesModal: React.FC<ExpedientesModalProps> = ({
 
   return (
     <div
+      className="modal-fade"
       style={{
         position: 'fixed',
         inset: 0,
@@ -259,6 +260,7 @@ export const ExpedientesModal: React.FC<ExpedientesModalProps> = ({
         role="dialog"
         aria-modal="true"
         aria-labelledby="expedientes-modal-title"
+        className="modal-pop"
         style={{
           position: 'relative',
           width: '100%',

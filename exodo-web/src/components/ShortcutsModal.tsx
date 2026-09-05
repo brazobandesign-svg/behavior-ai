@@ -310,7 +310,7 @@ export const ShortcutsModal: React.FC<ShortcutsModalProps> = ({
   const t = (key: string) => SHORTCUTS_I18N[langKey]?.[key] || SHORTCUTS_I18N.es[key] || key;
 
   return (
-    <div style={{ position: 'fixed', inset: 0, zIndex: 1200 }}>
+    <div className="modal-fade" style={{ position: 'fixed', inset: 0, zIndex: 1200 }}>
       {/* Backdrop */}
       <div
         style={{

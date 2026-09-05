@@ -78,6 +78,7 @@ export const FeedbackModal: React.FC<FeedbackModalProps> = ({
 
   return (
     <div
+      className="modal-fade"
       style={{
         position: 'fixed',
         inset: 0,
@@ -100,7 +101,7 @@ export const FeedbackModal: React.FC<FeedbackModalProps> = ({
       />
 
       {/* Modal Container */}
-      <div
+      <div className="modal-pop"
         style={{
           position: 'relative',
           background: isLight ? '#FFFFFF' : '#222222',

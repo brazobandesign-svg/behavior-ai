@@ -86,6 +86,7 @@ export const BillingModal: React.FC<BillingModalProps> = ({
 
   return (
     <div
+      className="modal-fade"
       style={{
         position: 'fixed',
         inset: 0,
@@ -114,6 +115,7 @@ export const BillingModal: React.FC<BillingModalProps> = ({
         role="dialog"
         aria-modal="true"
         aria-labelledby="billing-modal-title"
+        className="modal-pop"
         style={{
           position: 'relative',
           width: '100%',

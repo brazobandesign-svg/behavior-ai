@@ -80,7 +80,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   })();
 
   return (
-    <div style={{ position: 'fixed', inset: 0, zIndex: 1150 }}>
+    <div className="modal-fade" style={{ position: 'fixed', inset: 0, zIndex: 1150 }}>
       {/* Backdrop */}
       <div
         style={{
@@ -94,6 +94,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
       {/* Sheet Container */}
       <div
+        className="modal-pop"
         style={{
           position: 'absolute',
           left: 0,

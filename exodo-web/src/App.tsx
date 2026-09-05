@@ -1187,7 +1187,10 @@ export default function App() {
         }
       } else {
         const errorData = await res.json().catch(() => null);
-        throw new Error(errorData?.error || `Error del servidor (${res.status})`);
+        // Paridad móvil (chat_service.dart): el backend manda { error, message }
+        // en 429/402/403 — el usuario merece "Alcanzaste el límite diario...",
+        // no el código crudo "guest_daily_limit".
+        throw new Error(errorData?.message || errorData?.error || `Error del servidor (${res.status})`);
       }
     } catch (err: any) {
       console.error('[Exodo Chat Error]:', err);

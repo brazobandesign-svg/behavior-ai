@@ -164,6 +164,7 @@ export const SupportModal: React.FC<SupportModalProps> = ({
 
   return (
     <div
+      className="modal-fade"
       style={{
         position: 'fixed',
         inset: 0,
@@ -186,7 +187,7 @@ export const SupportModal: React.FC<SupportModalProps> = ({
       />
 
       {/* Modal Container */}
-      <div
+      <div className="modal-pop"
         style={{
           position: 'relative',
           background: isLight ? '#FFFFFF' : '#222222',

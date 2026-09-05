@@ -1553,3 +1553,57 @@ html.theme-animating * {
   }
 }
 
+
+/* ===== Animaciones modernas de entrada (modales, backdrops, toasts) =====
+   Solo transform/opacity (GPU), curvas con ligero overshoot tipo spring.
+   Respeto total a prefers-reduced-motion. */
+@keyframes modalPopIn {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.965);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes overlayFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes noticeToastIn {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(10px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0) scale(1);
+  }
+}
+
+.modal-fade {
+  animation: overlayFadeIn 0.22s ease-out both;
+}
+
+.modal-pop {
+  animation: modalPopIn 0.34s cubic-bezier(0.22, 1.25, 0.36, 1) both;
+}
+
+.chat-notice-toast {
+  animation: noticeToastIn 0.3s cubic-bezier(0.22, 1.25, 0.36, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .modal-fade,
+  .modal-pop,
+  .chat-notice-toast {
+    animation: none;
+  }
+}
