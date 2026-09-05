@@ -63,7 +63,10 @@ export function extractOptionsForm(content: string): {
   questions: Array<{ question: string; options: string[] }>;
 } | null {
   if (!content) return null;
-  const re = /```exodo-options\r?\n?([\s\S]*?)```/g;
+  // Tolerante a fence sin cerrar: los modelos a veces olvidan el ```
+  // final; si el JSON parsea, el bloque es válido. En streaming el JSON
+  // incompleto no parsea y devuelve null (nada se monta a medias).
+  const re = /```exodo-options\r?\n?([\s\S]*?)(?:```|$)/g;
   let m: RegExpExecArray | null;
   let lastRaw: string | null = null;
   while ((m = re.exec(content)) !== null) lastRaw = m[1] || '';

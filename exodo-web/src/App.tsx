@@ -933,7 +933,9 @@ export default function App() {
         .eq('conversation_id', convId)
         .order('created_at', { ascending: true });
       if (!error && data) {
-        setMessages(data);
+        // Mensajes con marcador GUIDED = decisiones del formulario: quedan
+        // registrados en nube pero NO se pintan como burbuja.
+        setMessages((data || []).filter((m: any) => !(m.content || '').startsWith('<!--GUIDED:')));
       }
     } catch (e) {
       console.warn('Error fetching messages:', e);
@@ -1016,6 +1018,42 @@ export default function App() {
   // portapapeles ni toasts del sistema, igual que la app).
   const [askSelection, setAskSelection] = useState<{ text: string; x: number; y: number } | null>(null);
   const [quotedSnippet, setQuotedSnippet] = useState<string | null>(null);
+  // [Aclaración guiada] formulario paso a paso en el COMPOSER: cuando la
+  // última respuesta del assistant trae un bloque ```exodo-options, el chat
+  // no lo pinta; el formulario aparece aquí y las decisiones viajan como
+  // turno oculto del usuario (marcador <!--GUIDED:--> en la nube). El chat
+  // no se llena de tarjetas.
+  const [guidedForm, setGuidedForm] = useState<{
+    messageId: string;
+    title: string;
+    questions: Array<{ question: string; options: string[] }>;
+  } | null>(null);
+  const [guidedStep, setGuidedStep] = useState(0);
+  const [guidedAnswersState, setGuidedAnswersState] = useState<string[]>([]);
+  const dismissedGuidedRef = useRef<Set<string>>(new Set());
+
+  useEffect(() => {
+    if (isStreaming) return;
+    const last = messages[messages.length - 1];
+    if (
+      last &&
+      last.role === 'assistant' &&
+      !last.isThinking &&
+      !last.hidden &&
+      typeof last.content === 'string' &&
+      !dismissedGuidedRef.current.has(last.id)
+    ) {
+      const form = extractOptionsForm(last.content);
+      if (form) {
+        setGuidedForm({ messageId: last.id, title: form.title, questions: form.questions });
+        setGuidedStep(0);
+        setGuidedAnswersState([]);
+        return;
+      }
+    }
+    setGuidedForm(null);
+  }, [messages, isStreaming]);
+
   const handleChatTextSelection = () => {
     const sel = window.getSelection();
     const text = sel?.toString().trim() || '';
@@ -1045,7 +1083,19 @@ export default function App() {
     textareaRef.current?.focus();
   };
 
-  const handleSendMessage = async (e?: React.FormEvent, overrideText?: string) => {
+  const sendGuidedAnswers = () => {
+    if (!guidedForm) return;
+    const answers = guidedForm.questions
+      .map((q, i) => ({ question: q.question, answer: (guidedAnswersState[i] || '').trim() }))
+      .filter((a) => a.answer);
+    if (answers.length === 0) return;
+    const digest = answers.map((a) => `${a.question}: ${a.answer}`).join('\n');
+    dismissedGuidedRef.current.add(guidedForm.messageId);
+    setGuidedForm(null);
+    handleSendMessage(undefined, digest, answers);
+  };
+
+  const handleSendMessage = async (e?: React.FormEvent, overrideText?: string, guided?: Array<{ question: string; answer: string }>) => {
     if (e) e.preventDefault();
     if (isSendingRef.current) return;
     const draftText = (overrideText ?? input).trim();
@@ -1139,7 +1189,9 @@ export default function App() {
       role: 'user',
       content: userText,
       created_at: new Date().toISOString(),
-      attachments: outgoingPreviews.length > 0 ? outgoingPreviews : undefined
+      attachments: outgoingPreviews.length > 0 ? outgoingPreviews : undefined,
+      // Turnos del cuestionario guiado: registrados pero NO pintados en el chat
+      hidden: guided ? true : undefined
     };
 
     const thinkingMsg: Message = {
@@ -1154,7 +1206,7 @@ export default function App() {
     // Paridad móvil (sendHistoryWindow): enviar la ventana de turnos previos
     // para que el LLM tenga memoria continua y no repita saludos ante cada mensaje.
     const historyPayload = messages
-      .filter((m) => !m.isThinking && typeof m.content === 'string' && m.content.trim().length > 0)
+      .filter((m) => !m.isThinking && !m.hidden && typeof m.content === 'string' && m.content.trim().length > 0 && !m.content.startsWith('<!--GUIDED:'))
       .map((m) => ({ role: m.role, content: m.content.trim() }))
       .slice(-20);
 
@@ -1179,7 +1231,10 @@ export default function App() {
           model_override: selectedModel.id,
           isIncognito: isIncognito || !cloudHistoryEnabled,
           locale: locale || 'es',
-          attachments: outgoingAttachments.length > 0 ? outgoingAttachments : undefined
+          attachments: outgoingAttachments.length > 0 ? outgoingAttachments : undefined,
+          // Decisiones del formulario guiado: el backend las inyecta como el
+          // turno del usuario y guarda el mensaje con marcador oculto.
+          guidedAnswers: guided && guided.length > 0 ? guided : undefined
         })
       });
 
@@ -1740,7 +1795,7 @@ export default function App() {
             </div>
           )}
           <div style={{ position: 'relative', width: '100%', display: 'flex' }}>
-            {quotedSnippet && (
+            {quotedSnippet && !guidedForm && (
               <div
                 className="quote-chip"
                 style={{
@@ -1775,7 +1830,103 @@ export default function App() {
                 </button>
               </div>
             )}
-            {isRecording ? (
+            {guidedForm ? (
+              // Formulario de aclaración guiada: vive en el COMPOSER (no en el
+              // chat), una pregunta por paso tipo carrusel, y al confirmar
+              // envía las decisiones como turno oculto del usuario.
+              <div className="guided-form">
+                <div className="guided-form-header">
+                  <span className="guided-form-title">🧭 {guidedForm.title}</span>
+                  <div className="guided-form-dots">
+                    {guidedForm.questions.map((_, i) => (
+                      <span
+                        key={i}
+                        className={`guided-dot${i === guidedStep ? ' active' : ''}${i < guidedStep ? ' done' : ''}`}
+                        onClick={() => i < guidedForm.questions.length && setGuidedStep(i)}
+                      />
+                    ))}
+                  </div>
+                  <button
+                    type="button"
+                    className="guided-close"
+                    title={locale?.toLowerCase().startsWith('en') ? 'Dismiss' : 'Descartar'}
+                    onClick={() => {
+                      dismissedGuidedRef.current.add(guidedForm.messageId);
+                      setGuidedForm(null);
+                    }}
+                  >
+                    ✕
+                  </button>
+                </div>
+                <div className="guided-carousel">
+                  <div
+                    className="guided-track"
+                    style={{ transform: `translateX(-${guidedStep * 100}%)` }}
+                  >
+                    {guidedForm.questions.map((q, qi) => (
+                      <div className="guided-slide" key={qi}>
+                        <div className="guided-question">{q.question}</div>
+                        <div className="guided-options">
+                          {q.options.map((opt) => (
+                            <button
+                              key={opt}
+                              type="button"
+                              className={`guided-opt${guidedAnswersState[qi] === opt ? ' picked' : ''}`}
+                              onClick={() => {
+                                setGuidedAnswersState((prev) => {
+                                  const n = [...prev];
+                                  n[qi] = opt;
+                                  return n;
+                                });
+                                // Auto-avance: la última pregunta lleva al resumen
+                                setTimeout(() => setGuidedStep(qi + 1), 200);
+                              }}
+                            >
+                              <span>{opt}</span>
+                              {guidedAnswersState[qi] === opt && <span className="guided-check">✓</span>}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                    <div className="guided-slide guided-summary">
+                      <div className="guided-question">
+                        {locale?.toLowerCase().startsWith('en') ? 'Your choices' : 'Tus decisiones'}
+                      </div>
+                      <div className="guided-summary-list">
+                        {guidedForm.questions.map((q, qi) => (
+                          <div key={qi} className="guided-summary-row">
+                            <span className="guided-summary-q">{q.question}</span>
+                            <span
+                              className="guided-summary-a"
+                              onClick={() => setGuidedStep(qi)}
+                              title={locale?.toLowerCase().startsWith('en') ? 'Change' : 'Cambiar'}
+                            >
+                              {guidedAnswersState[qi] || '—'} ✎
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                      <button type="button" className="guided-send" onClick={sendGuidedAnswers}>
+                        {locale?.toLowerCase().startsWith('en') ? 'Send answers →' : 'Enviar respuestas →'}
+                      </button>
+                    </div>
+                  </div>
+                  <div className="guided-form-footer">
+                    {guidedStep > 0 ? (
+                      <button type="button" className="guided-back" onClick={() => setGuidedStep(guidedStep - 1)}>
+                        ‹ {locale?.toLowerCase().startsWith('en') ? 'Back' : 'Atrás'}
+                      </button>
+                    ) : <span />}
+                    <span className="guided-progress">
+                      {guidedStep >= guidedForm.questions.length
+                        ? (locale?.toLowerCase().startsWith('en') ? 'Ready to send' : 'Listo para enviar')
+                        : `${locale?.toLowerCase().startsWith('en') ? 'Question' : 'Pregunta'} ${guidedStep + 1} ${locale?.toLowerCase().startsWith('en') ? 'of' : 'de'} ${guidedForm.questions.length}`}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            ) : isRecording ? (
               // Barra de grabación viva (paridad composer móvil): punto rojo +
               // onda de 30 barras reactivas + temporizador + cancelar.
               <div
@@ -1890,6 +2041,7 @@ export default function App() {
             )}
           </div>
 
+          {!guidedForm && (
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <button 
@@ -1967,6 +2119,7 @@ export default function App() {
             </button>
             )}
           </div>
+          )}
         </form>
         <div style={{ marginTop: isPinned ? 4 : 10, marginBottom: isPinned ? 2 : 0, textAlign: 'center', fontFamily: 'AnthropicSans, sans-serif', fontSize: '12px', color: 'var(--text-secondary)' }}>
           {locale?.toLowerCase().startsWith('en')
@@ -2171,6 +2324,18 @@ export default function App() {
               <div className="messages-wrapper">
                 {messages.map((msg, index) => {
                   if (msg.role === 'assistant' && !msg.content.trim() && !msg.isThinking) return null;
+                  // Turnos ocultos: decisiones del cuestionario guiado —
+                  // registradas en nube, nunca pintadas como burbuja.
+                  if (msg.hidden || (msg.content || '').startsWith('<!--GUIDED:')) return null;
+                  // Mensajes que son SOLO un bloque de opciones (con o sin
+                  // fence de cierre): el formulario vive en el composer; la
+                  // burbuja (vacía a la vista) no se pinta.
+                  if (
+                    msg.role === 'assistant' &&
+                    /^\s*```exodo-options[\s\S]*$/.test(msg.content || '')
+                  ) {
+                    return null;
+                  }
                   const isThisMsgStreaming = isStreaming && index === messages.length - 1;
 
                   return (
