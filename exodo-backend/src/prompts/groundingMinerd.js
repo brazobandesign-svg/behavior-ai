@@ -120,6 +120,7 @@ function buildSystemPrompt(opts) {
       isAnonymous
         ? 'Si piden un gráfico, visualización o pieza interactiva: proporciona únicamente el código estático o bloque de código Markdown sin interactividad y agrega al final de tu respuesta de forma natural: "Para previsualizar artefactos y ejecutar aplicaciones interactivas, inicia sesión en tu cuenta.". NUNCA digas que no puedes generar código.'
         : 'Si piden un gráfico, visualización o pieza interactiva: entrega UN único bloque de código cercado html autocontenido (vanilla JS/SVG, sin CDN); la app lo renderiza interactivo dentro del chat. NUNCA digas que no puedes renderizarlo ni pidas abrir el archivo en un navegador.',
+      OPTIONS_BLOCK_RULE,
       'CITACIÓN OBLIGATORIA en temas de hechos históricos, datos empíricos, ciencia, medicina, leyes o biografías: tras CADA dato específico (fecha, cifra, nombre, evento) coloca INMEDIATAMENTE el enlace `[Nombre Corto](https://...)` (1-3 palabras, sin prefijos). Ejemplo: "La guerra culminó el 16 de agosto de 1865 [Britannica](https://www.britannica.com), fecha celebrada cada año. El detonante fue la Revolución de 1863 [AGN](https://agn.gob.do)."',
       'El enlace va PEGADO AL DATO, repartido por todo el texto — JAMÁS al final de toda la respuesta, en línea aparte ni agrupado al cierre. SOLO fuentes acreditadas: archivos nacionales, academias de historia, UNESCO, Britannica, Nature, PubMed, portales oficiales. En saludos, charla casual, creativa o código: CERO fuentes.',
       'NUNCA añadas sección final de fuentes (`### Fuentes` PROHIBIDA): la app extrae los enlaces y muestra su cápsula de Sources.',
@@ -312,6 +313,15 @@ function buildBrowsingHonestySection(searchStatus) {
   ].join('\n');
 }
 
+// Doctrina de aclaración guiada (estilo encuesta interactiva): la app
+// renderiza el bloque ```exodo-options como tarjeta de opciones seleccionables
+// y envía la elección del usuario como su mensaje. Compartida por prompt LITE
+// y completo (la doctrina SIEMPRE se duplica en LITE). Solo se usa en
+// referencias dentro de funciones ejecutadas a request-time, así que su
+// posición en el módulo es indiferente para el TDZ.
+const OPTIONS_BLOCK_RULE =
+  'ACLARACIÓN GUIADA ESTILO ENCUESTA: si la petición es genuinamente ambigua y hay 2-4 caminos claramente distintos (tipo de pieza, tema, tono, formato, nivel), NO preguntes en prosa con listas: emite UN único bloque cercado ```exodo-options cuyo contenido sea JSON válido con esta forma exacta {"question":"pregunta corta en el idioma del usuario","options":["Opción 1","Opción 2","Opción 3","Opción 4"]} (etiquetas de 1-5 palabras). La app la renderiza como tarjeta interactiva y el usuario elige con un clic. El bloque va SIEMPRE al final de tu respuesta, sin texto después. Úsalo solo cuando la ambigüedad sea real y la elección cambie el resultado; si la petición es clara, entrega directo sin bloque.';
+
 function buildArtifactsAndWritingStandardSection(isAnonymous = false) {
   if (isAnonymous) {
     return [
@@ -319,6 +329,8 @@ function buildArtifactsAndWritingStandardSection(isAnonymous = false) {
       '',
       'El usuario actual se encuentra en una sesión anónima o como invitado.',
       'Si el usuario solicita generar una aplicación web interactiva, juego, simulación o componente interactivo complejo, proporciona únicamente el código estático o bloque de código Markdown sin interactividad y agrega al final de tu respuesta de forma natural: "Para previsualizar artefactos y ejecutar aplicaciones interactivas, inicia sesión en tu cuenta."',
+      '',
+      OPTIONS_BLOCK_RULE,
     ].join('\n');
   }
 
@@ -331,6 +343,8 @@ function buildArtifactsAndWritingStandardSection(isAnonymous = false) {
     '- PROHIBIDO decir que "no puedes generar archivos interactivos ejecutables" o que "no se renderice dentro del chat": la app SÍ lo renderiza.',
     '- PROHIBIDO pedirle que guarde el código como .html y lo abra en un navegador, y PROHIBIDO sugerir CodePen, JSFiddle o editores online: entrega el bloque ```html completo y la app lo muestra al instante.',
     '- Acompaña el artefacto con 1-3 frases de interpretación de los datos, sin preámbulos vacíos.',
+    '',
+    OPTIONS_BLOCK_RULE,
     '',
     '## GRÁFICOS Y VISUALIZACIONES (CALIDAD MÍNIMA EXIGIDA)',
     '- Implementa los gráficos con SVG o canvas nativo + vanilla JS. PROHIBIDO cargar librerías externas por CDN (Chart.js, D3, ApexCharts, etc.): el sandbox móvil puede no cargarlas y degradan el render. Todo inline y autocontenido.',

@@ -963,10 +963,45 @@ export default function App() {
     applyThemeChange(() => setTheme(theme === 'dark' ? 'light' : 'dark'));
   };
 
-  const handleSendMessage = async (e?: React.FormEvent) => {
+  // [Paridad Fix LG V60 #5] "Preguntar a Exodo": selección de texto dentro de
+  // una respuesta → píldora flotante → cita en el composer (en RAM, sin
+  // portapapeles ni toasts del sistema, igual que la app).
+  const [askSelection, setAskSelection] = useState<{ text: string; x: number; y: number } | null>(null);
+  const [quotedSnippet, setQuotedSnippet] = useState<string | null>(null);
+  const handleChatTextSelection = () => {
+    const sel = window.getSelection();
+    const text = sel?.toString().trim() || '';
+    if (!text || text.length < 2 || !sel || sel.isCollapsed) {
+      setAskSelection(null);
+      return;
+    }
+    const node = sel.anchorNode;
+    const el = node instanceof Element ? node : node?.parentElement;
+    const row = el?.closest('.msg-row');
+    if (!row || !row.classList.contains('assistant')) {
+      setAskSelection(null);
+      return;
+    }
+    try {
+      const rect = sel.getRangeAt(0).getBoundingClientRect();
+      setAskSelection({ text: text.slice(0, 800), x: rect.left + rect.width / 2, y: rect.top });
+    } catch (_) {
+      setAskSelection(null);
+    }
+  };
+  const askExodoFromSelection = () => {
+    if (!askSelection) return;
+    setQuotedSnippet(askSelection.text);
+    setAskSelection(null);
+    try { window.getSelection()?.removeAllRanges(); } catch (_) {}
+    textareaRef.current?.focus();
+  };
+
+  const handleSendMessage = async (e?: React.FormEvent, overrideText?: string) => {
     if (e) e.preventDefault();
     if (isSendingRef.current) return;
-    if ((!input.trim() && pendingAttachments.length === 0) || isStreaming) return;
+    const draftText = (overrideText ?? input).trim();
+    if ((!draftText && pendingAttachments.length === 0) || isStreaming) return;
     isSendingRef.current = true;
 
     // Paridad móvil (chat_screen: gate de tokens): si se acabó la cuota se
@@ -976,7 +1011,14 @@ export default function App() {
       setShowPlansModal(true);
     }
 
-    const userText = input.trim();
+    let userText = draftText;
+    // [Paridad Fix LG V60 #5] cita de "Preguntar a Exodo": viaja como bloque
+    // quote markdown pegado arriba del texto del usuario (igual que app_state
+    // en móvil: solo cita si no hay texto; cita + texto si hay ambos).
+    if (quotedSnippet && quotedSnippet.trim()) {
+      userText = userText ? `> ${quotedSnippet}\n\n${userText}` : `> ${quotedSnippet}`;
+      setQuotedSnippet(null);
+    }
     const outgoingAttachments = pendingAttachments.map((a) => ({ mime_type: a.mime, file_name: a.name, base64: a.base64 }));
     const outgoingPreviews = pendingAttachments.map((a) => ({ name: a.name, mime: a.mime, preview: a.preview }));
     setInput('');
@@ -1370,6 +1412,11 @@ export default function App() {
           padding: '3px 14px 22px 14px',
           position: 'relative' as const,
           zIndex: 1,
+          // El wrapper .composer-pinned viene con pointer-events:none (deja
+          // pasar clics al chat bajo su gradiente) y solo .composer-container
+          // los reactiva; el banner vive FUERA de esa tarjeta y moría como
+          // click-through. Sin esto, "Actualizar" y la ✕ son intocables.
+          pointerEvents: 'auto' as const,
           marginBottom: -19,
           background: 'var(--banner-bg, #252525)',
           border: '1px solid var(--banner-border, transparent)',
@@ -1475,6 +1522,41 @@ export default function App() {
             </div>
           )}
           <div style={{ position: 'relative', width: '100%', display: 'flex' }}>
+            {quotedSnippet && (
+              <div
+                className="quote-chip"
+                style={{
+                  position: 'absolute', left: 12, right: 12, top: -34, zIndex: 5,
+                  display: 'flex', alignItems: 'center', gap: 8,
+                  padding: '7px 10px',
+                  background: 'var(--surface-input, #262626)',
+                  border: '1px solid var(--border-color, rgba(255,255,255,0.08))',
+                  borderRadius: 10,
+                  boxShadow: '0 4px 14px rgba(0,0,0,0.25)',
+                }}
+              >
+                <span
+                  style={{
+                    flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                    fontSize: 12.5, fontFamily: 'AnthropicSans, sans-serif', color: 'var(--text-secondary)',
+                  }}
+                  title={quotedSnippet}
+                >
+                  ❝ {quotedSnippet}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setQuotedSnippet(null)}
+                  title={locale?.toLowerCase().startsWith('en') ? 'Remove quote' : 'Quitar cita'}
+                  style={{
+                    background: 'none', border: 'none', cursor: 'pointer', padding: '2px 4px',
+                    color: 'var(--text-secondary)', fontSize: 12, lineHeight: 1, display: 'flex',
+                  }}
+                >
+                  ✕
+                </button>
+              </div>
+            )}
             <TextareaAutosize
               ref={textareaRef as any}
               className="composer-input"
@@ -1812,7 +1894,7 @@ export default function App() {
           </div>
         ) : (
           <>
-            <div className="messages-list" ref={messagesListRef} onScroll={handleScroll}>
+            <div className="messages-list" ref={messagesListRef} onScroll={handleScroll} onMouseUp={handleChatTextSelection} onTouchEnd={handleChatTextSelection}>
               <div className="messages-wrapper">
                 {messages.map((msg, index) => {
                   if (msg.role === 'assistant' && !msg.content.trim() && !msg.isThinking) return null;
@@ -1830,6 +1912,9 @@ export default function App() {
                           <ArtifactMessageBody
                             content={msg.content}
                             isStreaming={isThisMsgStreaming}
+                            onPickOption={(label) => {
+                              if (!isThisMsgStreaming) handleSendMessage(undefined, label);
+                            }}
                             renderMarkdown={(text) => (
                               <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
                                 {text}
@@ -1957,6 +2042,25 @@ export default function App() {
                 }}
               >
                 <ChevronDown size={24} color="var(--amber-exodo)" />
+              </button>
+            )}
+
+            {askSelection && (
+              <button
+                type="button"
+                className="ask-exodo-pill"
+                style={{
+                  position: 'fixed',
+                  left: Math.max(90, Math.min(askSelection.x, (typeof window !== 'undefined' ? window.innerWidth : 1280) - 110)),
+                  top: Math.max(70, askSelection.y - 46),
+                  zIndex: 60,
+                }}
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  askExodoFromSelection();
+                }}
+              >
+                ✦ {locale?.toLowerCase().startsWith('en') ? 'Ask Exodo' : 'Preguntar a Exodo'}
               </button>
             )}
 
