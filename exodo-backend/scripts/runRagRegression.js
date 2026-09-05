@@ -102,8 +102,8 @@ async function callExodo(caseObj, retrievedChunks) {
 }
 
 async function callLLMJudge(system, user, opts) {
-  // [H3] Juez en DashScope (qwen3.7-flash, temperatura 0): usa la key que ya
-  // está activa en Cloud Run en lugar de DEEPSEEK_API_KEY (ausente allí).
+  // [H3] Juez en DashScope (qwen3.8-flash, temperatura 0): usa la key que ya
+  // existe en el deploy y no requiere balance en DeepSeek.
   const judgeClient = new OpenAI({
     apiKey: process.env.DASHSCOPE_API_KEY ||
             process.env.ALIBABA_API_KEY ||
@@ -112,7 +112,7 @@ async function callLLMJudge(system, user, opts) {
              'https://dashscope-intl.aliyuncs.com/compatible-mode/v1',
   });
   const completion = await judgeClient.chat.completions.create({
-    model: opts.model || process.env.RAG_JUDGE_MODEL || 'qwen3.7-flash',
+    model: opts.model || process.env.RAG_JUDGE_MODEL || 'qwen3.8-flash',
     temperature: opts.temperature ?? 0,
     max_tokens: opts.maxTokens || 800,
     // Mismo blindaje que el provider: los Qwen híbridos traen thinking activo
@@ -149,7 +149,7 @@ async function main() {
         caseObj, response, chunks,
         options: {
           llmInvoke: callLLMJudge,
-          modelName: process.env.RAG_JUDGE_MODEL || 'qwen3.7-flash',
+          modelName: process.env.RAG_JUDGE_MODEL || 'qwen3.8-flash',
           threshold: args.threshold,
         },
       });

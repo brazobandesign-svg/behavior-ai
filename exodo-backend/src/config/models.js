@@ -5,13 +5,15 @@ const ALIBABA_CONFIG = {
   apiKey: process.env.DASHSCOPE_API_KEY || process.env.ALIBABA_API_KEY || process.env.ALIBABA_FREE_KEY,
   models: {
     // DOCTRINA (humano, 25-08): Kimi K3 y Qwen 3.7 Max RESERVADOS para Copilot (chatLanguageModels.json).
-    // Flagship = qwen3.6-max-preview.
-    textPrimary: 'qwen3.6-max-preview',       // Texto, conversación, redacción y asistencia general
-    fastPrimary: 'qwen3.7-flash-2026-07-15',     // Conversación instantánea (<200ms TTFT) para saludos y mensajes simples
+    // Flagship = qwen3.8-max-0902.
+    textPrimary: 'qwen3.8-max-0902',            // Texto, conversación, redacción y asistencia general
+    fastPrimary: 'qwen3.8-flash',               // Conversación instantánea (<200ms TTFT) para saludos y mensajes simples
     textFallback: 'qwen3.6-plus-2026-04-02',     // Respaldo de alta elocuencia
     reasonerPrimary: 'qwq-plus',                 // Razonamiento lógico profundo y matemáticas
-    coderPrimary: 'qwen3-coder-plus-2025-07-22', // Generación de código y artefactos interactivos
+    coderPrimary: 'qwen3.8-max-0902',            // Generación de código y artefactos interactivos de vanguardia
+    coderFallback: 'qwen3-coder-plus-2025-09-23',// Respaldo especializado en código
     visionPrimary: 'qwen-vl-max',                // Análisis de imágenes, visión multimodal y OCR
+    visionEco: 'qwen3-vl-plus',
     agenticLongContext: 'glm-5.1',               // Agéntico/review largo
 
     // RAG MINERD y Embeddings
@@ -27,15 +29,15 @@ const ALIBABA_CONFIG = {
     imageFallback5: 'qwen-image-plus',           // Respaldo 5: Qwen Image Plus (~5.6s)
 
     // Compatibilidad de nombres
-    hazakPrimary: 'qwen3.6-max-preview',
+    hazakPrimary: 'qwen3.8-max-0902',
     hazakReasoner: 'qwq-plus',
-    hazakCoder: 'qwen3-coder-plus-2025-07-22',
+    hazakCoder: 'qwen3.8-max-0902',
     hazakVision: 'qwen-vl-max',
-    genesisSimple: 'qwen3.7-flash-2026-07-15',
-    genesisRedaccion: 'qwen3.6-max-preview',
+    genesisSimple: 'qwen3.8-flash',
+    genesisRedaccion: 'qwen3.6-plus-2026-04-02',
     genesisReasoner: 'qwq-plus',
-    genesisCoder: 'qwen3-coder-plus-2025-07-22',
-    genesisVision: 'qwen-vl-max',
+    genesisCoder: 'qwen3.8-max-0902',
+    genesisVision: 'qwen3-vl-plus',
   },
 };
 
@@ -49,9 +51,9 @@ const PLAN_CONFIG = {
     monthlyVisionLimit: Infinity,
     dailyImagesLimit: 3,              // G1.1: pocas imágenes al día
     allowThinking: true,
-    primaryModel: 'qwen3.6-max-preview',
+    primaryModel: 'qwen3.8-max-0902',
     fallbackChain: [
-      'qwen3.6-max-preview',
+      'qwen3.8-max-0902',
     ],
     visionModels: ['qwen-vl-max'],
     isDegradable: false,
@@ -64,9 +66,9 @@ const PLAN_CONFIG = {
     monthlyVisionLimit: Infinity,
     dailyImagesLimit: 25,             // XPi: 25 imágenes/día (antes 66/mes implícito)
     allowThinking: true,
-    primaryModel: 'qwen3.6-max-preview',
+    primaryModel: 'qwen3.8-max-0902',
     fallbackChain: [
-      'qwen3.6-max-preview',
+      'qwen3.8-max-0902',
     ],
     visionModels: ['qwen-vl-max'],
     isDegradable: false,
@@ -95,34 +97,34 @@ PLANS.free = PLANS.genesis;
 PLANS.pro = PLANS.hazak;
 
 const ECO_MODELS = {
-  text:   'qwen3.7-flash',
+  text:   'qwen3.8-flash',
   vision: 'qwen3-vl-plus',
 };
 
 const MODEL_MAP = {
   SIMPLE: {
-    genesis: 'qwen3.7-flash',
-    hazak:   'qwen3.6-max-preview',
-    free:    'qwen3.7-flash',
-    pro:     'qwen3.6-max-preview',
+    genesis: 'qwen3.8-flash',
+    hazak:   'qwen3.8-max-0902',
+    free:    'qwen3.8-flash',
+    pro:     'qwen3.8-max-0902',
   },
   REDACCION: {
-    genesis: 'qwen3.6-plus',
-    hazak:   'qwen3.6-max-preview',
-    free:    'qwen3.6-plus',
-    pro:     'qwen3.6-max-preview',
+    genesis: 'qwen3.6-plus-2026-04-02',
+    hazak:   'qwen3.8-max-0902',
+    free:    'qwen3.6-plus-2026-04-02',
+    pro:     'qwen3.8-max-0902',
   },
   RAZONAMIENTO: {
-    genesis: 'qwen3.7-flash',
+    genesis: 'qwen3.8-flash',
     hazak:   'qwq-plus',
-    free:    'qwen3.7-flash',
+    free:    'qwen3.8-flash',
     pro:     'qwq-plus',
   },
   DOCUMENTO: {
-    genesis: 'qwen3.6-plus',
-    hazak:   'qwen3.6-max-preview',
-    free:    'qwen3.6-plus',
-    pro:     'qwen3.6-max-preview',
+    genesis: 'qwen3.6-plus-2026-04-02',
+    hazak:   'qwen3.8-max-0902',
+    free:    'qwen3.6-plus-2026-04-02',
+    pro:     'qwen3.8-max-0902',
   },
   VISION: {
     genesis: 'qwen3-vl-plus',
@@ -139,27 +141,20 @@ const MODEL_MAP = {
 };
 
 const MODEL_TO_PROVIDER = {
-  // DashScope Qwen / DeepSeek Models
-  'qwen3.6-max-preview':         'alibaba',
+  // DashScope Qwen / DeepSeek Active Free Tier Models
+  'qwen3.8-max-0902':               'alibaba',
+  'qwen3.6-max-preview':            'alibaba',
+  'qwen3.8-flash':                  'alibaba',
+  'qwen3.6-flash':                  'alibaba',
+  'qwen3.6-plus-2026-04-02':        'alibaba',
   'qwq-plus':                       'alibaba',
+  'qwen3-coder-plus-2025-09-23':    'alibaba',
+  'qwen3-coder-plus-2025-07-22':    'alibaba',
   'qwen-vl-max':                    'alibaba',
-  'qwen3.5-omni-plus':              'alibaba',
-  'deepseek-v3.2':                  'alibaba',
-  'qwen3.7-flash':                  'alibaba',
-  'qwen3.6-plus':                   'alibaba',
-  'qwen3.5-plus':                   'alibaba',
-  'qwen3.6-27b':                    'alibaba',
   'qwen3-vl-plus':                  'alibaba',
-  'qwen3.7-plus':                   'alibaba',
-  'qwen3-coder-480b-a35b-instruct': 'alibaba',
-  'deepseek-v4-pro':                'alibaba',
+  'glm-5.1':                        'alibaba',
+  'deepseek-v3.2':                  'alibaba',
   'deepseek-v4-flash':              'alibaba',
-  'deepseek-chat':                  'alibaba',
-  'deepseek-reasoner':              'alibaba',
-  'kimi-k3':                        'alibaba',
-  'kimi-k3-1m':                     'alibaba',
-  'moonshot-v1-1m':                 'alibaba',
-  'moonshot-v1-128k':               'alibaba',
   // DashScope Image Models
   'wan2.2-t2i-flash':               'alibaba',
   'wan2.2-t2i-plus':                'alibaba',

@@ -1121,8 +1121,10 @@ router.post('/title', auth, async (req, res) => {
     const prompt = `Usuario: ${userText || '(Imagen / archivo adjunto)'}\nAsistente: ${asstSnippet}`;
 
     const isIncognito = req.body?.isIncognito === true || !!req.user?.anonymous;
+    const { ALIBABA_CONFIG } = require('../config/models');
     const alibaba = require('../services/providers/alibaba');
-    const result = await alibaba.call('qwen3.7-flash', [prompt], systemPrompt, {
+    const titleModel = ALIBABA_CONFIG.models?.fastPrimary || 'qwen3.8-flash';
+    const result = await alibaba.call(titleModel, [prompt], systemPrompt, {
       max_tokens: 40,
       temperature: 0.3,
       incognito: isIncognito,

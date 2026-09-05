@@ -17,26 +17,29 @@ function resolveModelName(modelId) {
   if (!modelId) return ALIBABA_CONFIG.models.hazakPrimary;
   const m = String(modelId).trim().toLowerCase();
 
-  if (m === 'deepseek-chat' || m === 'genesis' || m === 'g1.1' || m === 'flash' || m === 'simple') {
-    return ALIBABA_CONFIG.models.genesisSimple; // qwen3.7-flash
+  if (m === 'deepseek-chat' || m === 'genesis' || m === 'g1.1' || m === 'flash' || m === 'simple' || m === 'qwen3.7-flash' || m === 'qwen3.7-flash-2026-07-15') {
+    return ALIBABA_CONFIG.models.genesisSimple; // qwen3.8-flash
   }
   if (m === 'deepseek-reasoner' || m === 'hazak' || m === 'j1.9' || m === 'pro' || m === 'thinking' || m === 'reasoner') {
-    return ALIBABA_CONFIG.models.hazakReasoner; // qwen3-235b-a22b-thinking-2507
+    return ALIBABA_CONFIG.models.hazakReasoner; // qwq-plus
   }
-  if (m === 'max' || m === 'primary') {
-    return ALIBABA_CONFIG.models.hazakPrimary; // qwen3.7-max-2026-06-08
+  if (m === 'max' || m === 'primary' || m === 'qwen3.7-max' || m === 'qwen3.7-max-preview' || m === 'qwen3.7-max-2026-06-08' || m === 'qwen3.6-max-preview') {
+    return ALIBABA_CONFIG.models.hazakPrimary; // qwen3.8-max-0902
   }
-  if (m === 'redaccion') {
-    return ALIBABA_CONFIG.models.genesisRedaccion; // qwen3.6-plus
+  if (m === 'coder' || m === 'code') {
+    return ALIBABA_CONFIG.models.coderPrimary; // qwen3.8-max-0902
+  }
+  if (m === 'qwen3-coder-plus' || m === 'qwen3-coder-plus-2025-07-22') {
+    return ALIBABA_CONFIG.models.coderFallback; // qwen3-coder-plus-2025-09-23
+  }
+  if (m === 'redaccion' || m === 'qwen3.6-plus') {
+    return ALIBABA_CONFIG.models.genesisRedaccion; // qwen3.6-plus-2026-04-02
   }
   if (m === 'vision' || m === 'vl' || m === 'omni' || m === 'qwen-vl-max') {
-    return 'qwen-vl-max'; // qwen-vl-max
+    return 'qwen-vl-max';
   }
   if (m === 'qwq') {
-    return ALIBABA_CONFIG.models.hazakReasonerFallback; // qwq-plus
-  }
-  if (m === 'kimi' || m === 'kimi-k3' || m === 'kimi-k3-1m' || m === 'moonshot' || m === 'moonshot-v1-1m') {
-    return 'kimi-k3';
+    return ALIBABA_CONFIG.models.hazakReasoner; // qwq-plus
   }
 
   return modelId;

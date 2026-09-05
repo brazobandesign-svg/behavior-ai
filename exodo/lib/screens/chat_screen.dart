@@ -14,7 +14,6 @@ import '../widgets/chat/chat_composer.dart';
 import '../widgets/chat/message_bubble.dart';
 import '../widgets/chat/model_selector.dart';
 import '../widgets/chat/image_generating_placeholder.dart';
-import '../widgets/chat/dashed_border.dart';
 import '../services/chat_service.dart';
 import '../services/supabase_service.dart';
 import '../services/notification_service.dart';
@@ -284,16 +283,68 @@ class _ChatScreenState extends State<ChatScreen>
     );
   }
 
+  Widget _buildChatComposer() {
+    return ChatComposer(
+      key: const ValueKey('chat_composer'),
+      controller: _inputCtrl,
+      onSend: (attachments) {
+        final text = _inputCtrl.text;
+        final state = context.read<AppState>();
+        if (text.trim().isEmpty &&
+            (attachments == null || attachments.isEmpty) &&
+            (state.quotedSnippet == null || state.quotedSnippet!.isEmpty)) {
+          return;
+        }
+        FocusScope.of(context).unfocus();
+        if (state.editingMessage != null) {
+          final msgToEdit = state.editingMessage!;
+          state.cancelEditingMessage();
+          _inputCtrl.clear();
+          state.editAndRegenerateUserMessage(msgToEdit, text);
+          return;
+        }
+        if (!state.isGuestUser &&
+            (state.tokensUsed >= state.tokensLimit ||
+                state.tokensUsed + (text.length ~/ 3) + 15 >
+                    state.tokensLimit)) {
+          HapticFeedback.vibrate();
+          if (!state.isPro) {
+            UpgradeModal.show(context);
+          }
+          state.sendUserMessage(
+            text,
+            attachments: attachments,
+          );
+          return;
+        }
+        _inputCtrl.clear();
+        state.sendUserMessage(text, attachments: attachments);
+      },
+      onModelTap: _showModelSheet,
+      onUpgradeTap: () {
+        // [Punto 6] Invitado: no-op silencioso con háptica
+        // suave; nunca abre el modal de compra.
+        if (context.read<AppState>().isGuestUser) {
+          HapticFeedback.selectionClick();
+          return;
+        }
+        UpgradeModal.show(context);
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     // [Fix rendimiento streaming] Este build() ahora usa context.select en
-    // vez de context.watch. Solo se reconstruye cuando isDarkMode, isIncognito
-    // u isOnline cambian — NO cada vez que llega un chunk SSE (que muta
+    // vez de context.watch. Solo se reconstruye cuando isDarkMode, isIncognito,
+    // hasMessages u isOnline cambian — NO cada vez que llega un chunk SSE (que muta
     // currentMessages). El chat en sí vive en ChatMessagesList, que tiene
     // su propia suscripción aislada a AppState y no le pega al Scaffold.
     final isDarkMode = context.select<AppState, bool>((s) => s.isDarkMode);
     final isIncognito = context.select<AppState, bool>((s) => s.isIncognito);
+    final hasMessages = context.select<AppState, bool>((s) => s.currentMessages.isNotEmpty);
     final isLight = !isDarkMode && !isIncognito;
+    final isIncognitoCentered = isIncognito && !hasMessages;
 
     return Scaffold(
       drawer: const DrawerMenu(),
@@ -310,12 +361,10 @@ class _ChatScreenState extends State<ChatScreen>
       body: AnimatedAmbientBackground(
         animation: _ambientBgCtrl,
         child: SafeArea(
-          child: Stack(
+          child: Column(
             children: [
-              Column(
-                children: [
-                  // Barra superior minimalista y limpia modularizada
-                  const ChatAppBar(),
+              // Barra superior minimalista y limpia modularizada
+              const ChatAppBar(),
 
 
               // Stage principal o lista de mensajes (SIEMPRE VISIBLE y fluye tras el composer)
@@ -330,124 +379,100 @@ class _ChatScreenState extends State<ChatScreen>
                       isLight: isLight,
                       followBottomNotifier: _followBottomNotifier,
                     ),
-                    // Degradado inferior (borrado suave para que el texto fluya sin corte brusco)
-                    Positioned(
-                      left: 0,
-                      right: 0,
-                      bottom: 0,
-                      child: IgnorePointer(
-                        child: Container(
-                          height: 125,
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              begin: Alignment.topCenter,
-                              end: Alignment.bottomCenter,
-                              stops: const [0.0, 0.45, 1.0],
-                              colors: [
-                                (isLight
-                                        ? ExodoColors.textPrimary
-                                        : ExodoColors.chatBg)
-                                    .withValues(alpha: 0.0),
-                                (isLight
-                                        ? ExodoColors.textPrimary
-                                        : ExodoColors.chatBg)
-                                    .withValues(alpha: 0.85),
-                                (isLight
-                                    ? ExodoColors.textPrimary
-                                    : ExodoColors.chatBg),
-                              ],
+                    if (!isIncognitoCentered) ...[
+                      // Degradado inferior (borrado suave para que el texto fluya sin corte brusco)
+                      Positioned(
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        child: IgnorePointer(
+                          child: Container(
+                            height: 125,
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                begin: Alignment.topCenter,
+                                end: Alignment.bottomCenter,
+                                stops: const [0.0, 0.45, 1.0],
+                                colors: [
+                                  (isLight
+                                          ? ExodoColors.textPrimary
+                                          : ExodoColors.chatBg)
+                                      .withValues(alpha: 0.0),
+                                  (isLight
+                                          ? ExodoColors.textPrimary
+                                          : ExodoColors.chatBg)
+                                      .withValues(alpha: 0.85),
+                                  (isLight
+                                          ? ExodoColors.textPrimary
+                                          : ExodoColors.chatBg),
+                                ],
+                              ),
                             ),
                           ),
                         ),
                       ),
-                    ),
-                    // Botón flotante "scroll to bottom" (esquina inferior derecha).
-                    Positioned(
-                      right: 16,
-                      bottom: 240,
-                      child: _ScrollToBottomHostSelector(
-                        controller: _scrollCtrl,
-                        followBottomNotifier: _followBottomNotifier,
+                      // Botón flotante "scroll to bottom" (esquina inferior derecha).
+                      Positioned(
+                        right: 16,
+                        bottom: 240,
+                        child: _ScrollToBottomHostSelector(
+                          controller: _scrollCtrl,
+                          followBottomNotifier: _followBottomNotifier,
+                        ),
                       ),
-                    ),
-                    // Barra inferior entrelazada del Tab 1 (SIEMPRE en su sitio exacto flotando)
-                    Positioned(
-                      left: 0,
-                      right: 0,
-                      bottom: 0,
-                      child: ChatComposer(
-                        controller: _inputCtrl,
-                        onSend: (attachments) {
-                          final text = _inputCtrl.text;
-                          final state = context.read<AppState>();
-                          if (text.trim().isEmpty &&
-                              (attachments == null || attachments.isEmpty) &&
-                              (state.quotedSnippet == null || state.quotedSnippet!.isEmpty)) {
-                            return;
-                          }
-                          FocusScope.of(context).unfocus();
-                          if (state.editingMessage != null) {
-                            final msgToEdit = state.editingMessage!;
-                            state.cancelEditingMessage();
-                            _inputCtrl.clear();
-                            state.editAndRegenerateUserMessage(msgToEdit, text);
-                            return;
-                          }
-                          if (!state.isGuestUser &&
-                              (state.tokensUsed >= state.tokensLimit ||
-                                  state.tokensUsed + (text.length ~/ 3) + 15 >
-                                      state.tokensLimit)) {
-                            HapticFeedback.vibrate();
-                            if (!state.isPro) {
-                              UpgradeModal.show(context);
-                            }
-                            state.sendUserMessage(
-                              text,
-                              attachments: attachments,
-                            );
-                            return;
-                          }
-                          _inputCtrl.clear();
-                          state.sendUserMessage(text, attachments: attachments);
-                        },
-                        onModelTap: _showModelSheet,
-                        onUpgradeTap: () {
-                          // [Punto 6] Invitado: no-op silencioso con háptica
-                          // suave; nunca abre el modal de compra.
-                          if (context.read<AppState>().isGuestUser) {
-                            HapticFeedback.selectionClick();
-                            return;
-                          }
-                          UpgradeModal.show(context);
-                        },
+                      // Barra inferior entrelazada del Tab 1 (fijada abajo cuando hay mensajes o en modo normal)
+                      Positioned(
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        child: _buildChatComposer(),
                       ),
-                    ),
+                    ] else ...[
+                      // Modo Incógnito vacío: Cajón medio a medio con el disclaimer (paridad web)
+                      Center(
+                        child: SingleChildScrollView(
+                          padding: const EdgeInsets.symmetric(vertical: 20),
+                          physics: const ClampingScrollPhysics(),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: [
+                              Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 32),
+                                child: Text(
+                                  AppI18n.of(context).t('chat.incognito_desc'),
+                                  textAlign: TextAlign.center,
+                                  maxLines: 3,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    fontFamily: 'AnthropicSans',
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w400,
+                                    color: ExodoColors.textSecondary,
+                                    height: 1.4,
+                                    letterSpacing: -0.1,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 28),
+                              _buildChatComposer(),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),
             ],
           ),
-          if (isIncognito)
-            const Positioned.fill(
-              child: IgnorePointer(
-                child: CustomPaint(
-                  painter: DashedBorderPainter(
-                    color: Color(0xFF707070),
-                    strokeWidth: 2.0,
-                    dashLength: 6.0,
-                    gapLength: 4.0,
-                    borderRadius: 0.0,
-                  ),
-                ),
-              ),
-            ),
-        ],
+        ),
       ),
-    ),
-  ),
-);
+    );
+  }
 }
-}
+
 
 
 /// [Fix rendimiento streaming] Widget aislado que contiene TODO lo que
@@ -543,6 +568,11 @@ class _ChatMessagesListState extends State<ChatMessagesList> {
     }
 
     if (state.currentMessages.isEmpty) {
+      if (state.isIncognito) {
+        // En modo incógnito vacío, el disclaimer y el composer se renderizan
+        // centrados en el Stack de ChatScreen ("medio a medio", paridad web).
+        return const SizedBox.shrink();
+      }
       return Center(
         child: SingleChildScrollView(
           padding: const EdgeInsets.only(bottom: 120),

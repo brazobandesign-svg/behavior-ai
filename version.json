@@ -1,6 +1,6 @@
 {
-  "latest_version_code": 7,
+  "latest_version_code": 8,
   "latest_version_name": "1.2.3",
   "download_url": "https://github.com/brazobandesign-svg/behavior-ai/releases/download/v1.2.3/exodo-1.2.3.apk",
-  "changelog": "Arquitectura multi-tier, ruteo por capas, límites reforzados para invitados e incógnito, soporte de 14 idiomas y estabilidad optimizada."
+  "changelog": "Qwen 3.8 Max (0902) insignia y artefactos, Qwen 3 Coder Plus (09-23) respaldo, refinamiento de modo incógnito sin marco perimetral y cajón centrado."
 }

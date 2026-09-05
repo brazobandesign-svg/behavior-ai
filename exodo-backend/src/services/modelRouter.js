@@ -35,11 +35,11 @@ function getExecutionChain(plan, intent, modelOverride, imageDataUris, taskType,
     if (hasImages) {
       return [
         ALIBABA_CONFIG.models.visionEco || 'qwen3-vl-plus',
-        ALIBABA_CONFIG.models.fastPrimary || 'qwen3.7-flash-2026-07-15',
+        ALIBABA_CONFIG.models.fastPrimary || 'qwen3.8-flash',
       ];
     }
     return [
-      ALIBABA_CONFIG.models.fastPrimary || 'qwen3.7-flash-2026-07-15',
+      ALIBABA_CONFIG.models.fastPrimary || 'qwen3.8-flash',
       ALIBABA_CONFIG.models.textFallback,
     ];
   }
@@ -68,12 +68,12 @@ function getExecutionChain(plan, intent, modelOverride, imageDataUris, taskType,
     }
   }
 
-  // 3. Código y Artefactos (con fallback robusto)
+  // 3. Código y Artefactos (con fallback robusto: Max 0902 -> Coder Plus 09-23 -> Plus 04-02)
   if (intent === 'CODE' || taskType === 'code' || taskType === 'code_analysis') {
     return [
-      ALIBABA_CONFIG.models.coderPrimary, // qwen3-coder-plus-2025-07-22
-      ALIBABA_CONFIG.models.textPrimary,  // qwen3.7-max
-      ALIBABA_CONFIG.models.textFallback, // qwen3.6-plus
+      ALIBABA_CONFIG.models.coderPrimary,   // qwen3.8-max-0902 (máxima arquitectura y diseño de artefactos)
+      ALIBABA_CONFIG.models.coderFallback || 'qwen3-coder-plus-2025-09-23', // especialista en código
+      ALIBABA_CONFIG.models.textFallback,    // qwen3.6-plus-2026-04-02
     ];
   }
 
@@ -91,14 +91,14 @@ function getExecutionChain(plan, intent, modelOverride, imageDataUris, taskType,
     if (PLAN_ROUTING_ENABLED && plan === 'genesis') {
       // G1.1: rapidez primero; la cadena de fallback sube a plus si falla.
       return [
-        ALIBABA_CONFIG.models.fastPrimary || 'qwen3.7-flash-2026-07-15',
+        ALIBABA_CONFIG.models.fastPrimary || 'qwen3.8-flash',
         ALIBABA_CONFIG.models.textFallback,
       ];
     }
     return [
       PLAN_ROUTING_ENABLED
         ? ALIBABA_CONFIG.models.textPrimary // XPi: flagship en todo
-        : (ALIBABA_CONFIG.models.fastPrimary || 'qwen3.7-flash-2026-07-15'),
+        : (ALIBABA_CONFIG.models.fastPrimary || 'qwen3.8-flash'),
       ALIBABA_CONFIG.models.textPrimary,
     ];
   }
@@ -108,7 +108,7 @@ function getExecutionChain(plan, intent, modelOverride, imageDataUris, taskType,
       && (intent === 'REDACCION' || intent === 'DOCUMENTO')) {
     return [
       ALIBABA_CONFIG.models.textFallback,
-      ALIBABA_CONFIG.models.fastPrimary || 'qwen3.7-flash-2026-07-15',
+      ALIBABA_CONFIG.models.fastPrimary || 'qwen3.8-flash',
     ];
   }
 
