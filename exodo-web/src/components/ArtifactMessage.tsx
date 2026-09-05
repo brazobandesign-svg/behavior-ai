@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 
 /**
  * Paridad web de _AssistantContentWithArtifacts (móvil): divide el markdown
@@ -127,80 +128,90 @@ const ArtifactCard: React.FC<{ code: string; isStreaming?: boolean }> = ({ code,
     } catch (_) {}
   };
 
+  // Esc cierra pantalla completa (paridad visores nativos)
+  React.useEffect(() => {
+    if (!fullscreen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setFullscreen(false);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [fullscreen]);
+
   return (
     <div className="artifact-card" style={{ margin: '14px 0' }}>
-      <div className="artifact-card-header">
-        <span className="artifact-card-title">Artefacto</span>
-        <span style={{ display: 'flex', gap: 8 }}>
-          {!isStreaming && code.trim() && (
-            <button type="button" className="artifact-card-toggle" onClick={() => setFullscreen(true)}>
-              Ampliar
-            </button>
-          )}
-          <button type="button" className="artifact-card-toggle" onClick={() => setShowCode((v) => !v)}>
-            {showCode ? 'Vista' : 'Código'}
-          </button>
-        </span>
-      </div>
-      {showCode ? (
-        <pre className="artifact-code">
-          <code>{code}</code>
-        </pre>
-      ) : isStreaming ? (
-        <div className="artifact-generating">Construyendo visualización…</div>
-      ) : (
-        <iframe
-          title="Artefacto Exodo"
-          sandbox="allow-scripts"
-          srcDoc={srcDoc}
-          style={{ width: '100%', height: 340, border: 'none', borderRadius: '0 0 12px 12px', background: '#FFFFFF', display: 'block' }}
-        />
-      )}
-      {fullscreen && (
-        <div
-          style={{
-            position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(0,0,0,0.75)',
-            display: 'flex', flexDirection: 'column', padding: 16,
-          }}
-          onClick={() => setFullscreen(false)}
-        >
-          <div
-            style={{
-              display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12,
-              maxWidth: 960, width: '100%', marginLeft: 'auto', marginRight: 'auto',
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <span style={{ color: '#F5F2EB', fontWeight: 700, flex: 1 }}>Artefacto</span>
+      {/* El contenido inline se OCULTA mientras está ampliado: evita el doble
+          render detrás del overlay y libera GPU (un solo iframe vivo). */}
+      <div style={fullscreen ? { visibility: 'hidden' } : undefined}>
+        <div className="artifact-card-header">
+          <span className="artifact-card-title">Artefacto</span>
+          <span style={{ display: 'flex', gap: 8 }}>
+            {!isStreaming && code.trim() && (
+              <button type="button" className="artifact-card-toggle" onClick={() => setFullscreen(true)}>
+                Ampliar
+              </button>
+            )}
             <button type="button" className="artifact-card-toggle" onClick={() => setShowCode((v) => !v)}>
               {showCode ? 'Vista' : 'Código'}
             </button>
-            <button type="button" className="artifact-card-toggle" onClick={copyCode}>
-              {copied ? '¡Copiado!' : 'Copiar'}
-            </button>
-            <button type="button" className="artifact-card-toggle" onClick={() => setFullscreen(false)}>
-              Cerrar
-            </button>
-          </div>
-          <div
-            style={{ flex: 1, maxWidth: 960, width: '100%', marginLeft: 'auto', marginRight: 'auto', overflow: 'hidden', borderRadius: 12 }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            {showCode ? (
-              <pre className="artifact-code" style={{ height: '100%', margin: 0, overflow: 'auto' }}>
-                <code>{code}</code>
-              </pre>
-            ) : (
-              <iframe
-                title="Artefacto Exodo (pantalla completa)"
-                sandbox="allow-scripts"
-                srcDoc={srcDoc}
-                style={{ width: '100%', height: '100%', minHeight: 400, border: 'none', borderRadius: 12, background: '#FFFFFF', display: 'block' }}
-              />
-            )}
-          </div>
+          </span>
         </div>
-      )}
+        {showCode ? (
+          <pre className="artifact-code">
+            <code>{code}</code>
+          </pre>
+        ) : isStreaming ? (
+          <div className="artifact-generating">Construyendo visualización…</div>
+        ) : (
+          <iframe
+            title="Artefacto Exodo"
+            sandbox="allow-scripts"
+            srcDoc={srcDoc}
+            style={{ width: '100%', height: 340, border: 'none', borderRadius: '0 0 12px 12px', background: '#FFFFFF', display: 'block' }}
+          />
+        )}
+      </div>
+      {fullscreen &&
+        // PORTAL a document.body: .msg-row anima transform (slideUpFade con
+        // fill forwards) y un ancestro con transform vuelve position:fixed
+        // relativo a la fila — el stage salía desplazado/cortado dentro del
+        // bubble. El portal escapa del contexto y ancla al viewport real.
+        createPortal(
+          <div className="artifact-stage-backdrop" onClick={() => setFullscreen(false)}>
+            <div
+              className="artifact-stage-header"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <span className="artifact-stage-title">Artefacto</span>
+              <span style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                <button type="button" className="artifact-card-toggle" onClick={() => setShowCode((v) => !v)}>
+                  {showCode ? 'Vista' : 'Código'}
+                </button>
+                <button type="button" className="artifact-card-toggle" onClick={copyCode}>
+                  {copied ? '¡Copiado!' : 'Copiar'}
+                </button>
+                <button type="button" className="artifact-card-toggle" onClick={() => setFullscreen(false)}>
+                  Cerrar
+                </button>
+              </span>
+            </div>
+            <div className="artifact-stage" onClick={(e) => e.stopPropagation()}>
+              {showCode ? (
+                <pre className="artifact-code" style={{ height: '100%', margin: 0, overflow: 'auto', borderRadius: 14 }}>
+                  <code>{code}</code>
+                </pre>
+              ) : (
+                <iframe
+                  title="Artefacto Exodo (pantalla completa)"
+                  sandbox="allow-scripts"
+                  srcDoc={srcDoc}
+                  style={{ width: '100%', height: '100%', border: 'none', borderRadius: 14, background: '#FFFFFF', display: 'block' }}
+                />
+              )}
+            </div>
+          </div>,
+          document.body
+        )}
     </div>
   );
 };

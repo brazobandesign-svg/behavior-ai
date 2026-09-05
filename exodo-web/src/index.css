@@ -1718,3 +1718,77 @@ html.theme-animating * {
     transition: none;
   }
 }
+
+/* ===== Visor a pantalla completa de artefactos (estilo stage) ===== */
+.artifact-stage-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1400;
+  background: rgba(0, 0, 0, 0.78);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  display: flex;
+  flex-direction: column;
+  padding: 18px;
+  box-sizing: border-box;
+  animation: overlayFadeIn 0.2s ease-out both;
+}
+
+.artifact-stage-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: min(1180px, 96vw);
+  margin: 0 auto 10px auto;
+  animation: stageIn 0.28s cubic-bezier(0.22, 1.25, 0.36, 1) both;
+}
+
+.artifact-stage-title {
+  color: #F5F2EB;
+  font-family: 'AnthropicSans', sans-serif;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+}
+
+.artifact-stage {
+  width: min(1180px, 96vw);
+  height: min(86vh, 900px);
+  margin: 0 auto;
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(255, 255, 255, 0.06);
+  background: #FFFFFF;
+  animation: stageIn 0.32s cubic-bezier(0.22, 1.25, 0.36, 1) both;
+  will-change: transform, opacity;
+}
+
+@keyframes stageIn {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.965);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@media (max-width: 640px) {
+  .artifact-stage-backdrop {
+    padding: 10px;
+  }
+  .artifact-stage {
+    width: 100%;
+    height: min(88vh, 900px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .artifact-stage-backdrop,
+  .artifact-stage-header,
+  .artifact-stage {
+    animation: none;
+  }
+}
