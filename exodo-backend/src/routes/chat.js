@@ -784,7 +784,13 @@ router.post('/', auth, guestLimit, planGuard, upload.array('files', 5), async (r
       contextChunks,
       lite: useLitePrompt,
       searchStatus,
-      isAnonymous: (isGuest || isIncognitoTurn),
+      // CAPACIDAD de artefactos ≠ modo de privacidad: la restricción y el
+      // aviso "inicia sesión" aplican SOLO a invitados (sin cuenta). Un
+      // usuario autenticado en incógnito SÍ puede recibir piezas interactivas
+      // (solo no se guardan en la nube); decirle "inicia sesión" era el bug
+      // reportado en la web. Cuotas y almacenamiento siguen usando
+      // isGuest || isIncognitoTurn (líneas 321+).
+      isAnonymous: isGuest,
     });
 
     // CONTEXT PRUNING: ventana de 50 mensajes (~25 turnos). Las grandes IA no
