@@ -302,6 +302,11 @@ export default function App() {
     });
   };
   const [isStreaming, setIsStreaming] = useState(false);
+  // Guard síncrono anti-doble-envío: isStreaming (estado) no se actualiza a
+  // tiempo entre dos clicks del mismo tick (doble-click / Ctrl+Enter+click),
+  // así que el segundo handler ve el closure viejo y vuelve a enviar. El ref
+  // se muta al instante y bloquea el reenvío idéntico.
+  const isSendingRef = useRef(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -488,7 +493,13 @@ export default function App() {
           setUserProfile(null);
           setTokensUsed(0);
         }
-        setShowAuthModal(false);
+        // Solo un login REAL cierra la puerta de acceso. Una sesión anónima
+        // (auto sign-in de voz, restore en background) no debe cerrar el
+        // modal mientras el usuario elige proveedor; el botón invitado ya
+        // cierra explícito en handleGuestSignIn.
+        if (!session.user.is_anonymous) {
+          setShowAuthModal(false);
+        }
         if (window.location.search.includes('code=') || window.location.hash.includes('access_token=')) {
           window.history.replaceState({}, document.title, window.location.pathname);
         }
@@ -943,7 +954,9 @@ export default function App() {
 
   const handleSendMessage = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
+    if (isSendingRef.current) return;
     if ((!input.trim() && pendingAttachments.length === 0) || isStreaming) return;
+    isSendingRef.current = true;
 
     // Paridad móvil (chat_screen: gate de tokens): si se acabó la cuota se
     // abre Planes (vibra) pero el mensaje SE ENVÍA igual.
@@ -1172,6 +1185,7 @@ export default function App() {
       setChatNotice(errMsg);
       setTimeout(() => setChatNotice(null), 4000);
     } finally {
+      isSendingRef.current = false;
       setIsStreaming(false);
       // Refrescar el medidor de tokens tras cada turno (paridad móvil).
       fetchTodayUsage();
@@ -1226,6 +1240,19 @@ export default function App() {
 
   const voiceEndpoint = (path: string) => `${BACKEND_BASE_URL}${path}`;
 
+  // Los endpoints de voz exigen JWT válido (C9 backend: sin token → 401).
+  // Paridad móvil: el visitante sin sesión entra como invitado anónimo de
+  // Supabase antes de transcribir; si el canje falla, el 401 muestra su aviso.
+  const ensureVoiceToken = async (): Promise<string | null> => {
+    if (session?.access_token) return session.access_token;
+    try {
+      const { data } = await supabase.auth.signInAnonymously();
+      return data?.session?.access_token || null;
+    } catch (_) {
+      return null;
+    }
+  };
+
   const startRecording = async () => {
     if (isRecording || isTranscribing || isStreaming) return;
     try {
@@ -1256,24 +1283,29 @@ export default function App() {
     audioChunksRef.current = [];
     if (chunks.length === 0) return;
     setIsTranscribing(true);
+    const es = !(locale || 'es').toLowerCase().startsWith('en');
     try {
       const blob = new Blob(chunks, { type: 'audio/webm' });
       const form = new FormData();
       form.append('file', blob, 'nota.webm');
+      const token = await ensureVoiceToken();
       const res = await fetch(voiceEndpoint('/api/voice/transcribe'), {
         method: 'POST',
-        headers: { ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}) },
+        headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
         body: form,
       });
       const data = await res.json().catch(() => ({}));
       const text = typeof data?.text === 'string' ? data.text.trim() : '';
       if (text) setInput((prev) => (prev ? `${prev} ${text}` : text));
-      else {
-        setChatNotice('No se entendió el audio. Intenta de nuevo.');
+      else if (res.status === 401 || data?.error === 'authentication_required') {
+        setChatNotice(es ? 'Inicia sesión para usar el dictado por voz.' : 'Sign in to use voice dictation.');
+        setTimeout(() => setChatNotice(null), 3000);
+      } else {
+        setChatNotice(es ? 'No se entendió el audio. Intenta de nuevo.' : "We couldn't understand the audio. Try again.");
         setTimeout(() => setChatNotice(null), 3000);
       }
     } catch (_) {
-      setChatNotice('No se pudo transcribir el audio.');
+      setChatNotice(es ? 'No se pudo transcribir el audio.' : 'Audio transcription failed.');
       setTimeout(() => setChatNotice(null), 3000);
     } finally {
       setIsTranscribing(false);
@@ -1583,7 +1615,9 @@ export default function App() {
       <SidebarRail
         isDrawerOpen={drawerOpen}
         onToggleDrawer={() => setDrawerOpen((prev) => !prev)}
-        isGuestUser={isGuestUser}
+        // Sin sesión también cuenta como invitado: si no, un visitante fresco
+        // ve el botón Expedientes y sus queries a Supabase fallan siempre.
+        isGuestUser={isGuestUser || !session?.user}
         userProfile={userProfile}
         userEmail={session?.user?.email}
         onOpenAuth={() => setShowAuthModal(true)}
