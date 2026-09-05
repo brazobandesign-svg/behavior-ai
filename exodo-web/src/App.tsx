@@ -29,6 +29,7 @@ import { BillingModal } from './components/BillingModal';
 import { FeedbackModal } from './components/FeedbackModal';
 import { ConsentGateModal } from './components/ConsentGateModal';
 import { TermsModal } from './components/TermsModal';
+import { SupportModal } from './components/SupportModal';
 import { ExpedientesModal } from './components/ExpedientesModal';
 import { SourcesModal } from './components/SourcesModal';
 import { ShortcutsModal } from './components/ShortcutsModal';
@@ -199,6 +200,8 @@ export default function App() {
   const [showConsentGate, setShowConsentGate] = useState(false);
   // Terms & Privacy (paridad settings.legal_body).
   const [showTerms, setShowTerms] = useState(false);
+  // Soporte (contacto directo vía exodobybehavior@gmail.com).
+  const [showSupport, setShowSupport] = useState(false);
   // Atajos de teclado (referencia visual de shortcuts).
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [isCheckingOut, setIsCheckingOut] = useState(false);
@@ -2004,6 +2007,7 @@ export default function App() {
         onOpenBilling={() => setShowBillingMenu(true)}
         onOpenShortcuts={() => setShowShortcuts(true)}
         onOpenTerms={() => setShowTerms(true)}
+        onOpenSupport={() => setShowSupport(true)}
         onSignOut={() => supabase.auth.signOut()}
         theme={effectiveTheme}
       />
@@ -2085,6 +2089,14 @@ export default function App() {
       <TermsModal
         isOpen={showTerms}
         onClose={() => setShowTerms(false)}
+        locale={locale}
+        theme={effectiveTheme}
+      />
+
+      {/* Support Modal */}
+      <SupportModal
+        isOpen={showSupport}
+        onClose={() => setShowSupport(false)}
         locale={locale}
         theme={effectiveTheme}
       />

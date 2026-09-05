@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { ChevronRight, Globe, Shield, LogOut, LogIn, User, CreditCard, Keyboard } from 'lucide-react';
+import { ChevronRight, Globe, Shield, LogOut, LogIn, User, CreditCard, Keyboard, Headphones } from 'lucide-react';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -16,6 +16,7 @@ interface SettingsModalProps {
   onOpenBilling: () => void;
   onOpenShortcuts: () => void;
   onOpenTerms: () => void;
+  onOpenSupport: () => void;
   onSignOut: () => void;
   theme?: 'dark' | 'light';
 }
@@ -35,6 +36,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   onOpenBilling,
   onOpenShortcuts,
   onOpenTerms,
+  onOpenSupport,
   onSignOut,
   theme = 'dark',
 }) => {
@@ -60,6 +62,18 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       it: 'Scorciatoie', de: 'Tastenkürzel', ru: 'Горячие клавиши',
       zh: '快捷键', ja: 'ショートカット', ar: 'اختصارات',
       ko: '단축키', hi: 'शॉर्टकट', ht: 'Rakousi',
+    };
+    const base = (locale || 'es').toLowerCase().split(/[-_]/)[0];
+    return labels[base] || labels.es;
+  })();
+
+  // Label localizado para "Soporte" (paridad con los 13+ idiomas de EXODO_LANGUAGES)
+  const supportLabel = (() => {
+    const labels: Record<string, string> = {
+      es: 'Soporte', en: 'Support', fr: 'Support', pt: 'Suporte',
+      it: 'Supporto', de: 'Support', ru: 'Поддержка',
+      zh: '支持', ja: 'サポート', ar: 'الدعم',
+      ko: '고객 지원', hi: 'सहायता', ht: 'Sipò',
     };
     const base = (locale || 'es').toLowerCase().split(/[-_]/)[0];
     return labels[base] || labels.es;
@@ -274,6 +288,32 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               <Keyboard size={20} color="var(--text-primary)" />
               <span style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-primary)', fontFamily: 'Inter, sans-serif' }}>
                 {shortcutsLabel}
+              </span>
+            </div>
+            <ChevronRight size={18} color="var(--text-secondary)" />
+          </div>
+
+          {/* Soporte */}
+          <div
+            style={{
+              background: isLight ? '#F5F4EF' : '#262626',
+              borderRadius: 16,
+              padding: '16px 18px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              cursor: 'pointer',
+              transition: 'background 0.15s ease',
+            }}
+            onClick={() => {
+              onClose();
+              onOpenSupport();
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+              <Headphones size={20} color="var(--text-primary)" />
+              <span style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-primary)', fontFamily: 'Inter, sans-serif' }}>
+                {supportLabel}
               </span>
             </div>
             <ChevronRight size={18} color="var(--text-secondary)" />

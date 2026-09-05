@@ -275,7 +275,9 @@ router.post('/', auth, guestLimit, planGuard, upload.array('files', 5), async (r
     const hasAttachments =
       (attachments && Array.isArray(attachments) && attachments.length > 0) ||
       multipartFiles.length > 0;
-    if (conversationId !== undefined && (typeof conversationId !== 'string' || conversationId.includes('\x00'))) {
+    // Tolerar null: el cliente Flutter serializa claves presentes con valor
+    // null (jsonEncode no omite nulls) en chats nuevos. null == ausente.
+    if (conversationId != null && (typeof conversationId !== 'string' || conversationId.includes('\x00'))) {
       return res.status(400).json({ error: 'El campo "conversationId" debe ser una cadena de texto válida' });
     }
 
@@ -287,7 +289,7 @@ router.post('/', auth, guestLimit, planGuard, upload.array('files', 5), async (r
       return res.status(400).json({ error: 'El campo "message" es requerido' });
     }
 
-    if (req.body?.history !== undefined) {
+    if (req.body?.history != null) {
       if (!Array.isArray(req.body.history)) {
         return res.status(400).json({ error: 'El campo "history" debe ser un arreglo' });
       }
@@ -296,7 +298,7 @@ router.post('/', auth, guestLimit, planGuard, upload.array('files', 5), async (r
       );
     }
 
-    if (attachments !== undefined) {
+    if (attachments != null) {
       if (!Array.isArray(attachments)) {
         return res.status(400).json({ error: 'El campo "attachments" debe ser un arreglo' });
       }
@@ -1049,7 +1051,8 @@ function detectMessageLang(text) {
 router.post('/title', auth, async (req, res) => {
   try {
     const { conversationId, messages } = req.body || {};
-    if (conversationId !== undefined && (typeof conversationId !== 'string' || conversationId.includes('\x00'))) {
+    // Tolerar null (jsonEncode del cliente serializa nulls explícitos).
+    if (conversationId != null && (typeof conversationId !== 'string' || conversationId.includes('\x00'))) {
       return res.status(400).json({ error: 'El campo "conversationId" debe ser una cadena de texto válida' });
     }
 

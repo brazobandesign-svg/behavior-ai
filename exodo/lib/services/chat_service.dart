@@ -151,8 +151,10 @@ class ChatService {
   /// candidato muerto) antes del POST real, que sigue saliendo UNA sola vez.
   static Future<String?> _probeFastestBackend(
     List<String> urls, {
-    Duration timeout = const Duration(milliseconds: 600),
+    Duration timeout = const Duration(milliseconds: 2500),
   }) async {
+    if (urls.isEmpty) return null;
+    if (urls.length == 1) return urls.first;
     final completer = Completer<String?>();
     var pending = urls.length;
     for (final url in urls) {
@@ -232,6 +234,11 @@ class ChatService {
 
       http.StreamedResponse? response;
       http.Client? client;
+      // Última respuesta REAL del servidor (no-200). Si existe, el backend
+      // está vivo y respondió un error: el mensaje al usuario debe ser
+      // honesto (Cód. X / caída), nunca "Sin conexión" (eso es solo para
+      // fallos de red del cliente, donde nada llegó al servidor).
+      http.StreamedResponse? lastServerResponse;
 
       // [Punto 40+42] Codificar adjuntos como base64 para el backend.
       final attachmentsJson = attachments
@@ -264,9 +271,13 @@ class ChatService {
           });
           request.body = jsonEncode({
             'message': message,
-            'conversationId': conversationId,
-            'history': history,
-            'model_override': modelOverride,
+            // Los null NO viajan: un backend endurecido responde 400 a
+            // "conversationId": null / "history": null. Dart serializa nulls
+            // explícitos (la web los omite porque JSON.stringify dropea
+            // undefined) — misma lección que la tolerancia de null del server.
+            'conversationId': ?conversationId,
+            if (history != null && history.isNotEmpty) 'history': history,
+            'model_override': ?modelOverride,
             if (taskType != null && taskType != 'auto') 'taskType': taskType,
             if (locale != null && locale.isNotEmpty) 'locale': locale,
             if (attachmentsJson != null && attachmentsJson.isNotEmpty)
@@ -316,37 +327,44 @@ class ChatService {
               return;
             }
           }
+          // Cualquier otro 4xx/5xx: drenar el socket y recordar la respuesta
+          // REAL del servidor para el mensaje final honesto.
+          try {
+            await resp.stream.bytesToString().timeout(const Duration(seconds: 2));
+          } catch (_) {}
+          lastServerResponse = resp;
         } catch (_) {}
       }
 
-      if (response == null || client == null || response.statusCode != 200) {
+      if (response == null || client == null) {
         if (!activeSession.isCancelled) {
-          String errMsg =
-              'Sin conexión con el servidor. Verifica tu red e inténtalo de nuevo.';
-          if (response != null) {
-            if (response.statusCode >= 500) {
-              // [Misión down] Nada "reinicia" solo: mensaje honesto de caída.
-              errMsg =
-                  'Éxodo no está disponible en este momento. Estamos trabajando para restablecer el servicio. Inténtalo de nuevo en unos minutos.';
-            } else if (response.statusCode == 413) {
-              errMsg =
-                  'El archivo adjunto es demasiado grande. Por favor, intenta con uno más pequeño.';
-            } else if (response.statusCode == 429) {
-              // C9: el límite de invitados se aplica en servidor y su cuerpo
-              // JSON trae el mensaje real (límite diario alcanzado, etc.).
-              errMsg =
-                  'Alcanzaste el límite diario de mensajes como invitado. Crea una cuenta gratuita para continuar.';
-              try {
-                final body = await response.stream.bytesToString();
-                final serverMsg = body.contains('"message"')
-                    ? (body.split('"message":"').last.split('"').first)
-                    : '';
-                if (serverMsg.trim().isNotEmpty) errMsg = serverMsg;
-              } catch (_) {}
-            } else if (response.statusCode != 200) {
-              errMsg =
-                  'Hubo un error de conexión (Cód. ${response.statusCode}).';
-            }
+          final failed = lastServerResponse;
+          String errMsg;
+          if (failed == null) {
+            // Nada llegó al servidor: fallo de red del cliente.
+            errMsg =
+                'Sin conexión con el servidor. Verifica tu red e inténtalo de nuevo.';
+          } else if (failed.statusCode >= 500) {
+            // [Misión down] Nada "reinicia" solo: mensaje honesto de caída.
+            errMsg =
+                'Exodo no está disponible en este momento. Estamos trabajando para restablecer el servicio. Inténtalo de nuevo en unos minutos.';
+          } else if (failed.statusCode == 413) {
+            errMsg =
+                'El archivo adjunto es demasiado grande. Por favor, intenta con uno más pequeño.';
+          } else if (failed.statusCode == 429) {
+            // C9: el límite de invitados se aplica en servidor y su cuerpo
+            // JSON trae el mensaje real (límite diario alcanzado, etc.).
+            errMsg =
+                'Alcanzaste el límite diario de mensajes como invitado. Crea una cuenta gratuita para continuar.';
+            try {
+              final body = await failed.stream.bytesToString();
+              final serverMsg = body.contains('"message"')
+                  ? (body.split('"message":"').last.split('"').first)
+                  : '';
+              if (serverMsg.trim().isNotEmpty) errMsg = serverMsg;
+            } catch (_) {}
+          } else {
+            errMsg = 'Hubo un error de conexión (Cód. ${failed.statusCode}).';
           }
           onError(errMsg);
         }
@@ -565,7 +583,7 @@ class ChatService {
           if (token != null && token.isNotEmpty) 'Authorization': 'Bearer $token',
         };
         final body = jsonEncode({
-          'conversationId': conversationId,
+          if (conversationId.isNotEmpty) 'conversationId': conversationId,
           'locale': locale,
           'messages': [
             {'role': 'user', 'content': userText},

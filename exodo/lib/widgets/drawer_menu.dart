@@ -1058,6 +1058,17 @@ class _ClaudeAccountModal {
               ),
 
               _buildSettingTile(
+                icon: Icons.support_agent_rounded,
+                title: AppI18n.of(context).t('settings.support'),
+                isLight: isLight,
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _showSupportDialog(context, isLight);
+                },
+              ),
+              const SizedBox(height: 8),
+
+              _buildSettingTile(
                 icon: Icons.privacy_tip_outlined,
                 title: AppI18n.of(context).t('settings.terms'),
                 isLight: isLight,
@@ -1132,6 +1143,153 @@ class _ClaudeAccountModal {
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  static void _showSupportDialog(BuildContext context, bool isLight) {
+    final bg = isLight ? const Color(0xFFFAF9F5) : const Color(0xFF1E1E1E);
+    final cardBg = isLight ? const Color(0xFFF0EFEA) : const Color(0xFF262626);
+    final textCol = isLight ? const Color(0xFF141413) : const Color(0xFFF5F2EB);
+    final subTextCol = isLight ? const Color(0xFF6B6966) : const Color(0xFF9E9689);
+    final borderColor = isLight ? const Color(0xFFE2E0D8) : const Color(0xFF333333);
+    const email = 'exodobybehavior@gmail.com';
+
+    showDialog(
+      context: context,
+      builder: (dlgCtx) => AlertDialog(
+        backgroundColor: bg,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(24),
+          side: BorderSide(color: borderColor),
+        ),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: ExodoColors.amber.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(Icons.support_agent_rounded, color: ExodoColors.amber, size: 22),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                AppI18n.of(context).t('settings.support'),
+                style: TextStyle(fontFamily: 'Syne', fontWeight: FontWeight.bold, fontSize: 18, color: textCol),
+              ),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              AppI18n.of(context).t('settings.support_desc'),
+              style: GoogleFonts.inter(fontSize: 13.5, height: 1.4, color: subTextCol),
+            ),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              decoration: BoxDecoration(
+                color: cardBg,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: borderColor),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.mail_outline_rounded, color: ExodoColors.amber, size: 20),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: SelectableText(
+                      email,
+                      style: GoogleFonts.inter(
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w600,
+                        color: textCol,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        actions: [
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(
+                    side: BorderSide(color: borderColor),
+                    padding: const EdgeInsets.symmetric(vertical: 10),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  onPressed: () {
+                    Clipboard.setData(const ClipboardData(text: email));
+                    HapticFeedback.lightImpact();
+                    Navigator.pop(dlgCtx);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(AppI18n.of(context).t('settings.support_copied')),
+                        backgroundColor: ExodoColors.amber,
+                        behavior: SnackBarBehavior.floating,
+                        duration: const Duration(seconds: 2),
+                      ),
+                    );
+                  },
+                  icon: Icon(Icons.copy_rounded, size: 16, color: textCol),
+                  label: Text(
+                    AppI18n.of(context).t('settings.support_copy'),
+                    style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600, color: textCol),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: ExodoColors.amber,
+                    foregroundColor: Colors.black,
+                    padding: const EdgeInsets.symmetric(vertical: 10),
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  onPressed: () async {
+                    HapticFeedback.lightImpact();
+                    final uri = Uri(
+                      scheme: 'mailto',
+                      path: email,
+                      queryParameters: {'subject': 'Soporte Exodo'},
+                    );
+                    try {
+                      await launchUrl(uri, mode: LaunchMode.externalApplication);
+                    } catch (_) {}
+                  },
+                  icon: const Icon(Icons.send_rounded, size: 16, color: Colors.black),
+                  label: Text(
+                    AppI18n.of(context).t('settings.support_send'),
+                    style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.black),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Align(
+            alignment: Alignment.center,
+            child: TextButton(
+              onPressed: () => Navigator.pop(dlgCtx),
+              child: Text(
+                AppI18n.of(context).t('action.close'),
+                style: TextStyle(color: subTextCol, fontSize: 13),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
