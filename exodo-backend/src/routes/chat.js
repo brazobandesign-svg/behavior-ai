@@ -988,12 +988,23 @@ const LANG_STOPWORDS = {
   fr: new Set(['le','la','les','un','une','des','du','de','au','aux','et','ou','que','qui','pour','par','avec','sans','sur','dans','mon','ma','mes','ton','ta','tes','son','sa','ses','notre','nos','votre','vos','leur','leurs','est','sont','était','être','faire','fait','il','elle','je','tu','nous','vous','ils','elles','ce','cet','cette','ces','plus','mais','oui','non','bonjour','salut','merci','besoin','veux','comment','pourquoi','où','quand','combien','cours','classe']),
   pt: new Set(['o','a','os','as','um','uma','uns','umas','de','do','da','dos','das','em','no','na','para','por','com','sem','sobre','entre','meu','minha','meus','minhas','seu','sua','é','são','foi','ser','fazer','faz','há','mais','mas','não','sim','obrigado','olá','oi','preciso','quero','como','porque','porquê','qual','quem','onde','quando','quanto','aula','turma','plano']),
   ht: new Set(['nan','yo','ki','mwen','nou','ak','pou','poukisa','kijan','kòman','bonjou','bonswa','mèsi','bezwen','vle','fè','genyen','gen','yon','lekòl','timoun','se','sa','la']),
+  // [Fix it/de QA 05-sep] Italiano y alemán no existían en el detector: el
+  // italiano ("dove cambio la lingua dell'app") colisionaba con stopwords de
+  // es ('la','una','del') y forzaba respuestas en ESPAÑOL. Los artículos
+  // articulados italianos (il/della/nel) y alemanes (der/die/zum) son señales
+  // casi exclusivas de cada lengua.
+  it: new Set(['il','lo','gli','un','uno','una','di','del','della','dello','dei','delle','degli','allo','alla','agli','alle','nel','nella','nello','sul','sulla','sono','è','essere','molto','più','meno','anche','non','perché','come','dove','quando','quanto','grazie','ciao','prego','mio','mia','tuo','tua','suo','sua','nostro','questo','questa','questi','quelle','riga','cambiare','trovo']),
+  de: new Set(['der','die','das','den','dem','des','ein','eine','einen','einem','einer','eines','und','oder','aber','ich','du','er','sie','wir','ihr','nicht','kein','keine','mit','von','zu','zum','zur','im','an','am','auf','für','ist','sind','war','sein','haben','hat','wird','werden','kann','muss','wo','wie','was','wer','wann','warum','sehr','bitte','danke','hallo','mein','meine','dein','unser','diese','dieser','dieses','ja','nein','auch','noch','schon','nur','wieder','sprache','zeile','ändere']),
 };
 
 const DIACRITIC_HINTS = {
   es: /[ñáéíóúü¿¡]/g,
   pt: /[ãõâêç]/g,
   fr: /[àèùœîï]/g,
+  // it comparte à/è/ù con fr → solo los diacríticos que no tocan a fr;
+  // de tiene diacríticos exclusivos (äöüß).
+  it: /[ìò]/g,
+  de: /[äöüß]/g,
 };
 
 function detectMessageLang(text) {
@@ -1013,7 +1024,7 @@ function detectMessageLang(text) {
   // no hay señal contraria, es español. Arregló "a veces sí, a veces no".
   if (/[¿¡ñ]/.test(text) && !/[a-z]the[a-z]|[a-z]ing\s/.test(lower)) return 'es';
   const tokens = lower.split(/[^a-zà-ÿñ']+/).filter(Boolean);
-  const scores = { es: 0, en: 0, fr: 0, pt: 0, ht: 0 };
+  const scores = { es: 0, en: 0, fr: 0, pt: 0, ht: 0, it: 0, de: 0 };
   for (const w of tokens) {
     for (const lang of Object.keys(scores)) {
       if (LANG_STOPWORDS[lang].has(w)) scores[lang] += 1;
