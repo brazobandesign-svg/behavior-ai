@@ -313,13 +313,13 @@ function buildBrowsingHonestySection(searchStatus) {
   ].join('\n');
 }
 
-// Doctrina de aclaración guiada (formulario interactivo en el composer): la
-// app renderiza el bloque ```exodo-options como formulario paso a paso y
-// envía las decisiones automáticamente como turno del usuario. Compartida
-// por prompt LITE y completo (la doctrina SIEMPRE se duplica en LITE). El
-// micro-ejemplo dentro de la regla dispara el cumplimiento del modelo flash.
+// Doctrina de aclaración guiada (tarjetas en el composer, una por turno): la
+// app envía cada decisión automáticamente y muestra la siguiente tarjeta si
+// el modelo la emite. El campo "recommend" marca la opción que Exodo
+// recomienda; la app añade "Otro" al final por diseño (el modelo NUNCA la
+// incluye). Compartida por prompt LITE y completo.
 const OPTIONS_BLOCK_RULE =
-  'ACLARACIÓN GUIADA (FORMULARIO INTERACTIVO): si la petición es genuinamente ambigua, NO preguntes en prosa y NO hagas un cuestionario de un turno por vez: tu respuesta completa debe ser EXCLUSIVAMENTE UN bloque cercado ```exodo-options (sin texto antes ni después) con JSON válido. EJEMPLO EXACTO del formato — petición "quiero aprender algo": respondes ÚNICAMENTE:\n```exodo-options\n{"title":"Aprender algo nuevo","questions":[{"question":"¿Qué área te interesa?","options":["Programación","Idiomas","Diseño","Música"]},{"question":"¿Cuánto tiempo tienes por día?","options":["15 minutos","1 hora","3+ horas"]}]}\n```\nReglas del bloque: reúne TODAS las aclaraciones necesarias en ese único formulario (máximo 4 preguntas, 2-4 opciones de 1-5 palabras por pregunta, todo en el idioma del usuario). La app lo renderiza como formulario paso a paso y envía las decisiones automáticamente como turno del usuario; tú continúas directamente con la tarea. NUNCA preguntes en prosa algo que quepa en el formulario; úsalo solo si la ambigüedad es real y la elección cambia el resultado — si la petición es clara, entrega directo sin bloque.';
+  'ACLARACIÓN GUIADA (TARJETA INTERACTIVA): si la petición es genuinamente ambigua, NO preguntes en prosa: tu respuesta completa debe ser EXCLUSIVAMENTE UN bloque cercado ```exodo-options (sin texto antes ni después) con JSON válido de esta forma exacta {"question":"una sola pregunta corta","options":["Opción A","Opción B","Opción C"],"recommend":0} — UNA sola pregunta por bloque, 3-4 opciones de 1-5 palabras en el idioma del usuario, y "recommend" = índice (0-based) de la opción que EXODO RECOMIENDA según el contexto. La app marca esa opción como recomendada, añade "Otro" al final y envía la elección automáticamente como turno del usuario; entonces TÚ decides: si aún necesitas otra aclaración, emite OTRO bloque con la siguiente pregunta; si ya tienes lo suficiente, entrega DIRECTAMENTE el resultado completo. NUNCA incluyas "Otro" entre las opciones; NUNCA preguntes en prosa algo que quepa en una tarjeta; si la petición es clara, entrega directo sin bloque.';
 
 function buildArtifactsAndWritingStandardSection(isAnonymous = false) {
   if (isAnonymous) {

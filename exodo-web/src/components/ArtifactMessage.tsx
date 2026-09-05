@@ -51,16 +51,15 @@ export const ArtifactMessageBody: React.FC<{
 };
 
 /**
- * Extrae el formulario de aclaración guiada del contenido de un mensaje:
- * busca el ÚLTIMO bloque ```exodo-options COMPLETO (con fence de cierre) y
- * normaliza a {title, questions[]}. Acepta el esquema nuevo multi-pregunta
- * ({title, questions:[{question, options}]}) y el legacy de una sola
- * pregunta ({question, options}). null si no hay bloque cerrado o el JSON
- * aún está incompleto (streaming).
+ * Extrae la tarjeta de aclaración guiada del contenido de un mensaje:
+ * busca el ÚLTIMO bloque ```exodo-options (tolerante a fence sin cerrar) y
+ * normaliza a {question, options, recommend|null}. null si no hay bloque o
+ * el JSON aún está incompleto (streaming).
  */
 export function extractOptionsForm(content: string): {
-  title: string;
-  questions: Array<{ question: string; options: string[] }>;
+  question: string;
+  options: string[];
+  recommend: number | null;
 } | null {
   if (!content) return null;
   // Tolerante a fence sin cerrar: los modelos a veces olvidan el ```
@@ -73,36 +72,38 @@ export function extractOptionsForm(content: string): {
   if (lastRaw == null) return null;
   try {
     const parsed = JSON.parse(lastRaw.trim()) as {
-      title?: unknown;
       question?: unknown;
       options?: unknown;
+      recommend?: unknown;
+      title?: unknown;
       questions?: unknown;
     };
-    const normalize = (q: unknown): { question: string; options: string[] } | null => {
-      const qo = q as { question?: unknown; options?: unknown };
-      if (typeof qo?.question !== 'string' || !Array.isArray(qo?.options)) return null;
-      const options = (qo.options as unknown[])
+    // Esquema nuevo: una pregunta por tarjeta + índice recomendado
+    if (typeof parsed?.question === 'string' && Array.isArray(parsed?.options)) {
+      const options = (parsed.options as unknown[])
         .filter((o): o is string => typeof o === 'string' && o.trim().length > 0)
         .slice(0, 6)
         .map((o) => o.trim());
-      if (!qo.question.trim() || options.length < 2) return null;
-      return { question: qo.question.trim(), options };
-    };
-    if (Array.isArray(parsed?.questions)) {
-      const questions = (parsed.questions as unknown[])
-        .map(normalize)
-        .filter((q): q is { question: string; options: string[] } => q !== null)
-        .slice(0, 5);
-      if (questions.length === 0) return null;
-      return {
-        title: typeof parsed?.title === 'string' && parsed.title.trim() ? parsed.title.trim() : 'Aclaración guiada',
-        questions,
-      };
+      if (!parsed.question.trim() || options.length < 2) return null;
+      const rec = typeof parsed.recommend === 'number' && parsed.recommend >= 0 && parsed.recommend < options.length
+        ? parsed.recommend
+        : null;
+      return { question: parsed.question.trim(), options, recommend: rec };
     }
-    // Legacy: una sola pregunta
-    const single = normalize(parsed);
-    if (!single) return null;
-    return { title: 'Aclaración guiada', questions: [single] };
+    // Legacy tolerado: esquema multi-pregunta viejo → primera pregunta
+    if (Array.isArray(parsed?.questions)) {
+      const first = (parsed.questions as unknown[])[0] as { question?: unknown; options?: unknown } | undefined;
+      if (first && typeof first.question === 'string' && Array.isArray(first.options)) {
+        const options = (first.options as unknown[])
+          .filter((o): o is string => typeof o === 'string' && o.trim().length > 0)
+          .slice(0, 6)
+          .map((o) => o.trim());
+        if (first.question.trim() && options.length >= 2) {
+          return { question: first.question.trim(), options, recommend: null };
+        }
+      }
+    }
+    return null;
   } catch (_) {
     return null;
   }

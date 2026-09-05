@@ -1018,18 +1018,19 @@ export default function App() {
   // portapapeles ni toasts del sistema, igual que la app).
   const [askSelection, setAskSelection] = useState<{ text: string; x: number; y: number } | null>(null);
   const [quotedSnippet, setQuotedSnippet] = useState<string | null>(null);
-  // [Aclaración guiada] formulario paso a paso en el COMPOSER: cuando la
-  // última respuesta del assistant trae un bloque ```exodo-options, el chat
-  // no lo pinta; el formulario aparece aquí y las decisiones viajan como
-  // turno oculto del usuario (marcador <!--GUIDED:--> en la nube). El chat
-  // no se llena de tarjetas.
+  // [Aclaración guiada] tarjeta simple en el COMPOSER: cuando la última
+  // respuesta del assistant trae un bloque ```exodo-options, el chat no lo
+  // pinta; la tarjeta muestra UNA pregunta con la opción recomendada de
+  // Exodo y "Otro" al final. Elegir = se envía como turno oculto del usuario
+  // (marcador <!--GUIDED:--> en la nube) y pasa a la siguiente tarjeta.
   const [guidedForm, setGuidedForm] = useState<{
     messageId: string;
-    title: string;
-    questions: Array<{ question: string; options: string[] }>;
+    question: string;
+    options: string[];
+    recommend: number | null;
   } | null>(null);
-  const [guidedStep, setGuidedStep] = useState(0);
-  const [guidedAnswersState, setGuidedAnswersState] = useState<string[]>([]);
+  const [guidedOtherMode, setGuidedOtherMode] = useState(false);
+  const [guidedOtherText, setGuidedOtherText] = useState('');
   const dismissedGuidedRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
@@ -1045,9 +1046,9 @@ export default function App() {
     ) {
       const form = extractOptionsForm(last.content);
       if (form) {
-        setGuidedForm({ messageId: last.id, title: form.title, questions: form.questions });
-        setGuidedStep(0);
-        setGuidedAnswersState([]);
+        setGuidedForm({ messageId: last.id, question: form.question, options: form.options, recommend: form.recommend });
+        setGuidedOtherMode(false);
+        setGuidedOtherText('');
         return;
       }
     }
@@ -1083,16 +1084,16 @@ export default function App() {
     textareaRef.current?.focus();
   };
 
-  const sendGuidedAnswers = () => {
-    if (!guidedForm) return;
-    const answers = guidedForm.questions
-      .map((q, i) => ({ question: q.question, answer: (guidedAnswersState[i] || '').trim() }))
-      .filter((a) => a.answer);
-    if (answers.length === 0) return;
-    const digest = answers.map((a) => `${a.question}: ${a.answer}`).join('\n');
+  // Elegir una opción (o "Otro" con texto) = se envía YA como turno oculto
+  // y pasa a la siguiente tarjeta cuando Exodo responda.
+  const sendGuidedChoice = (answer: string) => {
+    if (!guidedForm || !answer.trim()) return;
+    const a = answer.trim();
     dismissedGuidedRef.current.add(guidedForm.messageId);
     setGuidedForm(null);
-    handleSendMessage(undefined, digest, answers);
+    setGuidedOtherMode(false);
+    setGuidedOtherText('');
+    handleSendMessage(undefined, `${guidedForm.question}: ${a}`, [{ question: guidedForm.question, answer: a }]);
   };
 
   const handleSendMessage = async (e?: React.FormEvent, overrideText?: string, guided?: Array<{ question: string; answer: string }>) => {
@@ -1831,99 +1832,81 @@ export default function App() {
               </div>
             )}
             {guidedForm ? (
-              // Formulario de aclaración guiada: vive en el COMPOSER (no en el
-              // chat), una pregunta por paso tipo carrusel, y al confirmar
-              // envía las decisiones como turno oculto del usuario.
+              // Tarjeta de aclaración guiada: vive en el COMPOSER (no en el
+              // chat). Paleta neutra (#191919/#252525/yeso/blanco). La opción
+              // recomendada por Exodo va primero; "Otro" SIEMPRE es la
+              // última. Elegir = enviar ya y pasar a la siguiente tarjeta.
               <div className="guided-form">
-                <div className="guided-form-header">
-                  <span className="guided-form-title">🧭 {guidedForm.title}</span>
-                  <div className="guided-form-dots">
-                    {guidedForm.questions.map((_, i) => (
-                      <span
-                        key={i}
-                        className={`guided-dot${i === guidedStep ? ' active' : ''}${i < guidedStep ? ' done' : ''}`}
-                        onClick={() => i < guidedForm.questions.length && setGuidedStep(i)}
+                <div className="guided-q">{guidedForm.question}</div>
+                <div className="guided-options">
+                  {guidedForm.recommend != null && guidedForm.recommend >= 0 && guidedForm.recommend < guidedForm.options.length && (
+                    <button
+                      type="button"
+                      className="guided-opt recommended"
+                      onClick={() => sendGuidedChoice(guidedForm.options[guidedForm.recommend!])}
+                    >
+                      <span className="guided-opt-text">
+                        <span className="guided-reco-badge">
+                          {locale?.toLowerCase().startsWith('en') ? 'Exodo recommends' : 'Exodo recomienda'}
+                        </span>
+                        {guidedForm.options[guidedForm.recommend]}
+                      </span>
+                    </button>
+                  )}
+                  {guidedForm.options.map((opt, i) =>
+                    i === guidedForm.recommend ? null : (
+                      <button
+                        key={opt}
+                        type="button"
+                        className="guided-opt"
+                        onClick={() => sendGuidedChoice(opt)}
+                      >
+                        <span className="guided-opt-text">{opt}</span>
+                      </button>
+                    )
+                  )}
+                  {guidedOtherMode ? (
+                    <div className="guided-other-box">
+                      <input
+                        type="text"
+                        className="guided-other-input"
+                        autoFocus
+                        placeholder={locale?.toLowerCase().startsWith('en') ? 'Write your answer…' : 'Escribe tu respuesta…'}
+                        value={guidedOtherText}
+                        onChange={(e) => setGuidedOtherText(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' && guidedOtherText.trim()) sendGuidedChoice(guidedOtherText);
+                          if (e.key === 'Escape') setGuidedOtherMode(false);
+                        }}
                       />
-                    ))}
-                  </div>
-                  <button
-                    type="button"
-                    className="guided-close"
-                    title={locale?.toLowerCase().startsWith('en') ? 'Dismiss' : 'Descartar'}
-                    onClick={() => {
-                      dismissedGuidedRef.current.add(guidedForm.messageId);
-                      setGuidedForm(null);
-                    }}
-                  >
-                    ✕
-                  </button>
-                </div>
-                <div className="guided-carousel">
-                  <div
-                    className="guided-track"
-                    style={{ transform: `translateX(-${guidedStep * 100}%)` }}
-                  >
-                    {guidedForm.questions.map((q, qi) => (
-                      <div className="guided-slide" key={qi}>
-                        <div className="guided-question">{q.question}</div>
-                        <div className="guided-options">
-                          {q.options.map((opt) => (
-                            <button
-                              key={opt}
-                              type="button"
-                              className={`guided-opt${guidedAnswersState[qi] === opt ? ' picked' : ''}`}
-                              onClick={() => {
-                                setGuidedAnswersState((prev) => {
-                                  const n = [...prev];
-                                  n[qi] = opt;
-                                  return n;
-                                });
-                                // Auto-avance: la última pregunta lleva al resumen
-                                setTimeout(() => setGuidedStep(qi + 1), 200);
-                              }}
-                            >
-                              <span>{opt}</span>
-                              {guidedAnswersState[qi] === opt && <span className="guided-check">✓</span>}
-                            </button>
-                          ))}
-                        </div>
+                      <div className="guided-other-actions">
+                        <button
+                          type="button"
+                          className="guided-back"
+                          onClick={() => { setGuidedOtherMode(false); setGuidedOtherText(''); }}
+                        >
+                          ‹ {locale?.toLowerCase().startsWith('en') ? 'Back' : 'Atrás'}
+                        </button>
+                        <button
+                          type="button"
+                          className="guided-other-send"
+                          disabled={!guidedOtherText.trim()}
+                          onClick={() => sendGuidedChoice(guidedOtherText)}
+                        >
+                          {locale?.toLowerCase().startsWith('en') ? 'Send' : 'Enviar'}
+                        </button>
                       </div>
-                    ))}
-                    <div className="guided-slide guided-summary">
-                      <div className="guided-question">
-                        {locale?.toLowerCase().startsWith('en') ? 'Your choices' : 'Tus decisiones'}
-                      </div>
-                      <div className="guided-summary-list">
-                        {guidedForm.questions.map((q, qi) => (
-                          <div key={qi} className="guided-summary-row">
-                            <span className="guided-summary-q">{q.question}</span>
-                            <span
-                              className="guided-summary-a"
-                              onClick={() => setGuidedStep(qi)}
-                              title={locale?.toLowerCase().startsWith('en') ? 'Change' : 'Cambiar'}
-                            >
-                              {guidedAnswersState[qi] || '—'} ✎
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                      <button type="button" className="guided-send" onClick={sendGuidedAnswers}>
-                        {locale?.toLowerCase().startsWith('en') ? 'Send answers →' : 'Enviar respuestas →'}
-                      </button>
                     </div>
-                  </div>
-                  <div className="guided-form-footer">
-                    {guidedStep > 0 ? (
-                      <button type="button" className="guided-back" onClick={() => setGuidedStep(guidedStep - 1)}>
-                        ‹ {locale?.toLowerCase().startsWith('en') ? 'Back' : 'Atrás'}
-                      </button>
-                    ) : <span />}
-                    <span className="guided-progress">
-                      {guidedStep >= guidedForm.questions.length
-                        ? (locale?.toLowerCase().startsWith('en') ? 'Ready to send' : 'Listo para enviar')
-                        : `${locale?.toLowerCase().startsWith('en') ? 'Question' : 'Pregunta'} ${guidedStep + 1} ${locale?.toLowerCase().startsWith('en') ? 'of' : 'de'} ${guidedForm.questions.length}`}
-                    </span>
-                  </div>
+                  ) : (
+                    <button type="button" className="guided-opt guided-other" onClick={() => setGuidedOtherMode(true)}>
+                      <span className="guided-opt-text">
+                        {locale?.toLowerCase().startsWith('en') ? 'Other…' : 'Otro…'}
+                        <span className="guided-other-hint">
+                          {locale?.toLowerCase().startsWith('en') ? 'give your own answer' : 'da tu propia respuesta'}
+                        </span>
+                      </span>
+                    </button>
+                  )}
                 </div>
               </div>
             ) : isRecording ? (
