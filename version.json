@@ -1,6 +1,6 @@
 {
-  "latest_version_code": 9,
-  "latest_version_name": "1.2.4",
-  "download_url": "https://github.com/brazobandesign-svg/behavior-ai/releases/download/v1.2.4/exodo-1.2.4.apk",
-  "changelog": "Nueva opción de Soporte en Ajustes (correo oficial exodobybehavior@gmail.com). Fix crítico de conexión: tolerancia de nulls en chats nuevos y sonda de red optimizada. Mensajes de error transparentes del servidor."
+  "latest_version_code": 10,
+  "latest_version_name": "1.2.5",
+  "download_url": "https://github.com/brazobandesign-svg/behavior-ai/releases/download/v1.2.5/exodo-1.2.5.apk",
+  "changelog": "Fix cajón: el texto enviado (voz o teclado, incógnito o normal) ya no queda pegado en el composer. Fix planes: enviar jamás abre el modal de Planes (la cuota degradada a Modo Eco no interrumpe). Banner visible de actualización en la app."
 }

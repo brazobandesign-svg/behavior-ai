@@ -17,6 +17,7 @@ import '../widgets/chat/image_generating_placeholder.dart';
 import '../services/chat_service.dart';
 import '../services/supabase_service.dart';
 import '../services/notification_service.dart';
+import '../services/update_service.dart';
 import '../services/context_export_service.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../theme/exodo_theme.dart';
@@ -303,20 +304,14 @@ class _ChatScreenState extends State<ChatScreen>
           state.editAndRegenerateUserMessage(msgToEdit, text);
           return;
         }
-        if (!state.isGuestUser &&
-            (state.tokensUsed >= state.tokensLimit ||
-                state.tokensUsed + (text.length ~/ 3) + 15 >
-                    state.tokensLimit)) {
-          HapticFeedback.vibrate();
-          if (!state.isPro) {
-            UpgradeModal.show(context);
-          }
-          state.sendUserMessage(
-            text,
-            attachments: attachments,
-          );
-          return;
-        }
+        // FIX cajón + planes: el cajón se limpia SIEMPRE al enviar (antes la
+        // rama de cuota retornaba sin _inputCtrl.clear() y el texto enviado
+        // quedaba pegado en el composer). Y enviar JAMÁS abre Planes: el
+        // backend es soft-cap (degrada a Modo Eco, nunca 429 por tokens), así
+        // que el gate local con estimador (length~/3) solo producía falsos
+        // positivos — modal en cada envío en free/pro/incógnito una vez que
+        // el contador local tocaba el tope. La cuota real la informa el
+        // servidor (isDegraded → eco-notice) y el medidor de Billing.
         _inputCtrl.clear();
         state.sendUserMessage(text, attachments: attachments);
       },
@@ -365,6 +360,12 @@ class _ChatScreenState extends State<ChatScreen>
             children: [
               // Barra superior minimalista y limpia modularizada
               const ChatAppBar(),
+
+              // Auto-update APK: banner visible y persistente cuando hay una
+              // versión nueva ya descargada (los instalados fuera de Play
+              // Store no se actualizan solos; la notificación del sistema se
+              // pierde fácil — esto lo pone en pantalla hasta instalar).
+              const _UpdateReadyBanner(),
 
 
               // Stage principal o lista de mensajes (SIEMPRE VISIBLE y fluye tras el composer)
@@ -775,6 +776,76 @@ Future<void> _exportConversationContext(BuildContext context, AppState state) as
 }
 
 
+
+/// Banner persistente de auto-update (APK directo fuera de Play Store):
+/// aparece cuando UpdateService ya descargó el APK nuevo en segundo plano.
+/// El tap lanza el instalador del sistema (único paso que exige Android).
+/// Sin esto, los instalados seguían en la versión con los bugs del cajón
+/// y del modal de planes porque la notificación se descartaba.
+class _UpdateReadyBanner extends StatelessWidget {
+  const _UpdateReadyBanner();
+
+  @override
+  Widget build(BuildContext context) {
+    return ValueListenableBuilder<String?>(
+      valueListenable: UpdateService.instance.readyToInstall,
+      builder: (context, apkPath, _) {
+        if (apkPath == null) return const SizedBox.shrink();
+        final info = UpdateService.instance.pendingInfo;
+        final versionLabel = (info?.versionName.isNotEmpty ?? false)
+            ? ' v${info!.versionName}'
+            : '';
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(14, 6, 14, 0),
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: () {
+              HapticFeedback.mediumImpact();
+              UpdateService.instance.install();
+            },
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              decoration: BoxDecoration(
+                color: ExodoColors.amber.withValues(alpha: 0.14),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(
+                  color: ExodoColors.amber.withValues(alpha: 0.45),
+                  width: 1.0,
+                ),
+              ),
+              child: Row(
+                children: [
+                  const Icon(
+                    Icons.system_update_rounded,
+                    size: 20,
+                    color: ExodoColors.amber,
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      '${AppI18n.of(context).t('notification.update_ready_body')}$versionLabel',
+                      style: GoogleFonts.inter(
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w600,
+                        color: ExodoColors.amber,
+                        height: 1.3,
+                      ),
+                    ),
+                  ),
+                  const Icon(
+                    Icons.arrow_forward_rounded,
+                    size: 18,
+                    color: ExodoColors.amber,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
 
 /// [Fix rendimiento streaming] Este wrapper ahora usa su propio
 /// context.select para leer solo currentMessages.length, sin arrastrar

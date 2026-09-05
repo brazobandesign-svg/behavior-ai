@@ -152,6 +152,10 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
     // Al volver al primer plano con un APK de actualización ya descargado,
     // mostrar la notificación de instalación (única interrupción del flujo).
     if (state == AppLifecycleState.resumed) {
+      // Rechequeo silencioso al volver (autothrottle 12h dentro del
+      // servicio): cubre instalaciones que llevan días abiertas sin
+      // reiniciar, para que el fix les llegue sin reinstalar manual.
+      unawaited(UpdateService.instance.checkAndDownloadSilently());
       final apkPath = UpdateService.instance.readyToInstall.value;
       if (apkPath != null && !_updateNotified) {
         _updateNotified = true;
@@ -1292,7 +1296,9 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
     }
     final lastUserText = currentMessages[lastUserIdx].content;
     final userTokensEst = (lastUserText.length ~/ 3) + 15;
-    tokensUsed += userTokensEst;
+    if (!isGuestUser && !isIncognito) {
+      tokensUsed += userTokensEst;
+    }
 
     await ChatService.sendMessageStream(
       conversationId: activeConversation?.id ?? '',
@@ -1340,7 +1346,7 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
         _endStreamingMessage();
         isGenerating = false;
         _notifyIfBackground(responsePreview: fullText);
-        if (!isGuestUser) {
+        if (!isGuestUser && !isIncognito) {
           tokensUsed += (fullText.length ~/ 3) + 35;
           if (tokensUsed > tokensLimit) tokensUsed = tokensLimit;
         }
@@ -1405,8 +1411,14 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
     // 1. AÑADIR MENSAJE DE USUARIO Y THINKING BUBBLE A LA UI INMEDIATAMENTE (Optimistic UI 0 ms lag)
     currentMessages.removeWhere((m) => m.id == 'error');
     final userTokensEst = (effectiveText.length ~/ 3) + 15;
-    tokensUsed += userTokensEst;
-    tokensResetTime ??= DateTime.now().add(const Duration(hours: 24));
+    // FIX cuota fantasma: invitado e incógnito no consumen cuota con
+    // contador (el backend los fuerza a Eco / efímero sin tocar user_usage).
+    // Sumarles tokens contaminaba el medidor y, al iniciar sesión después,
+    // el gate local creía la cuota agotada y abría Planes en cada envío.
+    if (!isGuest && !isIncognito) {
+      tokensUsed += userTokensEst;
+      tokensResetTime ??= DateTime.now().add(const Duration(hours: 24));
+    }
     final userMsg = ChatMessage(
       id: 'user-${DateTime.now().microsecondsSinceEpoch}',
       conversationId: activeConversation?.id ?? 'guest',
@@ -1649,7 +1661,7 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
           _endStreamingMessage();
           isGenerating = false;
           isGeneratingImage = false;
-          if (!isGuestUser) {
+          if (!isGuestUser && !isIncognito) {
             tokensUsed += (fullText.length ~/ 3) + 35;
           }
           final idx = currentMessages.indexWhere((m) => m.id == msgId);
@@ -1912,7 +1924,7 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
           if (session.isCancelled || _activeSession?.id != session.id) return;
           _endStreamingMessage();
           isGenerating = false;
-          if (!isGuestUser) {
+          if (!isGuestUser && !isIncognito) {
             tokensUsed += (fullText.length ~/ 3) + 35;
           }
 

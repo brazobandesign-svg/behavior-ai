@@ -310,6 +310,9 @@ export default function App() {
   // así que el segundo handler ve el closure viejo y vuelve a enviar. El ref
   // se muta al instante y bloquea el reenvío idéntico.
   const isSendingRef = useRef(false);
+  // Throttle del modal de cuota por errores reales del servidor (máx 1/h):
+  // evita que cada envío con cuota agotada reabra Planes/Auth.
+  const quotaModalShownRef = useRef<number>(0);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -326,6 +329,51 @@ export default function App() {
   };
 
   // Los drafts se guardan automáticamente en setInput
+
+  // ── Auto-actualización web (PWA instalada / pestaña abierta) ──
+  // Compara public/app-version.json servido (no-store) con la versión con
+  // la que arrancó esta instancia; si difieren, hay despliegue nuevo y se
+  // recarga una sola vez para tomar el fix (cajón, planes, etc.). Sin esto,
+  // los dispositivos con la app instalada seguían corriendo el bundle viejo
+  // cacheado. Poll cada 5 min + al volver a primer plano.
+  const bootAppVersionRef = useRef<string | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    let reloaded = false;
+    const doReload = () => {
+      if (reloaded || cancelled) return;
+      reloaded = true;
+      try {
+        setChatNotice('Nueva versión disponible. Actualizando…');
+      } catch (_) {}
+      window.setTimeout(() => window.location.reload(), 1200);
+    };
+    const check = async () => {
+      try {
+        const res = await fetch('/app-version.json', { cache: 'no-store' });
+        if (!res.ok) return;
+        const data = await res.json().catch(() => null);
+        const v = typeof data?.version === 'string' ? data.version : null;
+        if (!v) return;
+        if (bootAppVersionRef.current === null) {
+          bootAppVersionRef.current = v;
+          return;
+        }
+        if (v !== bootAppVersionRef.current) doReload();
+      } catch (_) {}
+    };
+    check();
+    const timer = window.setInterval(check, 5 * 60 * 1000);
+    const onVis = () => { if (document.visibilityState === 'visible') check(); };
+    document.addEventListener('visibilitychange', onVis);
+    window.addEventListener('focus', onVis);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+      document.removeEventListener('visibilitychange', onVis);
+      window.removeEventListener('focus', onVis);
+    };
+  }, []);
 
   // Sincronización de tema (Paridad Flutter: Incógnito siempre fuerza dark theme)
   // useLayoutEffect: el atributo cambia dentro del mismo commit que los estilos
@@ -1004,12 +1052,14 @@ export default function App() {
     if ((!draftText && pendingAttachments.length === 0) || isStreaming) return;
     isSendingRef.current = true;
 
-    // Paridad móvil (chat_screen: gate de tokens): si se acabó la cuota se
-    // abre Planes (vibra) pero el mensaje SE ENVÍA igual.
-    if (!isGuestUser && !isIncognito && tokensUsed >= tokensLimit) {
-      try { navigator.vibrate(60); } catch (_) {}
-      setShowPlansModal(true);
-    }
+    // Doctrina soft-cap del backend (planGuard): la cuota agotada JAMÁS
+    // bloquea el envío — el servidor degrada a Modo Eco y avisa con
+    // isDegraded. Abrir Planes aquí interrumpía cada envío una vez que el
+    // estimador local alcanzaba el tope (falsos positivos vs. el contador
+    // autoritativo del servidor) y, al ir por la rama de cuota, el cajón
+    // no se limpiaba. Enviar nunca abre modales; si el backend devuelve
+    // 402/429 de cuota, el catch lo muestra como aviso y abre Planes solo
+    // para cuentas Free elegibles (ver catch más abajo).
 
     let userText = draftText;
     // [Paridad Fix LG V60 #5] cita de "Preguntar a Exodo": viaja como bloque
@@ -1021,7 +1071,20 @@ export default function App() {
     }
     const outgoingAttachments = pendingAttachments.map((a) => ({ mime_type: a.mime, file_name: a.name, base64: a.base64 }));
     const outgoingPreviews = pendingAttachments.map((a) => ({ name: a.name, mime: a.mime, preview: a.preview }));
-    setInput('');
+    // Limpieza garantizada del cajón: borra el draft de la conversación de
+    // origen (el setInput('') por clave podía perderse si el activeConvId
+    // cambiaba a mitad del envío) y fuerza el DOM del textarea por si
+    // TextareaAutosize retiene valor interno entre los dos composers
+    // (welcome ↔ pinned). Sin esto, el texto enviado reaparecía en el cajón.
+    const sentConvKey = currentConvKey;
+    setDrafts((prev) => {
+      if (!(sentConvKey in prev)) return prev;
+      const next = { ...prev };
+      delete next[sentConvKey];
+      try { localStorage.setItem('exodo_web_drafts', JSON.stringify(next)); } catch (_) {}
+      return next;
+    });
+    try { if (textareaRef.current) textareaRef.current.value = ''; } catch (_) {}
     setPendingAttachments([]);
 
     let currentConvId = activeConvId;
@@ -1232,7 +1295,10 @@ export default function App() {
         // Paridad móvil (chat_service.dart): el backend manda { error, message }
         // en 429/402/403 — el usuario merece "Alcanzaste el límite diario...",
         // no el código crudo "guest_daily_limit".
-        throw new Error(errorData?.message || errorData?.error || `Error del servidor (${res.status})`);
+        const quotaErr: any = new Error(errorData?.message || errorData?.error || `Error del servidor (${res.status})`);
+        quotaErr.code = errorData?.error;
+        quotaErr.status = res.status;
+        throw quotaErr;
       }
     } catch (err: any) {
       console.error('[Exodo Chat Error]:', err);
@@ -1240,6 +1306,28 @@ export default function App() {
       const errMsg = err?.message || 'Error de conexión con Exodo.';
       setChatNotice(errMsg);
       setTimeout(() => setChatNotice(null), 4000);
+      // Cuota real del servidor (429/402): ofrecer el paso siguiente SIN
+      // naggear — como máximo una vez por hora y jamás en incógnito.
+      // Invitado/sin sesión → crear cuenta; Free → Planes; Pro → nada
+      // (ya está en el tope, el aviso basta).
+      try {
+        const code = String(err?.code || '');
+        const status = Number(err?.status || 0);
+        const isQuota = status === 402 || status === 429 ||
+          code.includes('daily_limit') || code.includes('quota') ||
+          /límite diario|cuota|limit/i.test(errMsg);
+        if (isQuota && !isIncognito) {
+          const now = Date.now();
+          if (now - quotaModalShownRef.current > 60 * 60 * 1000) {
+            quotaModalShownRef.current = now;
+            if (isGuestUser || !session?.user) {
+              setShowAuthModal(true);
+            } else if (userProfile?.plan !== 'hazak') {
+              setShowPlansModal(true);
+            }
+          }
+        }
+      } catch (_) {}
     } finally {
       isSendingRef.current = false;
       setIsStreaming(false);
@@ -1293,6 +1381,20 @@ export default function App() {
   const [isTranscribing, setIsTranscribing] = useState(false);
   const mediaRecorderRef = React.useRef<MediaRecorder | null>(null);
   const audioChunksRef = React.useRef<Blob[]>([]);
+  // Onda viva (paridad _AudioWaveBarsPainter móvil): nivel REAL del micro vía
+  // AnalyserNode + envelope follower (attack 0.45 / release 0.68), canvas de
+  // 30 barras con campana gaussiana y umbral de silencio 0.08.
+  const isRecordingRef = React.useRef(false);
+  const audioCtxRef = React.useRef<AudioContext | null>(null);
+  const analyserRef = React.useRef<AnalyserNode | null>(null);
+  const waveRafRef = React.useRef(0);
+  const voiceLevelRef = React.useRef(0.05);
+  const waveTargetRef = React.useRef(0.05);
+  const lastWaveEventRef = React.useRef(Date.now());
+  const waveCanvasRef = React.useRef<HTMLCanvasElement | null>(null);
+  const recTimerRef = React.useRef<ReturnType<typeof setInterval> | null>(null);
+  const [recordingSeconds, setRecordingSeconds] = useState(0);
+  const recordingCancelRef = React.useRef(false);
 
   const voiceEndpoint = (path: string) => `${BACKEND_BASE_URL}${path}`;
 
@@ -1309,35 +1411,151 @@ export default function App() {
     }
   };
 
+  const teardownVoiceMeter = () => {
+    cancelAnimationFrame(waveRafRef.current);
+    waveRafRef.current = 0;
+    try { audioCtxRef.current?.close(); } catch (_) {}
+    audioCtxRef.current = null;
+    analyserRef.current = null;
+    if (recTimerRef.current) { clearInterval(recTimerRef.current); recTimerRef.current = null; }
+  };
+
+  // Painter del canvas: espejo 1:1 de _AudioWaveBarsPainter (chat_composer.dart)
+  const drawVoiceWave = (level: number) => {
+    const canvas = waveCanvasRef.current;
+    if (!canvas) return;
+    const dpr = window.devicePixelRatio || 1;
+    const w = canvas.clientWidth;
+    const h = canvas.clientHeight;
+    if (w === 0 || h === 0) return;
+    if (canvas.width !== Math.round(w * dpr) || canvas.height !== Math.round(h * dpr)) {
+      canvas.width = Math.round(w * dpr);
+      canvas.height = Math.round(h * dpr);
+    }
+    const c = canvas.getContext('2d');
+    if (!c) return;
+    c.setTransform(dpr, 0, 0, dpr, 0, 0);
+    c.clearRect(0, 0, w, h);
+    const isLight = effectiveTheme !== 'dark';
+    const count = 30;
+    const step = w / count;
+    const barWidth = Math.min(6, Math.max(2.5, step * 0.55));
+    const cy = h / 2;
+    c.fillStyle = isLight ? '#252525' : '#E2E2E2';
+    const silent = level < 0.08;
+    for (let i = 0; i < count; i++) {
+      const x = i * step + (step - barWidth) / 2;
+      let barH: number;
+      if (silent) {
+        barH = 3;
+      } else {
+        const normalizedPos = Math.abs(i - count / 2) / (count / 2);
+        const bell = 0.25 + 0.75 * Math.cos((normalizedPos * Math.PI) / 2);
+        const harmonic = Math.sin(i * 0.75 + level * 5.0) * 0.12 * level;
+        const dl = Math.min(1, Math.max(0, level + harmonic));
+        barH = Math.min(14, Math.max(3, 3 + dl * 13.5 * bell));
+      }
+      const bx = x;
+      const by = cy - barH / 2;
+      const r = barWidth / 2;
+      c.beginPath();
+      if (typeof c.roundRect === 'function') {
+        c.roundRect(bx, by, barWidth, barH, r);
+      } else {
+        c.rect(bx, by, barWidth, barH);
+      }
+      c.fill();
+    }
+  };
+
   const startRecording = async () => {
     if (isRecording || isTranscribing || isStreaming) return;
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const rec = new MediaRecorder(stream, { mimeType: MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : undefined });
       audioChunksRef.current = [];
+      recordingCancelRef.current = false;
       rec.ondataavailable = (e) => { if (e.data && e.data.size > 0) audioChunksRef.current.push(e.data); };
       rec.onstop = () => {
         stream.getTracks().forEach((t) => t.stop());
+        teardownVoiceMeter();
         transcribeRecording();
       };
       mediaRecorderRef.current = rec;
       rec.start();
+      isRecordingRef.current = true;
       setIsRecording(true);
+      setRecordingSeconds(0);
+      if (recTimerRef.current) clearInterval(recTimerRef.current);
+      recTimerRef.current = setInterval(() => setRecordingSeconds((s) => s + 1), 1000);
+
+      // Analizador de amplitud real (mismo flujo de onda reactivo que el móvil)
+      try {
+        const Ctx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+        const ctx = new Ctx();
+        const src = ctx.createMediaStreamSource(stream);
+        const analyser = ctx.createAnalyser();
+        analyser.fftSize = 512;
+        src.connect(analyser);
+        audioCtxRef.current = ctx;
+        analyserRef.current = analyser;
+      } catch (_) {}
+
+      const buf = new Uint8Array(analyserRef.current?.fftSize ?? 512);
+      lastWaveEventRef.current = Date.now();
+      voiceLevelRef.current = 0.12;
+      waveTargetRef.current = 0.12;
+      const tick = () => {
+        if (!isRecordingRef.current) return;
+        const now = Date.now();
+        const analyser = analyserRef.current;
+        if (analyser) {
+          analyser.getByteTimeDomainData(buf);
+          let sum = 0;
+          for (let i = 0; i < buf.length; i++) {
+            const v = (buf[i] - 128) / 128;
+            sum += v * v;
+          }
+          const rms = Math.sqrt(sum / buf.length);
+          // Normalización empírica: RMS de voz típica ~0.05-0.35 → 0..1
+          waveTargetRef.current = Math.min(1, Math.max(0, rms * 3.2));
+          lastWaveEventRef.current = now;
+        }
+        // Envelope follower del móvil: attack 0.45, release 0.68 (+ ticker 45ms)
+        const target = waveTargetRef.current;
+        const env = voiceLevelRef.current;
+        const alpha = target > env ? 0.45 : 0.68;
+        let next = alpha * env + (1 - alpha) * target;
+        if (now - lastWaveEventRef.current >= 45) next = next + (target - next) * 0.15;
+        voiceLevelRef.current = Math.min(1, Math.max(0.02, next));
+        drawVoiceWave(voiceLevelRef.current);
+        waveRafRef.current = requestAnimationFrame(tick);
+      };
+      waveRafRef.current = requestAnimationFrame(tick);
     } catch (_) {
       setChatNotice('No se pudo acceder al micrófono.');
       setTimeout(() => setChatNotice(null), 3000);
     }
   };
 
+  const cancelRecording = () => {
+    recordingCancelRef.current = true;
+    try { mediaRecorderRef.current?.stop(); } catch (_) {}
+    isRecordingRef.current = false;
+    teardownVoiceMeter();
+    setIsRecording(false);
+  };
+
   const stopRecording = () => {
     try { mediaRecorderRef.current?.stop(); } catch (_) {}
+    isRecordingRef.current = false;
     setIsRecording(false);
   };
 
   const transcribeRecording = async () => {
     const chunks = audioChunksRef.current;
     audioChunksRef.current = [];
-    if (chunks.length === 0) return;
+    if (chunks.length === 0 || recordingCancelRef.current) return;
     setIsTranscribing(true);
     const es = !(locale || 'es').toLowerCase().startsWith('en');
     try {
@@ -1557,6 +1775,60 @@ export default function App() {
                 </button>
               </div>
             )}
+            {isRecording ? (
+              // Barra de grabación viva (paridad composer móvil): punto rojo +
+              // onda de 30 barras reactivas + temporizador + cancelar.
+              <div
+                className="voice-recording-bar"
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 12, width: '100%',
+                  padding: '10px 12px', boxSizing: 'border-box',
+                }}
+              >
+                <span className="rec-dot" title="Grabando" />
+                <canvas
+                  ref={waveCanvasRef}
+                  style={{ flex: 1, height: 28, display: 'block', minWidth: 0 }}
+                />
+                <span
+                  style={{
+                    fontFamily: 'AnthropicSans, sans-serif', fontSize: 12.5, fontWeight: 700,
+                    color: 'var(--text-secondary)', fontVariantNumeric: 'tabular-nums', minWidth: 42,
+                    textAlign: 'right' as const,
+                  }}
+                >
+                  {String(Math.floor(recordingSeconds / 60)).padStart(2, '0')}:{String(recordingSeconds % 60).padStart(2, '0')}
+                </span>
+                <button
+                  type="button"
+                  onClick={cancelRecording}
+                  title={locale?.toLowerCase().startsWith('en') ? 'Cancel' : 'Cancelar'}
+                  style={{
+                    background: 'none', border: '1px solid var(--border-color, rgba(255,255,255,0.1))',
+                    borderRadius: 10, cursor: 'pointer', padding: '6px 10px', color: 'var(--text-secondary)',
+                    fontSize: 12.5, fontFamily: 'AnthropicSans, sans-serif', fontWeight: 600, display: 'flex',
+                    alignItems: 'center',
+                  }}
+                >
+                  ✕ {locale?.toLowerCase().startsWith('en') ? 'Cancel' : 'Cancelar'}
+                </button>
+              </div>
+            ) : isTranscribing ? (
+              <div
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '12px 8px',
+                  fontFamily: 'AnthropicSans, sans-serif', fontSize: 13, color: 'var(--text-secondary)',
+                }}
+              >
+                <span
+                  style={{
+                    width: 12, height: 12, borderRadius: '50%', border: '2px solid var(--amber-exodo, #C9933A)',
+                    borderTopColor: 'transparent', display: 'inline-block', animation: 'spin 0.8s linear infinite',
+                  }}
+                />
+                {locale?.toLowerCase().startsWith('en') ? 'Processing voice…' : 'Procesando voz…'}
+              </div>
+            ) : (
             <TextareaAutosize
               ref={textareaRef as any}
               className="composer-input"
@@ -1595,7 +1867,8 @@ export default function App() {
                 overflowY: isComposerScrollable ? 'auto' : 'hidden'
               }}
             />
-            {isComposerScrollable && (
+            )}
+            {!isRecording && isComposerScrollable && (
               <div style={{ position: 'absolute', right: -5, top: 4, bottom: 4, width: 16, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', alignItems: 'center', pointerEvents: 'none', zIndex: 10 }}>
                 <button
                   type="button"
