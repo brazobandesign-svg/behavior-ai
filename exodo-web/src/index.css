@@ -2052,3 +2052,28 @@ html.theme-animating * {
     transition: none;
   }
 }
+
+/* Fix móvil: .guided-form es flex-item en columna del composer; sin
+   min-width:0 su min-content (carrusel de N slides al 100%) empuja el
+   layout a ~738px en viewports angostos. */
+.guided-form {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.guided-carousel {
+  max-width: 100%;
+}
+
+/* El overflow:hidden SÍ clampa el min-content del flex-item (min-width:0
+   solo permite encoger; sin overflow el min-content sigue empujando). */
+.guided-form {
+  overflow: hidden;
+}
+
+/* main es flex-item del app-container (rail + contenido): sin min-width:0
+   no puede encoger bajo su min-content y el layout se desborda en móvil
+ (afectaba al formulario guiado; main quedaba a ~738px en un viewport 400). */
+main.chat-main {
+  min-width: 0;
+}

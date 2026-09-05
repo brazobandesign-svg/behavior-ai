@@ -120,7 +120,6 @@ function buildSystemPrompt(opts) {
       isAnonymous
         ? 'Si piden un gráfico, visualización o pieza interactiva: proporciona únicamente el código estático o bloque de código Markdown sin interactividad y agrega al final de tu respuesta de forma natural: "Para previsualizar artefactos y ejecutar aplicaciones interactivas, inicia sesión en tu cuenta.". NUNCA digas que no puedes generar código.'
         : 'Si piden un gráfico, visualización o pieza interactiva: entrega UN único bloque de código cercado html autocontenido (vanilla JS/SVG, sin CDN); la app lo renderiza interactivo dentro del chat. NUNCA digas que no puedes renderizarlo ni pidas abrir el archivo en un navegador.',
-      OPTIONS_BLOCK_RULE,
       'CITACIÓN OBLIGATORIA en temas de hechos históricos, datos empíricos, ciencia, medicina, leyes o biografías: tras CADA dato específico (fecha, cifra, nombre, evento) coloca INMEDIATAMENTE el enlace `[Nombre Corto](https://...)` (1-3 palabras, sin prefijos). Ejemplo: "La guerra culminó el 16 de agosto de 1865 [Britannica](https://www.britannica.com), fecha celebrada cada año. El detonante fue la Revolución de 1863 [AGN](https://agn.gob.do)."',
       'El enlace va PEGADO AL DATO, repartido por todo el texto — JAMÁS al final de toda la respuesta, en línea aparte ni agrupado al cierre. SOLO fuentes acreditadas: archivos nacionales, academias de historia, UNESCO, Britannica, Nature, PubMed, portales oficiales. En saludos, charla casual, creativa o código: CERO fuentes.',
       'NUNCA añadas sección final de fuentes (`### Fuentes` PROHIBIDA): la app extrae los enlaces y muestra su cápsula de Sources.',
@@ -131,6 +130,7 @@ function buildSystemPrompt(opts) {
             ? ' ESTE TURNO no pudiste consultar la web: dilo con naturalidad en una línea si surge ("ahora mismo no puedo consultarlo en vivo"), sin mencionar cuotas, APIs, proveedores ni detalles internos; trabaja condicionalmente con lo que aporte el usuario.'
             : '')),
       `Responde en ${langName}. Sé conciso.`,
+      OPTIONS_BLOCK_RULE,
       '</exodo_behavior>',
     ].join('\n');
     return {
@@ -316,9 +316,10 @@ function buildBrowsingHonestySection(searchStatus) {
 // Doctrina de aclaración guiada (formulario interactivo en el composer): la
 // app renderiza el bloque ```exodo-options como formulario paso a paso y
 // envía las decisiones automáticamente como turno del usuario. Compartida
-// por prompt LITE y completo (la doctrina SIEMPRE se duplica en LITE).
+// por prompt LITE y completo (la doctrina SIEMPRE se duplica en LITE). El
+// micro-ejemplo dentro de la regla dispara el cumplimiento del modelo flash.
 const OPTIONS_BLOCK_RULE =
-  'ACLARACIÓN GUIADA (FORMULARIO INTERACTIVO): si la petición es genuinamente ambigua, NO preguntes en prosa y NO hagas un cuestionario de un turno por vez: tu respuesta completa debe ser EXCLUSIVAMENTE UN bloque cercado ```exodo-options (sin texto antes ni después) con JSON válido de esta forma exacta {"title":"título corto","questions":[{"question":"pregunta 1","options":["Opción A","Opción B","Opción C"]},{"question":"pregunta 2","options":["Opción A","Opción B"]}]} — reúne TODAS las aclaraciones necesarias en ese único formulario: máximo 4 preguntas, 2-4 opciones de 1-5 palabras por pregunta, todo en el idioma del usuario. La app lo renderiza como formulario paso a paso y envía las decisiones automáticamente como turno del usuario; tú continúas directamente con la tarea. NUNCA emitas el bloque dos veces ni lo mezcles con prosa. Úsalo solo si la ambigüedad es real y la elección cambia el resultado; si la petición es clara, entrega directo sin bloque.';
+  'ACLARACIÓN GUIADA (FORMULARIO INTERACTIVO): si la petición es genuinamente ambigua, NO preguntes en prosa y NO hagas un cuestionario de un turno por vez: tu respuesta completa debe ser EXCLUSIVAMENTE UN bloque cercado ```exodo-options (sin texto antes ni después) con JSON válido. EJEMPLO EXACTO del formato — petición "quiero aprender algo": respondes ÚNICAMENTE:\n```exodo-options\n{"title":"Aprender algo nuevo","questions":[{"question":"¿Qué área te interesa?","options":["Programación","Idiomas","Diseño","Música"]},{"question":"¿Cuánto tiempo tienes por día?","options":["15 minutos","1 hora","3+ horas"]}]}\n```\nReglas del bloque: reúne TODAS las aclaraciones necesarias en ese único formulario (máximo 4 preguntas, 2-4 opciones de 1-5 palabras por pregunta, todo en el idioma del usuario). La app lo renderiza como formulario paso a paso y envía las decisiones automáticamente como turno del usuario; tú continúas directamente con la tarea. NUNCA preguntes en prosa algo que quepa en el formulario; úsalo solo si la ambigüedad es real y la elección cambia el resultado — si la petición es clara, entrega directo sin bloque.';
 
 function buildArtifactsAndWritingStandardSection(isAnonymous = false) {
   if (isAnonymous) {
