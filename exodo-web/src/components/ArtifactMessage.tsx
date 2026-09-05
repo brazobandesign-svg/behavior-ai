@@ -12,7 +12,7 @@ export const ArtifactMessageBody: React.FC<{
   renderMarkdown: (text: string) => React.ReactNode;
   isStreaming?: boolean;
   onPickOption?: (label: string) => void;
-}> = ({ content, renderMarkdown, isStreaming, onPickOption }) => {
+}> = ({ content, renderMarkdown, isStreaming }) => {
   const parts = useMemo(() => {
     const segs: Array<
       | { kind: 'text'; text: string }
@@ -25,6 +25,8 @@ export const ArtifactMessageBody: React.FC<{
     while ((m = re.exec(content)) !== null) {
       if (m.index > last) segs.push({ kind: 'text', text: content.slice(last, m.index) });
       if (m[1] === 'exodo-options') {
+        // El cuestionario guiado vive en el COMPOSER (formulario paso a paso),
+        // no en el chat: los segmentos de opciones no se pintan como burbuja.
         segs.push({ kind: 'options', raw: m[2] || '' });
       } else {
         segs.push({ kind: 'artifact', code: m[2] || '' });
@@ -40,9 +42,7 @@ export const ArtifactMessageBody: React.FC<{
       {parts.map((p, i) =>
         p.kind === 'text' ? (
           <React.Fragment key={i}>{p.text.trim() ? renderMarkdown(p.text) : null}</React.Fragment>
-        ) : p.kind === 'options' ? (
-          <OptionsCard key={i} raw={p.raw} isStreaming={isStreaming} onPick={onPickOption} />
-        ) : (
+        ) : p.kind === 'options' ? null : (
           <ArtifactCard key={i} code={p.code} isStreaming={isStreaming} />
         )
       )}
@@ -51,64 +51,59 @@ export const ArtifactMessageBody: React.FC<{
 };
 
 /**
- * Tarjeta de opciones seleccionables (estilo aclaración guiada): el backend
- * emite un bloque ```exodo-options con JSON {"question","options"}; el
- * usuario toca una opción y se envía como su mensaje. Si el JSON aún está
- * incompleto (streaming), no renderiza nada hasta que el fence cierre.
+ * Extrae el formulario de aclaración guiada del contenido de un mensaje:
+ * busca el ÚLTIMO bloque ```exodo-options COMPLETO (con fence de cierre) y
+ * normaliza a {title, questions[]}. Acepta el esquema nuevo multi-pregunta
+ * ({title, questions:[{question, options}]}) y el legacy de una sola
+ * pregunta ({question, options}). null si no hay bloque cerrado o el JSON
+ * aún está incompleto (streaming).
  */
-const OptionsCard: React.FC<{
-  raw: string;
-  isStreaming?: boolean;
-  onPick?: (label: string) => void;
-}> = ({ raw, isStreaming, onPick }) => {
-  const [picked, setPicked] = useState<string | null>(null);
-  const data = useMemo<{ question: string; options: string[] } | null>(() => {
-    try {
-      const parsed = JSON.parse(raw.trim()) as { question?: unknown; options?: unknown };
-      const question = typeof parsed?.question === 'string' ? parsed.question.trim() : '';
-      const options = Array.isArray(parsed?.options)
-        ? (parsed.options as unknown[])
-            .filter((o): o is string => typeof o === 'string' && o.trim().length > 0)
-            .slice(0, 6)
-            .map((o) => o.trim())
-        : [];
-      if (!question || options.length === 0) return null;
-      return { question, options };
-    } catch (_) {
-      return null;
+export function extractOptionsForm(content: string): {
+  title: string;
+  questions: Array<{ question: string; options: string[] }>;
+} | null {
+  if (!content) return null;
+  const re = /```exodo-options\r?\n?([\s\S]*?)```/g;
+  let m: RegExpExecArray | null;
+  let lastRaw: string | null = null;
+  while ((m = re.exec(content)) !== null) lastRaw = m[1] || '';
+  if (lastRaw == null) return null;
+  try {
+    const parsed = JSON.parse(lastRaw.trim()) as {
+      title?: unknown;
+      question?: unknown;
+      options?: unknown;
+      questions?: unknown;
+    };
+    const normalize = (q: unknown): { question: string; options: string[] } | null => {
+      const qo = q as { question?: unknown; options?: unknown };
+      if (typeof qo?.question !== 'string' || !Array.isArray(qo?.options)) return null;
+      const options = (qo.options as unknown[])
+        .filter((o): o is string => typeof o === 'string' && o.trim().length > 0)
+        .slice(0, 6)
+        .map((o) => o.trim());
+      if (!qo.question.trim() || options.length < 2) return null;
+      return { question: qo.question.trim(), options };
+    };
+    if (Array.isArray(parsed?.questions)) {
+      const questions = (parsed.questions as unknown[])
+        .map(normalize)
+        .filter((q): q is { question: string; options: string[] } => q !== null)
+        .slice(0, 5);
+      if (questions.length === 0) return null;
+      return {
+        title: typeof parsed?.title === 'string' && parsed.title.trim() ? parsed.title.trim() : 'Aclaración guiada',
+        questions,
+      };
     }
-  }, [raw]);
-
-  if (!data) return null;
-
-  return (
-    <div className="options-card" style={{ margin: '14px 0' }}>
-      <div className="options-card-question">{data.question}</div>
-      <div className="options-card-list">
-        {data.options.map((opt) => {
-          const isPicked = picked === opt;
-          const disabled = Boolean(picked) || isStreaming;
-          return (
-            <button
-              key={opt}
-              type="button"
-              disabled={disabled}
-              className={`options-card-btn${isPicked ? ' picked' : ''}`}
-              onClick={() => {
-                if (disabled) return;
-                setPicked(opt);
-                onPick?.(opt);
-              }}
-            >
-              <span className="options-card-label">{opt}</span>
-              {isPicked && <span className="options-card-check">✓</span>}
-            </button>
-          );
-        })}
-      </div>
-    </div>
-  );
-};
+    // Legacy: una sola pregunta
+    const single = normalize(parsed);
+    if (!single) return null;
+    return { title: 'Aclaración guiada', questions: [single] };
+  } catch (_) {
+    return null;
+  }
+}
 
 const ArtifactCard: React.FC<{ code: string; isStreaming?: boolean }> = ({ code, isStreaming }) => {
   const [showCode, setShowCode] = useState(false);

@@ -150,6 +150,15 @@ class MainActivity : FlutterActivity() {
                         result.error("VERSION_ERROR", e.message, null)
                     }
                 }
+                "versionName" -> {
+                    try {
+                        val pm = packageManager
+                        val info = pm.getPackageInfo(packageName, 0)
+                        result.success(info.versionName ?: "")
+                    } catch (e: Exception) {
+                        result.error("VERSION_ERROR", e.message, null)
+                    }
+                }
                 else -> result.notImplemented()
             }
         }

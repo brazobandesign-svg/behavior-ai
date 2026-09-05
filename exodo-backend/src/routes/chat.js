@@ -271,6 +271,22 @@ router.post('/', auth, guestLimit, planGuard, upload.array('files', 5), async (r
       }
     }
 
+    // Cuestionario guiado: decisiones del formulario interactivo del cliente.
+    // Viajan aparte del mensaje y se inyectan como el turno del usuario ante
+    // el LLM; el guardado usa el marcador <!--GUIDED:...--> para que el
+    // cliente no las pinte como burbuja (el chat no se llena de respuestas).
+    let guidedAnswers;
+    if (req.body?.guidedAnswers != null) {
+      if (!Array.isArray(req.body.guidedAnswers)) {
+        return res.status(400).json({ error: 'El campo "guidedAnswers" debe ser un arreglo' });
+      }
+      guidedAnswers = req.body.guidedAnswers
+        .filter((g) => g && typeof g.question === 'string' && typeof g.answer === 'string')
+        .slice(0, 6)
+        .map((g) => ({ question: g.question.slice(0, 200), answer: g.answer.slice(0, 200) }));
+      if (guidedAnswers.length === 0) guidedAnswers = undefined;
+    }
+
     const multipartFiles = Array.isArray(req.files) ? req.files : [];
     const hasAttachments =
       (attachments && Array.isArray(attachments) && attachments.length > 0) ||
@@ -662,9 +678,19 @@ router.post('/', auth, guestLimit, planGuard, upload.array('files', 5), async (r
     }
 
     // 3. Construir mensajes con contexto
+    // Cuestionario guiado: las decisiones reemplazan el turno del usuario
+    // ante el LLM (el modelo continúa la tarea con ellas, sin re-preguntar).
+    let llmUserMessage = enhancedMessage;
+    if (guidedAnswers && guidedAnswers.length > 0) {
+      const decisions = guidedAnswers.map((g) => `- ${g.question}: ${g.answer}`).join('\n');
+      llmUserMessage =
+        `El usuario completó el cuestionario guiado de la app con estas decisiones:\n${decisions}\n\n` +
+        'Continúa DIRECTAMENTE con la tarea original aplicando estas decisiones; no repitas las preguntas ni pidas más aclaración salvo bloqueo absoluto.';
+    }
+
     const messages = [
       ...history,
-      { role: 'user', content: enhancedMessage },
+      { role: 'user', content: llmUserMessage },
     ];
 
     // 4. Streamear respuesta del modelo
@@ -879,7 +905,11 @@ router.post('/', auth, guestLimit, planGuard, upload.array('files', 5), async (r
 
     if (conversationId && !isGuest && !anonymous && !isIncognitoTurn) {
       try {
-        const userMsgToSave = (message && message.trim()) ? message.trim() : (hasImages ? '[Foto adjunta]' : '');
+        // Marcador <!--GUIDED:...-->: las respuestas del formulario no se
+        // pintan como burbuja en el cliente (quedan registradas para el
+        // historial y el render las filtra).
+        const guidedMarker = guidedAnswers ? `<!--GUIDED:${JSON.stringify(guidedAnswers)}-->` : '';
+        const userMsgToSave = guidedMarker + ((message && message.trim()) ? message.trim() : (hasImages ? '[Foto adjunta]' : ''));
         await saveMessage(conversationId, 'user', userMsgToSave, { intent });
         await saveMessage(conversationId, 'assistant', fullText, {
           intent,

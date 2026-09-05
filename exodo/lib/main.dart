@@ -12,10 +12,12 @@ import 'services/supabase_service.dart';
 import 'services/app_state.dart';
 import 'services/notification_service.dart';
 import 'services/update_service.dart';
+import 'services/app_version.dart';
 import 'theme/exodo_theme.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  unawaited(AppVersion.init());
   // P2 auditoría: Inter (400/500/600/700) está empaquetada en assets/fonts/ y
   // declarada en pubspec.yaml → google_fonts la carga del AssetManifest local,
   // cero dependencias de red en el arranque en frío. allowRuntimeFetching se

@@ -49,4 +49,6 @@ export interface Message {
   sources?: Source[] | null;
   isDegraded?: boolean;
   attachments?: Attachment[] | null;
+  /** Turno oculto al render (p.ej. respuestas del cuestionario guiado) */
+  hidden?: boolean;
 }

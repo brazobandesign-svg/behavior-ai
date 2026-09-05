@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/models.dart';
+import 'app_version.dart';
 
 
 class SupabaseService {
@@ -238,7 +239,7 @@ class SupabaseService {
             : messageExcerpt,
         'conversation_id': conversationId,
         'app_locale': 'es',
-        'app_version': '1.1.86',
+        'app_version': AppVersion.versionName,
       });
       return true;
     } catch (e) {

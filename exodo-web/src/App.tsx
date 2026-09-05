@@ -16,7 +16,7 @@ import remarkGfm from 'remark-gfm';
 import TextareaAutosize from 'react-textarea-autosize';
 import { supabase, type Conversation, type Message, type Source } from './lib/supabase';
 import { AuthModal } from './components/AuthModal';
-import { ArtifactMessageBody } from './components/ArtifactMessage';
+import { ArtifactMessageBody, extractOptionsForm } from './components/ArtifactMessage';
 import { DrawerMenu } from './components/DrawerMenu';
 import { SidebarRail } from './components/SidebarRail';
 import { ModelSelector } from './components/ModelSelector';
@@ -2185,9 +2185,6 @@ export default function App() {
                           <ArtifactMessageBody
                             content={msg.content}
                             isStreaming={isThisMsgStreaming}
-                            onPickOption={(label) => {
-                              if (!isThisMsgStreaming) handleSendMessage(undefined, label);
-                            }}
                             renderMarkdown={(text) => (
                               <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
                                 {text}

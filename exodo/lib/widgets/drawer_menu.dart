@@ -6,6 +6,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../models/models.dart';
 import '../services/app_state.dart';
 import '../services/exodo_web_url.dart';
+import '../services/app_version.dart';
 import '../services/supabase_service.dart';
 import '../services/stripe_service.dart';
 import '../services/widget_service.dart';
@@ -170,7 +171,7 @@ class _DrawerMenuState extends State<DrawerMenu> {
                                   border: Border.all(color: ExodoColors.amber.withValues(alpha: 0.3), width: 0.8),
                                 ),
                                 child: Text(
-                                  'AVI 1.1.86-release.01',
+                                  AppVersion.badgeDisplay,
                                   style: TextStyle(fontFamily: 'AnthropicSans', 
                                     fontSize: 10.5,
                                     color: ExodoColors.amber,
@@ -1131,7 +1132,7 @@ class _ClaudeAccountModal {
                     ),
                     const SizedBox(width: 8),
                     Text(
-                      'AVI 1.1.86-release.01',
+                      AppVersion.display,
                       style: TextStyle(fontFamily: 'AnthropicSans', 
                         fontSize: 12,
                         color: isLight ? Colors.black54 : ExodoColors.textPrimary,

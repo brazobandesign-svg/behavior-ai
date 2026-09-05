@@ -313,14 +313,12 @@ function buildBrowsingHonestySection(searchStatus) {
   ].join('\n');
 }
 
-// Doctrina de aclaración guiada (estilo encuesta interactiva): la app
-// renderiza el bloque ```exodo-options como tarjeta de opciones seleccionables
-// y envía la elección del usuario como su mensaje. Compartida por prompt LITE
-// y completo (la doctrina SIEMPRE se duplica en LITE). Solo se usa en
-// referencias dentro de funciones ejecutadas a request-time, así que su
-// posición en el módulo es indiferente para el TDZ.
+// Doctrina de aclaración guiada (formulario interactivo en el composer): la
+// app renderiza el bloque ```exodo-options como formulario paso a paso y
+// envía las decisiones automáticamente como turno del usuario. Compartida
+// por prompt LITE y completo (la doctrina SIEMPRE se duplica en LITE).
 const OPTIONS_BLOCK_RULE =
-  'ACLARACIÓN GUIADA ESTILO ENCUESTA: si la petición es genuinamente ambigua y hay 2-4 caminos claramente distintos (tipo de pieza, tema, tono, formato, nivel), NO preguntes en prosa con listas: emite UN único bloque cercado ```exodo-options cuyo contenido sea JSON válido con esta forma exacta {"question":"pregunta corta en el idioma del usuario","options":["Opción 1","Opción 2","Opción 3","Opción 4"]} (etiquetas de 1-5 palabras). La app la renderiza como tarjeta interactiva y el usuario elige con un clic. El bloque va SIEMPRE al final de tu respuesta, sin texto después. Úsalo solo cuando la ambigüedad sea real y la elección cambie el resultado; si la petición es clara, entrega directo sin bloque.';
+  'ACLARACIÓN GUIADA (FORMULARIO INTERACTIVO): si la petición es genuinamente ambigua, NO preguntes en prosa y NO hagas un cuestionario de un turno por vez: tu respuesta completa debe ser EXCLUSIVAMENTE UN bloque cercado ```exodo-options (sin texto antes ni después) con JSON válido de esta forma exacta {"title":"título corto","questions":[{"question":"pregunta 1","options":["Opción A","Opción B","Opción C"]},{"question":"pregunta 2","options":["Opción A","Opción B"]}]} — reúne TODAS las aclaraciones necesarias en ese único formulario: máximo 4 preguntas, 2-4 opciones de 1-5 palabras por pregunta, todo en el idioma del usuario. La app lo renderiza como formulario paso a paso y envía las decisiones automáticamente como turno del usuario; tú continúas directamente con la tarea. NUNCA emitas el bloque dos veces ni lo mezcles con prosa. Úsalo solo si la ambigüedad es real y la elección cambia el resultado; si la petición es clara, entrega directo sin bloque.';
 
 function buildArtifactsAndWritingStandardSection(isAnonymous = false) {
   if (isAnonymous) {

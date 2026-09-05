@@ -1,6 +1,6 @@
 {
-  "latest_version_code": 10,
-  "latest_version_name": "1.2.5",
-  "download_url": "https://github.com/brazobandesign-svg/behavior-ai/releases/download/v1.2.5/exodo-1.2.5.apk",
-  "changelog": "Fix cajón: el texto enviado (voz o teclado, incógnito o normal) ya no queda pegado en el composer. Fix planes: enviar jamás abre el modal de Planes (la cuota degradada a Modo Eco no interrumpe). Banner visible de actualización en la app."
+  "latest_version_code": 11,
+  "latest_version_name": "1.2.6",
+  "download_url": "https://github.com/brazobandesign-svg/behavior-ai/releases/download/v1.2.6/exodo-1.2.6.apk",
+  "changelog": "Acceso directo corregido a Éxodo Web (exodoweb.netlify.app) y visualización precisa de la versión instalada en el menú y ajustes."
 }

@@ -46,6 +46,7 @@ async function getHistory(conversationId, limit = 50, maxTokens = 20000) {
       const cleanContent = (msg.content || '')
         .replace(/<!--\s*ATTACHMENTS:.*?-->/gs, '')
         .replace(/<!--\s*SOURCES:.*?-->/gs, '')
+        .replace(/<!--\s*GUIDED:.*?-->/gs, '')
         .trim();
 
       // Si después de limpiar el contenido queda vacío pero es 'user', omitir si es un placeholder de inserción
