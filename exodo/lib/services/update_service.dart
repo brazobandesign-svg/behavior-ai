@@ -65,6 +65,8 @@ class UpdateService {
   /// Fuente de verdad del manifiesto de versión (repo público; si el repo se
   /// vuelve privado, mover este archivo al backend o a un gist público).
   static const String versionJsonUrl =
+      'https://raw.githubusercontent.com/brazobandesign-svg/behavior-ai/main/version.json';
+  static const String versionJsonFallbackUrl =
       'https://raw.githubusercontent.com/brazobandesign-svg/behavior-ai/main/exodo-app/version.json';
 
   static const String _lastCheckKey = 'exodo_update_last_check';
@@ -74,9 +76,12 @@ class UpdateService {
   final ValueNotifier<String?> readyToInstall = ValueNotifier(null);
   UpdateInfo? _pendingInfo;
 
+  /// Retorna info del update pendiente de instalar (o null si no hay).
   UpdateInfo? get pendingInfo => _pendingInfo;
 
-  /// Chequeo silencioso: errores se tragan siempre — la app jamás arranca
+  /// Comprueba en GitHub Releases si hay una versión mayor a la instalada.
+  /// Silencioso: si no hay red, si GitHub falla o si el repo no responde,
+  /// falla sin ruido (nunca bloquea el arranque del usuario ni lo molesta
   /// con un diálogo de update roto. Máx. una vez cada 12h.
   Future<void> checkAndDownloadSilently() async {
     if (kIsWeb || !Platform.isAndroid) return;
@@ -87,9 +92,14 @@ class UpdateService {
       if (now - last < _minCheckInterval.inMilliseconds) return;
       await prefs.setInt(_lastCheckKey, now);
 
-      final resp = await http
+      http.Response resp = await http
           .get(Uri.parse(versionJsonUrl))
           .timeout(const Duration(seconds: 8));
+      if (resp.statusCode != 200) {
+        resp = await http
+            .get(Uri.parse(versionJsonFallbackUrl))
+            .timeout(const Duration(seconds: 8));
+      }
       if (resp.statusCode != 200) return;
       final info = await compute(_parseVersionJson, resp.body);
       if (info == null) return;
