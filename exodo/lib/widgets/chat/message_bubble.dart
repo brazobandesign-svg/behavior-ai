@@ -1610,6 +1610,9 @@ class _AssistantContentWithArtifacts extends StatelessWidget {
   static String _sanitizeMarkdown(String input, {bool isStreaming = false}) {
     if (input.trim().isEmpty) return '';
     var s = input;
+    // 0. [Aclaración guiada] purgar bloques exodo-options: el formulario
+    // vive en el composer; el chat no muestra el JSON crudo (paridad web).
+    s = s.replaceAll(RegExp(r'```exodo-options\r?\n?[\s\S]*?(?:```|$)'), '');
     // 1. Purge HTML comments
     s = s.replaceAll(RegExp(r'<!--[\s\S]*?-->'), '');
     // 2. Purge DOCTYPE, scripts, and styles

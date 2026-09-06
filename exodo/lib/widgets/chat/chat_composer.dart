@@ -1313,6 +1313,8 @@ class _ChatComposerState extends State<ChatComposer>
 
 Widget _buildGuidedCard(BuildContext context, bool isLight) {
     final card = widget.guidedCard!;
+    final appLocale = AppI18n.instance.localeCode;
+    final lbl = resolveGuidedLabels(card.labels, card.question, appLocale);
     final cardBg = isLight ? Colors.white : const Color(0xFF252525);
     final textColor = isLight ? const Color(0xFF191919) : const Color(0xFFF5F2EB);
     final subColor = isLight
@@ -1357,7 +1359,7 @@ Widget _buildGuidedCard(BuildContext context, bool isLight) {
                   Padding(
                     padding: const EdgeInsets.only(bottom: 3),
                     child: Text(
-                      AppI18n.of(context).t('guided.recommended'),
+                      lbl['recommended'] ?? AppI18n.of(context).t('guided.recommended'),
                       style: GoogleFonts.inter(
                         fontSize: 10.5,
                         fontWeight: FontWeight.w700,
@@ -1436,7 +1438,7 @@ Widget _buildGuidedCard(BuildContext context, bool isLight) {
                   autofocus: true,
                   style: GoogleFonts.inter(fontSize: 13, color: textColor),
                   decoration: InputDecoration(
-                    hintText: AppI18n.of(context).t('guided.other_hint'),
+                    hintText: lbl['other_hint'] ?? AppI18n.of(context).t('guided.other_hint'),
                     hintStyle: GoogleFonts.inter(fontSize: 13, color: subColor),
                     contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
                     enabledBorder: OutlineInputBorder(
@@ -1463,7 +1465,7 @@ Widget _buildGuidedCard(BuildContext context, bool isLight) {
                     setState(() => _guidedOtherMode = false);
                   },
                   child: Text(
-                    AppI18n.of(context).t('guided.back'),
+                    lbl['back'] ?? AppI18n.of(context).t('guided.back'),
                     style: GoogleFonts.inter(
                       fontSize: 12.5,
                       fontWeight: FontWeight.w600,
@@ -1494,7 +1496,7 @@ Widget _buildGuidedCard(BuildContext context, bool isLight) {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        AppI18n.of(context).t('guided.other'),
+                        lbl['other'] ?? AppI18n.of(context).t('guided.other'),
                         style: GoogleFonts.inter(
                           fontSize: 13,
                           fontWeight: FontWeight.w600,
@@ -1502,7 +1504,7 @@ Widget _buildGuidedCard(BuildContext context, bool isLight) {
                         ),
                       ),
                       Text(
-                        AppI18n.of(context).t('guided.other_hint2'),
+                        lbl['other_hint'] ?? AppI18n.of(context).t('guided.other_hint2'),
                         style: GoogleFonts.inter(
                           fontSize: 11,
                           color: subColor,

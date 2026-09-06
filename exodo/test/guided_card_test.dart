@@ -3,13 +3,16 @@ import 'package:exodo/services/guided_card.dart';
 
 void main() {
   group('parseGuidedCard', () {
-    test('parsea bloque completo con fence y recommend', () {
-      const content = '```exodo-options\n{"question":"¿Para quién es el regalo?","options":["Pareja","Amigo/a","Familiar","Compañero"],"recommend":0}\n```';
+    test('parsea bloque completo con fence, recommend y labels', () {
+      const content = '```exodo-options\n{"question":"¿Para quién es el regalo?","options":["Pareja","Amigo/a","Familiar","Compañero"],"recommend":0,"labels":{"recommended":"Exodo recomienda","other":"Otra opción","other_hint":"escribe tu propia respuesta","back":"Atrás"}}\n```';
       final card = parseGuidedCard(content);
       expect(card, isNotNull);
       expect(card!.question, '¿Para quién es el regalo?');
       expect(card.options.length, 4);
       expect(card.recommend, 0);
+      expect(card.labels['recommended'], 'Exodo recomienda');
+      expect(card.labels['other'], 'Otra opción');
+      expect(card.labels['back'], 'Atrás');
     });
 
     test('parsea bloque SIN fence de cierre (modelos que olvidan el cierre)', () {
