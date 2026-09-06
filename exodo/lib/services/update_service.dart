@@ -31,11 +31,13 @@ class UpdateInfo {
   final String versionName;
   final String downloadUrl;
   final String changelog;
+  final int? checkIntervalHours;
   const UpdateInfo({
     required this.versionCode,
     required this.versionName,
     required this.downloadUrl,
     required this.changelog,
+    this.checkIntervalHours,
   });
 }
 
@@ -47,11 +49,13 @@ UpdateInfo? _parseVersionJson(String body) {
     final code = decoded['latest_version_code'];
     final url = decoded['download_url'];
     if (code is! int || url is! String || url.isEmpty) return null;
+    final interval = decoded['check_interval_hours'];
     return UpdateInfo(
       versionCode: code,
       versionName: (decoded['latest_version_name'] as String?) ?? '',
       downloadUrl: url,
       changelog: (decoded['changelog'] as String?) ?? '',
+      checkIntervalHours: interval is int ? interval : null,
     );
   } catch (_) {
     return null;
@@ -70,7 +74,8 @@ class UpdateService {
       'https://raw.githubusercontent.com/brazobandesign-svg/behavior-ai/main/exodo-app/version.json';
 
   static const String _lastCheckKey = 'exodo_update_last_check';
-  static const Duration _minCheckInterval = Duration(hours: 12);
+  static const String _savedIntervalKey = 'exodo_update_interval_hours';
+  static const Duration _defaultCheckInterval = Duration(hours: 6);
 
   /// APK ya descargado esperando instalación (path no-null ⇒ mostrar CTA).
   final ValueNotifier<String?> readyToInstall = ValueNotifier(null);
@@ -82,14 +87,18 @@ class UpdateService {
   /// Comprueba en GitHub Releases si hay una versión mayor a la instalada.
   /// Silencioso: si no hay red, si GitHub falla o si el repo no responde,
   /// falla sin ruido (nunca bloquea el arranque del usuario ni lo molesta
-  /// con un diálogo de update roto. Máx. una vez cada 12h.
+  /// con un diálogo de update roto). Por defecto cada 6h (configurable desde version.json).
   Future<void> checkAndDownloadSilently() async {
     if (kIsWeb || !Platform.isAndroid) return;
     try {
       final prefs = await SharedPreferences.getInstance();
       final last = prefs.getInt(_lastCheckKey) ?? 0;
+      final savedHours = prefs.getInt(_savedIntervalKey);
+      final checkInterval = savedHours != null && savedHours > 0
+          ? Duration(hours: savedHours)
+          : _defaultCheckInterval;
       final now = DateTime.now().millisecondsSinceEpoch;
-      if (now - last < _minCheckInterval.inMilliseconds) return;
+      if (now - last < checkInterval.inMilliseconds) return;
       await prefs.setInt(_lastCheckKey, now);
 
       http.Response resp = await http
@@ -103,6 +112,10 @@ class UpdateService {
       if (resp.statusCode != 200) return;
       final info = await compute(_parseVersionJson, resp.body);
       if (info == null) return;
+
+      if (info.checkIntervalHours != null && info.checkIntervalHours! > 0) {
+        await prefs.setInt(_savedIntervalKey, info.checkIntervalHours!);
+      }
 
       final installedCode = await _installedVersionCode();
       if (installedCode == null || info.versionCode <= installedCode) return;

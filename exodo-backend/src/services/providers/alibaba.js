@@ -17,8 +17,8 @@ function resolveModelName(modelId) {
   if (!modelId) return ALIBABA_CONFIG.models.hazakPrimary;
   const m = String(modelId).trim().toLowerCase();
 
-  if (m === 'deepseek-chat' || m === 'genesis' || m === 'g1.1' || m === 'flash' || m === 'simple' || m === 'qwen3.7-flash' || m === 'qwen3.7-flash-2026-07-15') {
-    return ALIBABA_CONFIG.models.genesisSimple; // qwen3.8-flash
+  if (m === 'deepseek-chat' || m === 'genesis' || m === 'g1.1' || m === 'flash' || m === 'simple' || m === 'qwen3.7-flash' || m === 'qwen3.7-flash-2026-07-15' || m === 'qwen3.8-flash') {
+    return ALIBABA_CONFIG.models.genesisSimple; // qwen3.7-flash-2026-07-15
   }
   if (m === 'deepseek-reasoner' || m === 'hazak' || m === 'j1.9' || m === 'pro' || m === 'thinking' || m === 'reasoner') {
     return ALIBABA_CONFIG.models.hazakReasoner; // qwq-plus

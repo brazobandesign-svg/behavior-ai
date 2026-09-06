@@ -35,11 +35,11 @@ function getExecutionChain(plan, intent, modelOverride, imageDataUris, taskType,
     if (hasImages) {
       return [
         ALIBABA_CONFIG.models.visionEco || 'qwen3-vl-plus',
-        ALIBABA_CONFIG.models.fastPrimary || 'qwen3.8-flash',
+        ALIBABA_CONFIG.models.fastPrimary || 'qwen3.7-flash-2026-07-15',
       ];
     }
     return [
-      ALIBABA_CONFIG.models.fastPrimary || 'qwen3.8-flash',
+      ALIBABA_CONFIG.models.fastPrimary || 'qwen3.7-flash-2026-07-15',
       ALIBABA_CONFIG.models.textFallback,
     ];
   }
@@ -86,35 +86,25 @@ function getExecutionChain(plan, intent, modelOverride, imageDataUris, taskType,
     ];
   }
 
-  // 5. Conversación Simple, Saludos y Consultas Directas
+  // 5. Conversación Simple, Saludos y Consultas Directas (Free y Pro idénticos)
   if (intent === 'SIMPLE' || taskType === 'simple') {
-    if (PLAN_ROUTING_ENABLED && plan === 'genesis') {
-      // G1.1: rapidez primero; la cadena de fallback sube a plus si falla.
-      return [
-        ALIBABA_CONFIG.models.fastPrimary || 'qwen3.8-flash',
-        ALIBABA_CONFIG.models.textFallback,
-      ];
-    }
     return [
-      PLAN_ROUTING_ENABLED
-        ? ALIBABA_CONFIG.models.textPrimary // XPi: flagship en todo
-        : (ALIBABA_CONFIG.models.fastPrimary || 'qwen3.8-flash'),
-      ALIBABA_CONFIG.models.textPrimary,
+      ALIBABA_CONFIG.models.fastPrimary || 'qwen3.7-flash-2026-07-15',
+      ALIBABA_CONFIG.models.textFallback,
     ];
   }
 
-  // 5b. Redacción con matriz activa: XPi flagship, G1.1 plus.
-  if (PLAN_ROUTING_ENABLED && plan === 'genesis'
-      && (intent === 'REDACCION' || intent === 'DOCUMENTO')) {
+  // 5b. Redacción y Documentos (Free y Pro idénticos)
+  if (intent === 'REDACCION' || intent === 'DOCUMENTO') {
     return [
       ALIBABA_CONFIG.models.textFallback,
-      ALIBABA_CONFIG.models.fastPrimary || 'qwen3.8-flash',
+      ALIBABA_CONFIG.models.fastPrimary || 'qwen3.7-flash-2026-07-15',
     ];
   }
 
-  // 6. Redacción Compleja, Ensayos y Texto Extenso (Máxima Elocuencia)
+  // 6. Redacción Compleja, Ensayos y Texto Extenso
   return [
-    ALIBABA_CONFIG.models.textPrimary,  // qwen3.7-max-2026-05-20
+    ALIBABA_CONFIG.models.textPrimary,  // qwen3.8-max-0902
     ALIBABA_CONFIG.models.textFallback, // qwen3.6-plus-2026-04-02
   ];
 }

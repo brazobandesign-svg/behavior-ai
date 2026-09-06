@@ -1173,7 +1173,7 @@ router.post('/title', auth, async (req, res) => {
     const isIncognito = req.body?.isIncognito === true || !!req.user?.anonymous;
     const { ALIBABA_CONFIG } = require('../config/models');
     const alibaba = require('../services/providers/alibaba');
-    const titleModel = ALIBABA_CONFIG.models?.fastPrimary || 'qwen3.8-flash';
+    const titleModel = ALIBABA_CONFIG.models?.fastPrimary || 'qwen3.7-flash-2026-07-15';
     const result = await alibaba.call(titleModel, [prompt], systemPrompt, {
       max_tokens: 40,
       temperature: 0.3,

@@ -1,6 +1,7 @@
 {
   "latest_version_code": 11,
   "latest_version_name": "1.2.6",
+  "check_interval_hours": 6,
   "download_url": "https://github.com/brazobandesign-svg/behavior-ai/releases/download/v1.2.6/exodo-1.2.6.apk",
   "changelog": "Acceso directo corregido a Éxodo Web (exodoweb.netlify.app) y visualización precisa de la versión instalada en el menú y ajustes."
 }
