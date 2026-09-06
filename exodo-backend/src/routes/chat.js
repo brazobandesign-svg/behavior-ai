@@ -800,13 +800,21 @@ router.post('/', auth, guestLimit, planGuard, upload.array('files', 5), async (r
       !isMinerdQuery(minerdContext) &&
       !webPrefetch;
 
+    // DECISIÓN: detección integral de idioma considerando el mensaje actual,
+    // preguntas/respuestas del cuestionario guiado y el hilo previo de la conversación.
+    const effectiveMessageLang = detectConversationLang({
+      currentText: enhancedMessage,
+      guidedAnswers,
+      history,
+    });
+
     const { systemPrompt } = buildSystemPrompt({
       userPlan: plan,
       conversationSubject: subject || req.body.conversationSubject,
       // DECISIÓN 30-ago: la respuesta sigue el idioma EN QUE ESCRIBE el
       // usuario (detectado); la interfaz es solo el fallback ante ambigüedad.
       userLocale: requestedLocale,
-      messageLang: detectMessageLang(enhancedMessage),
+      messageLang: effectiveMessageLang,
       contextChunks,
       lite: useLitePrompt,
       searchStatus,
@@ -1021,7 +1029,17 @@ function isTrivialGreeting(text) {
  * interfaz como fallback.
  */
 const LANG_STOPWORDS = {
-  es: new Set(['el','la','los','las','un','una','unos','unas','de','del','al','y','o','u','que','qué','cómo','como','para','por','con','sin','sobre','entre','mi','mis','tu','tus','su','sus','nuestro','es','está','esta','estoy','son','fue','ser','hace','hay','más','mas','pero','si','sí','no','ya','muy','necesito','quiero','deseo','dime','dame','hola','gracias','favor','cuál','cual','quién','quien','dónde','donde','cuándo','cuando','cuánto','cuanto','porque','planificación','grado','clase','tarea','aula','alumno','alumnos','enseñar','aprender','matemáticas','lengua','ciencias','sociales','naturales','evaluación','rubrica','rúbrica','escribe','escribeme','puedes','podrias','podrías','ayudame','ayúdame','ayuda','explica','explicame','explícame','haz','crea','busca','traduce','resume','resumeme','resúmeme','hablame','háblame','cuentame','cuéntame','mandame','mándame','ensename','enséñame','muestrame','muéstrame','gusta','parece','entonces','tambien','también','tampoco','aqui','aquí','ahora','luego','despues','después','antes','porfa','mio','mío','tuyo','suyo','vamos','puedo','debo','tengo','deberia','debería','ensayo','ensayos','tareas','proyecto','planificar','planifica','corrige','arregla','diseña','disena','necesitó','necesito','quisiera','mejor','peor','verdadera','cierto','cierta','regalame','regálame','ayudarme','lograr','conseguir','aunque','mientras']),
+  es: new Set([
+    'el','la','los','las','un','una','unos','unas','de','del','al','y','o','u','que','qué','cómo','como','para','por','con','sin','sobre','entre','mi','mis','tu','tus','su','sus','nuestro','nuestra','nuestros','nuestras','es','está','esta','estoy','son','fue','ser','hace','hay','más','mas','pero','si','sí','no','ya','muy','necesito','quiero','deseo','dime','dame','hola','gracias','favor','cuál','cual','quién','quien','dónde','donde','cuándo','cuando','cuánto','cuanto','porque','planificación','grado','clase','tarea','aula','alumno','alumnos','enseñar','aprender','matemáticas','lengua','ciencias','sociales','naturales','evaluación','rubrica','rúbrica','escribe','escribeme','puedes','podrias','podrías','ayudame','ayúdame','ayuda','explica','explicame','explícame','haz','crea','busca','traduce','resume','resumeme','resúmeme','hablame','háblame','cuentame','cuéntame','mandame','mándame','ensename','enséñame','muestrame','muéstrame','gusta','parece','entonces','tambien','también','tampoco','aqui','aquí','ahora','luego','despues','después','antes','porfa','mio','mío','tuyo','suyo','vamos','puedo','debo','tengo','deberia','debería','ensayo','ensayos','tareas','proyecto','planificar','planifica','corrige','arregla','diseña','disena','necesitó','necesito','quisiera','mejor','peor','verdadera','cierto','cierta','regalame','regálame','ayudarme','lograr','conseguir','aunque','mientras',
+    // Pronombres personales, átonos y demostrativos
+    'me','te','se','nos','le','les','lo','yo','tú','él','ella','ellos','ellas','nosotros','nosotras','usted','ustedes','este','estos','estas','esto','eso','ese','esa','esos','esas','aquel','aquella','aquellos','aquellas',
+    // Indefinidos y cuantificadores
+    'otro','otra','otros','otras','todo','toda','todos','todas','nada','algo','alguien','nadie','ninguno','ninguna','ningún',
+    // Modificadores, afirmaciones y estados frecuentes
+    'bien','bueno','buena','buenos','buenas','mal','malo','mala','claro','dale','vale','seguro','perfecto','exacto','correcto','listo','rápido','despacio','siempre','nunca','jamás','casi','sólo','solo',
+    // Opciones, cuestionarios y términos frecuentes en interacción
+    'opción','opcion','opciones','respuesta','respuestas','pregunta','preguntas','regalo','regalos','pareja','amigo','amiga','amigos','familia','familiares','cena','experiencia','presupuesto','menos','precio','dinero','dólares','dolares','pesos','idea','ideas','sigue','continúa','continua','elegir','elijo','escojo',
+  ]),
   en: new Set(['the','a','an','of','to','in','on','for','with','and','or','is','are','was','were','be','been','am','do','does','did','have','has','had','will','would','can','could','should','i','you','he','she','it','we','they','my','your','his','her','our','their','this','that','these','those','what','which','who','whom','where','when','why','how','not','yes','please','thanks','thank','hello','hi','hey','need','want','make','write','tell','give','me','about','from','at','by','if','then','than','so','very','just','now','get','got','let','lesson','grade','plan','help']),
   fr: new Set(['le','la','les','un','une','des','du','de','au','aux','et','ou','que','qui','pour','par','avec','sans','sur','dans','mon','ma','mes','ton','ta','tes','son','sa','ses','notre','nos','votre','vos','leur','leurs','est','sont','était','être','faire','fait','il','elle','je','tu','nous','vous','ils','elles','ce','cet','cette','ces','plus','mais','oui','non','bonjour','salut','merci','besoin','veux','comment','pourquoi','où','quand','combien','cours','classe']),
   pt: new Set(['o','a','os','as','um','uma','uns','umas','de','do','da','dos','das','em','no','na','para','por','com','sem','sobre','entre','meu','minha','meus','minhas','seu','sua','é','são','foi','ser','fazer','faz','há','mais','mas','não','sim','obrigado','olá','oi','preciso','quero','como','porque','porquê','qual','quem','onde','quando','quanto','aula','turma','plano']),
@@ -1070,13 +1088,61 @@ function detectMessageLang(text) {
   }
   for (const [lang, re] of Object.entries(DIACRITIC_HINTS)) {
     const hits = lower.match(re);
-    if (hits) scores[lang] += hits.length * 0.5;
+    if (hits) {
+      // Las tildes en español (á, é, í, ó, ú, ü, ñ) otorgan 1.0 punto directo
+      scores[lang] += lang === 'es' ? hits.length * 1.0 : hits.length * 0.5;
+    }
   }
   const sorted = Object.entries(scores).sort((a, b) => b[1] - a[1]);
   const [topLang, topScore] = sorted[0];
   const secondScore = sorted[1][1];
   // Dominancia estricta: empate o cero señales → null (fallback al locale UI).
   return topScore >= 1 && topScore > secondScore ? topLang : null;
+}
+
+/**
+ * Detecta el idioma efectivo de la conversación inspeccionando:
+ * 1. El texto del turno actual (incluyendo preguntas/respuestas del cuestionario guiado).
+ * 2. Si el turno actual es ambiguo o corto (ej. "Pareja", "$20-$50", "ok"),
+ *    recorre el historial previo (de más reciente a más antiguo) para mantener
+ *    la coherencia del idioma en el que se venía conversando.
+ */
+function detectConversationLang({ currentText, guidedAnswers, history }) {
+  const guidedParts = Array.isArray(guidedAnswers)
+    ? guidedAnswers.map((g) => `${g && typeof g.question === 'string' ? g.question : ''} ${g && typeof g.answer === 'string' ? g.answer : ''}`).join(' ')
+    : '';
+  const candidateText = [currentText, guidedParts].filter(Boolean).join(' ');
+
+  const turnLang = detectMessageLang(candidateText);
+  if (turnLang) return turnLang;
+
+  if (Array.isArray(history) && history.length > 0) {
+    for (let i = history.length - 1; i >= 0; i--) {
+      const msg = history[i];
+      if (!msg || !msg.content) continue;
+      const raw = typeof msg.content === 'string'
+        ? msg.content
+        : Array.isArray(msg.content)
+          ? msg.content.map((c) => (c && typeof c.text === 'string' ? c.text : '')).join(' ')
+          : '';
+      let textToTest = raw.replace(/<!--[\s\S]*?-->/g, ' ');
+      const optionsMatch = textToTest.match(/```exodo-options\s*([\s\S]*?)\s*```/);
+      if (optionsMatch) {
+        try {
+          const parsed = JSON.parse(optionsMatch[1]);
+          if (parsed && typeof parsed.question === 'string') {
+            textToTest = parsed.question + ' ' + (Array.isArray(parsed.options) ? parsed.options.join(' ') : '');
+          }
+        } catch (_) {}
+      }
+      textToTest = textToTest.replace(/```[\s\S]*?```/g, ' ').trim();
+      if (!textToTest) continue;
+      const hLang = detectMessageLang(textToTest);
+      if (hLang) return hLang;
+    }
+  }
+
+  return null;
 }
 
 /**
@@ -1156,7 +1222,10 @@ router.post('/title', auth, async (req, res) => {
     // de la interfaz. UI en inglés + mensaje en español → título en español.
     // Solo si el mensaje es ambiguo se respeta el locale de la interfaz.
     const uiLocale = TITLE_LANGS[locale] ? locale : 'es';
-    const titleLocale = detectMessageLang(userText) || detectMessageLang(asstSnippet) || uiLocale;
+    const titleLocale =
+      detectConversationLang({ currentText: userText, history: messages }) ||
+      detectMessageLang(asstSnippet) ||
+      uiLocale;
     const titleLang = TITLE_LANGS[titleLocale] || 'español';
     const systemPrompt =
       `Eres el generador de títulos de una app de chat con IA (estilo ChatGPT/Claude). ` +
@@ -1211,3 +1280,5 @@ module.exports = router;
 // Exportados para la suite de tests (test/backend.test.js, H5):
 module.exports.stripCodeBlocksForSources = stripCodeBlocksForSources;
 module.exports.extractSourcesFromText = extractSourcesFromText;
+module.exports.detectMessageLang = detectMessageLang;
+module.exports.detectConversationLang = detectConversationLang;

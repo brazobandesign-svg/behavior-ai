@@ -201,3 +201,42 @@ test('extractSourcesFromText: lista vacía cuando la respuesta es solo código',
   );
   assert.strictEqual(sources.length, 0, 'sin prosa => sin Sources (el chip no aparece)');
 });
+
+// ---------------------------------------------------------------------------
+// 4. detectMessageLang / detectConversationLang — coherencia de idioma
+// ---------------------------------------------------------------------------
+
+const detectMessageLang = chatRoutes.detectMessageLang;
+const detectConversationLang = chatRoutes.detectConversationLang;
+
+test('detectMessageLang: detecta español con stopwords extendidas y tildes', () => {
+  assert.strictEqual(detectMessageLang('necesito ayuda para elegir un regalo'), 'es');
+  assert.strictEqual(detectMessageLang('Pareja'), 'es');
+  assert.strictEqual(detectMessageLang('Experiencia (cena, spa)'), 'es');
+  assert.strictEqual(detectMessageLang('Tecnología/Accesorios'), 'es');
+  assert.strictEqual(detectMessageLang('Me parece bien'), 'es');
+  assert.strictEqual(detectMessageLang('Yes, please help me'), 'en');
+  assert.strictEqual(detectMessageLang('Bonjour à tous'), 'fr');
+});
+
+test('detectConversationLang: retiene el idioma mediante cuestionarios guiados e historial', () => {
+  // Caso 1: Turno ambiguo ($20 - $50) acompañado de guidedAnswers con pregunta en español
+  const lang1 = detectConversationLang({
+    currentText: '$20 - $50',
+    guidedAnswers: [{ question: '¿Cuál es tu presupuesto aproximado?', answer: '$20 - $50' }],
+    history: [],
+  });
+  assert.strictEqual(lang1, 'es');
+
+  // Caso 2: Turno ambiguo ($20 - $50) sin guidedAnswers pero con historial previo en español
+  const lang2 = detectConversationLang({
+    currentText: '$20 - $50',
+    guidedAnswers: null,
+    history: [
+      { role: 'user', content: 'necesito ayuda para elegir un regalo' },
+      { role: 'assistant', content: '```exodo-options\n{"question":"¿Quién es el destinatario?","options":["Pareja"]}\n```' },
+    ],
+  });
+  assert.strictEqual(lang2, 'es');
+});
+

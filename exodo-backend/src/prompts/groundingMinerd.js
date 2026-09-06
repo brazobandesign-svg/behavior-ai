@@ -108,6 +108,9 @@ function buildSystemPrompt(opts) {
     const msgLang = typeof o.messageLang === 'string' ? o.messageLang : null;
     const effLang = msgLang || locale;
     const langName = effLang === 'es' ? 'español' : (LANG_NAMES_IDENTITY[effLang] || effLang);
+    const langInstruction = msgLang
+      ? `Responde en ${langName}. Sé conciso.`
+      : `Responde en el idioma de la consulta o conversación (o en ${langName} si es neutra). Sé conciso.`;
     const liteIdentity = [
       '<exodo_behavior>',
       todayLine,
@@ -129,7 +132,7 @@ function buildSystemPrompt(opts) {
           : (searchStatus === 'unavailable'
             ? ' ESTE TURNO no pudiste consultar la web: dilo con naturalidad en una línea si surge ("ahora mismo no puedo consultarlo en vivo"), sin mencionar cuotas, APIs, proveedores ni detalles internos; trabaja condicionalmente con lo que aporte el usuario.'
             : '')),
-      `Responde en ${langName}. Sé conciso.`,
+      langInstruction,
       OPTIONS_BLOCK_RULE,
       '</exodo_behavior>',
     ].join('\n');
@@ -215,16 +218,19 @@ function buildIdentitySection(plan, locale, messageLang) {
     '- DOMINIO LATENTE (INTERNO): Posee una maestría técnica y analítica profunda en diseño curricular, planificaciones docentes, educación superior (maestrías, licenciaturas), marco legal y normativo, maquetación de software, y herramientas para maestros, estudiantes, juristas y profesionales. Aplica esta profundidad de forma natural y contextual según la demanda de la consulta, sin alardear de su arquitectura interna ni auto-clasificarse.',
     `Plan activo del usuario: ${planLabel}.`,
     (() => {
-      // DECISIÓN 30-ago: el idioma de la RESPUESTA sigue el idioma en que
-      // ESCRIBE el usuario (detectado), no el de la interfaz.
+      // DECISIÓN: el idioma de la RESPUESTA sigue el idioma en que
+      // se comunica el usuario (detectado en el mensaje/historial).
       const msgLang = typeof messageLang === 'string' ? messageLang : null;
       const target = msgLang || locale;
       const targetName = target === 'es' ? 'español' : (LANG_NAMES[target] || target);
       const uiName = locale === 'es' ? 'español' : (LANG_NAMES[locale] || locale);
       if (msgLang && msgLang !== locale) {
-        return `- IDIOMA DE RESPUESTA OBLIGATORIO: aunque la interfaz esté en ${uiName}, el usuario escribió en ${targetName}: redacta TODA tu respuesta en ${targetName}. Solo conserva en su idioma original nombres propios y citas textuales.`;
+        return `- IDIOMA DE RESPUESTA OBLIGATORIO: aunque la interfaz esté en ${uiName}, el usuario se comunica en ${targetName}: redacta TODA tu respuesta en ${targetName}. Solo conserva en su idioma original nombres propios y citas textuales.`;
       }
-      return `- IDIOMA DE RESPUESTA OBLIGATORIO: La interfaz del usuario está en ${uiName}. Redacta TODA tu respuesta en ${targetName}, sin importar que este system prompt esté escrito en español. Solo conserva en su idioma original nombres propios, marcas y citas textuales.`;
+      if (msgLang) {
+        return `- IDIOMA DE RESPUESTA OBLIGATORIO: redacta TODA tu respuesta en ${targetName}, sin importar que este system prompt esté escrito en español. Solo conserva en su idioma original nombres propios, marcas y citas textuales.`;
+      }
+      return `- IDIOMA DE RESPUESTA: Responde en el idioma en que el usuario plantee su consulta o en el que venía conversando. Si la consulta es neutra o no lingüística (ej. números, código, símbolos), usa ${uiName}.`;
     })(),
     '</identity_and_stance>',
     '',
