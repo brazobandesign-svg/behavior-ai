@@ -12,6 +12,7 @@ import '../data/repositories/local_chat_repository.dart';
 import '../data/local/db/tables/messages.dart'; // Import LocalMessageStatus enum
 import 'supabase_service.dart';
 import 'chat_service.dart';
+import 'guided_card.dart';
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 
 import 'connectivity_service.dart';
@@ -26,6 +27,23 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
   List<Conversation> conversations = [];
   Conversation? activeConversation;
   List<ChatMessage> currentMessages = [];
+  /// Ids de tarjetas guiadas descartadas por el usuario (✕): no re-montar.
+  final Set<String> dismissedGuidedIds = {};
+
+  /// Último turno del assistant si trae una tarjeta guiada pendiente.
+  /// (El chat no pinta ese bloque; el formulario vive en el composer.)
+  GuidedCardData? get pendingGuidedCard {
+    if (isGenerating || currentMessages.isEmpty) return null;
+    final last = currentMessages.last;
+    if (last.role != 'assistant' || last.isThinking || last.isHidden) return null;
+    if (dismissedGuidedIds.contains(last.id)) return null;
+    return parseGuidedCard(last.content);
+  }
+
+  void dismissGuidedCard(String messageId) {
+    dismissedGuidedIds.add(messageId);
+    notifyListeners();
+  }
 
   bool isIncognito = false;
   bool showTab2Banner = true;
@@ -1380,8 +1398,14 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
   Future<void> sendUserMessage(
     String text, {
     List<Attachment>? attachments,
+    String? guidedQuestion,
+    String? guidedAnswer,
   }) async {
     var effectiveText = text;
+    // [Aclaración guiada] el turno oculto lleva el digest "pregunta: respuesta"
+    if (guidedQuestion != null && guidedAnswer != null && guidedAnswer.trim().isNotEmpty) {
+      effectiveText = '$guidedQuestion: ${guidedAnswer.trim()}';
+    }
     if (quotedSnippet != null && quotedSnippet!.isNotEmpty) {
       final q = quotedSnippet!;
       clearQuotedSnippet();
@@ -1426,6 +1450,7 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
       content: effectiveText,
       attachments: attachments ?? const [],
       createdAt: DateTime.now(),
+      isHidden: guidedQuestion != null,
     );
     currentMessages.add(userMsg);
 
@@ -1598,6 +1623,14 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
 
       await ChatService.sendMessageStream(
         message: text,
+        guidedAnswers: guidedQuestion != null && guidedAnswer != null
+            ? [
+                {
+                  'question': guidedQuestion,
+                  'answer': guidedAnswer.trim(),
+                }
+              ]
+            : null,
         conversationId: syncToCloud ? capturedConvId : null,
         // Sin historial en nube (privacidad OFF) el backend no puede leer la
         // conversación de la DB: se envía la ventana local como en incógnito.

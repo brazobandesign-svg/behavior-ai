@@ -33,6 +33,12 @@ const Map<String, String> kP4Es = <String, String>{
   'notice.image_daily_limit_reached': 'Alcanzaste tu límite de imágenes por hoy. Se renueva mañana.',
   'notice.image_generation_failed': 'No se pudo generar la imagen. Inténtalo de nuevo en unos momentos.',
   'chat.ask_exodo': 'Preguntar a Éxodo',
+  // Aclaración guiada
+  'guided.recommended': 'Exodo recomienda',
+  'guided.other': 'Otro…',
+  'guided.other_hint': 'Escribe tu respuesta…',
+  'guided.other_hint2': 'da tu propia respuesta',
+  'guided.back': '‹ Atrás',
 };
 
 const Map<String, String> kP4En = <String, String>{
@@ -64,6 +70,12 @@ const Map<String, String> kP4En = <String, String>{
   'notice.image_daily_limit_reached': 'You\'ve reached your image limit for today. It renews tomorrow.',
   'notice.image_generation_failed': 'The image couldn\'t be generated. Try again in a few moments.',
   'chat.ask_exodo': 'Ask Éxodo',
+  // Aclaración guiada
+  'guided.recommended': 'Exodo recommends',
+  'guided.other': 'Other…',
+  'guided.other_hint': 'Type your answer…',
+  'guided.other_hint2': 'give your own answer',
+  'guided.back': '‹ Back',
 };
 
 const Map<String, String> kP4Fr = <String, String>{
@@ -95,6 +107,12 @@ const Map<String, String> kP4Fr = <String, String>{
   'notice.image_daily_limit_reached': 'Vous avez atteint votre limite d\'images pour aujourd\'hui. Elle se renouvelle demain.',
   'notice.image_generation_failed': 'L\'image n\'a pas pu être générée. Réessayez dans quelques instants.',
   'chat.ask_exodo': 'Demander à Éxodo',
+  // Aclaración guiada
+  'guided.recommended': 'Exodo recommande',
+  'guided.other': 'Autre…',
+  'guided.other_hint': 'Écrivez votre réponse…',
+  'guided.other_hint2': 'donnez votre propre réponse',
+  'guided.back': '‹ Retour',
 };
 
 const Map<String, String> kP4Ht = <String, String>{
@@ -126,6 +144,12 @@ const Map<String, String> kP4Ht = <String, String>{
   'notice.image_daily_limit_reached': 'Ou rive nan limit imaj ou pou jodi a. Li renouye demen.',
   'notice.image_generation_failed': 'Nou pa t ka jeneré imaj la. Eseye ankò nan yon ti moman.',
   'chat.ask_exodo': 'Mande Éxodo',
+  // Aclaración guiada
+  'guided.recommended': 'Exodo rekòmande',
+  'guided.other': 'Lòt…',
+  'guided.other_hint': 'Ekri repons ou…',
+  'guided.other_hint2': 'ban repons pa w',
+  'guided.back': '‹ Retounen',
 };
 
 const Map<String, String> kP4Pt = <String, String>{
@@ -157,6 +181,12 @@ const Map<String, String> kP4Pt = <String, String>{
   'notice.image_daily_limit_reached': 'Você atingiu seu limite de imagens por hoje. Renova amanhã.',
   'notice.image_generation_failed': 'Não foi possível gerar a imagem. Tente novamente em alguns instantes.',
   'chat.ask_exodo': 'Perguntar ao Éxodo',
+  // Aclaración guiada
+  'guided.recommended': 'Exodo recomenda',
+  'guided.other': 'Outro…',
+  'guided.other_hint': 'Escreva sua resposta…',
+  'guided.other_hint2': 'dê sua própria resposta',
+  'guided.back': '‹ Voltar',
 };
 
 const Map<String, String> kP4It = <String, String>{
@@ -188,6 +218,12 @@ const Map<String, String> kP4It = <String, String>{
   'notice.image_daily_limit_reached': 'Hai raggiunto il tuo limite di immagini per oggi. Si rinnova domani.',
   'notice.image_generation_failed': 'Impossibile generare l\'immagine. Riprova tra qualche istante.',
   'chat.ask_exodo': 'Chiedi a Éxodo',
+  // Aclaración guiada
+  'guided.recommended': 'Exodo consiglia',
+  'guided.other': 'Altro…',
+  'guided.other_hint': 'Scrivi la tua risposta…',
+  'guided.other_hint2': 'dai la tua risposta',
+  'guided.back': '‹ Indietro',
 };
 
 const Map<String, String> kP4De = <String, String>{
@@ -219,6 +255,12 @@ const Map<String, String> kP4De = <String, String>{
   'notice.image_daily_limit_reached': 'Du hast dein heutiges Bildlimit erreicht. Es erneuert sich morgen.',
   'notice.image_generation_failed': 'Das Bild konnte nicht erstellt werden. Versuche es in wenigen Momenten erneut.',
   'chat.ask_exodo': 'Éxodo fragen',
+  // Aclaración guiada
+  'guided.recommended': 'Exodo empfiehlt',
+  'guided.other': 'Andere…',
+  'guided.other_hint': 'Schreibe deine Antwort…',
+  'guided.other_hint2': 'gib deine eigene Antwort',
+  'guided.back': '‹ Zurück',
 };
 
 const Map<String, String> kP4Ru = <String, String>{
@@ -250,6 +292,12 @@ const Map<String, String> kP4Ru = <String, String>{
   'notice.image_daily_limit_reached': 'Вы достигли дневного лимита изображений. Он обновится завтра.',
   'notice.image_generation_failed': 'Не удалось сгенерировать изображение. Попробуйте ещё раз через несколько мгновений.',
   'chat.ask_exodo': 'Спросить у Éxodo',
+  // Aclaración guiada
+  'guided.recommended': 'Exodo рекомендует',
+  'guided.other': 'Другое…',
+  'guided.other_hint': 'Напишите свой ответ…',
+  'guided.other_hint2': 'дайте свой ответ',
+  'guided.back': '‹ Назад',
 };
 
 const Map<String, String> kP4Zh = <String, String>{
@@ -280,6 +328,12 @@ const Map<String, String> kP4Zh = <String, String>{
   'notice.image_daily_limit_reached': '你已达到今日的图片上限，明天重置。',
   'notice.image_generation_failed': '无法生成图片，请稍后再试。',
   'chat.ask_exodo': '向 Éxodo 提问',
+  // Aclaración guiada
+  'guided.recommended': 'Exodo 推荐',
+  'guided.other': '其他…',
+  'guided.other_hint': '写下你的回答…',
+  'guided.other_hint2': '给出你自己的答案',
+  'guided.back': '‹ 返回',
 };
 
 const Map<String, String> kP4Ja = <String, String>{
@@ -311,6 +365,12 @@ const Map<String, String> kP4Ja = <String, String>{
   'notice.image_daily_limit_reached': '本日の画像上限に達しました。明日リセットされます。',
   'notice.image_generation_failed': '画像を生成できませんでした。少し後にもう一度お試しください。',
   'chat.ask_exodo': 'Éxodoに質問',
+  // Aclaración guiada
+  'guided.recommended': 'Exodoのおすすめ',
+  'guided.other': 'その他…',
+  'guided.other_hint': '回答を入力…',
+  'guided.other_hint2': '自分の回答を入力',
+  'guided.back': '‹ 戻る',
 };
 
 const Map<String, String> kP4Ar = <String, String>{
@@ -341,6 +401,12 @@ const Map<String, String> kP4Ar = <String, String>{
   'notice.image_daily_limit_reached': 'لقد وصلت إلى حد الصور لليوم. يتجدد غداً.',
   'notice.image_generation_failed': 'تعذر إنشاء الصورة. حاول مجدداً بعد قليل.',
   'chat.ask_exodo': 'اسأل Éxodo',
+  // Aclaración guiada
+  'guided.recommended': 'Exodo يوصي بـ',
+  'guided.other': 'أخرى…',
+  'guided.other_hint': 'اكتب إجابتك…',
+  'guided.other_hint2': 'اكتب إجابتك الخاصة',
+  'guided.back': '‹ رجوع',
 };
 
 const Map<String, String> kP4Ko = <String, String>{
@@ -371,6 +437,12 @@ const Map<String, String> kP4Ko = <String, String>{
   'notice.image_daily_limit_reached': '오늘의 이미지 한도에 도달했습니다. 내일 갱신됩니다.',
   'notice.image_generation_failed': '이미지를 생성하지 못했습니다. 잠시 후 다시 시도해 주세요.',
   'chat.ask_exodo': 'Éxodo에게 질문',
+  // Aclaración guiada
+  'guided.recommended': 'Exodo 추천',
+  'guided.other': '기타…',
+  'guided.other_hint': '답변을 입력하세요…',
+  'guided.other_hint2': '직접 답변하기',
+  'guided.back': '‹ 뒤로',
 };
 
 const Map<String, String> kP4Hi = <String, String>{
@@ -401,5 +473,11 @@ const Map<String, String> kP4Hi = <String, String>{
   'notice.image_daily_limit_reached': 'आप आज की छवि सीमा तक पहुँच गए हैं। कल रीसेट होगी।',
   'notice.image_generation_failed': 'छवि जनरेट नहीं हो सकी। कुछ क्षणों में फिर प्रयास करें।',
   'chat.ask_exodo': 'Éxodo से पूछें',
+  // Aclaración guiada
+  'guided.recommended': 'Exodo सुझाव',
+  'guided.other': 'अन्य…',
+  'guided.other_hint': 'अपना उत्तर लिखें…',
+  'guided.other_hint2': 'अपना उत्तर दें',
+  'guided.back': '‹ वापस',
 };
 

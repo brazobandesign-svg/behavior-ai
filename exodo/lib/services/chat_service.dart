@@ -213,6 +213,7 @@ class ChatService {
     String? locale, // idioma de la interfaz -> el modelo responde en él
     List<Attachment>? attachments, // [Punto 40] archivos para multimodal
     GenerationSession? session, // [F1] Sesión atómica de generación
+    List<Map<String, dynamic>>? guidedAnswers, // decisiones del formulario guiado
     void Function(Map<String, dynamic> meta)? onMeta,
     void Function(String code)? onNotice, // avisos estructurados del backend
     void Function()? onGeneratingImage, // [UX imagen] backend avisa que empieza el t2i
@@ -282,6 +283,8 @@ class ChatService {
             if (locale != null && locale.isNotEmpty) 'locale': locale,
             if (attachmentsJson != null && attachmentsJson.isNotEmpty)
               'attachments': attachmentsJson, // [Punto 40+42]
+          if (guidedAnswers != null && guidedAnswers.isNotEmpty)
+            'guidedAnswers': guidedAnswers, // [Aclaración guiada]
           });
 
           final isWorkingUrl = _workingUrl == url;

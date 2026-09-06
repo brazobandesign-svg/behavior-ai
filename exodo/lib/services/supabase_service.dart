@@ -201,7 +201,12 @@ class SupabaseService {
         .eq('conversation_id', convId)
         .order('created_at', ascending: true);
 
-    final rawList = (res as List).map((json) => ChatMessage.fromJson(json)).toList();
+    final rawList = (res as List)
+        .map((json) => ChatMessage.fromJson(json))
+        // Decisiones del cuestionario guiado: guardadas con marcador para el
+        // contexto, pero NUNCA se pintan como burbuja (paridad web).
+        .where((m) => !m.content.startsWith('<!--GUIDED:'))
+        .toList();
     final deduped = <ChatMessage>[];
     for (final m in rawList) {
       if (deduped.isNotEmpty &&

@@ -18,6 +18,7 @@ import '../../l10n/app_i18n.dart';
 import '../../data/artifacts/artifact.dart';
 import '../../data/artifacts/artifact_parser.dart';
 import '../artifacts/artifact_card.dart';
+import '../../services/guided_card.dart';
 import 'model_selector.dart';
 import 'exodo_thinking_indicator.dart';
 import 'image_generating_placeholder.dart';
@@ -74,6 +75,12 @@ class MessageBubble extends StatelessWidget {
   Widget build(BuildContext context) {
     final isUser = message.role == 'user';
     final isLight = Theme.of(context).brightness == Brightness.light;
+
+    // [Aclaración guiada] burbuja que es SOLO un bloque de opciones: no se
+    // pinta (el formulario vive en el composer; el chat no se llena).
+    if (!isUser && isOptionsOnlyMessage(message.content)) {
+      return const SizedBox.shrink();
+    }
 
     // Mensajes de sistema (avisos estructurados: imagen sin sesión, offline):
     // estilo disclaimer — texto tenue centrado, sin burbuja.

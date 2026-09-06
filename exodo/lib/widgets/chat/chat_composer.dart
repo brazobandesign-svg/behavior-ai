@@ -21,6 +21,7 @@ import '../../data/repositories/attachment_storage.dart';
 import '../../theme/exodo_theme.dart';
 import '../../l10n/app_i18n.dart';
 import 'dashed_border.dart';
+import '../../services/guided_card.dart';
 
 // [Punto 40] Datos temporales de un adjunto antes de leer sus bytes.
 // [filePath] apunta a la copia permanente en `attachments/` creada en el
@@ -103,11 +104,18 @@ class ChatComposer extends StatefulWidget {
   final VoidCallback onModelTap;
   final VoidCallback onUpgradeTap;
 
+  final GuidedCardData? guidedCard;
+  final void Function(String question, String answer)? onGuidedPick;
+  final VoidCallback? onGuidedDismiss;
+
   const ChatComposer({
     required this.controller,
     required this.onSend,
     required this.onModelTap,
     required this.onUpgradeTap,
+    this.guidedCard,
+    this.onGuidedPick,
+    this.onGuidedDismiss,
     super.key,
   });
 
@@ -122,6 +130,8 @@ class _ChatComposerState extends State<ChatComposer>
 
   late AnimationController _auraController;
   bool _hasAttachment = false;
+  bool _guidedOtherMode = false;
+  final TextEditingController _guidedOtherCtrl = TextEditingController();
   bool _isRecording = false;
   bool _isTranscribing = false;
   final FocusNode _inputFocusNode = FocusNode();
@@ -1301,6 +1311,213 @@ class _ChatComposerState extends State<ChatComposer>
     return AppI18n.of(context).t('chat.placeholder');
   }
 
+Widget _buildGuidedCard(BuildContext context, bool isLight) {
+    final card = widget.guidedCard!;
+    final cardBg = isLight ? Colors.white : const Color(0xFF252525);
+    final textColor = isLight ? const Color(0xFF191919) : const Color(0xFFF5F2EB);
+    final subColor = isLight
+        ? const Color(0xFF191919).withValues(alpha: 0.55)
+        : const Color(0xFFF5F2EB).withValues(alpha: 0.6);
+    final borderColor = isLight
+        ? const Color(0xFFE0DDD4)
+        : Colors.white.withValues(alpha: 0.1);
+    final pickBorder = isLight
+        ? const Color(0xFF191919)
+        : Colors.white.withValues(alpha: 0.45);
+
+    // Orden: recomendada primero, resto tal cual; "Otro" lo añade la app.
+    final recommendedLabel =
+        (card.recommend != null && card.recommend! >= 0 && card.recommend! < card.options.length)
+            ? card.options[card.recommend!]
+            : null;
+    final rest = card.options.where((o) => o != recommendedLabel).toList();
+
+    Widget optionRow(String label, {bool recommended = false}) {
+      return Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: () => widget.onGuidedPick?.call(card.question, label),
+          child: Container(
+            width: double.infinity,
+            padding: recommended
+                ? const EdgeInsets.symmetric(horizontal: 14, vertical: 9)
+                : const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: recommended ? pickBorder : borderColor),
+              color: recommended
+                  ? (isLight ? const Color(0xFFF5F2EB) : Colors.white.withValues(alpha: 0.04))
+                  : Colors.transparent,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (recommended)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 3),
+                    child: Text(
+                      AppI18n.of(context).t('guided.recommended'),
+                      style: GoogleFonts.inter(
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.3,
+                        color: subColor,
+                      ),
+                    ),
+                  ),
+                Text(
+                  label,
+                  style: GoogleFonts.inter(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: textColor,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    return Container(
+      margin: const EdgeInsets.fromLTRB(10, 4, 10, 4),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: cardBg,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: borderColor),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.3),
+            blurRadius: 26,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Text(
+                  card.question,
+                  style: GoogleFonts.inter(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: textColor,
+                    height: 1.35,
+                  ),
+                ),
+              ),
+              GestureDetector(
+                onTap: widget.onGuidedDismiss,
+                child: Padding(
+                  padding: const EdgeInsets.only(left: 8, top: 2),
+                  child: Text('✕', style: TextStyle(fontSize: 13, color: subColor)),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          if (recommendedLabel != null) optionRow(recommendedLabel, recommended: true),
+          ...rest.map((o) => optionRow(o)),
+          const SizedBox(height: 4),
+          if (_guidedOtherMode)
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                TextField(
+                  controller: _guidedOtherCtrl,
+                  autofocus: true,
+                  style: GoogleFonts.inter(fontSize: 13, color: textColor),
+                  decoration: InputDecoration(
+                    hintText: AppI18n.of(context).t('guided.other_hint'),
+                    hintStyle: GoogleFonts.inter(fontSize: 13, color: subColor),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: borderColor),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: pickBorder),
+                    ),
+                  ),
+                  onSubmitted: (v) {
+                    if (v.trim().isNotEmpty) {
+                      widget.onGuidedPick?.call(card.question, v.trim());
+                      _guidedOtherCtrl.clear();
+                      setState(() => _guidedOtherMode = false);
+                    }
+                  },
+                ),
+                const SizedBox(height: 8),
+                TextButton(
+                  onPressed: () {
+                    _guidedOtherCtrl.clear();
+                    setState(() => _guidedOtherMode = false);
+                  },
+                  child: Text(
+                    AppI18n.of(context).t('guided.back'),
+                    style: GoogleFonts.inter(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w600,
+                      color: subColor,
+                    ),
+                  ),
+                ),
+              ],
+            )
+          else
+            Material(
+              color: Colors.transparent,
+              child: InkWell(
+                borderRadius: BorderRadius.circular(12),
+                onTap: () => setState(() => _guidedOtherMode = true),
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: isLight
+                          ? const Color(0xFFE0DDD4)
+                          : Colors.white.withValues(alpha: 0.1),
+                    ),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        AppI18n.of(context).t('guided.other'),
+                        style: GoogleFonts.inter(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: textColor,
+                        ),
+                      ),
+                      Text(
+                        AppI18n.of(context).t('guided.other_hint2'),
+                        style: GoogleFonts.inter(
+                          fontSize: 11,
+                          color: subColor,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     // Selectores finos para evitar repintado durante streaming de chat
@@ -1319,6 +1536,12 @@ class _ChatComposerState extends State<ChatComposer>
 
     final isLight = !isDarkMode && !isIncognito;
     final state = context.read<AppState>();
+
+    // [Aclaración guiada] tarjeta en el COMPOSER: sustituye al cajón de
+    // escribir mientras haya un cuestionario pendiente (el chat no se llena).
+    if (widget.guidedCard != null) {
+      return _buildGuidedCard(context, isLight);
+    }
     final editingMessage = context.select<AppState, ChatMessage?>((s) => s.editingMessage);
     final quotedSnippet = context.select<AppState, String?>((s) => s.quotedSnippet);
 

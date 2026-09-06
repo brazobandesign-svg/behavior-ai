@@ -115,6 +115,9 @@ class ChatMessage {
   final DateTime createdAt;
   final bool isThinking;
   final bool isDegraded;
+  /// Turno oculto al render (respuestas del cuestionario guiado: registradas
+  /// en nube con marcador <!--GUIDED:--> pero nunca pintadas como burbuja).
+  final bool isHidden;
 
   ChatMessage({
     required this.id,
@@ -128,6 +131,7 @@ class ChatMessage {
     required this.createdAt,
     this.isThinking = false,
     this.isDegraded = false,
+    this.isHidden = false,
   });
 
   Map<String, dynamic> toJson() => {
@@ -142,6 +146,7 @@ class ChatMessage {
     'created_at': createdAt.toIso8601String(),
     'is_thinking': isThinking,
     'is_degraded': isDegraded,
+    'is_hidden': isHidden,
   };
 
   factory ChatMessage.fromJson(Map<String, dynamic> json) {
@@ -211,6 +216,7 @@ class ChatMessage {
       createdAt: json['created_at'] != null ? DateTime.parse(json['created_at'] as String) : DateTime.now(),
       isThinking: json['is_thinking'] as bool? ?? false,
       isDegraded: json['is_degraded'] as bool? ?? json['isDegraded'] as bool? ?? false,
+      isHidden: json['is_hidden'] as bool? ?? false,
     );
   }
 }

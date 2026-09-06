@@ -652,6 +652,9 @@ class _ChatMessagesListState extends State<ChatMessagesList> {
             );
           }
           final msg = state.currentMessages[index];
+          // [Aclaración guiada] turnos ocultos (decisiones del formulario):
+          // registrados en nube, nunca pintados como burbuja.
+          if (msg.isHidden) return const SizedBox.shrink();
           if (msg.isThinking) {
             return RepaintBoundary(
               key: ValueKey('thinking-${msg.id}'),
