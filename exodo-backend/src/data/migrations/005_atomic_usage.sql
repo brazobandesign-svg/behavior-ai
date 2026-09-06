@@ -55,3 +55,4 @@ $$;
 
 -- Solo el service_role debe invocar la contabilidad de uso.
 revoke execute on function public.increment_user_usage(uuid, integer, integer) from public, anon, authenticated;
+grant execute on function public.increment_user_usage(uuid, integer, integer) to service_role;
