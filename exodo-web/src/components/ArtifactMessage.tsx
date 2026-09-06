@@ -56,10 +56,18 @@ export const ArtifactMessageBody: React.FC<{
  * normaliza a {question, options, recommend|null}. null si no hay bloque o
  * el JSON aún está incompleto (streaming).
  */
+export interface GuidedLabels {
+  recommended: string;
+  other: string;
+  other_hint: string;
+  back: string;
+}
+
 export function extractOptionsForm(content: string): {
   question: string;
   options: string[];
   recommend: number | null;
+  labels: Partial<GuidedLabels>;
 } | null {
   if (!content) return null;
   // Tolerante a fence sin cerrar: los modelos a veces olvidan el ```
@@ -75,6 +83,7 @@ export function extractOptionsForm(content: string): {
       question?: unknown;
       options?: unknown;
       recommend?: unknown;
+      labels?: unknown;
       title?: unknown;
       questions?: unknown;
     };
@@ -88,7 +97,8 @@ export function extractOptionsForm(content: string): {
       const rec = typeof parsed.recommend === 'number' && parsed.recommend >= 0 && parsed.recommend < options.length
         ? parsed.recommend
         : null;
-      return { question: parsed.question.trim(), options, recommend: rec };
+      const labels = (parsed.labels && typeof parsed.labels === 'object' ? parsed.labels : {}) as Partial<GuidedLabels>;
+      return { question: parsed.question.trim(), options, recommend: rec, labels };
     }
     // Legacy tolerado: esquema multi-pregunta viejo → primera pregunta
     if (Array.isArray(parsed?.questions)) {
@@ -99,7 +109,7 @@ export function extractOptionsForm(content: string): {
           .slice(0, 6)
           .map((o) => o.trim());
         if (first.question.trim() && options.length >= 2) {
-          return { question: first.question.trim(), options, recommend: null };
+          return { question: first.question.trim(), options, recommend: null, labels: {} };
         }
       }
     }

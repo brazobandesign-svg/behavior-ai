@@ -16,7 +16,7 @@ import remarkGfm from 'remark-gfm';
 import TextareaAutosize from 'react-textarea-autosize';
 import { supabase, type Conversation, type Message, type Source } from './lib/supabase';
 import { AuthModal } from './components/AuthModal';
-import { ArtifactMessageBody, extractOptionsForm } from './components/ArtifactMessage';
+import { ArtifactMessageBody, extractOptionsForm, type GuidedLabels } from './components/ArtifactMessage';
 import { DrawerMenu } from './components/DrawerMenu';
 import { SidebarRail } from './components/SidebarRail';
 import { ModelSelector } from './components/ModelSelector';
@@ -1028,6 +1028,7 @@ export default function App() {
     question: string;
     options: string[];
     recommend: number | null;
+    labels: Partial<GuidedLabels>;
   } | null>(null);
   const [guidedOtherMode, setGuidedOtherMode] = useState(false);
   const [guidedOtherText, setGuidedOtherText] = useState('');
@@ -1046,7 +1047,7 @@ export default function App() {
     ) {
       const form = extractOptionsForm(last.content);
       if (form) {
-        setGuidedForm({ messageId: last.id, question: form.question, options: form.options, recommend: form.recommend });
+        setGuidedForm({ messageId: last.id, question: form.question, options: form.options, recommend: form.recommend, labels: form.labels });
         setGuidedOtherMode(false);
         setGuidedOtherText('');
         return;
@@ -1678,6 +1679,14 @@ export default function App() {
   };
 
   const renderChatComposer = (isPinned: boolean = false) => {
+    // Textos de la tarjeta guiada: el modelo los emite en el idioma de la
+    // pregunta (labels del bloque); fallback al idioma de la interfaz.
+    const gl = guidedForm?.labels;
+    const isEnUi = locale?.toLowerCase().startsWith('en');
+    const lblReco = gl?.recommended || (isEnUi ? 'Exodo recommends' : 'Exodo recomienda');
+    const lblOther = gl?.other || (isEnUi ? 'Other…' : 'Otro…');
+    const lblOtherHint = gl?.other_hint || (isEnUi ? 'Write your answer…' : 'Escribe tu respuesta…');
+    const lblBack = gl?.back || (isEnUi ? '‹ Back' : '‹ Atrás');
     return (
     <div style={{ width: '100%', maxWidth: 820, margin: '0 auto', position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
       {showUpgradeBanner && !isIncognito && userProfile?.plan !== 'hazak' && (
@@ -1847,7 +1856,7 @@ export default function App() {
                     >
                       <span className="guided-opt-text">
                         <span className="guided-reco-badge">
-                          {locale?.toLowerCase().startsWith('en') ? 'Exodo recommends' : 'Exodo recomienda'}
+                          {lblReco}
                         </span>
                         {guidedForm.options[guidedForm.recommend]}
                       </span>
@@ -1871,7 +1880,7 @@ export default function App() {
                         type="text"
                         className="guided-other-input"
                         autoFocus
-                        placeholder={locale?.toLowerCase().startsWith('en') ? 'Write your answer…' : 'Escribe tu respuesta…'}
+                        placeholder={lblOtherHint}
                         value={guidedOtherText}
                         onChange={(e) => setGuidedOtherText(e.target.value)}
                         onKeyDown={(e) => {
@@ -1885,7 +1894,7 @@ export default function App() {
                           className="guided-back"
                           onClick={() => { setGuidedOtherMode(false); setGuidedOtherText(''); }}
                         >
-                          ‹ {locale?.toLowerCase().startsWith('en') ? 'Back' : 'Atrás'}
+                          ‹ {lblBack}
                         </button>
                         <button
                           type="button"
@@ -1900,7 +1909,7 @@ export default function App() {
                   ) : (
                     <button type="button" className="guided-opt guided-other" onClick={() => setGuidedOtherMode(true)}>
                       <span className="guided-opt-text">
-                        {locale?.toLowerCase().startsWith('en') ? 'Other…' : 'Otro…'}
+                        {lblOther}
                         <span className="guided-other-hint">
                           {locale?.toLowerCase().startsWith('en') ? 'give your own answer' : 'da tu propia respuesta'}
                         </span>
