@@ -7,6 +7,7 @@ import '../models/models.dart';
 import '../services/app_state.dart';
 import '../services/exodo_web_url.dart';
 import '../services/app_version.dart';
+import '../services/update_service.dart';
 import '../services/supabase_service.dart';
 import '../services/stripe_service.dart';
 import '../services/widget_service.dart';
@@ -180,6 +181,56 @@ class _DrawerMenuState extends State<DrawerMenu> {
                                 ),
                               ),
                             ],
+                            ValueListenableBuilder<String?>(
+                              valueListenable: UpdateService.instance.readyToInstall,
+                              builder: (context, apkPath, _) {
+                                if (apkPath == null) return const SizedBox.shrink();
+                                final info = UpdateService.instance.pendingInfo;
+                                final versionText = (info?.versionName.isNotEmpty ?? false)
+                                    ? ' v${info!.versionName}'
+                                    : '';
+                                return Padding(
+                                  padding: const EdgeInsets.only(top: 10),
+                                  child: GestureDetector(
+                                    behavior: HitTestBehavior.opaque,
+                                    onTap: () {
+                                      HapticFeedback.mediumImpact();
+                                      UpdateService.instance.install();
+                                    },
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                      decoration: BoxDecoration(
+                                        color: isLight ? const Color(0xFFF0F0F0) : const Color(0xFF252525),
+                                        borderRadius: BorderRadius.circular(8),
+                                        border: Border.all(
+                                          color: isLight ? const Color(0xFFE0E0E0) : const Color(0xFF333333),
+                                          width: 0.8,
+                                        ),
+                                      ),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Icon(
+                                            Icons.download_rounded,
+                                            size: 15,
+                                            color: isLight ? const Color(0xFF191919) : const Color(0xFFFFFFFF),
+                                          ),
+                                          const SizedBox(width: 6),
+                                          Text(
+                                            'Actualización disponible$versionText',
+                                            style: GoogleFonts.inter(
+                                              fontSize: 11.5,
+                                              fontWeight: FontWeight.w500,
+                                              color: isLight ? const Color(0xFF333333) : const Color(0xFFE2E2E2),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
                           ],
                         ),
                       ),
