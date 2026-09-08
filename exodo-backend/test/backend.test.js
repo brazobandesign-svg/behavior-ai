@@ -219,6 +219,24 @@ test('detectMessageLang: detecta español con stopwords extendidas y tildes', ()
   assert.strictEqual(detectMessageLang('Bonjour à tous'), 'fr');
 });
 
+test('detectMessageLang: detecta jergas y slangs urbanos en múltiples idiomas', () => {
+  // Inglés urbano / informal
+  assert.strictEqual(detectMessageLang('Yo waddup Exodo'), 'en');
+  assert.strictEqual(detectMessageLang('wazzup'), 'en');
+  assert.strictEqual(detectMessageLang('wazzup my homie'), 'en');
+  assert.strictEqual(detectMessageLang('Yo wassup bro'), 'en');
+
+  // Español coloquial / caribeño
+  assert.strictEqual(detectMessageLang('klk mi pana'), 'es');
+  assert.strictEqual(detectMessageLang('dímelo manin'), 'es');
+
+  // Francés coloquial
+  assert.strictEqual(detectMessageLang('wesh mon reuf bien ou quoi'), 'fr');
+
+  // Portugués coloquial
+  assert.strictEqual(detectMessageLang('e aí mano tudo bem'), 'pt');
+});
+
 test('detectConversationLang: retiene el idioma mediante cuestionarios guiados e historial', () => {
   // Caso 1: Turno ambiguo ($20 - $50) acompañado de guidedAnswers con pregunta en español
   const lang1 = detectConversationLang({
@@ -238,5 +256,64 @@ test('detectConversationLang: retiene el idioma mediante cuestionarios guiados e
     ],
   });
   assert.strictEqual(lang2, 'es');
+
+  // Caso 3: Conversación informal en inglés retenida en turnos cortos
+  const lang3 = detectConversationLang({
+    currentText: 'wazzup',
+    guidedAnswers: null,
+    history: [
+      { role: 'user', content: 'Yo waddup Exodo' },
+      { role: 'assistant', content: 'Waddup! What are you working on today?' },
+    ],
+  });
+  assert.strictEqual(lang3, 'en');
 });
+
+const { sanitizeAndFenceOptions } = require('../src/utils/sanitizeOptions');
+
+test('sanitizeAndFenceOptions: blindaje exhaustivo para tarjetas interactivas', () => {
+  // 1. JSON crudo solitario sin fences
+  const raw1 = '{"question":"What type of business?","options":["Online store","Physical store"]}';
+  const out1 = sanitizeAndFenceOptions(raw1);
+  assert.match(out1, /^```exodo-options\s*\{/);
+  assert.match(out1, /\}\s*```$/);
+  assert.ok(out1.includes('"question": "What type of business?"'));
+
+  // 2. Bloque ```json markdown reemplazado por ```exodo-options
+  const raw2 = '```json\n{"question":"Pick a topic","options":["Tech","Design"]}\n```';
+  const out2 = sanitizeAndFenceOptions(raw2);
+  assert.ok(out2.startsWith('```exodo-options\n'));
+  assert.ok(out2.endsWith('\n```'));
+
+  // 3. Prosa antes y después de JSON crudo
+  const raw3 = 'Here are a couple options for you:\n{"question":"Which service?","options":["Standard","Express"]}\nLet me know!';
+  const out3 = sanitizeAndFenceOptions(raw3);
+  assert.ok(out3.includes('Here are a couple options for you:'));
+  assert.ok(out3.includes('```exodo-options\n'));
+  assert.ok(out3.includes('Let me know!'));
+
+  // 4. Claves en español (pregunta y opciones) normalizadas a question y options
+  const raw4 = '{"pregunta":"¿Cuál es tu meta?","opciones":["Aprender","Emprender"]}';
+  const out4 = sanitizeAndFenceOptions(raw4);
+  assert.ok(out4.includes('"question": "¿Cuál es tu meta?"'));
+  assert.ok(out4.includes('"options": ['));
+
+  // 5. Fence ```exodo-options cortado (sin cerrar por corte de red/stream)
+  const raw5 = '```exodo-options\n{"question":"What size?","options":["S","M","L"]}';
+  const out5 = sanitizeAndFenceOptions(raw5);
+  assert.ok(out5.endsWith('\n```'));
+
+  // 6. Texto ordinario conversacional sin JSON de opciones queda intacto
+  const raw6 = 'Yo waddup! Ready to build something awesome today.';
+  const out6 = sanitizeAndFenceOptions(raw6);
+  assert.strictEqual(out6, raw6);
+
+  // 7. Claves invertidas (options primero, luego question)
+  const raw7 = '{"options":["Fast","Slow"],"question":"Select speed"}';
+  const out7 = sanitizeAndFenceOptions(raw7);
+  assert.ok(out7.startsWith('```exodo-options\n'));
+  assert.ok(out7.includes('"question": "Select speed"'));
+});
+
+
 

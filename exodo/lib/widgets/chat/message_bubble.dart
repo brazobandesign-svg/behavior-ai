@@ -1610,9 +1610,15 @@ class _AssistantContentWithArtifacts extends StatelessWidget {
   static String _sanitizeMarkdown(String input, {bool isStreaming = false}) {
     if (input.trim().isEmpty) return '';
     var s = input;
-    // 0. [Aclaración guiada] purgar bloques exodo-options: el formulario
-    // vive en el composer; el chat no muestra el JSON crudo (paridad web).
+    // 0. [Aclaración guiada] purgar bloques exodo-options (con fence, ```json o JSON crudo):
+    // el formulario vive en el composer; el chat jamás muestra JSON crudo (paridad web).
+    s = s.replaceAll(RegExp(r'```(?:exodo-options|json)?\r?\n?[\s\S]*?"(?:question|pregunta)"[\s\S]*?"(?:options|opciones)"[\s\S]*?(?:```|$)'), '');
     s = s.replaceAll(RegExp(r'```exodo-options\r?\n?[\s\S]*?(?:```|$)'), '');
+    s = s.replaceAll(RegExp(r'\{[\s\S]*?"(?:question|pregunta)"[\s\S]*?"(?:options|opciones)"\s*:\s*\[[\s\S]*?\][\s\S]*?\}'), '');
+    final trimmedCheck = s.trim();
+    if (trimmedCheck.startsWith('{') && (trimmedCheck.contains('"question"') || trimmedCheck.contains('"pregunta"'))) {
+      s = '';
+    }
     // 1. Purge HTML comments
     s = s.replaceAll(RegExp(r'<!--[\s\S]*?-->'), '');
     // 2. Purge DOCTYPE, scripts, and styles

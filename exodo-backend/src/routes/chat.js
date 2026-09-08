@@ -29,6 +29,8 @@ const upload = multer({
 });
 
 const { getLocalDateKey } = require('../utils/timezone');
+const { sanitizeAndFenceOptions } = require('../utils/sanitizeOptions');
+
 
 // Tracker de extracción de documentos para sesiones anónimas (Guest / Incognito) por IP y medianoche local
 const _incognitoDocUsage = new Map(); // ip -> { date: 'YYYY-MM-DD', count }
@@ -844,6 +846,10 @@ router.post('/', auth, guestLimit, planGuard, upload.array('files', 5), async (r
       // stream; routeMessageStream ya devuelve un resultado sanitizado, pero
       // este try/catch es la red de seguridad final (p. ej. abortos no-cliente
       // o errores de construcción del prompt).
+      let optionsFenceInjected = false;
+      let initialBuffer = '';
+      let initialFlushed = false;
+
       result = await routeMessageStream(
         plan,
         intent,
@@ -852,14 +858,75 @@ router.post('/', auth, guestLimit, planGuard, upload.array('files', 5), async (r
         (chunk) => {
           if (!clientConnected) return;
           const textChunk = typeof chunk === 'string' ? chunk : (chunk?.content || '');
-          if (textChunk) {
-            if (!__ttftLogged) {
-              __ttftLogged = true;
-              chatLog.log(`[chat][perf] ttft=${Date.now() - __t0}ms intent=${intent} model=${result?.model || model_override || 'auto'} guest=${isGuest} incognito=${chatLog.incognito}`);
-            }
-            fullText += textChunk;
-            sendSse({ type: 'chunk', content: textChunk });
+          if (!textChunk) return;
+
+          if (!__ttftLogged) {
+            __ttftLogged = true;
+            chatLog.log(`[chat][perf] ttft=${Date.now() - __t0}ms intent=${intent} model=${result?.model || model_override || 'auto'} guest=${isGuest} incognito=${chatLog.incognito}`);
           }
+
+          fullText += textChunk;
+
+          // Escudo de seguridad para opciones interactivas:
+          // Si el modelo olvidó el fence ```exodo-options y escupe JSON crudo,
+          // interceptamos en el primer token e inyectamos el fence para que la app lo renderice como tarjeta y no como texto crudo.
+          if (!initialFlushed) {
+            initialBuffer += textChunk;
+            const trimmed = initialBuffer.trimStart();
+
+            if (trimmed.startsWith('```exodo-options')) {
+              initialFlushed = true;
+              sendSse({ type: 'chunk', content: initialBuffer });
+              initialBuffer = '';
+              return;
+            }
+
+            if (trimmed.startsWith('```')) {
+              if (!trimmed.includes('\n') && initialBuffer.length < 50) {
+                return; // Esperar a tener la primera línea
+              }
+              if (trimmed.startsWith('```json') || trimmed.startsWith('```\n') || trimmed.startsWith('```\r\n')) {
+                if (trimmed.includes('"question"') || trimmed.includes('"options"') || trimmed.includes('"pregunta"') || trimmed.includes('"opciones"')) {
+                  const replaced = initialBuffer.replace(/```(?:json)?/, '```exodo-options');
+                  optionsFenceInjected = true;
+                  initialFlushed = true;
+                  sendSse({ type: 'chunk', content: replaced });
+                  initialBuffer = '';
+                  return;
+                }
+              }
+              initialFlushed = true;
+              sendSse({ type: 'chunk', content: initialBuffer });
+              initialBuffer = '';
+              return;
+            }
+
+            if (!trimmed.startsWith('{')) {
+              initialFlushed = true;
+              sendSse({ type: 'chunk', content: initialBuffer });
+              initialBuffer = '';
+              return;
+            }
+
+            if (trimmed.includes('"question"') || trimmed.includes('"options"') || trimmed.includes('"pregunta"') || trimmed.includes('"opciones"')) {
+              optionsFenceInjected = true;
+              initialFlushed = true;
+              sendSse({ type: 'chunk', content: '```exodo-options\n' + initialBuffer });
+              initialBuffer = '';
+              return;
+            }
+
+            if (initialBuffer.length < 30) {
+              return; // Esperar un par de caracteres más para discernir
+            }
+
+            initialFlushed = true;
+            sendSse({ type: 'chunk', content: initialBuffer });
+            initialBuffer = '';
+            return;
+          }
+
+          sendSse({ type: 'chunk', content: textChunk });
         },
         model_override,
         imageDataUris,
@@ -869,6 +936,26 @@ router.post('/', auth, guestLimit, planGuard, upload.array('files', 5), async (r
         abortController.signal,
         isIncognitoTurn
       );
+
+      if (!initialFlushed && initialBuffer) {
+        const trimmed = initialBuffer.trim();
+        if ((trimmed.startsWith('{') || trimmed.startsWith('```')) && (trimmed.includes('"question"') || trimmed.includes('"options"') || trimmed.includes('"pregunta"') || trimmed.includes('"opciones"'))) {
+          optionsFenceInjected = true;
+          const cleanedInit = trimmed.startsWith('```') ? trimmed.replace(/```(?:json)?/, '```exodo-options') : ('```exodo-options\n' + initialBuffer);
+          sendSse({ type: 'chunk', content: cleanedInit });
+        } else {
+          sendSse({ type: 'chunk', content: initialBuffer });
+        }
+      }
+
+      if (optionsFenceInjected) {
+        if (!fullText.trimEnd().endsWith('```')) {
+          sendSse({ type: 'chunk', content: '\n```' });
+        }
+      }
+
+      // Normalización final de fullText: garantiza que en BD y en la app esté cercado como tarjeta interactiva
+      fullText = sanitizeAndFenceOptions(fullText);
     } catch (streamErr) {
       clearInterval(heartbeatInterval);
       // Aborto del cliente: cerrar en silencio, no hay nadie escuchando.
@@ -878,6 +965,13 @@ router.post('/', auth, guestLimit, planGuard, upload.array('files', 5), async (r
       }
       // Log interno completo (stack, vendor, modelo) — SOLO consola del servidor.
       logInternalGatewayError(streamErr, { provider: 'gateway', model: 'stream-dispatch', phase: 'chat-route-stream', incognito: chatLog.incognito });
+
+      if (optionsFenceInjected && !fullText.trimEnd().endsWith('```')) {
+        sendSse({ type: 'chunk', content: '\n```' });
+        fullText += '\n```';
+      }
+      fullText = sanitizeAndFenceOptions(fullText);
+
       // Respuesta sanitizada de marca al cliente, con código caído/ocupado.
       const out = userFacingError(streamErr);
       sendSse({ type: 'error', content: out.content, code: out.code });
@@ -997,7 +1091,9 @@ const GREETING_FIRST_WORDS = new Set([
 ]);
 
 const PURE_GREETINGS = new Set([
-  'what s up', 'whats up', 'what s up', 'wassup', 'wsp', 'sup',
+  'what s up', 'whats up', 'wassup', 'wsp', 'sup', 'waddup', 'wazzup',
+  'yo waddup', 'yo wazzup', 'yo wassup', 'yo sup', 'what up', 'whats good', 'what good',
+  'klk', 'qloq', 'dímelo', 'dimelo', 'wesh', 'e aí', 'e ai', 'eae',
   'qué onda', 'que onda', 'qué tal', 'que tal', 'qué pasa', 'que pasa',
   'buenas tardes', 'buenas noches', 'buenos días', 'buenos dias', 'buen día', 'buen dia',
 ]);
@@ -1022,12 +1118,19 @@ function isTrivialGreeting(text) {
 }
 
 /**
- * Detección ligera del idioma del MENSAJE (stopwords + diacríticos + rango Unicode).
+ * Detección ligera del idioma del MENSAJE (stopwords + diacríticos + rango Unicode + slang).
  * El título debe estar en el idioma en que ESCRIBE el usuario, no en el de la
  * interfaz: UI en inglés + mensaje en español → título en español. Si la señal
  * es ambigua (empate o texto sin palabras funcionales), se usa el locale de la
  * interfaz como fallback.
  */
+const SLANG_HINTS = {
+  en: /(?:^|[\s,;!?])(wazzup|wassup|waddup|whassup|homie|homies|bruh|dawg|sup|ain'?t|what'?s\s*(?:up|good)|whats\s*(?:up|good)|yo\s+(?:waddup|wazzup|wassup|sup|bro|homie|dawg))(?:$|[\s,;!?])/i,
+  es: /(?:^|[\s,;!?])(klk|qloq|d[ií]melo|pana|panas|manin|man[ií]n|parce|parcero|wey|che)(?:$|[\s,;!?])/i,
+  fr: /(?:^|[\s,;!?])(wesh|wsh|reuf|fr[eé]ro|fr[eé]rot|ça\s*gaze|bien\s*ou\s*quoi)(?:$|[\s,;!?])/i,
+  pt: /(?:^|[\s,;!?])(e\s*a[ií]|eae|beleza|blz|fala\s*tu)(?:$|[\s,;!?])/i,
+};
+
 const LANG_STOPWORDS = {
   es: new Set([
     'el','la','los','las','un','una','unos','unas','de','del','al','y','o','u','que','qué','cómo','como','para','por','con','sin','sobre','entre','mi','mis','tu','tus','su','sus','nuestro','nuestra','nuestros','nuestras','es','está','esta','estoy','son','fue','ser','hace','hay','más','mas','pero','si','sí','no','ya','muy','necesito','quiero','deseo','dime','dame','hola','gracias','favor','cuál','cual','quién','quien','dónde','donde','cuándo','cuando','cuánto','cuanto','porque','planificación','grado','clase','tarea','aula','alumno','alumnos','enseñar','aprender','matemáticas','lengua','ciencias','sociales','naturales','evaluación','rubrica','rúbrica','escribe','escribeme','puedes','podrias','podrías','ayudame','ayúdame','ayuda','explica','explicame','explícame','haz','crea','busca','traduce','resume','resumeme','resúmeme','hablame','háblame','cuentame','cuéntame','mandame','mándame','ensename','enséñame','muestrame','muéstrame','gusta','parece','entonces','tambien','también','tampoco','aqui','aquí','ahora','luego','despues','después','antes','porfa','mio','mío','tuyo','suyo','vamos','puedo','debo','tengo','deberia','debería','ensayo','ensayos','tareas','proyecto','planificar','planifica','corrige','arregla','diseña','disena','necesitó','necesito','quisiera','mejor','peor','verdadera','cierto','cierta','regalame','regálame','ayudarme','lograr','conseguir','aunque','mientras',
@@ -1039,10 +1142,24 @@ const LANG_STOPWORDS = {
     'bien','bueno','buena','buenos','buenas','mal','malo','mala','claro','dale','vale','seguro','perfecto','exacto','correcto','listo','rápido','despacio','siempre','nunca','jamás','casi','sólo','solo',
     // Opciones, cuestionarios y términos frecuentes en interacción
     'opción','opcion','opciones','respuesta','respuestas','pregunta','preguntas','regalo','regalos','pareja','amigo','amiga','amigos','familia','familiares','cena','experiencia','presupuesto','menos','precio','dinero','dólares','dolares','pesos','idea','ideas','sigue','continúa','continua','elegir','elijo','escojo',
+    // Jergas y expresiones caribeñas y latinoamericanas frecuentes
+    'klk','qloq','dimelo','dímelo','pana','panas','manin','manín','epale','épale','parce','wey','che','onda','bacano','chévere','chevere',
   ]),
-  en: new Set(['the','a','an','of','to','in','on','for','with','and','or','is','are','was','were','be','been','am','do','does','did','have','has','had','will','would','can','could','should','i','you','he','she','it','we','they','my','your','his','her','our','their','this','that','these','those','what','which','who','whom','where','when','why','how','not','yes','please','thanks','thank','hello','hi','hey','need','want','make','write','tell','give','me','about','from','at','by','if','then','than','so','very','just','now','get','got','let','lesson','grade','plan','help']),
-  fr: new Set(['le','la','les','un','une','des','du','de','au','aux','et','ou','que','qui','pour','par','avec','sans','sur','dans','mon','ma','mes','ton','ta','tes','son','sa','ses','notre','nos','votre','vos','leur','leurs','est','sont','était','être','faire','fait','il','elle','je','tu','nous','vous','ils','elles','ce','cet','cette','ces','plus','mais','oui','non','bonjour','salut','merci','besoin','veux','comment','pourquoi','où','quand','combien','cours','classe']),
-  pt: new Set(['o','a','os','as','um','uma','uns','umas','de','do','da','dos','das','em','no','na','para','por','com','sem','sobre','entre','meu','minha','meus','minhas','seu','sua','é','são','foi','ser','fazer','faz','há','mais','mas','não','sim','obrigado','olá','oi','preciso','quero','como','porque','porquê','qual','quem','onde','quando','quanto','aula','turma','plano']),
+  en: new Set([
+    'the','a','an','of','to','in','on','for','with','and','or','is','are','was','were','be','been','am','do','does','did','have','has','had','will','would','can','could','should','i','you','he','she','it','we','they','my','your','his','her','our','their','this','that','these','those','what','which','who','whom','where','when','why','how','not','yes','please','thanks','thank','hello','hi','hey','need','want','make','write','tell','give','me','about','from','at','by','if','then','than','so','very','just','now','get','got','let','lesson','grade','plan','help',
+    // Slang, coloquialismos y términos frecuentes en interacción urbana/casual
+    'yo','waddup','wazzup','wassup','sup','homie','homies','bro','bros','dude','dudes','fam','dawg','bruh','whats','up','good','doing','going','man','mate','buddy','pal','gonna','wanna','gotta','yeah','yep','nope','nah','ok','okay','cool','awesome','chilling','chillin','vibing','vibe',
+  ]),
+  fr: new Set([
+    'le','la','les','un','une','des','du','de','au','aux','et','ou','que','qui','pour','par','avec','sans','sur','dans','mon','ma','mes','ton','ta','tes','son','sa','ses','notre','nos','votre','vos','leur','leurs','est','sont','était','être','faire','fait','il','elle','je','tu','nous','vous','ils','elles','ce','cet','cette','ces','plus','mais','oui','non','bonjour','salut','merci','besoin','veux','comment','pourquoi','où','quand','combien','cours','classe',
+    // Slang francés
+    'wesh','wsh','reuf','frero','fréro','frérot','tranquille','trankil','bien',
+  ]),
+  pt: new Set([
+    'o','a','os','as','um','uma','uns','umas','de','do','da','dos','das','em','no','na','para','por','com','sem','sobre','entre','meu','minha','meus','minhas','seu','sua','é','são','foi','ser','fazer','faz','há','mais','mas','não','sim','obrigado','olá','oi','preciso','quero','como','porque','porquê','qual','quem','onde','quando','quanto','aula','turma','plano',
+    // Slang portugués
+    'eai','eae','beleza','blz','fala','mano','valeu','opa','tudo',
+  ]),
   ht: new Set(['nan','yo','ki','mwen','nou','ak','pou','poukisa','kijan','kòman','bonjou','bonswa','mèsi','bezwen','vle','fè','genyen','gen','yon','lekòl','timoun','se','sa','la']),
   // [Fix it/de QA 05-sep] Italiano y alemán no existían en el detector: el
   // italiano ("dove cambio la lingua dell'app") colisionaba con stopwords de
@@ -1086,6 +1203,20 @@ function detectMessageLang(text) {
       if (LANG_STOPWORDS[lang].has(w)) scores[lang] += 1;
     }
   }
+
+  // Boost por argot o jerga idiomática inequívoca
+  for (const [lang, re] of Object.entries(SLANG_HINTS)) {
+    if (re.test(lower)) {
+      scores[lang] += 2.0;
+    }
+  }
+
+  // Desambiguación: "yo" al inicio con tokens o slang en inglés (ej. "Yo waddup", "Yo bro")
+  // pertenece al saludo inglés ("Yo!"), no al pronombre de primera persona en español.
+  if (tokens[0] === 'yo' && (scores.en > 0 || SLANG_HINTS.en.test(lower))) {
+    scores.es = Math.max(0, scores.es - 1);
+  }
+
   for (const [lang, re] of Object.entries(DIACRITIC_HINTS)) {
     const hits = lower.match(re);
     if (hits) {

@@ -1,4 +1,6 @@
 const supabase = require('../config/supabase');
+const { sanitizeAndFenceOptions } = require('../utils/sanitizeOptions');
+
 
 /**
  * History Manager — Bible: últimos 10 mensajes como contexto.
@@ -61,9 +63,14 @@ async function getHistory(conversationId, limit = 50, maxTokens = 20000) {
         continue;
       }
 
+      let finalContent = cleanContent || msg.content || '';
+      if (msg.role === 'assistant') {
+        finalContent = sanitizeAndFenceOptions(finalContent);
+      }
+
       cleanedMessages.push({
         role: msg.role,
-        content: cleanContent || msg.content,
+        content: finalContent,
         created_at: msg.created_at,
       });
     }

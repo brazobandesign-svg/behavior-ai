@@ -146,7 +146,6 @@ const MODEL_TO_PROVIDER = {
   'qwen3.6-max-preview':            'alibaba',
   'qwen3.7-flash-2026-07-15':       'alibaba',
   'qwen3.7-flash':                  'alibaba',
-  'qwen3.8-flash':                  'alibaba',
   'qwen3.6-flash':                  'alibaba',
   'qwen3.5-flash':                  'alibaba',
   'qwen3.6-plus-2026-04-02':        'alibaba',

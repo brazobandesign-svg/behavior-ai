@@ -25,17 +25,32 @@ class GuidedCardData {
 /// hay bloque o el JSON aún está incompleto (streaming).
 GuidedCardData? parseGuidedCard(String content) {
   if (content.isEmpty) return null;
-  final re = RegExp(r'```exodo-options\r?\n?([\s\S]*?)(?:```|$)');
+  final re = RegExp(r'```(?:exodo-options|json)?\r?\n?([\s\S]*?)(?:```|$)');
   String? lastRaw;
   for (final m in re.allMatches(content)) {
-    lastRaw = m.group(1);
+    final body = m.group(1) ?? '';
+    if (body.contains('"question"') || body.contains('"pregunta"')) {
+      lastRaw = body;
+    }
+  }
+  // Tolerancia defensiva: si el modelo olvidó el fence pero el contenido tiene JSON de opciones
+  if (lastRaw == null) {
+    final rawJsonMatch = RegExp(r'\{[\s\S]*?"(?:question|pregunta)"[\s\S]*?"(?:options|opciones)"\s*:\s*\[[\s\S]*?\][\s\S]*?\}').firstMatch(content);
+    if (rawJsonMatch != null) {
+      lastRaw = rawJsonMatch.group(0);
+    } else {
+      final trimmed = content.trim();
+      if (trimmed.startsWith('{') && (trimmed.contains('"question"') || trimmed.contains('"pregunta"')) && (trimmed.contains('"options"') || trimmed.contains('"opciones"'))) {
+        lastRaw = trimmed;
+      }
+    }
   }
   if (lastRaw == null) return null;
   try {
     final parsed = jsonDecode(lastRaw.trim());
     if (parsed is! Map<String, dynamic>) return null;
-    final question = parsed['question'];
-    final optionsRaw = parsed['options'];
+    final question = parsed['question'] ?? parsed['pregunta'];
+    final optionsRaw = parsed['options'] ?? parsed['opciones'];
     if (question is! String || optionsRaw is! List) return null;
     final options = optionsRaw
         .whereType<String>()
@@ -62,7 +77,15 @@ GuidedCardData? parseGuidedCard(String content) {
 /// true si el mensaje del assistant es SOLO un bloque de opciones: su
 /// burbuja no se pinta (el formulario vive en el composer).
 bool isOptionsOnlyMessage(String content) {
-  return content.trimLeft().startsWith('```exodo-options');
+  final trimmed = content.trim();
+  if (trimmed.startsWith('```exodo-options')) return true;
+  if (trimmed.startsWith('```json') && (trimmed.contains('"question"') || trimmed.contains('"pregunta"')) && (trimmed.contains('"options"') || trimmed.contains('"opciones"'))) {
+    return true;
+  }
+  if (trimmed.startsWith('{') && (trimmed.contains('"question"') || trimmed.contains('"pregunta"')) && (trimmed.contains('"options"') || trimmed.contains('"opciones"'))) {
+    return true;
+  }
+  return false;
 }
 
 /// Tabla de textos de la tarjeta por idioma (paridad con guided.* del i18n).
